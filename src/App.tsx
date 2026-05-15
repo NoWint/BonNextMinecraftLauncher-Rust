@@ -8,13 +8,19 @@ import "./App.css";
 
 function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
-  const { fetchVersions, startGame, checkSession, logout, resetLaunchState, downloadJre } = useTauri(dispatch);
+  const { fetchVersions, startGame, checkSession, logout, resetLaunchState, downloadJre, loadConfig } = useTauri(dispatch);
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     checkSession();
     fetchVersions();
   }, [checkSession, fetchVersions]);
+
+  useEffect(() => {
+    if (state.auth.loggedIn) {
+      loadConfig();
+    }
+  }, [state.auth.loggedIn, loadConfig]);
 
   const handleLoginSuccess = (username: string, uuid: string) => {
     dispatch({ type: "SET_AUTH", payload: { username, uuid } });

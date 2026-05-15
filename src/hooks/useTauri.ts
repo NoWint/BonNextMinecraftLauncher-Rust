@@ -8,6 +8,15 @@ interface AuthPayload {
   uuid: string;
 }
 
+interface UserConfig {
+  java_path: string;
+  max_memory_mb: number;
+  extra_jvm_args: string[];
+  window_width: number;
+  window_height: number;
+  launch_behavior: string;
+}
+
 export function useTauri(dispatch: React.Dispatch<AppAction>) {
   const fetchVersions = useCallback(async () => {
     try {
@@ -16,6 +25,18 @@ export function useTauri(dispatch: React.Dispatch<AppAction>) {
     } catch (e) {
       console.error("Failed to fetch versions:", e);
       dispatch({ type: "SET_VERSIONS", payload: [] });
+    }
+  }, [dispatch]);
+
+  const loadConfig = useCallback(async () => {
+    try {
+      const config = await invoke<UserConfig>("get_config");
+      if (config.java_path) {
+        dispatch({ type: "SET_JAVA_PATH", payload: config.java_path });
+      }
+      dispatch({ type: "SET_MAX_MEMORY", payload: config.max_memory_mb });
+    } catch (e) {
+      console.error("Failed to load config:", e);
     }
   }, [dispatch]);
 
@@ -103,5 +124,5 @@ export function useTauri(dispatch: React.Dispatch<AppAction>) {
     }
   }, [dispatch]);
 
-  return { fetchVersions, startGame, checkSession, logout, resetLaunchState, downloadJre };
+  return { fetchVersions, startGame, checkSession, logout, resetLaunchState, downloadJre, loadConfig };
 }

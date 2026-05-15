@@ -28,7 +28,9 @@ pub struct VersionDetails {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Arguments {
+    #[serde(default)]
     pub game: Vec<serde_json::Value>,
+    #[serde(default)]
     pub jvm: Vec<serde_json::Value>,
 }
 
@@ -46,7 +48,7 @@ pub struct AssetIndex {
     pub id: String,
     pub sha1: String,
     pub size: u64,
-    #[serde(rename = "totalSize")]
+    #[serde(rename = "totalSize", default)]
     pub total_size: u64,
     pub url: String,
 }
@@ -248,16 +250,39 @@ impl ResolvedVersion {
 pub async fn fetch_version_details(
     version_url: &str,
 ) -> Result<VersionDetails, crate::error::LauncherError> {
-    let mirrored_url = mirror_url(version_url);
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()?;
-    let details: VersionDetails = client
-        .get(&mirrored_url)
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await?;
+
+    let mirrored_url = mirror_url(version_url);
+    tracing::info!("Fetching version details from: {}", mirrored_url);
+
+    match fetch_details_from(&client, &mirrored_url).await {
+        Ok(details) => Ok(details),
+        Err(e) => {
+            tracing::warn!("Mirror failed for version details: {}, trying original URL", e);
+            fetch_details_from(&client, version_url).await
+        }
+    }
+}
+
+async fn fetch_details_from(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<VersionDetails, crate::error::LauncherError> {
+    let resp = client.get(url).send().await?;
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(crate::error::LauncherError::Http(
+            reqwest::Error::from(resp.error_for_status_ref().unwrap_err()),
+        ));
+    }
+    let body = resp.text().await?;
+    if body.is_empty() {
+        return Err(crate::error::LauncherError::Other(
+            "Empty response from server".to_string(),
+        ));
+    }
+    let details: VersionDetails = serde_json::from_str(&body)?;
     Ok(details)
 }
