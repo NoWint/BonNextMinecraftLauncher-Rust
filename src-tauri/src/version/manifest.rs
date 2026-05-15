@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-pub const VERSION_MANIFEST_URL: &str =
-    "https://bmclapi2.bangbang93.com/mc/game/version_manifest.json";
+pub const VERSION_MANIFEST_URL_PRIMARY: &str =
+    "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 
-pub const VERSION_MANIFEST_URL_FALLBACK: &str =
-    "https://launchermeta.mojang.com/mc/game/version_manifest.json";
+pub const VERSION_MANIFEST_URL_MIRROR: &str =
+    "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VersionManifest {
@@ -30,11 +30,13 @@ pub struct VersionEntry {
 }
 
 pub fn mirror_url(url: &str) -> String {
-    if url.contains("launchermeta.mojang.com")
+    if url.contains("piston-meta.mojang.com")
+        || url.contains("launchermeta.mojang.com")
         || url.contains("launcher.mojang.com")
         || url.contains("piston-data.mojang.com")
     {
-        url.replace("https://launchermeta.mojang.com/", "https://bmclapi2.bangbang93.com/")
+        url.replace("https://piston-meta.mojang.com/", "https://bmclapi2.bangbang93.com/")
+            .replace("https://launchermeta.mojang.com/", "https://bmclapi2.bangbang93.com/")
             .replace("https://launcher.mojang.com/", "https://bmclapi2.bangbang93.com/")
             .replace("https://piston-data.mojang.com/", "https://bmclapi2.bangbang93.com/")
     } else if url.contains("libraries.minecraft.net") {
@@ -56,22 +58,41 @@ async fn fetch_manifest_from(url: &str) -> Result<VersionManifest, crate::error:
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
         .build()?;
-    let manifest: VersionManifest = client
-        .get(url)
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await?;
+    let resp = client.get(url).send().await?;
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(crate::error::LauncherError::Http(
+            reqwest::Error::from(resp.error_for_status_ref().unwrap_err()),
+        ));
+    }
+    let body = resp.text().await?;
+    if body.is_empty() {
+        return Err(crate::error::LauncherError::Other(
+            "Empty response from server".to_string(),
+        ));
+    }
+    let manifest: VersionManifest = serde_json::from_str(&body)?;
     Ok(manifest)
 }
 
 pub async fn fetch_version_manifest() -> Result<VersionManifest, crate::error::LauncherError> {
-    match fetch_manifest_from(VERSION_MANIFEST_URL).await {
-        Ok(manifest) => Ok(manifest),
+    match fetch_manifest_from(VERSION_MANIFEST_URL_PRIMARY).await {
+        Ok(manifest) => {
+            tracing::info!("Fetched version manifest from Mojang (primary)");
+            Ok(manifest)
+        }
         Err(e) => {
-            tracing::warn!("BMCLAPI mirror failed: {}, trying Mojang fallback", e);
-            fetch_manifest_from(VERSION_MANIFEST_URL_FALLBACK).await
+            tracing::warn!("Mojang primary failed: {}, trying BMCLAPI mirror", e);
+            match fetch_manifest_from(VERSION_MANIFEST_URL_MIRROR).await {
+                Ok(manifest) => {
+                    tracing::info!("Fetched version manifest from BMCLAPI mirror");
+                    Ok(manifest)
+                }
+                Err(e2) => {
+                    tracing::error!("Both sources failed. Mojang: {}, BMCLAPI: {}", e, e2);
+                    Err(e)
+                }
+            }
         }
     }
 }

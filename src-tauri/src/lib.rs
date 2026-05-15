@@ -252,6 +252,15 @@ async fn check_saved_session() -> Result<Option<SavedSessionData>, LauncherError
 #[tauri::command]
 async fn offline_login(username: String) -> Result<AuthResultPayload, LauncherError> {
     let uuid = uuid::Uuid::new_v4().to_string();
+    let session = auth::session::SavedSession {
+        refresh_token: String::new(),
+        username: username.clone(),
+        uuid: uuid.clone(),
+        expires_at: 0,
+    };
+    let session_path = paths::get_game_dir().join("session.json");
+    paths::ensure_dirs().ok();
+    auth::session::save_session(&session_path, &session)?;
     Ok(AuthResultPayload { username, uuid })
 }
 
