@@ -3,6 +3,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { AppAction, VersionEntry, LaunchState } from "../state/appReducer";
 
+interface AuthPayload {
+  username: string;
+  uuid: string;
+}
+
 export function useTauri(dispatch: React.Dispatch<AppAction>) {
   const fetchVersions = useCallback(async () => {
     try {
@@ -36,15 +41,46 @@ export function useTauri(dispatch: React.Dispatch<AppAction>) {
     []
   );
 
+  const checkSession = useCallback(async () => {
+    try {
+      const session = await invoke<AuthPayload | null>("check_saved_session");
+      if (session) {
+        dispatch({
+          type: "SET_AUTH",
+          payload: { username: session.username, uuid: session.uuid },
+        });
+      }
+    } catch (e) {
+      console.error("Failed to check session:", e);
+    }
+  }, [dispatch]);
+
   useEffect(() => {
-    const unlisten = listen<LaunchState>("launch-state", (event) => {
+    const unlistenLaunch = listen<LaunchState>("launch-state", (event) => {
       dispatch({ type: "SET_LAUNCH_STATE", payload: event.payload });
     });
 
+    const unlistenAuth = listen<AuthPayload>("auth-state", (event) => {
+      dispatch({
+        type: "SET_AUTH",
+        payload: { username: event.payload.username, uuid: event.payload.uuid },
+      });
+    });
+
     return () => {
-      unlisten.then((fn) => fn());
+      unlistenLaunch.then((fn) => fn());
+      unlistenAuth.then((fn) => fn());
     };
   }, [dispatch]);
 
-  return { fetchVersions, startGame };
+  const logout = useCallback(async () => {
+    try {
+      await invoke("logout");
+      dispatch({ type: "LOGOUT" });
+    } catch (e) {
+      console.error("Failed to logout:", e);
+    }
+  }, [dispatch]);
+
+  return { fetchVersions, startGame, checkSession, logout };
 }

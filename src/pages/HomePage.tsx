@@ -12,9 +12,18 @@ interface Props {
     uuid: string
   ) => void;
   onRefreshVersions: () => void;
+  onLogout: () => void;
+  onOpenSettings: () => void;
 }
 
-function HomePage({ state, dispatch, onStartGame, onRefreshVersions }: Props) {
+function HomePage({
+  state,
+  dispatch,
+  onStartGame,
+  onRefreshVersions,
+  onLogout,
+  onOpenSettings,
+}: Props) {
   const { versions, selectedVersion, launchState, auth, javaPath, maxMemory } =
     state;
   const isLaunching =
@@ -156,6 +165,15 @@ function HomePage({ state, dispatch, onStartGame, onRefreshVersions }: Props) {
           <p className="exited-text">游戏已退出</p>
         )}
       </main>
+
+      <footer className="home-footer">
+        <button className="footer-btn" onClick={onOpenSettings}>
+          ⚙ 设置
+        </button>
+        <button className="footer-btn" onClick={onLogout}>
+          登出
+        </button>
+      </footer>
     </div>
   );
 }
