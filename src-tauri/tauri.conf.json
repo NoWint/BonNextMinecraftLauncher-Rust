@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "bonnext-tmp",
+  "productName": "BonNext",
   "version": "0.1.0",
-  "identifier": "com.xiatian.bonnext-tmp",
+  "identifier": "com.bonnext.launcher",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -12,9 +12,12 @@
   "app": {
     "windows": [
       {
-        "title": "bonnext-tmp",
-        "width": 800,
-        "height": 600
+        "title": "BonNext",
+        "width": 900,
+        "height": 600,
+        "minWidth": 700,
+        "minHeight": 500,
+        "resizable": true
       }
     ],
     "security": {
