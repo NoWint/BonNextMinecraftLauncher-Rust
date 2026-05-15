@@ -8,7 +8,7 @@ import "./App.css";
 
 function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
-  const { fetchVersions, startGame, checkSession, logout } = useTauri(dispatch);
+  const { fetchVersions, startGame, checkSession, logout, resetLaunchState, downloadJre } = useTauri(dispatch);
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
@@ -54,6 +54,8 @@ function App() {
         onRefreshVersions={fetchVersions}
         onLogout={logout}
         onOpenSettings={() => setShowSettings(true)}
+        onResetState={resetLaunchState}
+        onDownloadJre={downloadJre}
       />
     </div>
   );
