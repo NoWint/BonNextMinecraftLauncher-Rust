@@ -1,6 +1,8 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 
+use super::manifest::mirror_url;
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct VersionDetails {
     #[serde(default)]
@@ -210,11 +212,15 @@ impl ResolvedVersion {
                             "natives-linux"
                         };
                         if let Some(artifact) = classifiers.get(native_key) {
-                            return Some(artifact.clone());
+                            let mut mirrored = artifact.clone();
+                            mirrored.url = mirror_url(&mirrored.url);
+                            return Some(mirrored);
                         }
                     }
                     if let Some(artifact) = &downloads.artifact {
-                        return Some(artifact.clone());
+                        let mut mirrored = artifact.clone();
+                        mirrored.url = mirror_url(&mirrored.url);
+                        return Some(mirrored);
                     }
                 }
                 None
@@ -224,10 +230,13 @@ impl ResolvedVersion {
         let jvm_args = resolve_arg_templates(&version.arguments.jvm, version);
         let game_args = resolve_arg_templates(&version.arguments.game, version);
 
+        let mut client_jar = version.downloads.client.clone();
+        client_jar.url = mirror_url(&client_jar.url);
+
         ResolvedVersion {
             id: version.id.clone(),
             main_class: version.main_class.clone(),
-            client_jar: version.downloads.client.clone(),
+            client_jar,
             asset_index: version.asset_index.clone(),
             libraries,
             jvm_args,
@@ -239,9 +248,12 @@ impl ResolvedVersion {
 pub async fn fetch_version_details(
     version_url: &str,
 ) -> Result<VersionDetails, crate::error::LauncherError> {
-    let client = reqwest::Client::new();
+    let mirrored_url = mirror_url(version_url);
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()?;
     let details: VersionDetails = client
-        .get(version_url)
+        .get(&mirrored_url)
         .send()
         .await?
         .error_for_status()?

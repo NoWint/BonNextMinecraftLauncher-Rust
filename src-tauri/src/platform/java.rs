@@ -27,6 +27,11 @@ pub fn find_java() -> Option<String> {
         }
     }
 
+    let bonnext_java = crate::platform::paths::get_game_dir().join("jre").join("bin").join("java");
+    if bonnext_java.exists() {
+        return Some(bonnext_java.to_string_lossy().to_string());
+    }
+
     None
 }
 
@@ -53,6 +58,11 @@ pub fn find_java() -> Option<String> {
         }
     }
 
+    let bonnext_java = crate::platform::paths::get_game_dir().join("jre").join("bin").join("java.exe");
+    if bonnext_java.exists() {
+        return Some(bonnext_java.to_string_lossy().to_string());
+    }
+
     None
 }
 
@@ -64,6 +74,12 @@ pub fn find_java() -> Option<String> {
             return Some(path.to_string());
         }
     }
+
+    let bonnext_java = crate::platform::paths::get_game_dir().join("jre").join("bin").join("java");
+    if bonnext_java.exists() {
+        return Some(bonnext_java.to_string_lossy().to_string());
+    }
+
     None
 }
 
@@ -91,4 +107,125 @@ pub fn auto_detect_and_set(config: &mut UserConfig) {
         tracing::info!("Auto-detected Java at: {}", found);
         config.java_path = found;
     }
+}
+
+pub async fn download_jre() -> Result<String, LauncherError> {
+    let jre_dir = crate::platform::paths::get_game_dir().join("jre");
+    if jre_dir.exists() {
+        #[cfg(target_os = "windows")]
+        let java_bin = jre_dir.join("bin").join("java.exe");
+        #[cfg(not(target_os = "windows"))]
+        let java_bin = jre_dir.join("bin").join("java");
+
+        if java_bin.exists() {
+            return Ok(java_bin.to_string_lossy().to_string());
+        }
+    }
+
+    let (url, file_name) = if cfg!(target_os = "macos") && cfg!(target_arch = "aarch64") {
+        ("https://mirrors.huaweicloud.com/openjdk/21.0.2/openjdk-21.0.2_macos-aarch64_bin.tar.gz", "jre.tar.gz")
+    } else if cfg!(target_os = "macos") {
+        ("https://mirrors.huaweicloud.com/openjdk/21.0.2/openjdk-21.0.2_macos-x64_bin.tar.gz", "jre.tar.gz")
+    } else if cfg!(target_os = "windows") && cfg!(target_arch = "x86_64") {
+        ("https://mirrors.huaweicloud.com/openjdk/21.0.2/openjdk-21.0.2_windows-x64_bin.zip", "jre.zip")
+    } else if cfg!(target_os = "linux") && cfg!(target_arch = "x86_64") {
+        ("https://mirrors.huaweicloud.com/openjdk/21.0.2/openjdk-21.0.2_linux-x64_bin.tar.gz", "jre.tar.gz")
+    } else {
+        return Err(LauncherError::Other("Unsupported platform for JRE download".to_string()));
+    };
+
+    tracing::info!("Downloading JRE from: {}", url);
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(300))
+        .build()?;
+
+    let response = client.get(url).send().await?.error_for_status()?;
+
+    let tmp_dir = std::env::temp_dir().join("bonnext-jre-download");
+    std::fs::create_dir_all(&tmp_dir)?;
+    let archive_path = tmp_dir.join(file_name);
+
+    let mut file = tokio::fs::File::create(&archive_path).await?;
+    let mut stream = response.bytes_stream();
+    use futures_util::StreamExt;
+    use tokio::io::AsyncWriteExt;
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        file.write_all(&chunk).await?;
+    }
+
+    tracing::info!("JRE downloaded, extracting...");
+
+    let game_dir = crate::platform::paths::get_game_dir();
+    std::fs::create_dir_all(game_dir.join("jre"))?;
+
+    if cfg!(target_os = "windows") {
+        let status = std::process::Command::new("powershell")
+            .args([
+                "-Command",
+                &format!(
+                    "Expand-Archive -Path '{}' -DestinationPath '{}' -Force",
+                    archive_path.display(),
+                    game_dir.join("jre").display()
+                ),
+            ])
+            .status()?;
+        if !status.success() {
+            return Err(LauncherError::Other("Failed to extract JRE archive".to_string()));
+        }
+    } else {
+        let status = std::process::Command::new("tar")
+            .args([
+                "-xzf",
+                &archive_path.to_string_lossy(),
+                "-C",
+                &game_dir.join("jre").to_string_lossy(),
+            ])
+            .status()?;
+        if !status.success() {
+            return Err(LauncherError::Other("Failed to extract JRE archive".to_string()));
+        }
+    }
+
+    let _ = std::fs::remove_file(&archive_path);
+
+    #[cfg(target_os = "macos")]
+    let java_bin = game_dir.join("jre").join("jdk-21.0.2+13").join("bin").join("java");
+    #[cfg(target_os = "linux")]
+    let java_bin = game_dir.join("jre").join("jdk-21.0.2+13").join("bin").join("java");
+    #[cfg(target_os = "windows")]
+    let java_bin = game_dir.join("jre").join("jdk-21.0.2+13").join("bin").join("java.exe");
+
+    // Try to find the java binary in the extracted directory
+    fn find_java_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    let name = path.file_name()?.to_string_lossy();
+                    if name.starts_with("jdk") {
+                        #[cfg(target_os = "windows")]
+                        let java = path.join("bin").join("java.exe");
+                        #[cfg(not(target_os = "windows"))]
+                        let java = path.join("bin").join("java");
+                        if java.exists() {
+                            return Some(java);
+                        }
+                    }
+                    if let Some(found) = find_java_in_dir(&path) {
+                        return Some(found);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    if let Some(found) = find_java_in_dir(&game_dir.join("jre")) {
+        tracing::info!("JRE installed at: {}", found.display());
+        return Ok(found.to_string_lossy().to_string());
+    }
+
+    Err(LauncherError::Other("Could not find java binary after extraction".to_string()))
 }

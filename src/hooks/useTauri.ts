@@ -15,6 +15,7 @@ export function useTauri(dispatch: React.Dispatch<AppAction>) {
       dispatch({ type: "SET_VERSIONS", payload: versions });
     } catch (e) {
       console.error("Failed to fetch versions:", e);
+      dispatch({ type: "SET_VERSIONS", payload: [] });
     }
   }, [dispatch]);
 
@@ -55,6 +56,15 @@ export function useTauri(dispatch: React.Dispatch<AppAction>) {
     }
   }, [dispatch]);
 
+  const resetLaunchState = useCallback(async () => {
+    try {
+      await invoke("reset_launch_state");
+      dispatch({ type: "SET_LAUNCH_STATE", payload: { state: "Idle" } });
+    } catch (e) {
+      console.error("Failed to reset state:", e);
+    }
+  }, [dispatch]);
+
   useEffect(() => {
     const unlistenLaunch = listen<LaunchState>("launch-state", (event) => {
       dispatch({ type: "SET_LAUNCH_STATE", payload: event.payload });
@@ -82,5 +92,16 @@ export function useTauri(dispatch: React.Dispatch<AppAction>) {
     }
   }, [dispatch]);
 
-  return { fetchVersions, startGame, checkSession, logout };
+  const downloadJre = useCallback(async (): Promise<string | null> => {
+    try {
+      const path = await invoke<string>("download_jre");
+      dispatch({ type: "SET_JAVA_PATH", payload: path });
+      return path;
+    } catch (e) {
+      console.error("Failed to download JRE:", e);
+      return null;
+    }
+  }, [dispatch]);
+
+  return { fetchVersions, startGame, checkSession, logout, resetLaunchState, downloadJre };
 }
