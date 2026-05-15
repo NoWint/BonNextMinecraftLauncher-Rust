@@ -1,8 +1,10 @@
+mod auth;
+mod config;
+mod download;
 mod error;
+mod launch;
 mod platform;
 mod version;
-mod download;
-mod launch;
 
 use error::LauncherError;
 use launch::args::{build_launch_command, LaunchConfig};
@@ -16,6 +18,18 @@ use version::resolver::{fetch_version_details, ResolvedVersion};
 
 struct AppState {
     launch_state: Mutex<LaunchState>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct AuthResultPayload {
+    username: String,
+    uuid: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct SavedSessionData {
+    username: String,
+    uuid: String,
 }
 
 #[tauri::command]
@@ -111,13 +125,16 @@ async fn start_game(
                 current_file: String::new(),
             };
         }
-        let _ = app.emit("launch-state", LaunchState::Downloading {
-            total_files,
-            completed_files: 0,
-            total_bytes,
-            downloaded_bytes: 0,
-            current_file: String::new(),
-        });
+        let _ = app.emit(
+            "launch-state",
+            LaunchState::Downloading {
+                total_files,
+                completed_files: 0,
+                total_bytes,
+                downloaded_bytes: 0,
+                current_file: String::new(),
+            },
+        );
 
         download::queue::download_all(download_items, 8).await?;
 
@@ -166,8 +183,76 @@ async fn get_launch_state(
     Ok(current.clone())
 }
 
+#[tauri::command]
+async fn microsoft_login(
+    app: tauri::AppHandle,
+) -> Result<AuthResultPayload, LauncherError> {
+    let result = auth::microsoft::perform_full_auth().await?;
+
+    let session = auth::session::SavedSession::from_auth_result(&result);
+    let session_path = paths::get_game_dir().join("session.json");
+    auth::session::save_session(&session_path, &session)?;
+
+    let payload = AuthResultPayload {
+        username: result.username.clone(),
+        uuid: result.uuid.clone(),
+    };
+
+    let _ = app.emit("auth-state", &payload);
+    Ok(payload)
+}
+
+#[tauri::command]
+async fn check_saved_session() -> Result<Option<SavedSessionData>, LauncherError> {
+    let session_path = paths::get_game_dir().join("session.json");
+    let session = auth::session::load_session(&session_path)?;
+    Ok(session.map(|s| SavedSessionData {
+        username: s.username,
+        uuid: s.uuid,
+    }))
+}
+
+#[tauri::command]
+async fn offline_login(username: String) -> Result<AuthResultPayload, LauncherError> {
+    let uuid = uuid::Uuid::new_v4().to_string();
+    Ok(AuthResultPayload { username, uuid })
+}
+
+#[tauri::command]
+async fn logout() -> Result<(), LauncherError> {
+    let session_path = paths::get_game_dir().join("session.json");
+    let _ = auth::session::delete_session(&session_path);
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_config() -> Result<config::UserConfig, LauncherError> {
+    let mut config = config::load_config()?;
+    platform::java::auto_detect_and_set(&mut config);
+    if config.java_path != "java" {
+        let _ = config::save_config(&config);
+    }
+    Ok(config)
+}
+
+#[tauri::command]
+async fn save_config(config: config::UserConfig) -> Result<(), LauncherError> {
+    config::save_config(&config)
+}
+
+#[tauri::command]
+async fn auto_detect_java() -> Result<String, LauncherError> {
+    match platform::java::find_java() {
+        Some(path) => Ok(path),
+        None => Err(LauncherError::JavaNotFound),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    platform::logger::init_logger();
+    tracing::info!("BonNext launcher starting");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
@@ -177,6 +262,13 @@ pub fn run() {
             get_versions,
             start_game,
             get_launch_state,
+            microsoft_login,
+            check_saved_session,
+            offline_login,
+            logout,
+            get_config,
+            save_config,
+            auto_detect_java,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
