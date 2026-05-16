@@ -11,6 +11,15 @@ import { CardSkeleton } from '../components/ui/Skeleton';
 import { relativeTime } from '../utils/time';
 import styles from './HomePage.module.css';
 
+const BANNER_SLIDES = [
+  { label: 'Featured', title: 'Minecraft 1.21 Tricky Trials', desc: 'Explore trial chambers, battle the breeze, and craft with new copper blocks.', theme: 1 },
+  { label: 'Performance', title: 'Sodium 0.7 Released', desc: 'Up to 40% FPS improvement. Now on Fabric, Quilt, and NeoForge.', theme: 2 },
+  { label: 'Community', title: 'Create Mod 6.0', desc: 'Mechanical marvels expanded. New logistics, trains, and contraptions.', theme: 3 },
+  { label: 'BonNext', title: 'One Click to Play', desc: 'Auto-detect Java, best version, optimal settings. Zero config needed.', theme: 4 },
+  { label: 'Technology', title: 'VulkanMod for Minecraft', desc: 'Native Vulkan rendering. Smoother frametimes on modern GPUs.', theme: 5 },
+  { label: 'Updates', title: 'Fabric 1.0 Milestone', desc: 'Stable API, better mod compat, 30% faster loader.', theme: 6 },
+];
+
 const NEWS_ITEMS = [
   'Minecraft Live 2026 . New biome & mob reveal',
   'Sodium 0.7 released . Up to 40% FPS improvement',
@@ -272,6 +281,7 @@ export default function HomePage() {
   const [javaVersion, setJavaVersion] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [newsIndex, setNewsIndex] = useState(0);
+  const [bannerIndex, setBannerIndex] = useState(0);
   const [readyStates, setReadyStates] = useState<Record<string, boolean | null>>({});
   const activeInstance = instances.length > 0 ? instances[0] : null;
   const isBusy = launchState !== 'idle' && launchState !== 'exited' && launchState !== 'crashed' && launchState !== 'error';
@@ -308,6 +318,12 @@ export default function HomePage() {
   // Rotate news items
   useEffect(() => {
     const timer = setInterval(() => setNewsIndex((i) => (i + 1) % NEWS_ITEMS.length), 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Rotate banner carousel
+  useEffect(() => {
+    const timer = setInterval(() => setBannerIndex((i) => (i + 1) % BANNER_SLIDES.length), 6000);
     return () => clearInterval(timer);
   }, []);
 
@@ -362,6 +378,29 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* Banner carousel */}
+      <div className={styles.bannerCarousel}>
+        <div className={styles.bannerTrack} style={{ transform: `translateX(-${bannerIndex * 100}%)` }}>
+          {BANNER_SLIDES.map((slide, i) => (
+            <div key={i} className={`${styles.bannerSlide} ${styles[`bannerSlide--${slide.theme}`]}`}>
+              <div className={styles.bannerAccent} />
+              <div className={styles.bannerContent}>
+                <div className={styles.bannerLabel}>{slide.label}</div>
+                <div className={styles.bannerTitle}>{slide.title}</div>
+                <div className={styles.bannerDesc}>{slide.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className={styles.bannerDots}>
+          {BANNER_SLIDES.map((_, i) => (
+            <button key={i} className={`${styles.bannerDot} ${i === bannerIndex ? styles['bannerDot--active'] : ''}`} onClick={() => setBannerIndex(i)} />
+          ))}
+        </div>
+        <button className={`${styles.bannerArrow} ${styles['bannerArrow--left']}`} onClick={() => setBannerIndex((i) => (i - 1 + BANNER_SLIDES.length) % BANNER_SLIDES.length)}>◀</button>
+        <button className={`${styles.bannerArrow} ${styles['bannerArrow--right']}`} onClick={() => setBannerIndex((i) => (i + 1) % BANNER_SLIDES.length)}>▶</button>
+      </div>
 
       {/* Download overlay */}
       {downloadProgress && !downloadProgress.finished && (
