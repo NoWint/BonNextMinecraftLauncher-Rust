@@ -1,330 +1,350 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api, type GameInstance } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useInstances } from '../stores/instanceStore';
 import { useToast } from '../stores/toastStore';
-import { useI18n } from '../i18n';
-import { SectionHeader } from '../components/layout';
-import { Badge, Modal, TextInput, Select, Breadcrumb as BreadcrumbComp, Tooltip } from '../components/ui';
-import { Button } from '../components/ui';
-import { relativeTime } from '../utils/time';
+import { Badge, Modal, TextInput, Button } from '../components/ui';
 import styles from './InstancesPage.module.css';
 
-function getLoaderIcon(loaderType: string | null): string {
-  switch (loaderType) {
-    case 'fabric': return '\u{1F9F5}';
-    case 'forge': return '\u{2692}';
-    default: return '\u{1F4E6}';
-  }
+function getLoaderIcon(loader: string | null): string {
+  switch (loader) { case 'fabric': return '🧵'; case 'forge': return '⚒'; default: return '📦'; }
 }
 
-function getLoaderLabel(loaderType: string | null): string {
-  switch (loaderType) {
-    case 'fabric': return 'Fabric';
-    case 'forge': return 'Forge';
-    default: return 'Vanilla';
-  }
+function getLoaderLabel(loader: string | null): string {
+  switch (loader) { case 'fabric': return 'Fabric'; case 'forge': return 'Forge'; default: return 'Vanilla'; }
+}
+
+function getLoaderClass(loader: string | null): string {
+  return loader === 'fabric' ? 'fabric' : loader === 'forge' ? 'forge' : 'vanilla';
+}
+
+function relativeTime(dateStr: string | null): string {
+  if (!dateStr) return 'Never played';
+  const d = new Date(dateStr);
+  const now = Date.now();
+  const diff = now - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString();
 }
 
 function formatPlaytime(seconds: number): string {
-  if (seconds < 60) return '< 1m played';
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m played`;
-  return `${(seconds / 3600).toFixed(1)} hrs played`;
+  if (seconds < 60) return '< 1m';
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+  return `${(seconds / 3600).toFixed(1)}h`;
 }
+
+type SortKey = 'recent' | 'name' | 'playtime' | 'version';
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'recent', label: 'Recent' },
+  { key: 'name', label: 'A–Z' },
+  { key: 'playtime', label: 'Most Played' },
+  { key: 'version', label: 'Version' },
+];
 
 export default function InstancesPage() {
   const { state: authState } = useAuth();
   const { state, deleteInstance, reloadInstances } = useInstances();
   const { addToast } = useToast();
-  const { t } = useI18n();
   const auth = authState.currentUser;
   const { instances } = state;
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [versionFilter, setVersionFilter] = useState('all');
-  const [loaderFilter, setLoaderFilter] = useState('all');
+  const [sortKey, setSortKey] = useState<SortKey>('recent');
   const [readyStates, setReadyStates] = useState<Record<string, boolean | null>>({});
-  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
-  const [duplicateName, setDuplicateName] = useState('');
-  const [exportingId, setExportingId] = useState<string | null>(null);
-  const [viewMode] = useState<'list' | 'grid'>('grid');
+  const [confirmDelete, setConfirmDelete] = useState<GameInstance | null>(null);
+  const [error, setError] = useState('');
+  const [duplicating, setDuplicating] = useState<GameInstance | null>(null);
+  const [dupName, setDupName] = useState('');
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; inst: GameInstance } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  // Check ready states
   useEffect(() => {
     const checkAll = async () => {
       const states: Record<string, boolean | null> = {};
       for (const inst of instances) {
-        try {
-          states[inst.id] = await api.checkInstanceReady(inst.id);
-        } catch {
-          states[inst.id] = null;
-        }
+        try { states[inst.id] = await api.checkInstanceReady(inst.id); }
+        catch { states[inst.id] = null; }
       }
       setReadyStates(states);
     };
     if (instances.length > 0) checkAll();
   }, [instances]);
 
-  const handleLaunch = useCallback(async (instance: GameInstance) => {
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [contextMenu]);
+
+  const handleLaunch = useCallback(async (inst: GameInstance) => {
     setError('');
     try {
       await api.launchGame(
-        instance.version_id, instance.version_url,
+        inst.version_id, inst.version_url,
         auth?.username || 'Player', auth?.uuid || '',
-        auth?.access_token || '', instance.max_memory, instance.min_memory,
-        instance.java_path || undefined, instance.jvm_args || undefined,
+        auth?.access_token || '', inst.max_memory, inst.min_memory,
+        inst.java_path || undefined, inst.jvm_args || undefined,
       );
-      addToast({ type: 'success', title: 'Launching', message: `${instance.name} is starting...` });
+      addToast({ type: 'success', title: 'Launching', message: `${inst.name} is starting...` });
     } catch (e: any) {
       setError(e?.toString() || 'Launch failed');
-      addToast({ type: 'error', title: 'Launch failed', message: e?.toString() || 'Launch failed' });
-      setTimeout(() => setError(''), 8000);
+      addToast({ type: 'error', title: 'Launch failed', message: e?.toString() || '' });
     }
   }, [auth, addToast]);
 
-  const handleDuplicate = useCallback(async (inst: GameInstance) => {
-    setDuplicatingId(inst.id);
-    setDuplicateName(`${inst.name} (Copy)`);
-  }, []);
-
-  const confirmDuplicate = useCallback(async () => {
-    if (!duplicatingId || !duplicateName.trim()) return;
+  const handleDuplicate = useCallback(async () => {
+    if (!duplicating || !dupName.trim()) return;
     try {
-      await api.duplicateInstance(duplicatingId, duplicateName.trim());
-      addToast({ type: 'success', title: 'Duplicated', message: `Instance "${duplicateName}" created` });
+      await api.duplicateInstance(duplicating.id, dupName.trim());
+      addToast({ type: 'success', title: 'Duplicated', message: `"${dupName}" created` });
       await reloadInstances();
     } catch (e: any) {
-      addToast({ type: 'error', title: 'Duplicate failed', message: e?.toString() || 'Failed to duplicate' });
+      addToast({ type: 'error', title: 'Failed', message: e?.toString() || '' });
     } finally {
-      setDuplicatingId(null);
-      setDuplicateName('');
+      setDuplicating(null); setDupName('');
     }
-  }, [duplicatingId, duplicateName, reloadInstances, addToast]);
+  }, [duplicating, dupName, reloadInstances, addToast]);
 
-  const handleExport = useCallback(async (inst: GameInstance) => {
-    setExportingId(inst.id);
-    try {
-      // Use a friendly filename
-      const defaultName = `${inst.name.replace(/[^a-zA-Z0-9_-]/g, '_')}_${inst.version_id}.zip`;
-      // Build output path in game dir root
-      const gameDir = await api.getGameDir();
-      const outputPath = `${gameDir}/${defaultName}`;
-      await api.exportInstance(inst.id, outputPath);
-      addToast({ type: 'success', title: 'Exported', message: `Saved to ${defaultName}` });
-    } catch (e: any) {
-      addToast({ type: 'error', title: 'Export failed', message: e?.toString() || 'Failed to export' });
-    } finally {
-      setExportingId(null);
-    }
-  }, [addToast]);
+  const handleContextMenu = (e: React.MouseEvent, inst: GameInstance) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, inst });
+  };
 
   const filtered = instances
     .filter((inst) => !search || inst.name.toLowerCase().includes(search.toLowerCase()))
-    .filter((inst) => versionFilter === 'all' || inst.version_id === versionFilter)
-    .filter((inst) => loaderFilter === 'all' || inst.loader_type === loaderFilter);
+    .sort((a, b) => {
+      switch (sortKey) {
+        case 'recent':
+          const aTime = a.last_played ? new Date(a.last_played).getTime() : 0;
+          const bTime = b.last_played ? new Date(b.last_played).getTime() : 0;
+          return bTime - aTime;
+        case 'name': return a.name.localeCompare(b.name);
+        case 'playtime': return b.playtime_seconds - a.playtime_seconds;
+        case 'version': return b.version_id.localeCompare(a.version_id);
+        default: return 0;
+      }
+    });
 
-  const uniqueVersions = [...new Set(instances.map((i) => i.version_id))];
-  const uniqueLoaders = [...new Set(instances.filter((i) => i.loader_type).map((i) => i.loader_type!))];
-  const totalSize = instances.reduce((sum, i) => sum + i.max_memory, 0);
-
-  const renderGridCard = (inst: GameInstance, i: number) => {
-    const isReady = readyStates[inst.id] ?? null;
-    const loader = inst.loader_type || 'vanilla';
-    const coverClass = styles[`cardCover--${loader}`] || styles['cardCover--vanilla'];
-    return (
-      <div key={inst.id} className={styles.libraryCard} style={{ animationDelay: `${i * 50}ms` }}>
-        <div className={`${styles.cardCover} ${coverClass}`}>
-          <div className={styles.cardCoverIcon}>{getLoaderIcon(inst.loader_type)}</div>
-          <div className={styles.cardPlayOverlay}>
-            <button className={styles.cardPlayBtn} onClick={(e) => { e.stopPropagation(); handleLaunch(inst); }} />
-          </div>
-          <div style={{
-            position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: '50%',
-            background: isReady === true ? '#4CAF50' : isReady === false ? '#FF9800' : '#444',
-            boxShadow: `0 0 6px ${isReady === true ? '#4CAF50' : isReady === false ? '#FF9800' : 'transparent'}`,
-          }} />
-        </div>
-        <div className={styles.cardBody}>
-          <div className={styles.cardTitleRow}>
-            <span className={styles.cardTitle}>{inst.name}</span>
-            <Badge variant="accent">{inst.version_id}</Badge>
-          </div>
-          {inst.loader_type && (
-            <div style={{ display: 'flex', gap: 4 }}>
-              <Badge variant="muted">{inst.loader_type}{inst.loader_version ? ` ${inst.loader_version}` : ''}</Badge>
-            </div>
-          )}
-          <div className={styles.cardMeta}>
-            <span>{relativeTime(inst.last_played)}</span><span className={styles.cardMetaSep} />
-            <span>{formatPlaytime(inst.playtime_seconds)}</span><span className={styles.cardMetaSep} />
-            <span className={isReady === true ? styles['cardStatus--ready'] : isReady === false ? styles['cardStatus--download'] : styles['cardStatus--unknown']}>{isReady === null ? '...' : isReady ? 'Ready' : 'Download'}</span>
-          </div>
-          <div className={styles.cardActionRow}>
-            <Button variant="primary" size="sm" onClick={() => handleLaunch(inst)}>▶ Play</Button>
-            <Button variant="icon" onClick={() => window.location.hash = `#/instances/${inst.id}`}>⚙</Button>
-            <Button variant="icon" onClick={() => handleDuplicate(inst)}>📋</Button>
-            <Button variant="icon" onClick={() => setConfirmDelete(inst.id)}>🗑</Button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderListView = () => (
-    <div className={`${styles.list} stagger-children`}>
-      {filtered.map((inst, i) => {
-        const isReady = readyStates[inst.id] ?? null;
-        return (
-          <div key={inst.id} className={`${styles.card} ${i === 0 ? styles.cardFirst : styles.cardDefault}`}>
-            {i === 0 && <div className={styles.cardAccent} />}
-            <Tooltip content={`${getLoaderLabel(inst.loader_type)}${inst.loader_version ? ` ${inst.loader_version}` : ''}`}>
-              <div className={`${styles.cardIcon} ${i === 0 ? styles.cardIconFirst : styles.cardIconDefault}`}>{getLoaderIcon(inst.loader_type)}</div>
-            </Tooltip>
-            <div className={styles.cardInfo}>
-              <div className={styles.cardNameRow}>
-                <span className={`${styles.cardName} ${i === 0 ? styles.cardNameFirst : styles.cardNameDefault}`}>{inst.name}</span>
-                <Badge variant="accent">{inst.version_id}</Badge>
-                {inst.loader_type && <Badge variant="muted">{inst.loader_type}</Badge>}
-              </div>
-              <div className={styles.cardMeta}>
-                <span>Last played: {relativeTime(inst.last_played)}</span><span className={styles.cardMetaSep}>.</span>
-                <span>{formatPlaytime(inst.playtime_seconds)}</span><span className={styles.cardMetaSep}>.</span>
-                <span className={isReady === true ? styles.readyStatus : isReady === false ? styles.needsDownloadStatus : styles.unknownStatus}>{isReady === null ? 'Checking...' : isReady ? 'Ready' : 'Download'}</span>
-              </div>
-            </div>
-            <div className={styles.cardActions}>
-              <Button variant="primary" size="sm" onClick={() => handleLaunch(inst)}>▶ Launch</Button>
-              <Button variant="icon" onClick={() => window.location.hash = `#/instances/${inst.id}`}>⚙</Button>
-              <Button variant="icon" onClick={() => handleDuplicate(inst)}>📋</Button>
-              <Button variant="icon" onClick={() => handleExport(inst)} disabled={exportingId === inst.id}>{exportingId === inst.id ? '⏳' : '📤'}</Button>
-              <Button variant="icon" onClick={() => setConfirmDelete(inst.id)}>🗑</Button>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
+  const heroInstance = filtered.length > 0 ? filtered[0] : null;
+  const loaderClass = getLoaderClass(heroInstance?.loader_type ?? null);
+  const isHeroReady = heroInstance ? readyStates[heroInstance.id] : null;
 
   return (
     <div className={`page-enter ${styles.page}`}>
-      <BreadcrumbComp
-        items={[
-          { label: t('instances.title'), href: '#/instances' },
-          { label: t('instances.allInstances') },
-        ]}
-      />
 
-      {/* Header */}
-      <div className={styles.header}>
-        <div>
-          <SectionHeader
-            title={t('instances.allInstances').toUpperCase()}
-            subtitle={`${instances.length} ${t('home.instances')} · ${(totalSize / 1024).toFixed(1)} ${t('common.unit.gb')}`}
-          />
+      {/* ---- Hero Banner ---- */}
+      {heroInstance && (
+        <div
+          className={styles.hero}
+          onClick={() => handleLaunch(heroInstance)}
+          onContextMenu={(e) => handleContextMenu(e, heroInstance)}
+        >
+          <div className={`${styles.hero__bg} ${styles[`hero__bg--${loaderClass}`]}`} />
+          <div className={styles.hero__decor} />
+
+          <div className={styles.hero__content}>
+            <div className={`${styles.hero__icon} ${styles[`hero__icon--${loaderClass}`]}`}>
+              {getLoaderIcon(heroInstance.loader_type)}
+            </div>
+
+            <div className={styles.hero__info}>
+              <div className={styles.hero__label}>
+                {heroInstance.last_played ? 'LAST PLAYED' : 'READY TO PLAY'}
+              </div>
+              <h1 className={styles.hero__name}>{heroInstance.name}</h1>
+              <div className={styles.hero__meta}>
+                <span className={styles.hero__metaItem}>
+                  <span className={`${styles.hero__metaDot} ${isHeroReady === true ? styles['hero__metaDot--ready'] : isHeroReady === false ? styles['hero__metaDot--download'] : styles['hero__metaDot--unknown']}`} />
+                  {isHeroReady === null ? 'Checking...' : isHeroReady ? 'Ready' : 'Needs download'}
+                </span>
+                <span className={styles.hero__metaItem}>
+                  <Badge variant="accent">{heroInstance.version_id}</Badge>
+                </span>
+                {heroInstance.loader_type && (
+                  <span className={styles.hero__metaItem}>
+                    <Badge variant="muted">{getLoaderLabel(heroInstance.loader_type)}{heroInstance.loader_version ? ` ${heroInstance.loader_version}` : ''}</Badge>
+                  </span>
+                )}
+                <span className={styles.hero__metaItem}>
+                  {Math.round(heroInstance.max_memory / 1024)}GB
+                </span>
+                <span className={styles.hero__metaItem}>
+                  {formatPlaytime(heroInstance.playtime_seconds)} played
+                </span>
+              </div>
+            </div>
+
+            <div className={styles.hero__actions}>
+              <button className={styles.hero__playBtn} title="Play">▶</button>
+              <button className={styles.hero__contextBtn} onClick={(e) => { e.stopPropagation(); window.location.hash = `#/instances/${heroInstance.id}`; }}>
+                ⚙ Details
+              </button>
+            </div>
+          </div>
         </div>
-        <div className={styles.actions}>
-          <Button variant="secondary" size="sm" onClick={() => window.location.hash = '#/instances/new'}>
-            + {t('instances.create')}
+      )}
+
+      {/* ---- Header bar ---- */}
+      <div className={styles.headerBar}>
+        <div className={styles.headerBar__left}>
+          <span className={styles.headerBar__title}>ALL INSTANCES</span>
+          <span className={styles.headerBar__count}>{instances.length} total</span>
+        </div>
+        <div className={styles.headerBar__right}>
+          <TextInput
+            placeholder="Filter..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <Button variant="primary" size="sm" onClick={() => window.location.hash = '#/instances/new'}>
+            + New
           </Button>
         </div>
       </div>
 
-      {/* Filter bar */}
-      <div className={styles.filterBar}>
-        <div className={styles.filterSearch}>
-          <TextInput
-            placeholder={t('instances.search')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <div className={styles.filterSelect}>
-          <Select
-            value={versionFilter}
-            onChange={(e) => setVersionFilter(e.target.value)}
-            options={[
-              { value: 'all', label: t('instances.filterVersion') },
-              ...uniqueVersions.map((v) => ({ value: v, label: v })),
-            ]}
-          />
-        </div>
-        <div className={styles.filterSelect}>
-          <Select
-            value={loaderFilter}
-            onChange={(e) => setLoaderFilter(e.target.value)}
-            options={[
-              { value: 'all', label: t('instances.filterLoader') },
-              { value: '', label: t('common.vanilla') },
-              ...uniqueLoaders.map((l) => ({ value: l, label: l })),
-            ]}
-          />
-        </div>
+      {/* ---- Sort pills ---- */}
+      <div className={styles.sortRow}>
+        {SORT_OPTIONS.map((opt) => (
+          <button
+            key={opt.key}
+            className={`${styles.sortPill} ${sortKey === opt.key ? styles['sortPill--active'] : ''}`}
+            onClick={() => setSortKey(opt.key)}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       {error && <div className={styles.error}>{error}</div>}
 
-      {/* Instance cards */}
+      {/* ---- Library Grid ---- */}
       {instances.length === 0 ? (
         <div className={styles.emptyState}>
-          <div className={styles.emptyBar} />
-          <div className={styles.emptyTitle}>{t('instances.noInstances')}</div>
-          <div className={styles.emptyDesc}>{t('instances.noInstancesDesc')}</div>
+          <div className={styles.emptyState__icon}>📦</div>
+          <div className={styles.emptyState__title}>NO INSTANCES YET</div>
+          <div className={styles.emptyState__desc}>
+            Create your first Minecraft instance to get started. Each instance has its own mods, worlds, and settings.
+          </div>
           <Button variant="primary" size="md" onClick={() => window.location.hash = '#/instances/new'}>
-            + {t('instances.create')}
+            + Create instance
           </Button>
         </div>
       ) : filtered.length === 0 ? (
-        <div className={styles.noMatch}>{t('instances.noMatch')}</div>
-      ) : viewMode === 'grid' ? (
-        <div className={styles.libraryGrid}>
-          {filtered.map((inst, i) => renderGridCard(inst, i))}
-        </div>
+        <div className={styles.noMatch}>No instances match your filter.</div>
       ) : (
-        renderListView()
+        <div className={styles.libraryGrid}>
+          {filtered.map((inst, i) => {
+            const ldrClass = getLoaderClass(inst.loader_type);
+            const isReady = readyStates[inst.id] ?? null;
+            const coverClass = styles[`coverCard__cover--${ldrClass}`] || styles['coverCard__cover--vanilla'];
+
+            return (
+              <div
+                key={inst.id}
+                className={styles.coverCard}
+                style={{ animationDelay: `${i * 40}ms` }}
+                onClick={() => handleLaunch(inst)}
+                onContextMenu={(e) => handleContextMenu(e, inst)}
+              >
+                <div className={`${styles.coverCard__cover} ${coverClass}`}>
+                  <div className={styles.coverCard__coverPattern} />
+                  <div className={styles.coverCard__overlay}>
+                    <div className={styles.coverCard__playCircle}>▶</div>
+                  </div>
+                  <div className={`${styles.coverCard__statusDot} ${isReady === true ? styles['coverCard__statusDot--ready'] : isReady === false ? styles['coverCard__statusDot--download'] : styles['coverCard__statusDot--unknown']}`} />
+                  {getLoaderIcon(inst.loader_type)}
+                </div>
+                <div className={styles.coverCard__body}>
+                  <div className={styles.coverCard__title}>{inst.name}</div>
+                  <div className={styles.coverCard__version}>{inst.version_id}</div>
+                  <div className={styles.coverCard__meta}>
+                    {inst.loader_type && (
+                      <span className={styles.coverCard__loaderTag}>{getLoaderLabel(inst.loader_type)}</span>
+                    )}
+                    <span className={styles.coverCard__playtime}>
+                      {formatPlaytime(inst.playtime_seconds)}
+                    </span>
+                    <span className={styles.coverCard__playtime}>
+                      {relativeTime(inst.last_played)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
-      {/* Delete confirmation modal */}
+
+      {/* ---- Context menu ---- */}
+      {contextMenu && (
+        <div
+          ref={menuRef}
+          className={styles.contextMenu}
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <button className={styles.contextMenu__item} onClick={() => { handleLaunch(contextMenu.inst); setContextMenu(null); }}>
+            ▶ Play
+          </button>
+          <button className={styles.contextMenu__item} onClick={() => { window.location.hash = `#/instances/${contextMenu.inst.id}`; setContextMenu(null); }}>
+            ⚙ Details
+          </button>
+          <div className={styles.contextMenu__separator} />
+          <button className={styles.contextMenu__item} onClick={() => { setDuplicating(contextMenu.inst); setDupName(`${contextMenu.inst.name} (Copy)`); setContextMenu(null); }}>
+            📋 Duplicate
+          </button>
+          <button className={styles.contextMenu__item} onClick={() => { setConfirmDelete(contextMenu.inst); setContextMenu(null); }}>
+            📤 Export
+          </button>
+          <div className={styles.contextMenu__separator} />
+          <button className={`${styles.contextMenu__item} ${styles['contextMenu__item--danger']}`} onClick={() => { setConfirmDelete(contextMenu.inst); setContextMenu(null); }}>
+            🗑 Delete
+          </button>
+        </div>
+      )}
+
+      {/* ---- Delete modal ---- */}
       <Modal
         open={confirmDelete !== null}
         onClose={() => setConfirmDelete(null)}
-        title={t('instances.deleteTitle')}
+        title="Delete instance"
         actions={
           <>
-            <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(null)}>{t('common.cancel')}</Button>
+            <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(null)}>Cancel</Button>
             <Button variant="danger" size="sm" onClick={async () => {
-              if (confirmDelete) await deleteInstance(confirmDelete);
+              if (confirmDelete) { await deleteInstance(confirmDelete.id); addToast({ type: 'success', title: 'Deleted', message: `"${confirmDelete.name}" removed` }); }
               setConfirmDelete(null);
-            }}>{t('common.delete')}</Button>
+            }}>Delete</Button>
           </>
         }
       >
-        {t('instances.deleteConfirm')}
+        Are you sure you want to delete "{confirmDelete?.name}"? This action cannot be undone.
       </Modal>
 
-      {/* Duplicate modal */}
+      {/* ---- Duplicate modal ---- */}
       <Modal
-        open={duplicatingId !== null}
-        onClose={() => { setDuplicatingId(null); setDuplicateName(''); }}
-        title="Duplicate Instance"
+        open={duplicating !== null}
+        onClose={() => { setDuplicating(null); setDupName(''); }}
+        title="Duplicate instance"
         actions={
           <>
-            <Button variant="secondary" size="sm" onClick={() => { setDuplicatingId(null); setDuplicateName(''); }}>{t('common.cancel')}</Button>
-            <Button variant="primary" size="sm" onClick={confirmDuplicate} disabled={!duplicateName.trim()}>
-              Duplicate
-            </Button>
+            <Button variant="secondary" size="sm" onClick={() => { setDuplicating(null); setDupName(''); }}>Cancel</Button>
+            <Button variant="primary" size="sm" onClick={handleDuplicate} disabled={!dupName.trim()}>Duplicate</Button>
           </>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <label style={{ fontSize: '0.6em', color: 'var(--color-text-secondary)' }}>New instance name:</label>
-          <TextInput
-            value={duplicateName}
-            onChange={(e) => setDuplicateName(e.target.value)}
-            placeholder="Instance name"
-            autoFocus
-          />
+          <label style={{ fontSize: '0.6em', color: 'var(--color-text-secondary)' }}>Name:</label>
+          <TextInput value={dupName} onChange={(e) => setDupName(e.target.value)} placeholder="Instance name" autoFocus />
         </div>
       </Modal>
+
     </div>
   );
 }
