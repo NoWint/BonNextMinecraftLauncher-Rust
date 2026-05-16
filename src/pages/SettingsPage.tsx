@@ -173,7 +173,7 @@ export default function SettingsPage() {
               {memoryGB} {t('common.unit.gb')}
             </span>
             <div style={{ flex: 1 }}>
-              <Slider
+              <Slider gradient
                 value={memoryGB}
                 min={1}
                 max={16}

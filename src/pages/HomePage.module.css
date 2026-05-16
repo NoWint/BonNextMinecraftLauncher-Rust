@@ -263,10 +263,11 @@
 
 /* Right: PLAY area */
 .playArea {
-  flex: 0.7;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-height: 0;
 }
 
 .playArea__panel {
@@ -802,4 +803,3 @@
 .bannerArrow:hover { background: rgba(255,230,0,0.2); border-color: rgba(255,230,0,0.3); }
 .bannerArrow--left { left: 12px; }
 .bannerArrow--right { right: 12px; }
-}

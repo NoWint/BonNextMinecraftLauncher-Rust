@@ -1,0 +1,130 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.toolbar__search {
+  flex: 1;
+  min-width: 180px;
+}
+
+.toolbar__select {
+  min-width: 120px;
+}
+
+/* View toggle */
+.viewToggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--color-border);
+  clip-path: var(--clip-small);
+}
+
+.viewToggle__btn {
+  background: var(--color-panel);
+  border: none;
+  color: var(--color-text-dim);
+  padding: 6px 10px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.55em;
+  font-weight: 600;
+  letter-spacing: 1px;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.viewToggle__btn:first-child {
+  border-right: 1px solid var(--color-border);
+}
+
+.viewToggle__btn--active {
+  background: var(--color-panel-alt);
+  color: var(--color-accent);
+}
+
+.viewToggle__btn:hover {
+  color: var(--color-text);
+}
+
+/* List */
+.listView {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* Gallery grid */
+.galleryView {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  align-content: start;
+}
+
+@media (max-width: 900px) {
+  .galleryView {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Empty */
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--color-text-muted);
+  font-size: 0.7em;
+  border: 1px dashed var(--color-border-light);
+}
+
+/* Warning banner */
+.warning {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border-light);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.warning__text {
+  font-size: 0.55em;
+  color: var(--color-text-secondary);
+}
+
+/* Error */
+.error {
+  color: var(--color-error);
+  font-size: 0.55em;
+}
+
+/* Pagination row */
+.paginationRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.totalLabel {
+  font-family: var(--font-mono);
+  font-size: 0.48em;
+  color: var(--color-text-dim);
+}

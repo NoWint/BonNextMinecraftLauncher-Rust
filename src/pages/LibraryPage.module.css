@@ -1,0 +1,138 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+}
+
+/* Summary */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.summaryCard {
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border);
+  padding: 12px 14px;
+  text-align: center;
+  clip-path: var(--clip-small);
+}
+
+.summaryCard__value {
+  font-family: var(--font-heading);
+  font-size: 1.2em;
+  color: var(--color-accent);
+  letter-spacing: 1px;
+}
+
+.summaryCard__label {
+  font-size: 0.48em;
+  color: var(--color-text-dim);
+  letter-spacing: 2px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+/* Instance selector row */
+.instanceRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.instanceRow__label {
+  font-size: 0.55em;
+  color: var(--color-text-dim);
+  letter-spacing: 2px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* List */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  transition: border-color var(--transition-fast);
+}
+
+.item:hover {
+  border-color: var(--color-border-light);
+}
+
+.item__icon {
+  width: 36px;
+  height: 36px;
+  background: var(--color-panel-alt);
+  clip-path: var(--clip-diamond);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9em;
+  flex-shrink: 0;
+}
+
+.item__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.6em;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item__meta {
+  font-size: 0.48em;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+}
+
+.item__actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Empty */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 200px;
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border-light);
+}
+
+.empty__title {
+  font-size: 0.7em;
+  color: var(--color-text-dim);
+}
+
+.empty__desc {
+  font-size: 0.55em;
+  color: var(--color-text-faint);
+}
+
+/* Loading */
+.loadingGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

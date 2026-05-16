@@ -1,4 +1,5 @@
 mod auth;
+mod cache;
 mod config;
 mod crash_parser;
 mod download;
@@ -583,6 +584,278 @@ async fn install_mod(
 }
 
 // ---------------------------------------------------------------
+// Marketplace commands (extended Modrinth API)
+// ---------------------------------------------------------------
+
+#[tauri::command]
+async fn search_content(
+    cache: tauri::State<'_, cache::ApiCache>,
+    query: String,
+    content_type: Option<String>,
+    game_version: Option<String>,
+    loader: Option<String>,
+    sort: Option<String>,
+    limit: Option<u64>,
+    offset: Option<u64>,
+) -> Result<(Vec<modrinth::ModResult>, u64), LauncherError> {
+    let ct = content_type.as_deref().unwrap_or("mod");
+    let l = limit.unwrap_or(20);
+    let o = offset.unwrap_or(0);
+    let sv = sort.as_deref();
+
+    let cache_key = format!("search:{}:{}:{:?}:{:?}:{:?}:{}:{}",
+        query, ct, game_version, loader, sv, l, o);
+
+    if let Some(cached) = cache.get_search_results(&cache_key) {
+        tracing::debug!("Cache hit: search_content");
+        return Ok(cached);
+    }
+
+    let result = modrinth::search_with_facets(
+        &query, ct,
+        game_version.as_deref(),
+        loader.as_deref(),
+        sv, l, o,
+    ).await?;
+
+    cache.cache_search_results(&cache_key, &result);
+    Ok(result)
+}
+
+#[tauri::command]
+async fn get_project_details(
+    cache: tauri::State<'_, cache::ApiCache>,
+    slug: String,
+) -> Result<modrinth::ModProjectFull, LauncherError> {
+    if let Some(cached) = cache.get_project(&slug) {
+        tracing::debug!("Cache hit: get_project_details {}", slug);
+        return Ok(cached);
+    }
+
+    let result = modrinth::get_project_full(&slug).await?;
+    cache.cache_project(&slug, &result);
+    Ok(result)
+}
+
+#[tauri::command]
+async fn get_trending_content(
+    cache: tauri::State<'_, cache::ApiCache>,
+    project_type: Option<String>,
+    game_version: Option<String>,
+    limit: Option<u64>,
+) -> Result<Vec<modrinth::ModResult>, LauncherError> {
+    let pt = project_type.as_deref().unwrap_or("mod");
+    let l = limit.unwrap_or(20);
+
+    let cache_key = format!("popular:{}:{:?}:{}", pt, game_version, l);
+    if let Some(cached) = cache.get_popular(&cache_key) {
+        tracing::debug!("Cache hit: get_trending_content");
+        return Ok(cached);
+    }
+
+    let result = modrinth::get_popular_by_type(pt, game_version.as_deref(), l).await?;
+    cache.cache_popular(&cache_key, &result);
+    Ok(result)
+}
+
+#[tauri::command]
+async fn get_recently_updated(
+    cache: tauri::State<'_, cache::ApiCache>,
+    project_type: Option<String>,
+    limit: Option<u64>,
+) -> Result<Vec<modrinth::ModResult>, LauncherError> {
+    let l = limit.unwrap_or(20);
+    let cache_key = format!("recent:{:?}:{}", project_type, l);
+
+    if let Some(cached) = cache.get_popular(&cache_key) {
+        tracing::debug!("Cache hit: get_recently_updated");
+        return Ok(cached);
+    }
+
+    let result = modrinth::get_recently_updated(project_type.as_deref(), l).await?;
+    cache.cache_popular(&cache_key, &result);
+    Ok(result)
+}
+
+// ---------------------------------------------------------------
+// Content library commands
+// ---------------------------------------------------------------
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct InstalledModInfo {
+    filename: String,
+    size: u64,
+    installed_at: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct ContentCounts {
+    mods: u32,
+    resourcepacks: u32,
+    shaders: u32,
+    worlds: u32,
+}
+
+fn count_files_in_dir(dir: &std::path::Path, extensions: &[&str]) -> u32 {
+    if !dir.exists() {
+        return 0;
+    }
+    let mut count = 0u32;
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    if extensions.contains(&ext) {
+                        count += 1;
+                    }
+                }
+            }
+        }
+    }
+    count
+}
+
+#[tauri::command]
+async fn list_instance_mods(instance_id: String) -> Result<Vec<InstalledModInfo>, LauncherError> {
+    let dir = paths::get_instance_mods_dir(&instance_id);
+    if !dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut mods = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    if ext == "jar" || ext == "zip" {
+                        let filename = path.file_name()
+                            .map(|n| n.to_string_lossy().to_string())
+                            .unwrap_or_default();
+                        let size = std::fs::metadata(&path)
+                            .map(|m| m.len())
+                            .unwrap_or(0);
+                        let installed_at = std::fs::metadata(&path)
+                            .ok()
+                            .and_then(|m| m.modified().ok())
+                            .map(|t| {
+                                let duration = t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+                                chrono::DateTime::from_timestamp(
+                                    duration.as_secs() as i64,
+                                    duration.subsec_nanos(),
+                                )
+                                .map(|dt| dt.to_rfc3339())
+                                .unwrap_or_default()
+                            })
+                            .unwrap_or_default();
+
+                        mods.push(InstalledModInfo { filename, size, installed_at });
+                    }
+                }
+            }
+        }
+    }
+
+    mods.sort_by(|a, b| b.installed_at.cmp(&a.installed_at));
+    Ok(mods)
+}
+
+#[tauri::command]
+async fn list_instance_resourcepacks(instance_id: String) -> Result<Vec<String>, LauncherError> {
+    let dir = paths::get_instance_resourcepacks_dir(&instance_id);
+    if !dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut packs = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    if ext == "zip" {
+                        if let Some(name) = path.file_name().map(|n| n.to_string_lossy().to_string()) {
+                            packs.push(name);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(packs)
+}
+
+#[tauri::command]
+async fn list_instance_shaders(instance_id: String) -> Result<Vec<String>, LauncherError> {
+    let dir = paths::get_instance_shaderpacks_dir(&instance_id);
+    if !dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut shaders = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    if ext == "zip" {
+                        if let Some(name) = path.file_name().map(|n| n.to_string_lossy().to_string()) {
+                            shaders.push(name);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(shaders)
+}
+
+#[tauri::command]
+async fn remove_installed_mod(instance_id: String, filename: String) -> Result<(), LauncherError> {
+    let dir = paths::get_instance_mods_dir(&instance_id);
+    let path = dir.join(&filename);
+
+    if !path.exists() {
+        return Err(LauncherError::Other(format!("File not found: {}", filename)));
+    }
+
+    std::fs::remove_file(&path)?;
+    tracing::info!("Removed mod: {} from instance {}", filename, instance_id);
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_content_counts(instance_id: String) -> Result<ContentCounts, LauncherError> {
+    Ok(ContentCounts {
+        mods: count_files_in_dir(
+            &paths::get_instance_mods_dir(&instance_id),
+            &["jar", "zip"],
+        ),
+        resourcepacks: count_files_in_dir(
+            &paths::get_instance_resourcepacks_dir(&instance_id),
+            &["zip"],
+        ),
+        shaders: count_files_in_dir(
+            &paths::get_instance_shaderpacks_dir(&instance_id),
+            &["zip"],
+        ),
+        worlds: {
+            let saves = paths::get_instance_saves_dir(&instance_id);
+            if saves.exists() {
+                if let Ok(entries) = std::fs::read_dir(&saves) {
+                    entries.flatten().filter(|e| e.path().is_dir()).count() as u32
+                } else {
+                    0
+                }
+            } else {
+                0
+            }
+        },
+    })
+}
+
+// ---------------------------------------------------------------
 // Quick start & UX commands
 // ---------------------------------------------------------------
 
@@ -698,6 +971,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState { launch_state: Arc::new(Mutex::new(LaunchState::Idle)) })
+        .manage(cache::ApiCache::new())
         .invoke_handler(tauri::generate_handler![
             get_versions, get_launch_state, reset_launch_state,
             get_config, save_config,
@@ -714,6 +988,10 @@ pub fn run() {
             get_loader_versions, install_loader,
             search_mods, get_popular_mods, get_mod_details,
             get_mod_versions, install_mod,
+            search_content, get_project_details, get_trending_content,
+            get_recently_updated,
+            list_instance_mods, list_instance_resourcepacks,
+            list_instance_shaders, remove_installed_mod, get_content_counts,
             quick_start, select_fastest_mirror,
             get_system_info, auto_tune_memory_cmd,
         ])
