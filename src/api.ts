@@ -251,6 +251,9 @@ export const api = {
   getModDetails: (slug: string) => invoke<ModResult>('get_mod_details', { slug }),
   getModVersions: (slug: string, gameVersion?: string, loader?: string) =>
     invoke<ModVersion[]>('get_mod_versions', { slug, gameVersion, loader }),
+
+  getVersionById: (versionId: string) =>
+    invoke<ModVersion>('get_version_by_id', { versionId }),
   installMod: (fileUrl: string, filename: string, instanceId: string, sha1?: string) =>
     invoke<string>('install_mod', { fileUrl, filename, instanceId, sha1 }),
 

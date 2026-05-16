@@ -586,6 +586,11 @@ async fn install_mod(
 }
 
 #[tauri::command]
+async fn get_version_by_id(version_id: String) -> Result<modrinth::ModVersion, LauncherError> {
+    modrinth::get_version_by_id(&version_id).await
+}
+
+#[tauri::command]
 async fn install_content(
     file_url: String,
     filename: String,
@@ -1046,7 +1051,8 @@ pub fn run() {
             parse_crash_report,
             get_loader_versions, install_loader,
             search_mods, get_popular_mods, get_mod_details,
-            get_mod_versions, install_mod, install_content,
+            get_mod_versions, get_version_by_id,
+            install_mod, install_content,
             search_content, get_project_details, get_trending_content,
             get_recently_updated,
             list_instance_mods, list_instance_resourcepacks,

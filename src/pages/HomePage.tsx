@@ -228,7 +228,7 @@ function PlayArea({
             </div>
           ) : (
             <>
-              <div className={styles.playArea__playIcon}>▶</div>
+              <div className={`${styles.playArea__playIcon} play-pulse`}>▶</div>
               <div className={styles.playArea__startWord}>{t('home.playArea.start')}</div>
               <div className={styles.playArea__startWord}>{t('home.playArea.game')}</div>
             </>

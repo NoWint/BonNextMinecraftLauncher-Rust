@@ -32,15 +32,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside className={styles.sidebar}>
-      <div className={styles.sidebar__logo}>
-        <div className={styles.sidebar__logoIcon} />
+      <div className={`${styles.sidebar__logo} float-subtle`}>
+        <div className={`${styles.sidebar__logoIcon} neon-flicker`} />
         <span className={styles.sidebar__logoText}>BONNEXT</span>
         <span className={styles.sidebar__logoVersion}>v0.1</span>
       </div>
 
       <div className={styles.sidebar__signal}>
         <StatusDot status="ready" />
-        <span className={styles.sidebar__signalText}>SIGNAL · ON AIR</span>
+        <span className={`${styles.sidebar__signalText} cursor-blink`}>SIGNAL · ON AIR</span>
       </div>
 
       <nav className={styles.sidebar__nav}>
