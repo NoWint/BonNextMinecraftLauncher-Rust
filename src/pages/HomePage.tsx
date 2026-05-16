@@ -13,12 +13,12 @@ import { relativeTime } from '../utils/time';
 import styles from './HomePage.module.css';
 
 const BANNER_SLIDES = [
-  { label: 'Featured', title: 'Minecraft 1.21 Tricky Trials', desc: 'Explore trial chambers, battle the breeze, and craft with new copper blocks.', theme: 1, image: 'https://cdn.modrinth.com/data/1bJ4r7q7/icon.png' },
-  { label: 'Performance', title: 'Sodium 0.7 Released', desc: 'Up to 40% FPS improvement. Now on Fabric, Quilt, and NeoForge.', theme: 2, image: 'https://cdn.modrinth.com/data/AANobbMI/icon.png' },
-  { label: 'Community', title: 'Create Mod 6.0', desc: 'Mechanical marvels expanded. New logistics, trains, and contraptions.', theme: 3, image: 'https://cdn.modrinth.com/data/LNytGWDc/icon.png' },
-  { label: 'BonNext', title: 'One Click to Play', desc: 'Auto-detect Java, best version, optimal settings. Zero config needed.', theme: 4, image: '' },
-  { label: 'Technology', title: 'VulkanMod for Minecraft', desc: 'Native Vulkan rendering. Smoother frametimes on modern GPUs.', theme: 5, image: 'https://cdn.modrinth.com/data/Vl0LrE6N/icon.png' },
-  { label: 'Updates', title: 'Fabric 1.0 Milestone', desc: 'Stable API, better mod compat, 30% faster loader.', theme: 6, image: 'https://cdn.modrinth.com/data/P7dR8mSH/icon.png' },
+  { label: 'Featured', title: 'Minecraft 1.21 Tricky Trials', desc: 'Explore trial chambers, battle the breeze, and craft with new copper blocks.', theme: 1 },
+  { label: 'Performance', title: 'Sodium 0.7 Released', desc: 'Up to 40% FPS improvement. Now on Fabric, Quilt, and NeoForge.', theme: 2 },
+  { label: 'Community', title: 'Create Mod 6.0', desc: 'Mechanical marvels expanded. New logistics, trains, and contraptions.', theme: 3 },
+  { label: 'BonNext', title: 'One Click to Play', desc: 'Auto-detect Java, best version, optimal settings. Zero config needed.', theme: 4 },
+  { label: 'Technology', title: 'VulkanMod for Minecraft', desc: 'Native Vulkan rendering. Smoother frametimes on modern GPUs.', theme: 5 },
+  { label: 'Updates', title: 'Fabric 1.0 Milestone', desc: 'Stable API, better mod compat, 30% faster loader.', theme: 6 },
 ];
 
 const NEWS_ITEMS = [
@@ -402,10 +402,6 @@ export default function HomePage() {
                 <div className={styles.bannerLabel}>{slide.label}</div>
                 <div className={styles.bannerTitle}>{slide.title}</div>
                 <div className={styles.bannerDesc}>{slide.desc}</div>
-              </div>
-              {/* Right side image with gradient fade */}
-              <div className={styles.bannerImage}>
-                {slide.image && <img className={styles.bannerImage__img} src={slide.image} alt="" />}
               </div>
             </div>
           ))}

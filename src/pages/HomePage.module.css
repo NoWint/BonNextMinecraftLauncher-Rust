@@ -714,8 +714,7 @@
 .bannerContent {
   position: relative;
   z-index: 1;
-  max-width: 50%;
-  padding-right: 20px;
+  max-width: 55%;
 }
 
 .bannerLabel {
@@ -805,23 +804,3 @@
 .bannerArrow--left { left: 12px; }
 .bannerArrow--right { right: 12px; }
 
-/* Banner right-side image */
-.bannerImage {
-  position: absolute;
-  right: -20px;
-  top: -10px;
-  bottom: -10px;
-  width: 55%;
-  pointer-events: none;
-}
-
-/* The actual image — left edge transparent, right edge fully opaque */
-.bannerImage__img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: right center;
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, transparent 5%, rgba(0,0,0,0.3) 25%, rgba(0,0,0,0.7) 45%, black 60%, black 100%);
-  mask-image: linear-gradient(to right, transparent 0%, transparent 5%, rgba(0,0,0,0.3) 25%, rgba(0,0,0,0.7) 45%, black 60%, black 100%);
-}

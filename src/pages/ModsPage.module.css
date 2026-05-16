@@ -1,7 +1,7 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
   height: 100%;
 }
 
@@ -34,10 +34,10 @@
   background: var(--color-panel);
   border: none;
   color: var(--color-text-dim);
-  padding: 6px 10px;
+  padding: 6px 12px;
   cursor: pointer;
   font-family: var(--font-body);
-  font-size: 0.55em;
+  font-size: 0.6em;
   font-weight: 600;
   letter-spacing: 1px;
   transition: background var(--transition-fast), color var(--transition-fast);
@@ -69,18 +69,12 @@
 /* Gallery grid */
 .galleryView {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
   flex: 1;
   overflow-y: auto;
   min-height: 0;
   align-content: start;
-}
-
-@media (max-width: 900px) {
-  .galleryView {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
 /* Empty */
@@ -90,7 +84,7 @@
   justify-content: center;
   height: 200px;
   color: var(--color-text-muted);
-  font-size: 0.7em;
+  font-size: 0.75em;
   border: 1px dashed var(--color-border-light);
 }
 
@@ -105,14 +99,14 @@
 }
 
 .warning__text {
-  font-size: 0.55em;
+  font-size: 0.6em;
   color: var(--color-text-secondary);
 }
 
 /* Error */
 .error {
   color: var(--color-error);
-  font-size: 0.55em;
+  font-size: 0.6em;
 }
 
 /* Pagination row */
@@ -120,11 +114,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 0;
+  padding: 6px 0;
 }
 
 .totalLabel {
   font-family: var(--font-mono);
-  font-size: 0.48em;
+  font-size: 0.55em;
   color: var(--color-text-dim);
 }
