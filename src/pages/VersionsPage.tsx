@@ -58,7 +58,7 @@ export default function VersionsPage() {
         </Button>
       </div>
       {error && <div className={styles.error}>{error}</div>}
-      <div className={styles.list}>
+      <div className={`${styles.list} stagger-children`}>
         {filtered.map((v) => (
           <div key={v.id} className={styles.row}>
             <div className={styles.rowInfo}>

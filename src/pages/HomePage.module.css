@@ -496,3 +496,57 @@
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* New user empty state hero */
+.emptyHero {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #1C1C1C;
+  background: #0D0D0D;
+  overflow: hidden;
+}
+.emptyHero__glimmer {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(ellipse at center, rgba(255,230,0,0.03) 0%, transparent 70%);
+  animation: glimmerPulse 6s ease-in-out infinite;
+}
+@keyframes glimmerPulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+}
+.emptyHero__content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 40px;
+}
+.emptyHero__title {
+  font-family: var(--font-heading);
+  font-size: 2em;
+  color: #FFF;
+  letter-spacing: 4px;
+  margin: 0 0 12px 0;
+}
+.emptyHero__desc {
+  font-size: 0.7em;
+  color: #888;
+  margin: 0 0 32px 0;
+}
+.emptyHero__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.emptyHero__hint {
+  font-size: 0.5em;
+  color: #444;
+  margin: 0;
+}

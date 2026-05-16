@@ -197,4 +197,20 @@ export const api = {
     invoke<ModVersion[]>('get_mod_versions', { slug, gameVersion, loader }),
   installMod: (fileUrl: string, filename: string, instanceId: string, sha1?: string) =>
     invoke<string>('install_mod', { fileUrl, filename, instanceId, sha1 }),
+
+  // Quick start & UX
+  quickStart: () => invoke<void>('quick_start'),
+  selectFastestMirror: () => invoke<string>('select_fastest_mirror'),
+  getSystemInfo: () => invoke<SystemInfo>('get_system_info'),
+  autoTuneMemory: () => invoke<number>('auto_tune_memory_cmd'),
 };
+
+export interface SystemInfo {
+  total_ram_mb: number;
+  used_ram_mb: number;
+  cpu_name: string;
+  cpu_count: number;
+  java_version: string | null;
+  os: string;
+  arch: string;
+}
