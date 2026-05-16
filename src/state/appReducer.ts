@@ -26,6 +26,7 @@ export interface AppState {
     uuid: string;
   };
   versions: VersionEntry[];
+  versionsError: string;
   selectedVersion: string;
   launchState: LaunchState;
   javaPath: string;
@@ -36,6 +37,7 @@ export type AppAction =
   | { type: "SET_AUTH"; payload: { username: string; uuid: string } }
   | { type: "LOGOUT" }
   | { type: "SET_VERSIONS"; payload: VersionEntry[] }
+  | { type: "SET_VERSIONS_ERROR"; payload: string }
   | { type: "SET_SELECTED_VERSION"; payload: string }
   | { type: "SET_LAUNCH_STATE"; payload: LaunchState }
   | { type: "SET_JAVA_PATH"; payload: string }
@@ -48,6 +50,7 @@ export const initialAppState: AppState = {
     uuid: "",
   },
   versions: [],
+  versionsError: "",
   selectedVersion: "",
   launchState: { state: "Idle" },
   javaPath: "",
@@ -74,8 +77,15 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         versions: action.payload,
+        versionsError: "",
         selectedVersion:
           state.selectedVersion || action.payload[0]?.id || "",
+      };
+    case "SET_VERSIONS_ERROR":
+      return {
+        ...state,
+        versions: [],
+        versionsError: action.payload,
       };
     case "SET_SELECTED_VERSION":
       return { ...state, selectedVersion: action.payload };

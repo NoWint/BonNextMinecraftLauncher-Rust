@@ -1,12 +1,28 @@
 use directories::BaseDirs;
 use std::path::PathBuf;
 
-pub fn get_game_dir() -> PathBuf {
+use crate::config;
+
+pub fn get_default_game_dir() -> PathBuf {
     if let Some(base_dirs) = BaseDirs::new() {
         base_dirs.data_dir().join("bonnext")
     } else {
         PathBuf::from(".bonnext")
     }
+}
+
+pub fn get_game_dir() -> PathBuf {
+    if let Ok(cfg) = config::load_config() {
+        if let Some(ref game_dir) = cfg.game_dir {
+            if !game_dir.is_empty() {
+                let path = PathBuf::from(game_dir);
+                if path.is_absolute() {
+                    return path;
+                }
+            }
+        }
+    }
+    get_default_game_dir()
 }
 
 pub fn get_versions_dir() -> PathBuf {
@@ -26,11 +42,7 @@ pub fn get_logs_dir() -> PathBuf {
 }
 
 pub fn get_config_path() -> PathBuf {
-    get_game_dir().join("config.json")
-}
-
-pub fn get_launcher_log_path() -> PathBuf {
-    get_logs_dir().join("launcher.log")
+    get_default_game_dir().join("config.json")
 }
 
 pub fn ensure_dirs() -> std::io::Result<()> {

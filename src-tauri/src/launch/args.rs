@@ -9,6 +9,8 @@ pub struct LaunchConfig {
     pub uuid: String,
     pub access_token: String,
     pub game_dir: PathBuf,
+    pub window_width: u32,
+    pub window_height: u32,
 }
 
 pub fn build_launch_command(
@@ -34,7 +36,10 @@ pub fn build_launch_command(
     classpath_parts.push(client_jar_path.to_string_lossy().to_string());
 
     for lib in &resolved.libraries {
-        let lib_path = libraries_dir.join(&lib.path);
+        if lib.is_native {
+            continue;
+        }
+        let lib_path = libraries_dir.join(&lib.artifact.path);
         classpath_parts.push(lib_path.to_string_lossy().to_string());
     }
 
@@ -83,6 +88,15 @@ pub fn build_launch_command(
             .replace("${auth_xuid}", "");
         args.push(arg);
     }
+
+    if config.window_width > 0 && config.window_height > 0 {
+        args.push("--width".to_string());
+        args.push(config.window_width.to_string());
+        args.push("--height".to_string());
+        args.push(config.window_height.to_string());
+    }
+
+    tracing::info!("Launch command: {}", args.join(" "));
 
     args
 }

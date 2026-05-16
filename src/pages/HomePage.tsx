@@ -29,7 +29,7 @@ function HomePage({
   onResetState,
   onDownloadJre,
 }: Props) {
-  const { versions, selectedVersion, launchState, auth, javaPath, maxMemory } =
+  const { versions, selectedVersion, launchState, auth, javaPath, maxMemory, versionsError } =
     state;
   const [downloadingJre, setDownloadingJre] = useState(false);
   const isLaunching =
@@ -114,6 +114,9 @@ function HomePage({
         {releaseVersions.length === 0 && (
           <div className="error-info">
             <p>无法获取版本列表，请检查网络连接</p>
+            {versionsError && (
+              <pre className="version-error">{versionsError}</pre>
+            )}
             <button className="retry-btn" onClick={onRefreshVersions}>
               重试
             </button>

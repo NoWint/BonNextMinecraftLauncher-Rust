@@ -75,6 +75,13 @@ pub fn find_java() -> Option<String> {
         }
     }
 
+    if let Ok(java_home) = std::env::var("JAVA_HOME") {
+        let java_bin = std::path::Path::new(&java_home).join("bin").join("java");
+        if java_bin.exists() {
+            return Some(java_bin.to_string_lossy().to_string());
+        }
+    }
+
     let bonnext_java = crate::platform::paths::get_game_dir().join("jre").join("bin").join("java");
     if bonnext_java.exists() {
         return Some(bonnext_java.to_string_lossy().to_string());
@@ -143,7 +150,10 @@ pub async fn download_jre() -> Result<String, LauncherError> {
     let response = client.get(url).send().await?.error_for_status()?;
 
     let tmp_dir = std::env::temp_dir().join("bonnext-jre-download");
-    std::fs::create_dir_all(&tmp_dir)?;
+    let tmp_dir_clone = tmp_dir.clone();
+    tokio::task::spawn_blocking(move || std::fs::create_dir_all(&tmp_dir_clone))
+        .await
+        .map_err(|e| LauncherError::Other(e.to_string()))??;
     let archive_path = tmp_dir.join(file_name);
 
     let mut file = tokio::fs::File::create(&archive_path).await?;
@@ -158,46 +168,49 @@ pub async fn download_jre() -> Result<String, LauncherError> {
     tracing::info!("JRE downloaded, extracting...");
 
     let game_dir = crate::platform::paths::get_game_dir();
-    std::fs::create_dir_all(game_dir.join("jre"))?;
+    tokio::fs::create_dir_all(game_dir.join("jre")).await?;
 
-    if cfg!(target_os = "windows") {
-        let status = std::process::Command::new("powershell")
-            .args([
-                "-Command",
-                &format!(
-                    "Expand-Archive -Path '{}' -DestinationPath '{}' -Force",
-                    archive_path.display(),
-                    game_dir.join("jre").display()
-                ),
-            ])
-            .status()?;
-        if !status.success() {
-            return Err(LauncherError::Other("Failed to extract JRE archive".to_string()));
+    let archive_path_clone = archive_path.clone();
+    let jre_dest = game_dir.join("jre");
+    let extract_result: Result<Result<(), LauncherError>, _> = tokio::task::spawn_blocking(move || {
+        if cfg!(target_os = "windows") {
+            let status = std::process::Command::new("powershell")
+                .args([
+                    "-Command",
+                    &format!(
+                        "Expand-Archive -Path '{}' -DestinationPath '{}' -Force",
+                        archive_path_clone.display(),
+                        jre_dest.display()
+                    ),
+                ])
+                .status()
+                .map_err(|e| LauncherError::Io(e))?;
+            if !status.success() {
+                return Err(LauncherError::Other("Failed to extract JRE archive".to_string()));
+            }
+        } else {
+            let status = std::process::Command::new("tar")
+                .args([
+                    "-xzf",
+                    &archive_path_clone.to_string_lossy(),
+                    "-C",
+                    &jre_dest.to_string_lossy(),
+                ])
+                .status()
+                .map_err(|e| LauncherError::Io(e))?;
+            if !status.success() {
+                return Err(LauncherError::Other("Failed to extract JRE archive".to_string()));
+            }
         }
-    } else {
-        let status = std::process::Command::new("tar")
-            .args([
-                "-xzf",
-                &archive_path.to_string_lossy(),
-                "-C",
-                &game_dir.join("jre").to_string_lossy(),
-            ])
-            .status()?;
-        if !status.success() {
-            return Err(LauncherError::Other("Failed to extract JRE archive".to_string()));
-        }
-    }
+        Ok(())
+    }).await;
 
-    let _ = std::fs::remove_file(&archive_path);
+    extract_result
+        .map_err(|e| LauncherError::Other(e.to_string()))?
+        ?;
 
-    #[cfg(target_os = "macos")]
-    let java_bin = game_dir.join("jre").join("jdk-21.0.2+13").join("bin").join("java");
-    #[cfg(target_os = "linux")]
-    let java_bin = game_dir.join("jre").join("jdk-21.0.2+13").join("bin").join("java");
-    #[cfg(target_os = "windows")]
-    let java_bin = game_dir.join("jre").join("jdk-21.0.2+13").join("bin").join("java.exe");
+    let _ = tokio::fs::remove_file(&archive_path).await;
 
-    // Try to find the java binary in the extracted directory
     fn find_java_in_dir(dir: &std::path::Path) -> Option<std::path::PathBuf> {
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
@@ -226,6 +239,8 @@ pub async fn download_jre() -> Result<String, LauncherError> {
         tracing::info!("JRE installed at: {}", found.display());
         return Ok(found.to_string_lossy().to_string());
     }
+
+    let _ = tokio::fs::remove_dir_all(game_dir.join("jre")).await;
 
     Err(LauncherError::Other("Could not find java binary after extraction".to_string()))
 }
