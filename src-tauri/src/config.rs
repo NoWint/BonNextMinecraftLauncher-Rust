@@ -16,6 +16,8 @@ pub struct UserConfig {
     pub window_height: u32,
     #[serde(default)]
     pub launch_behavior: LaunchBehavior,
+    #[serde(default)]
+    pub game_dir: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -56,6 +58,7 @@ impl Default for UserConfig {
             window_width: default_window_width(),
             window_height: default_window_height(),
             launch_behavior: LaunchBehavior::default(),
+            game_dir: None,
         }
     }
 }

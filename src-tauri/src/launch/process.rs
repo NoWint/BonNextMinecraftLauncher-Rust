@@ -8,12 +8,14 @@ use tokio::process::Command;
 pub async fn launch_minecraft(
     app: tauri::AppHandle,
     args: Vec<String>,
+    game_dir: &std::path::Path,
 ) -> Result<u32, LauncherError> {
     let java_path = &args[0];
     let jvm_args = &args[1..];
 
     let mut child = Command::new(java_path)
         .args(jvm_args)
+        .current_dir(game_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true)

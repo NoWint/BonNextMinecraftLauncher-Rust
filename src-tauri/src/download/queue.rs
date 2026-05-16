@@ -51,9 +51,17 @@ pub struct DownloadProgressSnapshot {
     pub current_file: String,
 }
 
+fn build_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .unwrap_or_else(|_| reqwest::Client::new())
+}
+
 async fn download_single(
     item: &DownloadItem,
     progress: Arc<DownloadProgress>,
+    client: &reqwest::Client,
 ) -> Result<(), LauncherError> {
     if let Some(parent) = item.path.parent() {
         tokio::fs::create_dir_all(parent).await?;
@@ -66,29 +74,34 @@ async fn download_single(
         .to_string_lossy()
         .to_string();
 
-    let client = reqwest::Client::new();
-    let mut existing_size = 0u64;
-
-    if item.path.exists() {
-        existing_size = tokio::fs::metadata(&item.path).await?.len();
-    }
-
-    let mut request = client.get(&item.url);
-    if existing_size > 0 && existing_size < item.size {
-        request = request.header("Range", format!("bytes={}-", existing_size));
-    }
-
-    let response = request.send().await?.error_for_status()?;
-
-    let file = if existing_size > 0 && existing_size < item.size {
-        tokio::fs::OpenOptions::new()
-            .append(true)
-            .open(&item.path)
-            .await?
+    let existing_size = if item.path.exists() {
+        match tokio::fs::metadata(&item.path).await {
+            Ok(m) => m.len(),
+            Err(_) => 0,
+        }
     } else {
-        tokio::fs::File::create(&item.path).await?
+        0
     };
 
+    if existing_size > 0 {
+        let existing_valid = super::verifier::verify_sha1(&item.path, &item.sha1).unwrap_or(false);
+        if existing_valid {
+            progress.completed_files.fetch_add(1, Ordering::SeqCst);
+            progress
+                .downloaded_bytes
+                .fetch_add(item.size, Ordering::SeqCst);
+            return Ok(());
+        }
+        let _ = tokio::fs::remove_file(&item.path).await;
+    }
+
+    let response = client
+        .get(&item.url)
+        .send()
+        .await?
+        .error_for_status()?;
+
+    let file = tokio::fs::File::create(&item.path).await?;
     let mut file = file;
     let mut stream = response.bytes_stream();
     use futures_util::StreamExt;
@@ -113,17 +126,19 @@ pub async fn download_all(
 
     let semaphore = Arc::new(tokio::sync::Semaphore::new(concurrency));
     let mut handles = Vec::new();
+    let client = Arc::new(build_client());
 
     for item in items {
         let item = item.clone();
         let progress = progress.clone();
+        let client = client.clone();
         let permit = semaphore.clone().acquire_owned().await.unwrap();
 
         handles.push(tokio::spawn(async move {
             let _permit = permit;
             let mut last_err = None;
             for attempt in 0u32..3 {
-                match download_single(&item, progress.clone()).await {
+                match download_single(&item, progress.clone(), &client).await {
                     Ok(()) => {
                         match super::verifier::verify_sha1(&item.path, &item.sha1) {
                             Ok(true) => {

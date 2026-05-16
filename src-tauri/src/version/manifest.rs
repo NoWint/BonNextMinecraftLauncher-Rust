@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
 
-pub const VERSION_MANIFEST_URL_PRIMARY: &str =
+const MOJANG_VERSION_MANIFEST: &str =
     "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 
-pub const VERSION_MANIFEST_URL_MIRROR: &str =
+const BMCLAPI_VERSION_MANIFEST: &str =
     "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,15 +31,12 @@ pub struct VersionEntry {
 }
 
 pub fn mirror_url(url: &str) -> String {
-    if url.contains("piston-meta.mojang.com")
-        || url.contains("launchermeta.mojang.com")
-        || url.contains("launcher.mojang.com")
-        || url.contains("piston-data.mojang.com")
-    {
-        url.replace("https://piston-meta.mojang.com/", "https://bmclapi2.bangbang93.com/")
-            .replace("https://launchermeta.mojang.com/", "https://bmclapi2.bangbang93.com/")
+    if url.contains("piston-data.mojang.com") || url.contains("piston-meta.mojang.com") {
+        url.replace("https://piston-data.mojang.com/", "https://bmclapi2.bangbang93.com/")
+            .replace("https://piston-meta.mojang.com/", "https://bmclapi2.bangbang93.com/")
+    } else if url.contains("launchermeta.mojang.com") || url.contains("launcher.mojang.com") {
+        url.replace("https://launchermeta.mojang.com/", "https://bmclapi2.bangbang93.com/")
             .replace("https://launcher.mojang.com/", "https://bmclapi2.bangbang93.com/")
-            .replace("https://piston-data.mojang.com/", "https://bmclapi2.bangbang93.com/")
     } else if url.contains("libraries.minecraft.net") {
         url.replace(
             "https://libraries.minecraft.net/",
@@ -54,47 +52,96 @@ pub fn mirror_url(url: &str) -> String {
     }
 }
 
-async fn fetch_manifest_from(url: &str) -> Result<VersionManifest, crate::error::LauncherError> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(15))
-        .build()?;
-    let resp = client.get(url).send().await?;
+fn http_client() -> &'static reqwest::Client {
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .connect_timeout(std::time::Duration::from_secs(15))
+            .user_agent("BonNext/0.1.0")
+            .https_only(true)
+            .build()
+            .expect("Failed to initialize HTTP client")
+    })
+}
+
+async fn try_fetch_manifest(url: &str) -> Result<VersionManifest, crate::error::LauncherError> {
+    tracing::info!("Trying: {}", url);
+    let client = http_client();
+    let resp = client.get(url).send().await.map_err(|e| {
+        tracing::warn!("Request to {} failed: {}", url, e);
+        e
+    })?;
+
     let status = resp.status();
     if !status.is_success() {
-        return Err(crate::error::LauncherError::Http(
-            reqwest::Error::from(resp.error_for_status_ref().unwrap_err()),
-        ));
+        let err_msg = format!("HTTP {} from {}", status, url);
+        tracing::warn!("{}", err_msg);
+        return Err(crate::error::LauncherError::Other(err_msg));
     }
-    let body = resp.text().await?;
-    if body.is_empty() {
-        return Err(crate::error::LauncherError::Other(
-            "Empty response from server".to_string(),
-        ));
-    }
-    let manifest: VersionManifest = serde_json::from_str(&body)?;
+
+    let manifest: VersionManifest = resp.json().await.map_err(|e| {
+        tracing::warn!("JSON parse from {} failed: {}", url, e);
+        e
+    })?;
+
+    tracing::info!("OK: {} versions from {}", manifest.versions.len(), url);
     Ok(manifest)
 }
 
+fn get_cache_path() -> std::path::PathBuf {
+    crate::platform::paths::get_game_dir().join("cache").join("version_manifest.json")
+}
+
+fn load_cached_manifest() -> Option<VersionManifest> {
+    let path = get_cache_path();
+    if !path.exists() {
+        return None;
+    }
+    let json = std::fs::read_to_string(&path).ok()?;
+    let manifest: VersionManifest = serde_json::from_str(&json).ok()?;
+    tracing::info!("Loaded cached manifest ({} versions)", manifest.versions.len());
+    Some(manifest)
+}
+
+fn save_cached_manifest(manifest: &VersionManifest) {
+    let cache_dir = crate::platform::paths::get_game_dir().join("cache");
+    if std::fs::create_dir_all(&cache_dir).is_err() {
+        return;
+    }
+    let cache_path = cache_dir.join("version_manifest.json");
+    if let Ok(json) = serde_json::to_string(manifest) {
+        let _ = std::fs::write(&cache_path, json);
+        tracing::debug!("Saved manifest cache");
+    }
+}
+
 pub async fn fetch_version_manifest() -> Result<VersionManifest, crate::error::LauncherError> {
-    match fetch_manifest_from(VERSION_MANIFEST_URL_PRIMARY).await {
-        Ok(manifest) => {
-            tracing::info!("Fetched version manifest from Mojang (primary)");
-            Ok(manifest)
-        }
-        Err(e) => {
-            tracing::warn!("Mojang primary failed: {}, trying BMCLAPI mirror", e);
-            match fetch_manifest_from(VERSION_MANIFEST_URL_MIRROR).await {
-                Ok(manifest) => {
-                    tracing::info!("Fetched version manifest from BMCLAPI mirror");
-                    Ok(manifest)
-                }
-                Err(e2) => {
-                    tracing::error!("Both sources failed. Mojang: {}, BMCLAPI: {}", e, e2);
-                    Err(e)
-                }
+    let mut last_error = None;
+
+    let sources = [BMCLAPI_VERSION_MANIFEST, MOJANG_VERSION_MANIFEST];
+
+    for url in &sources {
+        match try_fetch_manifest(url).await {
+            Ok(manifest) => {
+                save_cached_manifest(&manifest);
+                return Ok(manifest);
+            }
+            Err(e) => {
+                last_error = Some(e);
+                continue;
             }
         }
     }
+
+    if let Some(manifest) = load_cached_manifest() {
+        tracing::warn!("All sources failed, using cached manifest");
+        return Ok(manifest);
+    }
+
+    Err(last_error.unwrap_or_else(|| {
+        crate::error::LauncherError::Other("无法获取版本列表，请检查网络连接".to_string())
+    }))
 }
 
 pub async fn fetch_versions_sorted() -> Result<Vec<VersionEntry>, crate::error::LauncherError> {

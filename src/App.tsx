@@ -8,19 +8,14 @@ import "./App.css";
 
 function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
-  const { fetchVersions, startGame, checkSession, logout, resetLaunchState, downloadJre, loadConfig } = useTauri(dispatch);
+  const { fetchVersions, refreshVersions, startGame, checkSession, logout, resetLaunchState, downloadJre, loadConfig } = useTauri(dispatch);
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     checkSession();
     fetchVersions();
-  }, [checkSession, fetchVersions]);
-
-  useEffect(() => {
-    if (state.auth.loggedIn) {
-      loadConfig();
-    }
-  }, [state.auth.loggedIn, loadConfig]);
+    loadConfig();
+  }, [checkSession, fetchVersions, loadConfig]);
 
   const handleLoginSuccess = (username: string, uuid: string) => {
     dispatch({ type: "SET_AUTH", payload: { username, uuid } });
@@ -57,7 +52,7 @@ function App() {
         state={state}
         dispatch={dispatch}
         onStartGame={startGame}
-        onRefreshVersions={fetchVersions}
+        onRefreshVersions={refreshVersions}
         onLogout={logout}
         onOpenSettings={() => setShowSettings(true)}
         onResetState={resetLaunchState}

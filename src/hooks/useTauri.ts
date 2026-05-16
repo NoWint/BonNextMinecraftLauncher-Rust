@@ -24,19 +24,17 @@ export function useTauri(dispatch: React.Dispatch<AppAction>) {
       dispatch({ type: "SET_VERSIONS", payload: versions });
     } catch (e) {
       console.error("Failed to fetch versions:", e);
-      dispatch({ type: "SET_VERSIONS", payload: [] });
+      dispatch({ type: "SET_VERSIONS_ERROR", payload: String(e) });
     }
   }, [dispatch]);
 
-  const loadConfig = useCallback(async () => {
+  const refreshVersions = useCallback(async () => {
     try {
-      const config = await invoke<UserConfig>("get_config");
-      if (config.java_path) {
-        dispatch({ type: "SET_JAVA_PATH", payload: config.java_path });
-      }
-      dispatch({ type: "SET_MAX_MEMORY", payload: config.max_memory_mb });
+      const versions = await invoke<VersionEntry[]>("refresh_versions");
+      dispatch({ type: "SET_VERSIONS", payload: versions });
     } catch (e) {
-      console.error("Failed to load config:", e);
+      console.error("Failed to refresh versions:", e);
+      dispatch({ type: "SET_VERSIONS_ERROR", payload: String(e) });
     }
   }, [dispatch]);
 
@@ -86,6 +84,16 @@ export function useTauri(dispatch: React.Dispatch<AppAction>) {
     }
   }, [dispatch]);
 
+  const loadConfig = useCallback(async () => {
+    try {
+      const config = await invoke<UserConfig>("get_config");
+      dispatch({ type: "SET_JAVA_PATH", payload: config.java_path });
+      dispatch({ type: "SET_MAX_MEMORY", payload: config.max_memory_mb });
+    } catch (e) {
+      console.error("Failed to load config:", e);
+    }
+  }, [dispatch]);
+
   useEffect(() => {
     const unlistenLaunch = listen<LaunchState>("launch-state", (event) => {
       dispatch({ type: "SET_LAUNCH_STATE", payload: event.payload });
@@ -124,5 +132,5 @@ export function useTauri(dispatch: React.Dispatch<AppAction>) {
     }
   }, [dispatch]);
 
-  return { fetchVersions, startGame, checkSession, logout, resetLaunchState, downloadJre, loadConfig };
+  return { fetchVersions, refreshVersions, startGame, checkSession, logout, resetLaunchState, downloadJre, loadConfig };
 }

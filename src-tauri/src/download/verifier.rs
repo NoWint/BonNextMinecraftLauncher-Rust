@@ -14,5 +14,5 @@ pub fn verify_sha1(path: &Path, expected: &str) -> Result<bool, std::io::Error> 
         hasher.update(&buffer[..n]);
     }
     let result = hex::encode(hasher.finalize());
-    Ok(result == expected)
+    Ok(result.eq_ignore_ascii_case(expected))
 }
