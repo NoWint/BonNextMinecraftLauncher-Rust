@@ -48,6 +48,7 @@ export default function InstancesPage() {
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [duplicateName, setDuplicateName] = useState('');
   const [exportingId, setExportingId] = useState<string | null>(null);
+  const [viewMode] = useState<'list' | 'grid'>('grid');
 
   // Check ready states
   useEffect(() => {
@@ -127,6 +128,84 @@ export default function InstancesPage() {
   const uniqueLoaders = [...new Set(instances.filter((i) => i.loader_type).map((i) => i.loader_type!))];
   const totalSize = instances.reduce((sum, i) => sum + i.max_memory, 0);
 
+  const renderGridCard = (inst: GameInstance, i: number) => {
+    const isReady = readyStates[inst.id] ?? null;
+    const loader = inst.loader_type || 'vanilla';
+    const coverClass = styles[`cardCover--${loader}`] || styles['cardCover--vanilla'];
+    return (
+      <div key={inst.id} className={styles.libraryCard} style={{ animationDelay: `${i * 50}ms` }}>
+        <div className={`${styles.cardCover} ${coverClass}`}>
+          <div className={styles.cardCoverIcon}>{getLoaderIcon(inst.loader_type)}</div>
+          <div className={styles.cardPlayOverlay}>
+            <button className={styles.cardPlayBtn} onClick={(e) => { e.stopPropagation(); handleLaunch(inst); }} />
+          </div>
+          <div style={{
+            position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: '50%',
+            background: isReady === true ? '#4CAF50' : isReady === false ? '#FF9800' : '#444',
+            boxShadow: `0 0 6px ${isReady === true ? '#4CAF50' : isReady === false ? '#FF9800' : 'transparent'}`,
+          }} />
+        </div>
+        <div className={styles.cardBody}>
+          <div className={styles.cardTitleRow}>
+            <span className={styles.cardTitle}>{inst.name}</span>
+            <Badge variant="accent">{inst.version_id}</Badge>
+          </div>
+          {inst.loader_type && (
+            <div style={{ display: 'flex', gap: 4 }}>
+              <Badge variant="muted">{inst.loader_type}{inst.loader_version ? ` ${inst.loader_version}` : ''}</Badge>
+            </div>
+          )}
+          <div className={styles.cardMeta}>
+            <span>{relativeTime(inst.last_played)}</span><span className={styles.cardMetaSep} />
+            <span>{formatPlaytime(inst.playtime_seconds)}</span><span className={styles.cardMetaSep} />
+            <span className={isReady === true ? styles['cardStatus--ready'] : isReady === false ? styles['cardStatus--download'] : styles['cardStatus--unknown']}>{isReady === null ? '...' : isReady ? 'Ready' : 'Download'}</span>
+          </div>
+          <div className={styles.cardActionRow}>
+            <Button variant="primary" size="sm" onClick={() => handleLaunch(inst)}>▶ Play</Button>
+            <Button variant="icon" onClick={() => window.location.hash = `#/instances/${inst.id}`}>⚙</Button>
+            <Button variant="icon" onClick={() => handleDuplicate(inst)}>📋</Button>
+            <Button variant="icon" onClick={() => setConfirmDelete(inst.id)}>🗑</Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderListView = () => (
+    <div className={`${styles.list} stagger-children`}>
+      {filtered.map((inst, i) => {
+        const isReady = readyStates[inst.id] ?? null;
+        return (
+          <div key={inst.id} className={`${styles.card} ${i === 0 ? styles.cardFirst : styles.cardDefault}`}>
+            {i === 0 && <div className={styles.cardAccent} />}
+            <Tooltip content={`${getLoaderLabel(inst.loader_type)}${inst.loader_version ? ` ${inst.loader_version}` : ''}`}>
+              <div className={`${styles.cardIcon} ${i === 0 ? styles.cardIconFirst : styles.cardIconDefault}`}>{getLoaderIcon(inst.loader_type)}</div>
+            </Tooltip>
+            <div className={styles.cardInfo}>
+              <div className={styles.cardNameRow}>
+                <span className={`${styles.cardName} ${i === 0 ? styles.cardNameFirst : styles.cardNameDefault}`}>{inst.name}</span>
+                <Badge variant="accent">{inst.version_id}</Badge>
+                {inst.loader_type && <Badge variant="muted">{inst.loader_type}</Badge>}
+              </div>
+              <div className={styles.cardMeta}>
+                <span>Last played: {relativeTime(inst.last_played)}</span><span className={styles.cardMetaSep}>.</span>
+                <span>{formatPlaytime(inst.playtime_seconds)}</span><span className={styles.cardMetaSep}>.</span>
+                <span className={isReady === true ? styles.readyStatus : isReady === false ? styles.needsDownloadStatus : styles.unknownStatus}>{isReady === null ? 'Checking...' : isReady ? 'Ready' : 'Download'}</span>
+              </div>
+            </div>
+            <div className={styles.cardActions}>
+              <Button variant="primary" size="sm" onClick={() => handleLaunch(inst)}>▶ Launch</Button>
+              <Button variant="icon" onClick={() => window.location.hash = `#/instances/${inst.id}`}>⚙</Button>
+              <Button variant="icon" onClick={() => handleDuplicate(inst)}>📋</Button>
+              <Button variant="icon" onClick={() => handleExport(inst)} disabled={exportingId === inst.id}>{exportingId === inst.id ? '⏳' : '📤'}</Button>
+              <Button variant="icon" onClick={() => setConfirmDelete(inst.id)}>🗑</Button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className={`page-enter ${styles.page}`}>
       <BreadcrumbComp
@@ -197,78 +276,13 @@ export default function InstancesPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className={styles.noMatch}>{t('instances.noMatch')}</div>
-      ) : (
-        <div className={`${styles.list} stagger-children`}>
-          {filtered.map((inst, i) => {
-            const isReady = readyStates[inst.id] ?? null;
-            return (
-              <div
-                key={inst.id}
-                className={`${styles.card} ${i === 0 ? styles.cardFirst : styles.cardDefault}`}
-              >
-                {i === 0 && <div className={styles.cardAccent} />}
-                <Tooltip
-                  content={`${getLoaderLabel(inst.loader_type)}${inst.loader_version ? ` ${inst.loader_version}` : ''}`}
-                >
-                  <div className={`${styles.cardIcon} ${i === 0 ? styles.cardIconFirst : styles.cardIconDefault}`}>
-                    {getLoaderIcon(inst.loader_type)}
-                  </div>
-                </Tooltip>
-                <div className={styles.cardInfo}>
-                  <div className={styles.cardNameRow}>
-                    <span className={`${styles.cardName} ${i === 0 ? styles.cardNameFirst : styles.cardNameDefault}`}>
-                      {inst.name}
-                    </span>
-                    <Badge variant="accent">{inst.version_id}</Badge>
-                    {inst.loader_type && <Badge variant="muted">{inst.loader_type}</Badge>}
-                  </div>
-                  <div className={styles.cardMeta}>
-                    <span>Last played: {relativeTime(inst.last_played)}</span>
-                    <span className={styles.cardMetaSep}>.</span>
-                    <span>{formatPlaytime(inst.playtime_seconds)}</span>
-                    <span className={styles.cardMetaSep}>.</span>
-                    <span className={isReady === true ? styles.readyStatus : isReady === false ? styles.needsDownloadStatus : styles.unknownStatus}>
-                      {isReady === null ? '⏳ Checking...' : isReady ? '✅ Ready' : '⚠️ Needs download'}
-                    </span>
-                  </div>
-                </div>
-                <div className={styles.cardActions}>
-                  <Tooltip content={`Launch ${inst.name}`}>
-                    <Button variant="primary" size="sm" onClick={() => handleLaunch(inst)}>
-                      ▶ Launch
-                    </Button>
-                  </Tooltip>
-                  <Tooltip content="Instance settings">
-                    <Button variant="icon" onClick={() => window.location.hash = `#/instances/${inst.id}`}>
-                      ⚙
-                    </Button>
-                  </Tooltip>
-                  <Tooltip content="Duplicate instance">
-                    <Button variant="icon" onClick={() => handleDuplicate(inst)}>
-                      📋
-                    </Button>
-                  </Tooltip>
-                  <Tooltip content="Export instance as ZIP">
-                    <Button
-                      variant="icon"
-                      onClick={() => handleExport(inst)}
-                      disabled={exportingId === inst.id}
-                    >
-                      {exportingId === inst.id ? '⏳' : '📤'}
-                    </Button>
-                  </Tooltip>
-                  <Tooltip content="Delete instance">
-                    <Button variant="icon" onClick={() => setConfirmDelete(inst.id)}>
-                      🗑
-                    </Button>
-                  </Tooltip>
-                </div>
-              </div>
-            );
-          })}
+      ) : viewMode === 'grid' ? (
+        <div className={styles.libraryGrid}>
+          {filtered.map((inst, i) => renderGridCard(inst, i))}
         </div>
+      ) : (
+        renderListView()
       )}
-
       {/* Delete confirmation modal */}
       <Modal
         open={confirmDelete !== null}

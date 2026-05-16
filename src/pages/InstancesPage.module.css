@@ -183,3 +183,317 @@
   align-items: center;
   gap: 4px;
 }
+
+/* ============================================================
+   Steam-style Grid Layout
+   ============================================================ */
+
+.libraryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 16px;
+}
+
+.libraryCard {
+  position: relative;
+  background: #141414;
+  border: 1px solid #1C1C1C;
+  border-radius: 4px;
+  overflow: hidden;
+  transition: border-color 200ms ease, transform 200ms ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+.libraryCard:hover {
+  border-color: #2A2A2A;
+  transform: translateY(-2px);
+}
+
+/* Cover image area */
+.cardCover {
+  position: relative;
+  width: 100%;
+  height: 160px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.cardCover--vanilla {
+  background: linear-gradient(135deg, #1a3a1a 0%, #0d2818 40%, #0a1a0f 100%);
+}
+.cardCover--fabric {
+  background: linear-gradient(135deg, #1a1a3a 0%, #281a3a 40%, #1f0a2a 100%);
+}
+.cardCover--forge {
+  background: linear-gradient(135deg, #3a1a1a 0%, #3a2818 40%, #2a1f0a 100%);
+}
+
+/* Cover pattern overlay */
+.cardCover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(255,230,0,0.08) 0%, transparent 50%),
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 10px,
+      rgba(255,255,255,0.015) 10px,
+      rgba(255,255,255,0.015) 12px
+    );
+}
+
+/* Cover icon */
+.cardCoverIcon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 3em;
+  opacity: 0.3;
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+.libraryCard:hover .cardCoverIcon {
+  opacity: 0.6;
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+/* Play button overlay */
+.cardPlayOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+.libraryCard:hover .cardPlayOverlay {
+  opacity: 1;
+}
+.cardPlayBtn {
+  background: #FFE600;
+  color: #000;
+  border: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 4px;
+  font-size: 1.4em;
+  font-weight: 900;
+  cursor: pointer;
+  clip-path: polygon(15% 0, 100% 50%, 15% 100%);
+  transition: transform 200ms ease;
+}
+.cardPlayBtn:hover {
+  transform: scale(1.1);
+}
+
+/* Card body below cover */
+.cardBody {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.cardTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cardTitle {
+  font-weight: 700;
+  font-size: 0.78em;
+  color: #FFF;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.5em;
+  color: #666;
+  flex-wrap: wrap;
+}
+.cardMetaSep {
+  width: 2px;
+  height: 2px;
+  background: #444;
+  border-radius: 50%;
+}
+.cardStatus {
+  font-size: 0.85em;
+}
+.cardStatus--ready { color: #4CAF50; }
+.cardStatus--download { color: #FF9800; }
+.cardStatus--unknown { color: #555; }
+
+/* Action buttons at bottom of card */
+.cardActionRow {
+  display: flex;
+  gap: 4px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid #1C1C1C;
+}
+.cardActionRow > * {
+  flex: 1;
+}
+
+/* List view toggle */
+.viewToggle {
+  display: flex;
+  gap: 4px;
+}
+.viewToggleBtn {
+  background: #1A1A1A;
+  border: 1px solid #2A2A2A;
+  color: #555;
+  padding: 4px 8px;
+  font-size: 0.55em;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 150ms;
+}
+.viewToggleBtn:hover { color: #FFF; border-color: #444; }
+.viewToggleBtn--active { color: #FFE600; border-color: #FFE600; background: #1A1A00; }
+
+/* ============================================================
+   Banner Carousel
+   ============================================================ */
+
+.carousel {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  border: 1px solid #1C1C1C;
+  flex-shrink: 0;
+}
+
+.carouselTrack {
+  display: flex;
+  height: 100%;
+  transition: transform 600ms var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+.carouselSlide {
+  min-width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  padding: 24px;
+}
+
+.carouselSlide:nth-child(1) {
+  background: linear-gradient(135deg, #0d0d0d 0%, #1a1a0a 50%, #0a0a1a 100%);
+}
+.carouselSlide:nth-child(2) {
+  background: linear-gradient(135deg, #0d0d0d 0%, #0a1a1a 50%, #1a0a1a 100%);
+}
+.carouselSlide:nth-child(3) {
+  background: linear-gradient(135deg, #0d0d0d 0%, #1a1a0a 50%, #1a0a0a 100%);
+}
+.carouselSlide:nth-child(4) {
+  background: linear-gradient(135deg, #0d0d0d 0%, #0a0a1a 50%, #0a1a0a 100%);
+}
+.carouselSlide:nth-child(5) {
+  background: linear-gradient(135deg, #0d0d0d 0%, #1a0a0a 50%, #0a0a0a 100%);
+}
+
+.carouselContent {
+  position: relative;
+  z-index: 1;
+  max-width: 60%;
+}
+.carouselLabel {
+  font-size: 0.45em;
+  color: #FFE600;
+  letter-spacing: 3px;
+  margin-bottom: 6px;
+}
+.carouselTitle {
+  font-family: var(--font-heading);
+  font-size: 1.4em;
+  color: #FFF;
+  letter-spacing: 2px;
+  line-height: 1.2;
+  margin-bottom: 6px;
+}
+.carouselDesc {
+  font-size: 0.55em;
+  color: #888;
+  line-height: 1.4;
+}
+
+.carouselDots {
+  position: absolute;
+  bottom: 12px;
+  right: 24px;
+  display: flex;
+  gap: 6px;
+  z-index: 2;
+}
+.carouselDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #333;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background 200ms;
+}
+.carouselDot--active {
+  background: #FFE600;
+  width: 18px;
+  border-radius: 3px;
+}
+
+.carouselArrows {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  display: flex;
+  justify-content: space-between;
+  padding: 0 12px;
+  z-index: 2;
+  pointer-events: none;
+}
+.carouselArrow {
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #FFF;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.8em;
+  pointer-events: auto;
+  transition: background 200ms;
+}
+.carouselArrow:hover {
+  background: rgba(255,230,0,0.2);
+  border-color: rgba(255,230,0,0.3);
+}
+
+/* Grid/Layout view transition */
+@keyframes fadeInGrid {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.libraryCard {
+  animation: fadeInGrid 300ms ease backwards;
+}
