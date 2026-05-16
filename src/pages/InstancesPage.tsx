@@ -114,7 +114,7 @@ export default function InstancesPage() {
       ) : filtered.length === 0 ? (
         <div className={styles.noMatch}>没有匹配的实例</div>
       ) : (
-        <div className={styles.list}>
+        <div className={`${styles.list} stagger-children`}>
           {filtered.map((inst, i) => (
             <div
               key={inst.id}

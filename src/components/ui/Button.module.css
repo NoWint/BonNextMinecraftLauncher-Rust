@@ -8,9 +8,35 @@
   font-family: var(--font-body);
   font-weight: 700;
   letter-spacing: 2px;
-  transition: all var(--transition-fast);
+  transition: transform 0.12s var(--ease-out-expo),
+              box-shadow 0.15s var(--ease-out-expo),
+              border-color 0.15s var(--ease-out-expo),
+              background 0.15s var(--ease-out-expo),
+              filter 0.15s var(--ease-out-expo);
   outline: none;
   user-select: none;
+  position: relative;
+  overflow: hidden;
+
+  /* Ripple pseudo-element */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, rgba(255,255,255,0.15) 10%, transparent 10%);
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0;
+    transition: opacity 0.4s, background-size 0.4s;
+    background-size: 0% 0%;
+    pointer-events: none;
+  }
+
+  &:active::before {
+    background-size: 250% 250%;
+    opacity: 1;
+    transition: background-size 0s, opacity 0s;
+  }
 
   &:focus-visible {
     outline: 2px solid var(--color-accent);
@@ -20,6 +46,7 @@
   &:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+    pointer-events: none;
   }
 }
 

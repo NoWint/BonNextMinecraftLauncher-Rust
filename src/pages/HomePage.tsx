@@ -225,8 +225,40 @@ export default function HomePage() {
     }
   }, [auth, addToast]);
 
+  const handleQuickStart = useCallback(async () => {
+    setError('');
+    try {
+      await api.quickStart();
+      addToast({ type: 'success', title: 'Quick start', message: 'Launching latest Minecraft...' });
+    } catch (e: any) {
+      const msg = e?.toString() || 'Quick start failed';
+      setError(msg);
+      addToast({ type: 'error', title: 'Quick start failed', message: msg });
+    }
+  }, [addToast]);
+
   return (
     <div className={`page-enter ${styles.page}`}>
+      {/* New user hero */}
+      {instances.length === 0 && !loading && (
+        <div className={styles.emptyHero}>
+          <div className={styles.emptyHero__glimmer} />
+          <div className={styles.emptyHero__content}>
+            <h2 className={styles.emptyHero__title}>Welcome to BonNext</h2>
+            <p className={styles.emptyHero__desc}>Your Minecraft journey starts here. One click to play.</p>
+            <div className={styles.emptyHero__actions}>
+              <Button variant="primary" size="lg" onClick={handleQuickStart} disabled={isBusy}>
+                {isBusy ? 'DOWNLOADING...' : '⚡ 快速开始'}
+              </Button>
+              <Button variant="secondary-highlight" size="lg" onClick={() => window.location.hash = '#/instances/new'}>
+                + 新建实例
+              </Button>
+            </div>
+            <p className={styles.emptyHero__hint}>Quick start auto-picks the latest version and optimal settings.</p>
+          </div>
+        </div>
+      )}
+
       {/* Download overlay */}
       {downloadProgress && !downloadProgress.finished && (
         <div className={styles.downloadOverlay}>

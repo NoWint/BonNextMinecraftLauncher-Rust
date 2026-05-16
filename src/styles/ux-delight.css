@@ -1,0 +1,364 @@
+/* ==========================================================================
+   BonNext UX Delight — Micro-interactions, animations, and polish
+   Every pixel, every frame, every feedback loop must feel alive.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------
+   Page Transition System
+   --------------------------------------------------------------- */
+
+@keyframes page-enter-slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes page-enter-slide-right {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes page-exit-slide-left {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-16px); }
+}
+
+.page-enter {
+  animation: page-enter-slide-up 0.35s var(--ease-out-expo) forwards;
+}
+
+.page-enter--deep {
+  animation: page-enter-slide-right 0.4s var(--ease-out-expo) forwards;
+}
+
+/* ---------------------------------------------------------------
+   Number Counting Animation
+   --------------------------------------------------------------- */
+
+@keyframes number-pop-in {
+  0%   { transform: scale(0.8); opacity: 0; }
+  60%  { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.number-animate {
+  animation: number-pop-in 0.5s var(--ease-out-back) forwards;
+  display: inline-block;
+}
+
+/* ---------------------------------------------------------------
+   Button Micro-Interactions
+   --------------------------------------------------------------- */
+
+/* Ripple effect container */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+  transform: translate3d(0, 0, 0);
+}
+
+.btn-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255,255,255,0.12) 10%, transparent 10%);
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transition: opacity 0.4s, background-size 0.4s;
+  background-size: 0% 0%;
+}
+
+.btn-ripple:active::after {
+  background-size: 200% 200%;
+  opacity: 1;
+  transition: background-size 0s, opacity 0s;
+}
+
+/* Button press depth */
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+button {
+  transition: transform 0.1s var(--ease-out-expo),
+              box-shadow 0.15s var(--ease-out-expo),
+              border-color 0.15s var(--ease-out-expo),
+              background 0.15s var(--ease-out-expo);
+}
+
+/* ---------------------------------------------------------------
+   Card Hover Effects
+   --------------------------------------------------------------- */
+
+.card-hover-glow {
+  transition: border-color 0.2s var(--ease-out-expo),
+              box-shadow 0.2s var(--ease-out-expo),
+              transform 0.2s var(--ease-out-expo);
+}
+
+.card-hover-glow:hover {
+  border-color: rgba(255, 230, 0, 0.12);
+  box-shadow: 0 0 20px rgba(255, 230, 0, 0.03);
+}
+
+/* ---------------------------------------------------------------
+   Focus Visible — Keyboard Accessibility
+   --------------------------------------------------------------- */
+
+*:focus-visible {
+  outline: 1px solid rgba(255, 230, 0, 0.5);
+  outline-offset: 2px;
+}
+
+button:focus-visible {
+  outline: 1px solid rgba(255, 230, 0, 0.6);
+  outline-offset: 1px;
+}
+
+input:focus-visible,
+select:focus-visible {
+  outline: 1px solid rgba(255, 230, 0, 0.4);
+  outline-offset: -1px;
+  border-color: rgba(255, 230, 0, 0.25) !important;
+  box-shadow: 0 0 8px rgba(255, 230, 0, 0.08);
+}
+
+/* ---------------------------------------------------------------
+   Shimmer / Breathing Animations
+   --------------------------------------------------------------- */
+
+@keyframes breathe-subtle {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.7; }
+}
+
+@keyframes breathe-strong {
+  0%, 100% { opacity: 1;    box-shadow: 0 0 0 0 currentColor; }
+  50%      { opacity: 0.65; box-shadow: 0 0 6px 2px transparent; }
+}
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 230, 0, 0.3); }
+  70%  { box-shadow: 0 0 0 8px rgba(255, 230, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 230, 0, 0); }
+}
+
+.breathe-subtle { animation: breathe-subtle 2.5s ease-in-out infinite; }
+.breathe-strong { animation: breathe-strong 2s ease-in-out infinite; }
+.pulse-ring     { animation: pulse-ring 1.8s ease-out infinite; }
+
+/* ---------------------------------------------------------------
+   Skeleton Shimmer (shared with Skeleton component)
+   --------------------------------------------------------------- */
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ---------------------------------------------------------------
+   Shake animation (for errors)
+   --------------------------------------------------------------- */
+
+@keyframes shake-x {
+  0%, 100% { transform: translateX(0); }
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(3px); }
+  30%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+  50%      { transform: translateX(-3px); }
+}
+
+.shake {
+  animation: shake-x 0.5s var(--ease-out-expo);
+}
+
+/* ---------------------------------------------------------------
+   Stagger Children — list items animate in sequence
+   --------------------------------------------------------------- */
+
+.stagger-children > * {
+  opacity: 0;
+  animation: page-enter-slide-up 0.35s var(--ease-out-expo) forwards;
+}
+
+.stagger-children > *:nth-child(1)  { animation-delay: 0.00s; }
+.stagger-children > *:nth-child(2)  { animation-delay: 0.04s; }
+.stagger-children > *:nth-child(3)  { animation-delay: 0.08s; }
+.stagger-children > *:nth-child(4)  { animation-delay: 0.12s; }
+.stagger-children > *:nth-child(5)  { animation-delay: 0.16s; }
+.stagger-children > *:nth-child(6)  { animation-delay: 0.20s; }
+.stagger-children > *:nth-child(7)  { animation-delay: 0.24s; }
+.stagger-children > *:nth-child(8)  { animation-delay: 0.28s; }
+.stagger-children > *:nth-child(9)  { animation-delay: 0.32s; }
+.stagger-children > *:nth-child(10) { animation-delay: 0.36s; }
+.stagger-children > *:nth-child(n+11) { animation-delay: 0.40s; }
+
+/* ---------------------------------------------------------------
+   Empty State Animation
+   --------------------------------------------------------------- */
+
+@keyframes border-dance {
+  0%, 100% { border-color: #1C1C1C; }
+  50%      { border-color: #2A2A2A; }
+}
+
+.empty-state-animated {
+  animation: border-dance 3s ease-in-out infinite;
+}
+
+/* ---------------------------------------------------------------
+   Tab Underline Slide
+   --------------------------------------------------------------- */
+
+@keyframes tab-underline-in {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+
+/* ---------------------------------------------------------------
+   Progress Bar Polish
+   --------------------------------------------------------------- */
+
+@keyframes progress-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(255, 230, 0, 0.1); }
+  50%      { box-shadow: 0 0 8px rgba(255, 230, 0, 0.2); }
+}
+
+.progress-bar--active {
+  animation: progress-glow 2s ease-in-out infinite;
+}
+
+@keyframes progress-complete-flash {
+  0%   { filter: brightness(1); }
+  50%  { filter: brightness(1.6); }
+  100% { filter: brightness(1); }
+}
+
+.progress-bar--complete {
+  animation: progress-complete-flash 0.4s ease;
+}
+
+/* ---------------------------------------------------------------
+   Dropdown / Select Polish
+   --------------------------------------------------------------- */
+
+select {
+  transition: border-color 0.15s var(--ease-out-expo),
+              box-shadow 0.15s var(--ease-out-expo);
+}
+
+select:hover {
+  border-color: rgba(255, 230, 0, 0.15);
+}
+
+/* ---------------------------------------------------------------
+   Scrollbar Enhancement (WebKit)
+   --------------------------------------------------------------- */
+
+::-webkit-scrollbar-thumb {
+  transition: background 0.15s var(--ease-out-expo);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: rgba(255, 230, 0, 0.2);
+}
+
+/* ---------------------------------------------------------------
+   Loading Dot Bounce
+   --------------------------------------------------------------- */
+
+@keyframes dot-bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40%           { transform: scale(1); }
+}
+
+.dot-bounce {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.dot-bounce > span {
+  width: 5px;
+  height: 5px;
+  background: var(--color-accent);
+  display: inline-block;
+  animation: dot-bounce 1.4s ease-in-out infinite both;
+}
+
+.dot-bounce > span:nth-child(2) { animation-delay: 0.16s; }
+.dot-bounce > span:nth-child(3) { animation-delay: 0.32s; }
+
+/* ---------------------------------------------------------------
+   Checkbox / Toggle Snap
+   --------------------------------------------------------------- */
+
+input[type="checkbox"] {
+  accent-color: var(--color-accent);
+}
+
+/* ---------------------------------------------------------------
+   Tooltip arrow
+   --------------------------------------------------------------- */
+
+@keyframes tooltip-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ---------------------------------------------------------------
+   Confetti / Celebration burst (used for achievements / login)
+   --------------------------------------------------------------- */
+
+@keyframes confetti-fall {
+  0%   { transform: translateY(-100%) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+.confetti-piece {
+  position: fixed;
+  width: 6px;
+  height: 6px;
+  pointer-events: none;
+  z-index: 99999;
+  animation: confetti-fall 2s ease-in forwards;
+}
+
+/* ---------------------------------------------------------------
+   Smooth Scroll
+   --------------------------------------------------------------- */
+
+.smooth-scroll {
+  scroll-behavior: smooth;
+}
+
+/* ---------------------------------------------------------------
+   Modal backdrop blur
+   --------------------------------------------------------------- */
+
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ---------------------------------------------------------------
+   Text selection brand color
+   --------------------------------------------------------------- */
+
+::selection {
+  background: rgba(255, 230, 0, 0.25);
+  color: #FFF;
+}
+
+/* ---------------------------------------------------------------
+   Reduced motion support
+   --------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

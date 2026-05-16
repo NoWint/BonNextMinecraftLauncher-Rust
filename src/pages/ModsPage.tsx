@@ -269,7 +269,7 @@ export default function ModsPage() {
             {search ? 'No mods found matching your search.' : 'Enter a search term to find mods.'}
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="stagger-children" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {mods.map((mod) => (
               <ModCard
                 key={mod.slug}

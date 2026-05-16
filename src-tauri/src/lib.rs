@@ -541,6 +541,80 @@ async fn install_mod(
     modrinth::download_mod_file(&file_url, &filename, &instance_id, sha1.as_deref()).await
 }
 
+// ---------------------------------------------------------------
+// Quick start & UX commands
+// ---------------------------------------------------------------
+
+#[tauri::command]
+async fn quick_start(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), LauncherError> {
+    let versions = version::manifest::fetch_versions_sorted().await?;
+    let latest_release = versions.iter()
+        .find(|v| v.version_type == "release")
+        .ok_or_else(|| LauncherError::VersionNotFound("No release found".into()))?;
+
+    let username = "Player";
+    let auth = auth::offline::offline_login(&username)?;
+
+    let mem = auto_tune_memory();
+    tracing::info!("Quick start: {} ({}MB RAM)", latest_release.id, mem);
+
+    download_version(app.clone(), latest_release.id.clone(), latest_release.url.clone()).await?;
+    launch_game(
+        app, state,
+        latest_release.id.clone(), latest_release.url.clone(),
+        auth.username, auth.uuid, auth.access_token,
+        Some(mem), Some(256), None, None,
+    ).await
+}
+
+#[tauri::command]
+async fn select_fastest_mirror() -> Result<String, LauncherError> {
+    let best = version::manifest::select_fastest_mirror().await;
+    let mut cfg = config::load_config()?;
+    cfg.download_source = best.clone();
+    config::save_config(&cfg)?;
+    Ok(best)
+}
+
+#[tauri::command]
+async fn get_system_info() -> Result<serde_json::Value, LauncherError> {
+    use sysinfo::System;
+    let sys = System::new_all();
+    let total_ram = sys.total_memory() / 1024 / 1024; // MB
+    let used_ram = sys.used_memory() / 1024 / 1024;
+    let cpu_name = sys.cpus().first().map(|c| c.brand().to_string()).unwrap_or_default();
+    let cpu_count = sys.cpus().len() as u32;
+    let java_ver = platform::java::find_java()
+        .ok().and_then(|p| platform::java::check_java_version(&p))
+        .map(|v| format!("Java {}", v));
+
+    Ok(serde_json::json!({
+        "total_ram_mb": total_ram,
+        "used_ram_mb": used_ram,
+        "cpu_name": cpu_name,
+        "cpu_count": cpu_count,
+        "java_version": java_ver,
+        "os": std::env::consts::OS,
+        "arch": std::env::consts::ARCH,
+    }))
+}
+
+#[tauri::command]
+async fn auto_tune_memory_cmd() -> Result<u32, LauncherError> {
+    Ok(auto_tune_memory())
+}
+
+fn auto_tune_memory() -> u32 {
+    use sysinfo::System;
+    let sys = System::new_all();
+    let total_ram = sys.total_memory() / 1024 / 1024; // MB
+    // Use 50% of system RAM, capped at 8GB, minimum 2GB
+    ((total_ram / 2).clamp(2048, 8192)) as u32
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct AggProgressSnapshot {
     completed: u64,
@@ -587,6 +661,8 @@ pub fn run() {
             get_loader_versions, install_loader,
             search_mods, get_popular_mods, get_mod_details,
             get_mod_versions, install_mod,
+            quick_start, select_fastest_mirror,
+            get_system_info, auto_tune_memory_cmd,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

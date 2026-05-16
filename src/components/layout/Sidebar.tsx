@@ -5,6 +5,7 @@ import styles from './Sidebar.module.css';
 interface NavItem {
   id: string;
   label: string;
+  shortcut?: string;
 }
 
 interface SidebarProps {
@@ -48,8 +49,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
               activeId === item.id ? styles['sidebar__navItem--active'] : ''
             }`}
             onClick={() => onNavigate(item.id)}
+            title={item.shortcut ? `Ctrl+${item.shortcut}` : undefined}
           >
-            {item.label}
+            <span>{item.label}</span>
+            {item.shortcut && (
+              <span className={styles.sidebar__navShortcut}>^{item.shortcut}</span>
+            )}
           </button>
         ))}
 
@@ -61,8 +66,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 activeId === settingsItem.id ? styles['sidebar__navItem--active'] : ''
               }`}
               onClick={() => onNavigate(settingsItem.id)}
+              title={settingsItem.shortcut ? `Ctrl+${settingsItem.shortcut}` : undefined}
             >
-              {settingsItem.label}
+              <span>{settingsItem.label}</span>
+              {settingsItem.shortcut && (
+                <span className={styles.sidebar__navShortcut}>^{settingsItem.shortcut}</span>
+              )}
             </button>
           </>
         )}
