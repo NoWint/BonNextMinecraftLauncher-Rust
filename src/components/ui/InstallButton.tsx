@@ -15,6 +15,27 @@ interface InstallButtonProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
+async function downloadSingle(
+  slug: string,
+  title: string,
+  fileUrl: string,
+  filename: string,
+  instanceId: string,
+  contentType: string,
+  versionId: string,
+  sha1: string | undefined,
+  addTask: (t: any) => void,
+  updateTask: (id: string, status: any, err?: string) => void,
+) {
+  const taskId = `${slug}-${Date.now()}`;
+  addTask({ id: taskId, title, filename, status: 'pending', startedAt: Date.now() });
+  updateTask(taskId, 'downloading');
+
+  await api.installContent(fileUrl, filename, instanceId, contentType, sha1, slug, versionId);
+
+  updateTask(taskId, 'complete');
+}
+
 export function InstallButton({
   contentSlug,
   contentTitle,
@@ -36,30 +57,12 @@ export function InstallButton({
     }
 
     setInstalling(true);
-    const taskId = `${contentSlug}-${Date.now()}`;
-
-    addTask({
-      id: taskId,
-      title: contentTitle,
-      filename: '',
-      status: 'pending',
-      startedAt: Date.now(),
-    });
+    const ct = contentType || 'mod';
 
     try {
-      const versions = await api.getModVersions(
-        contentSlug,
-        gameVersion,
-        loader || undefined,
-      );
-
+      const versions = await api.getModVersions(contentSlug, gameVersion, loader || undefined);
       if (versions.length === 0) {
-        updateTask(taskId, 'failed', 'No compatible version');
-        addToast({
-          type: 'error',
-          title: 'No compatible version',
-          message: `${contentTitle} has no version for your config.`,
-        });
+        addToast({ type: 'error', title: 'No compatible version', message: `${contentTitle} has no version for your config.` });
         setInstalling(false);
         return;
       }
@@ -69,44 +72,71 @@ export function InstallButton({
         (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
       ) || latest.files[0];
 
-      updateTask(taskId, 'downloading');
+      // Resolve required dependencies
+      const requiredDeps = latest.dependencies.filter((d) => d.dependency_type === 'required');
+      let depCount = 0;
 
-      await api.installContent(
-        primaryFile.url,
-        primaryFile.filename,
-        instanceId,
-        contentType || 'mod',
-        primaryFile.hashes.sha1 || undefined,
-        contentSlug,
-        latest.id,
-      );
+      if (requiredDeps.length > 0) {
+        // Fetch dep details in parallel
+        const depDetails = await Promise.all(
+          requiredDeps.map(async (dep) => {
+            try {
+              if (!dep.version_id || !dep.project_id) return null;
+              const [version, project] = await Promise.all([
+                api.getVersionById(dep.version_id),
+                api.getModDetails(dep.project_id),
+              ]);
+              const file = version.files.find(
+                (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
+              ) || version.files[0];
+              return { project, version, file };
+            } catch {
+              return null;
+            }
+          }),
+        );
 
-      updateTask(taskId, 'complete');
-      addToast({
-        type: 'success',
-        title: 'Installed',
-        message: `${contentTitle} ${latest.version_number}`,
-      });
+        // Install dependencies sequentially with queue tracking
+        for (const dep of depDetails) {
+          if (!dep) continue;
+          try {
+            await downloadSingle(
+              dep.project.slug,
+              dep.project.title,
+              dep.file.url,
+              dep.file.filename,
+              instanceId,
+              ct,
+              dep.version.id,
+              dep.file.hashes.sha1 || undefined,
+              addTask,
+              updateTask,
+            );
+            depCount++;
+          } catch (e: any) {
+            addToast({ type: 'error', title: 'Dep failed', message: `${dep.project.title}: ${e?.toString()}` });
+          }
+        }
+      }
+
+      // Install main item
+      await downloadSingle(contentSlug, contentTitle, primaryFile.url, primaryFile.filename, instanceId, ct, latest.id, primaryFile.hashes.sha1 || undefined, addTask, updateTask);
+
+      const msg = depCount > 0
+        ? `${contentTitle} ${latest.version_number} + ${depCount} dependencies`
+        : `${contentTitle} ${latest.version_number}`;
+
+      addToast({ type: 'success', title: 'Installed', message: msg });
       onInstalled?.();
     } catch (e: any) {
-      updateTask(taskId, 'failed', e?.toString());
-      addToast({
-        type: 'error',
-        title: 'Install failed',
-        message: e?.toString() || 'Unknown error',
-      });
+      addToast({ type: 'error', title: 'Install failed', message: e?.toString() || 'Unknown error' });
     } finally {
       setInstalling(false);
     }
   };
 
   return (
-    <Button
-      variant="secondary-highlight"
-      size={size}
-      disabled={installing}
-      onClick={handleInstall}
-    >
+    <Button variant="secondary-highlight" size={size} disabled={installing} onClick={handleInstall}>
       {installing ? '...' : 'Install'}
     </Button>
   );

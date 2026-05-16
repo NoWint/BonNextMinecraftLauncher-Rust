@@ -44,22 +44,22 @@ html, body, #root {
 
 .noise-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   opacity: 0.025;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
   pointer-events: none;
   z-index: 9999;
+  animation: noise-flicker 0.15s steps(2) infinite;
+}
+
+@keyframes noise-flicker {
+  0%, 100% { opacity: 0.025; }
+  50%      { opacity: 0.02; }
 }
 
 .scanline-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   opacity: 0.03;
   background: repeating-linear-gradient(
     0deg,
@@ -70,6 +70,12 @@ html, body, #root {
   );
   pointer-events: none;
   z-index: 9998;
+  animation: scanline-scroll 10s linear infinite;
+}
+
+@keyframes scanline-scroll {
+  from { background-position: 0 0; }
+  to   { background-position: 0 10px; }
 }
 
 .app-layout {

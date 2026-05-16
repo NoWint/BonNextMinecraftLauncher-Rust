@@ -531,6 +531,40 @@ pub async fn get_project_full(slug: &str) -> Result<ModProjectFull, LauncherErro
     })
 }
 
+/// Get a single version by its ID.
+pub async fn get_version_by_id(version_id: &str) -> Result<ModVersion, LauncherError> {
+    let client = http_client::build_client();
+    let url = format!("{}/version/{}", MODRINTH_API_BASE, version_id);
+
+    let v: ModrinthVersion = client
+        .get(&url)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    Ok(ModVersion {
+        id: v.id,
+        name: v.name,
+        version_number: v.version_number,
+        game_versions: v.game_versions,
+        loaders: v.loaders,
+        files: v.files.into_iter().map(|f| ModFile {
+            url: f.url,
+            filename: f.filename,
+            size: f.size,
+            hashes: ModHashes { sha1: f.hashes.sha1, sha512: f.hashes.sha512 },
+        }).collect(),
+        dependencies: v.dependencies.into_iter().map(|d| ModDependency {
+            project_id: d.project_id,
+            dependency_type: d.dependency_type,
+            version_id: d.version_id,
+        }).collect(),
+        date_published: v.date_published,
+    })
+}
+
 /// Get popular content for any project type.
 pub async fn get_popular_by_type(
     project_type: &str,

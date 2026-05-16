@@ -33,8 +33,8 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 export default function InstancesPage() {
   const { state: authState } = useAuth();
   const { state, deleteInstance, reloadInstances } = useInstances();
-  const { addToast } = useToast();
   const { t } = useI18n();
+  const { addToast } = useToast();
   const auth = authState.currentUser;
 
   const getLoaderLabel = (loader: string | null): string => {
@@ -144,7 +144,7 @@ export default function InstancesPage() {
       {/* ---- Hero Banner ---- */}
       {heroInstance && (
         <div
-          className={styles.hero}
+          className={`${styles.hero} hero-reveal hero-glow-breathe`}
           onClick={() => handleLaunch(heroInstance)}
           onContextMenu={(e) => handleContextMenu(e, heroInstance)}
         >
@@ -184,7 +184,7 @@ export default function InstancesPage() {
             </div>
 
             <div className={styles.hero__actions}>
-              <button className={styles.hero__playBtn} title="Play">▶</button>
+              <button className={`${styles.hero__playBtn} play-pulse`} title="Play">▶</button>
               <button className={styles.hero__contextBtn} onClick={(e) => { e.stopPropagation(); window.location.hash = `#/instances/${heroInstance.id}`; }}>
                 ⚙ Details
               </button>
@@ -250,17 +250,17 @@ export default function InstancesPage() {
             return (
               <div
                 key={inst.id}
-                className={styles.coverCard}
-                style={{ animationDelay: `${i * 40}ms` }}
+                className={`${styles.coverCard} card-glow-hover card-rise`}
+                style={{ animationDelay: `${i * 50 + 50}ms` }}
                 onClick={() => handleLaunch(inst)}
                 onContextMenu={(e) => handleContextMenu(e, inst)}
               >
                 <div className={`${styles.coverCard__cover} ${coverClass}`}>
                   <div className={styles.coverCard__coverPattern} />
                   <div className={styles.coverCard__overlay}>
-                    <div className={styles.coverCard__playCircle}>▶</div>
+                    <div className={`${styles.coverCard__playCircle} play-pulse`}>▶</div>
                   </div>
-                  <div className={`${styles.coverCard__statusDot} ${isReady === true ? styles['coverCard__statusDot--ready'] : isReady === false ? styles['coverCard__statusDot--download'] : styles['coverCard__statusDot--unknown']}`} />
+                  <div className={`${styles.coverCard__statusDot} ${isReady === true ? styles['coverCard__statusDot--ready'] : isReady === false ? styles['coverCard__statusDot--download'] : styles['coverCard__statusDot--unknown']} ${isReady === true ? 'status-breathe-ready' : isReady === false ? 'status-breathe-download' : ''}`} />
                   {getLoaderIcon(inst.loader_type)}
                 </div>
                 <div className={styles.coverCard__body}>
