@@ -1,7 +1,7 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   height: 100%;
 }
 
@@ -190,11 +190,12 @@
 
 .libraryGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
   flex: 1;
   overflow-y: auto;
-  padding-bottom: 16px;
+  align-content: start;
+  padding-bottom: 10px;
 }
 
 .libraryCard {
@@ -217,7 +218,7 @@
 .cardCover {
   position: relative;
   width: 100%;
-  height: 160px;
+  height: 100px;
   overflow: hidden;
   flex-shrink: 0;
 }

@@ -11,7 +11,7 @@ import styles from './LoginPage.module.css';
 export default function LoginPage() {
   const { state, offlineLogin } = useAuth();
   const { t } = useI18n();
-  const greeting = useGreeting();
+  const greeting = useGreeting(t);
   const fireConfetti = useConfetti();
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
@@ -97,7 +97,7 @@ export default function LoginPage() {
   }, [deviceCode]);
 
   const busy = state.loading || loading || msLoading;
-  const loadingMsg = getRandomLoadingMessage();
+  const loadingMsg = getRandomLoadingMessage(t);
 
   return (
     <div className={styles.page}>

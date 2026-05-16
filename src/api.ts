@@ -171,6 +171,14 @@ export interface ContentCounts {
   worlds: number;
 }
 
+export interface UpdateInfo {
+  filename: string;
+  slug: string;
+  installed_version: string | null;
+  latest_version: string;
+  content_type: string;
+}
+
 export type LaunchState =
   | 'idle'
   | 'checking'
@@ -234,6 +242,11 @@ export const api = {
   installMod: (fileUrl: string, filename: string, instanceId: string, sha1?: string) =>
     invoke<string>('install_mod', { fileUrl, filename, instanceId, sha1 }),
 
+  installContent: (
+    fileUrl: string, filename: string, instanceId: string,
+    contentType?: string, sha1?: string, slug?: string, versionId?: string,
+  ) => invoke<string>('install_content', { fileUrl, filename, instanceId, contentType, sha1, slug, versionId }),
+
   // Marketplace
   searchContent: (
     query: string,
@@ -280,6 +293,9 @@ export const api = {
 
   getContentCounts: (instanceId: string) =>
     invoke<ContentCounts>('get_content_counts', { instanceId }),
+
+  checkContentUpdates: (instanceId: string) =>
+    invoke<UpdateInfo[]>('check_content_updates', { instanceId }),
 
   // Quick start & UX
   quickStart: () => invoke<void>('quick_start'),
