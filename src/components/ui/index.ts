@@ -13,3 +13,4 @@ export { CategoryCard } from './CategoryCard';
 export { InstallButton } from './InstallButton';
 export { StatBadge } from './StatBadge';
 export { InstanceSelect } from './InstanceSelect';
+export { CollectionButton } from './CollectionButton';

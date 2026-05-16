@@ -1,5 +1,6 @@
 mod auth;
 mod cache;
+mod collections;
 mod config;
 mod content;
 mod crash_parser;
@@ -886,6 +887,34 @@ async fn get_content_counts(instance_id: String) -> Result<ContentCounts, Launch
 }
 
 // ---------------------------------------------------------------
+// Collections / wishlist commands
+// ---------------------------------------------------------------
+
+#[tauri::command]
+async fn add_to_collection(
+    slug: String, title: String, author: String, icon_url: String,
+    content_type: String, description: String, downloads: u64,
+    categories: Vec<String>,
+) -> Result<(), LauncherError> {
+    collections::add_item(&slug, &title, &author, &icon_url, &content_type, &description, downloads, categories)
+}
+
+#[tauri::command]
+async fn remove_from_collection(slug: String) -> Result<(), LauncherError> {
+    collections::remove_item(&slug)
+}
+
+#[tauri::command]
+async fn is_in_collection(slug: String) -> Result<bool, LauncherError> {
+    collections::is_saved(&slug)
+}
+
+#[tauri::command]
+async fn list_collection() -> Result<Vec<collections::CollectionItem>, LauncherError> {
+    collections::list_all()
+}
+
+// ---------------------------------------------------------------
 // Quick start & UX commands
 // ---------------------------------------------------------------
 
@@ -1023,6 +1052,8 @@ pub fn run() {
             list_instance_mods, list_instance_resourcepacks,
             list_instance_shaders, remove_installed_mod, get_content_counts,
             check_content_updates,
+            add_to_collection, remove_from_collection,
+            is_in_collection, list_collection,
             quick_start, select_fastest_mirror,
             get_system_info, auto_tune_memory_cmd,
         ])
