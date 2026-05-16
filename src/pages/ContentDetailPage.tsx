@@ -3,6 +3,7 @@ import { api, type ModProjectFull, type ModVersion } from '../api';
 import { useInstances } from '../stores/instanceStore';
 import { Breadcrumb, Button, Badge, StatBadge, StatusDot, Tabs, Select } from '../components/ui';
 import { InstallButton } from '../components/ui/InstallButton';
+import { CollectionButton } from '../components/ui/CollectionButton';
 import { InstanceSelect } from '../components/ui/InstanceSelect';
 import { SectionHeader, Ticker } from '../components/layout';
 import { CardSkeleton } from '../components/ui/Skeleton';
@@ -180,11 +181,24 @@ export default function ContentDetailPage() {
         </div>
 
         <div className={styles.header__actions}>
-          <InstanceSelect
-            value={selectedInstance}
-            onChange={setSelectedInstance}
-            instances={instances}
-          />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <CollectionButton
+              slug={project.slug}
+              title={project.title}
+              author={project.author}
+              iconUrl={project.icon_url}
+              contentType={parsed.type}
+              description={project.description}
+              downloads={project.downloads}
+              categories={project.categories}
+              size="md"
+            />
+            <InstanceSelect
+              value={selectedInstance}
+              onChange={setSelectedInstance}
+              instances={instances}
+            />
+          </div>
           <InstallButton
             contentSlug={project.slug}
             contentTitle={project.title}

@@ -9,6 +9,7 @@ import { Heading, SubLabel, AccentCorner, Ticker } from '../components/layout';
 import { StatusDot, Badge, ProgressBar, Tooltip } from '../components/ui';
 import { Button } from '../components/ui';
 import { CardSkeleton } from '../components/ui/Skeleton';
+import GameConsole from '../components/ui/GameConsole';
 import { relativeTime } from '../utils/time';
 import styles from './HomePage.module.css';
 
@@ -294,6 +295,7 @@ export default function HomePage() {
   const [readyStates, setReadyStates] = useState<Record<string, boolean | null>>({});
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
+  const [showConsole, setShowConsole] = useState(false);
   const activeInstance = instances.find((i) => i.id === selectedInstanceId)
     || (instances.length > 0 ? instances[0] : null);
   const isBusy = launchState !== 'idle' && launchState !== 'exited' && launchState !== 'crashed' && launchState !== 'error';
@@ -463,6 +465,19 @@ export default function HomePage() {
             <StatusDot status={isBusy ? 'processing' : 'ready'} />
             <span className={styles.topBar__sysText}>{launchState.toUpperCase()}</span>
           </div>
+          <button
+            onClick={() => setShowConsole((v) => !v)}
+            style={{
+              background: showConsole ? 'rgba(255,230,0,0.1)' : 'transparent',
+              border: `1px solid ${showConsole ? 'rgba(255,230,0,0.3)' : '#1F1F1F'}`,
+              color: showConsole ? '#FFE600' : '#555',
+              padding: '3px 10px', cursor: 'pointer',
+              fontFamily: 'var(--font-mono)', fontSize: '0.42em',
+              letterSpacing: 1, transition: 'all 0.15s',
+            }}
+          >
+            {showConsole ? '▲ CONSOLE' : '▼ CONSOLE'}
+          </button>
         </div>
       </div>
 
@@ -607,6 +622,8 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      <GameConsole visible={showConsole} />
     </div>
   );
 }

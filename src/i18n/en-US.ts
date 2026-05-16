@@ -8,6 +8,7 @@ const enUS: Record<string, string> = {
   'nav.versions': 'Versions',
   'nav.settings': 'Settings',
   'nav.mods': 'Mod Browser',
+  'nav.collections': 'Collections',
   'nav.library': 'Library',
 
   'login.title': 'MINECRAFT LAUNCHER · NEO-TOKYO EDITION',

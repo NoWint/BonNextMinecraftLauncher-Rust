@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api, type ModResult } from '../api';
 import { SectionHeader, Ticker } from '../components/layout';
-import { Button, ContentCard, contentFromModResult, CategoryCard } from '../components/ui';
+import { Button, ContentCard, contentFromModResult, CategoryCard, CollectionButton } from '../components/ui';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import styles from './StorePage.module.css';
 
@@ -102,6 +102,17 @@ export default function StorePage() {
                 <div className={styles.banner__author}>by {item.author}</div>
                 <div className={styles.banner__desc}>{item.description}</div>
                 <div className={styles.banner__actions}>
+                  <CollectionButton
+                    slug={item.slug}
+                    title={item.title}
+                    author={item.author}
+                    iconUrl={item.icon_url}
+                    contentType="mod"
+                    description={item.description}
+                    downloads={item.downloads}
+                    categories={item.categories}
+                    size="md"
+                  />
                   <Button variant="primary" size="md" onClick={() => handleBannerClick(item.slug)}>
                     View
                   </Button>

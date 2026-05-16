@@ -23,6 +23,7 @@ import ModsPage from './pages/ModsPage';
 import StorePage from './pages/StorePage';
 import ContentDetailPage from './pages/ContentDetailPage';
 import LibraryPage from './pages/LibraryPage';
+import CollectionsPage from './pages/CollectionsPage';
 import SettingsPage from './pages/SettingsPage';
 
 type Page =
@@ -34,6 +35,7 @@ type Page =
   | 'mods'
   | 'store'
   | 'content_detail'
+  | 'collections'
   | 'library'
   | 'settings';
 
@@ -46,6 +48,7 @@ function getPageFromHash(): Page {
   if (hash === 'store') return 'store';
   if (hash === 'versions') return 'versions';
   if (hash === 'mods') return 'mods';
+  if (hash === 'collections') return 'collections';
   if (hash === 'library') return 'library';
   if (hash === 'settings') return 'settings';
   return 'home';
@@ -76,6 +79,7 @@ function AppShell() {
   const NAV_ITEMS = [
     { id: 'home', label: t('nav.home'), shortcut: 'H' },
     { id: 'store', label: t('nav.store'), shortcut: 'S' },
+    { id: 'collections', label: t('nav.collections'), shortcut: 'C' },
     { id: 'instances', label: t('nav.instances'), shortcut: 'I' },
     { id: 'mods', label: t('nav.mods'), shortcut: 'M' },
     { id: 'library', label: t('nav.library'), shortcut: 'L' },
@@ -149,6 +153,7 @@ function AppShell() {
             {page === 'store' && <StorePage />}
             {page === 'content_detail' && <ContentDetailPage />}
             {page === 'library' && <LibraryPage />}
+            {page === 'collections' && <CollectionsPage />}
             {page === 'settings' && <SettingsPage />}
           </ErrorBoundary>
         </main>

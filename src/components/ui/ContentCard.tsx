@@ -1,6 +1,7 @@
 import { type ModResult } from '../../api';
 import { Badge } from './Status';
 import { Button } from './Button';
+import { CollectionButton } from './CollectionButton';
 import { Tooltip } from './Tooltip';
 import styles from './ContentCard.module.css';
 
@@ -92,8 +93,18 @@ export function ContentCard({
         )}
       </div>
 
-      {onInstall && (
-        <div className={styles.card__actions}>
+      <div className={styles.card__actions} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <CollectionButton
+          slug={content.slug}
+          title={content.title}
+          author={content.author}
+          iconUrl={content.icon_url}
+          contentType={content.project_type || 'mod'}
+          description={content.description}
+          downloads={content.downloads}
+          categories={content.categories}
+        />
+        {onInstall && (
           <Tooltip content={`Install ${content.title}`}>
             <Button
               variant="secondary-highlight"
@@ -104,8 +115,8 @@ export function ContentCard({
               {installing ? '...' : 'Install'}
             </Button>
           </Tooltip>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

@@ -8,6 +8,7 @@ const zhCN: Record<string, string> = {
   'nav.versions': '版本列表',
   'nav.settings': '设置',
   'nav.mods': '模组市场',
+  'nav.collections': '我的收藏',
   'nav.library': '内容库',
 
   'login.title': 'MINECRAFT LAUNCHER · NEO-TOKYO EDITION',

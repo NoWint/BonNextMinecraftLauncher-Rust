@@ -171,6 +171,18 @@ export interface ContentCounts {
   worlds: number;
 }
 
+export interface CollectionItem {
+  slug: string;
+  title: string;
+  author: string;
+  icon_url: string;
+  content_type: string;
+  description: string;
+  downloads: number;
+  categories: string[];
+  added_at: string;
+}
+
 export interface UpdateInfo {
   filename: string;
   slug: string;
@@ -296,6 +308,24 @@ export const api = {
 
   checkContentUpdates: (instanceId: string) =>
     invoke<UpdateInfo[]>('check_content_updates', { instanceId }),
+
+  // Collections / wishlist
+  addToCollection: (
+    slug: string, title: string, author: string, iconUrl: string,
+    contentType: string, description: string, downloads: number,
+    categories: string[],
+  ) => invoke<void>('add_to_collection', {
+    slug, title, author, iconUrl, contentType, description, downloads, categories,
+  }),
+
+  removeFromCollection: (slug: string) =>
+    invoke<void>('remove_from_collection', { slug }),
+
+  isInCollection: (slug: string) =>
+    invoke<boolean>('is_in_collection', { slug }),
+
+  listCollection: () =>
+    invoke<CollectionItem[]>('list_collection'),
 
   // Quick start & UX
   quickStart: () => invoke<void>('quick_start'),

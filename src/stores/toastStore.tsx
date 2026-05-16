@@ -32,6 +32,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     if (duration > 0) {
       setTimeout(() => removeToast(id), duration);
     }
+    // Play sound for success/error toasts
+    try {
+      import('../utils/sound').then(({ sound }) => {
+        if (toast.type === 'success') sound.success();
+        else if (toast.type === 'error') sound.error();
+      }).catch(() => {});
+    } catch {}
   }, [removeToast]);
 
   return (
