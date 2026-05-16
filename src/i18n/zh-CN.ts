@@ -238,6 +238,8 @@ const zhCN: Record<string, string> = {
 
   'collections.title': '我的收藏',
   'collections.empty': '还没有收藏，从内容商店添加一些吧',
+  'collections.emptyDesc': '点击任意内容上的心形图标将其保存到收藏。',
+  'collections.tryDifferent': '尝试选择其他分类。',
 
   'library.title': '内容库',
   'library.installedMods': '已安装模组',

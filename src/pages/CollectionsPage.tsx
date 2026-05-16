@@ -1,19 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api, type CollectionItem } from '../api';
+import { useI18n } from '../i18n';
 import { SectionHeader, Ticker } from '../components/layout';
 import { Button, ContentCard, Tabs } from '../components/ui';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import styles from './ModsPage.module.css';
 
-const TYPE_TABS = [
-  { id: 'all', label: 'ALL' },
-  { id: 'mod', label: 'MODS' },
-  { id: 'modpack', label: 'MODPACKS' },
-  { id: 'resourcepack', label: 'RESOURCE PACKS' },
-  { id: 'shader', label: 'SHADERS' },
-];
-
 export default function CollectionsPage() {
+  const { t } = useI18n();
+  const TYPE_TABS = [
+    { id: 'all', label: t('versions.all') },
+    { id: 'mod', label: t('instanceDetail.mods') },
+    { id: 'modpack', label: t('store.modpacks') },
+    { id: 'resourcepack', label: t('store.resourcePacks') },
+    { id: 'shader', label: t('store.shaders') },
+  ];
   const [items, setItems] = useState<CollectionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -37,7 +38,7 @@ export default function CollectionsPage() {
 
   return (
     <div className={`page-enter ${styles.page}`}>
-      <SectionHeader title="MY COLLECTION" subtitle={`${items.length} saved items`} />
+      <SectionHeader title="MY COLLECTION" subtitle={`${items.length} ${t('common.installed')}`} />
 
       <Tabs tabs={TYPE_TABS} activeId={filter} onChange={setFilter} />
 
@@ -49,16 +50,16 @@ export default function CollectionsPage() {
         <div className={styles.emptyState}>
           <div className={styles.emptyState__icon}>{'\u{2661}'}</div>
           <div className={styles.emptyState__title}>
-            {items.length === 0 ? 'NO SAVED ITEMS' : 'NO ITEMS IN THIS CATEGORY'}
+            {items.length === 0 ? `${t('collections.empty')}` : `${t('instances.noMatch')}`}
           </div>
           <div className={styles.emptyState__desc}>
             {items.length === 0
-              ? 'Click the heart icon on any content to save it to your collection.'
-              : 'Try selecting a different category.'}
+              ? t('collections.emptyDesc')
+              : t('collections.tryDifferent')}
           </div>
           {items.length === 0 && (
             <Button variant="primary" size="md" onClick={() => (window.location.hash = '#/store')}>
-              Browse Marketplace
+              t('common.browse') + ' Marketplace'
             </Button>
           )}
         </div>

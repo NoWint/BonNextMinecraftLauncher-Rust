@@ -98,7 +98,7 @@ export default function LibraryPage() {
       ) || latest.files[0];
 
       // Remove old file
-      try { await api.removeInstalledMod(selectedId, update.filename); } catch {}
+      try { await api.removeInstalledMod(selectedId, update.filename); } catch (e) { console.error("Failed to remove mod:", e); }
 
       // Download new version
       await api.installContent(
@@ -359,7 +359,7 @@ export default function LibraryPage() {
                     try {
                       const gameDir = await api.getGameDir();
                       await api.openFolder(`${gameDir}/instances/${selectedInstance.id}/.minecraft/saves`);
-                    } catch {}
+                    } catch (e) { console.error("Failed to load library:", e); }
                   }}>
                     Open saves folder
                   </Button>
