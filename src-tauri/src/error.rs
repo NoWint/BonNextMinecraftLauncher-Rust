@@ -38,8 +38,23 @@ pub enum LauncherError {
     #[error("Not enough disk space: need {required}MB, have {available}MB")]
     DiskSpace { required: u64, available: u64 },
 
+    #[error("ZIP error: {0}")]
+    Zip(#[from] zip::result::ZipError),
+
     #[error("{0}")]
     Other(String),
+}
+
+impl From<tokio::task::JoinError> for LauncherError {
+    fn from(e: tokio::task::JoinError) -> Self {
+        LauncherError::Other(e.to_string())
+    }
+}
+
+impl From<tokio::sync::AcquireError> for LauncherError {
+    fn from(e: tokio::sync::AcquireError) -> Self {
+        LauncherError::Other(e.to_string())
+    }
 }
 
 impl serde::Serialize for LauncherError {

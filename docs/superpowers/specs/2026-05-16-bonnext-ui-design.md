@@ -390,3 +390,776 @@ BonNext 是桌面应用，窗口有最小尺寸限制：
 | 组件事 | 硬边切割 / 锐角切割 | 硬边切割 | 攻击性强，辨识度高 |
 | 导航布局 | 仪表盘/侧栏/顶栏标签/底栏标签 | 侧栏式 | 功能多时层级清晰 |
 | 启动器定位 | 极简派 / 全能派 | 全能派 | 多实例/Mod管理/资源包 |
+
+---
+
+## 附录 A：最终设计效果图
+
+以下为完整的设计效果图 HTML，展示了侧栏导航 + 硬边切割 + 电光黄 + Bebas Neue 字体体系下的 BonNext 主页全貌。可通过视觉伴侣服务器在浏览器中直接预览。
+
+> 源文件：`.superpowers/brainstorm/11466-1778868082/content/final-v2.html`
+
+```html
+<h2>最终设计 v2 — 丰富细节版</h2>
+<p class="subtitle">增加了纹理、装饰元素、信息密度，让画面更有"料"</p>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+</style>
+
+<div class="mockup">
+  <div class="mockup-header">BonNext — Home 页面（丰富版）</div>
+  <div class="mockup-body">
+    <div style="background: #0D0D0D; display: flex; min-height: 560px; font-family: 'Inter', sans-serif; position: relative; overflow: hidden;">
+      
+      <!-- Noise texture overlay -->
+      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: 0.025; background-image: url('data:image/svg+xml,<svg viewBox=\"0 0 200 200\" xmlns=\"http://www.w3.org/2000/svg\"><filter id=\"n\"><feTurbulence type=\"fractalNoise\" baseFrequency=\"0.75\" numOctaves=\"4\" stitchTiles=\"stitch\"/></filter><rect width=\"100%\" height=\"100%\" filter=\"url(%23n)\" opacity=\"1\"/></svg>'); pointer-events: none; z-index: 0;"></div>
+
+      <!-- Scanline overlay -->
+      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: 0.03; background: repeating-linear-gradient(0deg, transparent, transparent 2px, #FFF 2px, #FFF 3px); pointer-events: none; z-index: 0;"></div>
+
+      <!-- Large decorative geometric shapes -->
+      <div style="position: absolute; top: -60px; right: -60px; width: 280px; height: 280px; border: 1px solid rgba(255,230,0,0.03); transform: rotate(12deg); pointer-events: none; z-index: 0;"></div>
+      <div style="position: absolute; bottom: -80px; left: 120px; width: 200px; height: 200px; border: 1px solid rgba(255,255,255,0.02); transform: rotate(-8deg); pointer-events: none; z-index: 0;"></div>
+      
+      <!-- Diagonal accent line -->
+      <div style="position: absolute; top: 80px; right: 380px; width: 1px; height: 100px; background: rgba(255,230,0,0.04); transform: rotate(-25deg); pointer-events: none; z-index: 0;"></div>
+
+      <!-- SIDEBAR -->
+      <div style="width: 190px; background: #0F0F0F; border-right: 1px solid #1A1A1A; display: flex; flex-direction: column; padding: 20px 0; position: relative; z-index: 1; flex-shrink: 0;">
+        
+        <!-- Logo area -->
+        <div style="display: flex; align-items: center; gap: 8px; padding: 0 16px; margin-bottom: 8px;">
+          <div style="width: 28px; height: 28px; background: #FFE600; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); flex-shrink: 0;"></div>
+          <span style="font-family: 'Bebas Neue', sans-serif; font-size: 1.1em; color: #FFF; letter-spacing: 3px;">BONNEXT</span>
+          <span style="font-size: 0.45em; color: #FFE600; margin-left: 2px; letter-spacing: 3px; font-weight: 700;">v0.1</span>
+        </div>
+
+        <!-- Broadcast status bar -->
+        <div style="margin: 0 16px 16px; background: #111; border: 1px solid #1A1A1A; padding: 6px 10px; display: flex; align-items: center; gap: 6px;">
+          <div style="width: 5px; height: 5px; background: #00FF88; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);"></div>
+          <span style="font-family: 'DM Mono', monospace; font-size: 0.42em; color: #666; letter-spacing: 1px;">SIGNAL · ON AIR</span>
+        </div>
+
+        <!-- Nav items -->
+        <div style="display: flex; flex-direction: column; gap: 2px; padding: 0 8px;">
+          <div style="background: #1A1A1A; padding: 10px 12px; clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%); position: relative;">
+            <div style="position: absolute; left: -8px; top: 50%; transform: translateY(-50%); width: 3px; height: 14px; background: #FFE600;"></div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 0.72em; font-weight: 700; color: #FFF; letter-spacing: 1px;">主页</span>
+              <span style="font-family: 'DM Mono', monospace; font-size: 0.55em; color: #FFE600; margin-left: auto;">·</span>
+            </div>
+          </div>
+          <div style="padding: 10px 12px; font-size: 0.72em; font-weight: 600; color: #555; letter-spacing: 1px;">实例管理</div>
+          <div style="padding: 10px 12px; font-size: 0.72em; font-weight: 600; color: #555; letter-spacing: 1px;">Mods</div>
+          <div style="padding: 10px 12px; font-size: 0.72em; font-weight: 600; color: #555; letter-spacing: 1px;">资源包</div>
+          <div style="padding: 10px 12px; font-size: 0.72em; font-weight: 600; color: #555; letter-spacing: 1px;">截图</div>
+        </div>
+
+        <div style="flex: 1;"></div>
+
+        <!-- Playtime stats -->
+        <div style="margin: 0 16px 12px; padding: 0 4px;">
+          <div style="font-size: 0.45em; color: #444; letter-spacing: 2px; margin-bottom: 4px;">TODAY</div>
+          <div style="display: flex; align-items: baseline; gap: 4px;">
+            <span style="font-family: 'DM Mono', monospace; font-size: 0.9em; color: #FFE600; font-weight: 500;">2.4</span>
+            <span style="font-size: 0.5em; color: #555;">小时</span>
+          </div>
+        </div>
+
+        <!-- Bottom area -->
+        <div style="border-top: 1px solid #1A1A1A; padding-top: 10px; margin: 0 8px;">
+          <div style="padding: 8px 12px; font-size: 0.68em; font-weight: 600; color: #555; letter-spacing: 1px;">设置</div>
+          <div style="padding: 8px 12px; display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+            <div style="width: 26px; height: 26px; background: #1A1A1A; display: flex; align-items: center; justify-content: center; font-size: 0.7em;">🧟</div>
+            <div>
+              <span style="font-size: 0.62em; font-weight: 600; color: #AAA;">Steve_Alex</span>
+              <div style="font-size: 0.45em; color: #FFE600; letter-spacing: 1px; font-weight: 700;">MS 正版</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN CONTENT -->
+      <div style="flex: 1; padding: 24px 28px; position: relative; z-index: 1; display: flex; flex-direction: column; gap: 16px; overflow: hidden;">
+        
+        <!-- Top bar -->
+        <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+          <div>
+            <div style="font-family: 'Bebas Neue', sans-serif; font-size: 1.8em; color: #FFF; letter-spacing: 4px; line-height: 1;">WELCOME BACK</div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 4px;">
+              <span style="font-size: 0.6em; color: #FFE600; letter-spacing: 2px; font-weight: 700;">Steve_Alex</span>
+              <span style="width: 1px; height: 10px; background: #333;"></span>
+              <span style="font-size: 0.55em; color: #555; letter-spacing: 1px; font-weight: 600;">6 个实例</span>
+              <span style="width: 1px; height: 10px; background: #333;"></span>
+              <span style="font-size: 0.55em; color: #555; letter-spacing: 1px; font-weight: 600;">总计 24.5h</span>
+            </div>
+          </div>
+          
+          <!-- Top right actions -->
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+            <div style="display: flex; gap: 6px;">
+              <div style="background: #141414; border: 1px solid #1F1F1F; padding: 6px 12px; font-size: 0.55em; color: #FFE600; font-weight: 700; letter-spacing: 2px; clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);">
+                ⚡ NEWS
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <div style="width: 6px; height: 6px; background: #00FF88; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);"></div>
+              <span style="font-family: 'DM Mono', monospace; font-size: 0.42em; color: #555;">SYS OK</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main grid: instances list + PLAY area -->
+        <div style="flex: 1; display: flex; gap: 18px;">
+          
+          <!-- Left: Instance list (wider, more content) -->
+          <div style="flex: 1.3; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 0.5em; color: #666; letter-spacing: 3px; font-weight: 700;">INSTANCES</span>
+                <span style="font-family: 'DM Mono', monospace; font-size: 0.5em; color: #FFE600;">06</span>
+              </div>
+              <div style="background: #FFE600; color: #0D0D0D; padding: 5px 12px; font-size: 0.55em; font-weight: 800; letter-spacing: 1px; clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%); cursor: default;">
+                + 新建实例
+              </div>
+            </div>
+
+            <!-- Instance card 1 - active, with richer info -->
+            <div style="background: #1A1A1A; border: 1px solid #2A2A2A; padding: 14px 16px; position: relative;">
+              <div style="position: absolute; top: -1px; left: -1px; width: 34px; height: 2px; background: #FFE600;"></div>
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 42px; height: 42px; background: #252525; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); display: flex; align-items: center; justify-content: center; color: #FFE600; font-size: 1em;">⛏</div>
+                <div style="flex: 1;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-weight: 700; font-size: 0.78em; color: #FFF;">Vanilla 1.21.4</span>
+                    <span style="font-family: 'DM Mono', monospace; font-size: 0.5em; color: #FFE600; background: #252525; padding: 2px 6px; letter-spacing: 1px;">1.21.4</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px; margin-top: 3px;">
+                    <span style="font-size: 0.55em; color: #666;">纯净生存</span>
+                    <span style="width: 3px; height: 3px; background: #444;"></span>
+                    <span style="font-size: 0.55em; color: #666;">最后游玩 2h 前</span>
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div style="text-align: right;">
+                    <div style="font-family: 'DM Mono', monospace; font-size: 0.5em; color: #FFE600;">4GB</div>
+                    <div style="font-size: 0.4em; color: #555;">RAM</div>
+                  </div>
+                  <div style="width: 10px; height: 10px; background: #00FF88; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Instance card 2 -->
+            <div style="background: #141414; border: 1px solid #1C1C1C; padding: 12px 16px; position: relative;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 42px; height: 42px; background: #1A1A1A; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); display: flex; align-items: center; justify-content: center; color: #555; font-size: 1em;">🧵</div>
+                <div style="flex: 1;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-weight: 700; font-size: 0.78em; color: #AAA;">Fabric 1.20.4</span>
+                    <span style="font-family: 'DM Mono', monospace; font-size: 0.5em; color: #555; background: #1A1A1A; padding: 2px 6px;">1.20.4</span>
+                    <span style="font-size: 0.48em; color: #444; background: #1A1A1A; padding: 2px 5px; letter-spacing: 1px;">SODIUM</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px;">
+                    <span style="font-size: 0.55em; color: #555;">Iris · Lithium</span>
+                    <span style="width: 3px; height: 3px; background: #333;"></span>
+                    <span style="font-size: 0.55em; color: #555;">3天前</span>
+                  </div>
+                </div>
+                <div style="font-family: 'DM Mono', monospace; font-size: 0.5em; color: #555;">6GB</div>
+              </div>
+            </div>
+
+            <!-- Instance card 3 -->
+            <div style="background: #141414; border: 1px solid #1C1C1C; padding: 12px 16px; position: relative;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 42px; height: 42px; background: #1A1A1A; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); display: flex; align-items: center; justify-content: center; color: #555; font-size: 1em;">🔥</div>
+                <div style="flex: 1;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-weight: 700; font-size: 0.78em; color: #AAA;">Forge 1.19.2</span>
+                    <span style="font-family: 'DM Mono', monospace; font-size: 0.5em; color: #555; background: #1A1A1A; padding: 2px 6px;">1.19.2</span>
+                    <span style="font-size: 0.48em; color: #444; background: #1A1A1A; padding: 2px 5px; letter-spacing: 1px;">120+</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px;">
+                    <span style="font-size: 0.55em; color: #555;">120+ Mods</span>
+                    <span style="width: 3px; height: 3px; background: #333;"></span>
+                    <span style="font-size: 0.55em; color: #555;">1周前</span>
+                  </div>
+                </div>
+                <div style="font-family: 'DM Mono', monospace; font-size: 0.5em; color: #555;">8GB</div>
+              </div>
+            </div>
+
+            <!-- News ticker -->
+            <div style="margin-top: auto; background: #111; border: 1px solid #1A1A1A; padding: 8px 14px; display: flex; align-items: center; gap: 10px;">
+              <div style="flex-shrink: 0; padding: 3px 8px; background: #1A1A1A; font-family: 'Bebas Neue', sans-serif; font-size: 0.55em; color: #FFE600; letter-spacing: 2px; clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 100%, 0 100%);">NEWS</div>
+              <div style="display: flex; align-items: center; gap: 12px; overflow: hidden;">
+                <span style="font-size: 0.55em; color: #888;">Minecraft Live 2026 · 新生物群系预告</span>
+                <span style="width: 3px; height: 3px; background: #FFE600; opacity: 0.4;"></span>
+                <span style="font-size: 0.55em; color: #666;">Sodium 0.7 发布 · 性能提升 40%</span>
+                <span style="width: 3px; height: 3px; background: #FFE600; opacity: 0.4;"></span>
+                <span style="font-size: 0.55em; color: #555;">社群服务器活动 · 本周六 20:00</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: PLAY area -->
+          <div style="flex: 0.7; display: flex; flex-direction: column; gap: 8px;">
+            
+            <!-- Big PLAY button -->
+            <div style="flex: 1; background: #111; border: 1px solid #2A2A2A; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; cursor: default;">
+              <div style="position: absolute; top: -1px; right: -1px; width: 0; height: 0; border-left: 24px solid transparent; border-top: 24px solid #FFE600;"></div>
+              <div style="position: absolute; bottom: -1px; left: -1px; width: 0; height: 0; border-right: 24px solid transparent; border-bottom: 24px solid #FFE600;"></div>
+              
+              <!-- Inner rotated frame -->
+              <div style="position: absolute; top: 16px; left: 16px; right: 16px; bottom: 16px; border: 1px solid rgba(255,230,0,0.04); transform: rotate(-2deg); pointer-events: none;"></div>
+              
+              <!-- Vertical accent line -->
+              <div style="position: absolute; left: 24px; top: 30px; bottom: 30px; width: 1px; background: rgba(255,230,0,0.05); pointer-events: none;"></div>
+              
+              <div style="text-align: center; position: relative; z-index: 1;">
+                <div style="font-family: 'Bebas Neue', sans-serif; font-size: 3.2em; color: #FFE600; letter-spacing: 6px; line-height: 1;">▶</div>
+                <div style="font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; color: #FFF; letter-spacing: 8px; margin-top: 4px;">START</div>
+                <div style="font-family: 'Bebas Neue', sans-serif; font-size: 1.5em; color: #FFF; letter-spacing: 8px;">GAME</div>
+                
+                <!-- Instance info inside PLAY -->
+                <div style="margin-top: 18px; padding: 6px 16px; background: #1A1A1A; display: inline-block;">
+                  <div style="font-family: 'DM Mono', monospace; font-size: 0.55em; color: #FFE600;">VANILLA 1.21.4</div>
+                  <div style="font-family: 'Inter', sans-serif; font-size: 0.45em; color: #555; margin-top: 2px;">Fabric 0.16.10 · 4GB</div>
+                </div>
+
+                <div style="display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 14px;">
+                  <div style="width: 5px; height: 5px; background: #00FF88; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);"></div>
+                  <span style="font-family: 'DM Mono', monospace; font-size: 0.5em; color: #555;">SYS READY</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick stats row -->
+            <div style="display: flex; gap: 6px;">
+              <div style="flex: 1; background: #141414; border: 1px solid #1C1C1C; padding: 12px 8px; text-align: center;">
+                <div style="font-family: 'DM Mono', monospace; font-size: 0.7em; color: #FFF;">4GB</div>
+                <div style="font-size: 0.42em; color: #555; margin-top: 2px; letter-spacing: 1px;">RAM</div>
+              </div>
+              <div style="flex: 1; background: #141414; border: 1px solid #1C1C1C; padding: 12px 8px; text-align: center;">
+                <div style="font-family: 'DM Mono', monospace; font-size: 0.7em; color: #FFF;">J21</div>
+                <div style="font-size: 0.42em; color: #555; margin-top: 2px; letter-spacing: 1px;">JDK</div>
+              </div>
+              <div style="flex: 1; background: #141414; border: 1px solid #1C1C1C; padding: 12px 8px; text-align: center;">
+                <div style="font-family: 'DM Mono', monospace; font-size: 0.7em; color: #FFF;">FHD</div>
+                <div style="font-size: 0.42em; color: #555; margin-top: 2px; letter-spacing: 1px;">RES</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+---
+
+## 附录 B：完整 UI 控件库
+
+以下为 7 大类全部 UI 控件的完整 HTML 源码，覆盖按钮、输入控件、导航、卡片、状态徽章、装饰布局、弹窗等所有组件。可通过视觉伴侣服务器在浏览器中直接预览。
+
+> 源文件：`.superpowers/brainstorm/11466-1778868082/content/ui-kit.html`
+
+```html
+<h2>BonNext UI 控件库 · 完整汇总</h2>
+<p class="subtitle">黑底 #0D0D0D · 电光黄 #FFE600 · Bebas Neue + Inter + DM Mono · 硬边切割</p>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap');
+</style>
+
+<div style="background: #0D0D0D; padding: 32px; display: flex; flex-direction: column; gap: 36px; font-family: 'Inter', sans-serif;">
+
+  <!-- ==================== 1. BUTTONS ==================== -->
+  <div>
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
+      <div style="width: 3px; height: 16px; background: #FFE600;"></div>
+      <span style="font-family: 'Bebas Neue', sans-serif; font-size: 1em; color: #FFF; letter-spacing: 3px;">01 · 按钮</span>
+      <span style="width: 20px; height: 1px; background: #333; margin: 0 6px;"></span>
+      <span style="font-size: 0.55em; color: #555; letter-spacing: 2px;">BUTTONS</span>
+    </div>
+    
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+
+      <!-- 主要按钮 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">PRIMARY</span>
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+          <div style="background: #FFE600; color: #0D0D0D; padding: 12px 32px; font-weight: 800; font-size: 0.8em; letter-spacing: 3px; clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%); font-family: 'Bebas Neue', sans-serif;">开始游戏</div>
+          <div style="background: #FFE600; color: #0D0D0D; padding: 8px 20px; font-weight: 800; font-size: 0.65em; letter-spacing: 2px; clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%); font-family: 'Bebas Neue', sans-serif;">保存</div>
+          <div style="background: #FFE600; color: #0D0D0D; padding: 5px 14px; font-weight: 800; font-size: 0.55em; letter-spacing: 1px; clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%); font-family: 'Bebas Neue', sans-serif;">+ 新建</div>
+        </div>
+      </div>
+
+      <!-- 次要按钮 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">SECONDARY</span>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <div style="border: 1px solid #333; color: #999; padding: 10px 24px; font-weight: 700; font-size: 0.7em; letter-spacing: 2px; clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);">取消</div>
+          <div style="border: 1px solid #FFE600; color: #FFE600; padding: 10px 24px; font-weight: 700; font-size: 0.7em; letter-spacing: 2px; clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);">导出</div>
+          <div style="background: #1A1A1A; border: 1px solid #1F1F1F; color: #888; padding: 8px 16px; font-weight: 700; font-size: 0.6em; letter-spacing: 2px; clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);">⚡ NEWS</div>
+        </div>
+      </div>
+
+      <!-- 图标按钮 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">ICON</span>
+        <div style="display: flex; gap: 12px;">
+          <div style="width: 36px; height: 36px; background: #1A1A1A; border: 1px solid #1F1F1F; display: flex; align-items: center; justify-content: center; font-size: 0.8em; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); color: #888;">⚙</div>
+          <div style="width: 36px; height: 36px; background: #1A1A1A; border: 1px solid #1F1F1F; display: flex; align-items: center; justify-content: center; font-size: 0.8em; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); color: #888;">✕</div>
+          <div style="width: 36px; height: 36px; background: #1A1A1A; border: 1px solid #1F1F1F; display: flex; align-items: center; justify-content: center; font-size: 0.8em; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); color: #888;">⋯</div>
+        </div>
+      </div>
+
+      <!-- 危险按钮 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">DANGER</span>
+        <div style="display: flex; gap: 12px;">
+          <div style="border: 1px solid #FF4444; color: #FF4444; padding: 8px 20px; font-weight: 700; font-size: 0.65em; letter-spacing: 2px; clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);">删除实例</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div style="height: 1px; background: #1A1A1A;"></div>
+
+  <!-- ==================== 2. INPUTS ==================== -->
+  <div>
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
+      <div style="width: 3px; height: 16px; background: #FFE600;"></div>
+      <span style="font-family: 'Bebas Neue', sans-serif; font-size: 1em; color: #FFF; letter-spacing: 3px;">02 · 输入控件</span>
+      <span style="width: 20px; height: 1px; background: #333; margin: 0 6px;"></span>
+      <span style="font-size: 0.55em; color: #555; letter-spacing: 2px;">INPUTS</span>
+    </div>
+    
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+
+      <!-- 文本输入 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">TEXT</span>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="background: #141414; border: 1px solid #2A2A2A; padding: 10px 14px; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); min-width: 240px;">
+            <span style="color: #FFF; font-size: 0.7em;">实例名称</span>
+            <span style="color: #FFE600; margin-left: 4px; font-family: 'DM Mono', monospace;">▌</span>
+          </div>
+          <div style="background: #141414; border: 1px solid #1F1F1F; padding: 10px 14px; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); min-width: 240px;">
+            <span style="color: #555; font-size: 0.7em;">输入 JVM 参数...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 下拉选择 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">SELECT</span>
+        <div style="display: flex; gap: 12px;">
+          <div style="background: #141414; border: 1px solid #2A2A2A; padding: 10px 14px; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); display: flex; align-items: center; gap: 24px; min-width: 160px;">
+            <span style="color: #FFF; font-size: 0.7em;">1.21.4</span>
+            <span style="color: #555; font-size: 0.7em; margin-left: auto;">▼</span>
+          </div>
+          <div style="background: #141414; border: 1px solid #2A2A2A; padding: 10px 14px; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); display: flex; align-items: center; gap: 24px; min-width: 160px;">
+            <span style="color: #FFF; font-size: 0.7em;">Java 21</span>
+            <span style="color: #555; font-size: 0.7em; margin-left: auto;">▼</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 开关 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">TOGGLE</span>
+        <div style="display: flex; gap: 16px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 36px; height: 20px; background: #FFE600; border-radius: 10px; position: relative;">
+              <div style="position: absolute; right: 3px; top: 3px; width: 14px; height: 14px; background: #0D0D0D; border-radius: 50%;"></div>
+            </div>
+            <span style="font-size: 0.65em; color: #FFF;">开启</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 36px; height: 20px; background: #2A2A2A; border-radius: 10px; position: relative;">
+              <div style="position: absolute; left: 3px; top: 3px; width: 14px; height: 14px; background: #555; border-radius: 50%;"></div>
+            </div>
+            <span style="font-size: 0.65em; color: #555;">关闭</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 复选框 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">CHECKBOX</span>
+        <div style="display: flex; gap: 16px; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <div style="width: 16px; height: 16px; background: #FFE600; clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%); display: flex; align-items: center; justify-content: center; color: #0D0D0D; font-size: 0.5em;">✓</div>
+            <span style="font-size: 0.65em; color: #FFF;">显示快照版本</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <div style="width: 16px; height: 16px; background: #1A1A1A; border: 1px solid #2A2A2A; clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);"></div>
+            <span style="font-size: 0.65em; color: #555;">全屏模式</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 滑块 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">SLIDER</span>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-family: 'DM Mono', monospace; font-size: 0.65em; color: #FFF;">4 GB</span>
+          <div style="width: 160px; height: 4px; background: #2A2A2A; position: relative;">
+            <div style="position: absolute; left: 0; top: 0; height: 100%; width: 50%; background: #FFE600;"></div>
+            <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 12px; height: 12px; background: #FFE600; clip-path: polygon(0 0, calc(100% - 2px) 0, 100% 2px, 100% 100%, 0 100%);"></div>
+          </div>
+          <span style="font-family: 'DM Mono', monospace; font-size: 0.55em; color: #555;">16 GB</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div style="height: 1px; background: #1A1A1A;"></div>
+
+  <!-- ==================== 3. NAVIGATION ==================== -->
+  <div>
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
+      <div style="width: 3px; height: 16px; background: #FFE600;"></div>
+      <span style="font-family: 'Bebas Neue', sans-serif; font-size: 1em; color: #FFF; letter-spacing: 3px;">03 · 导航</span>
+      <span style="width: 20px; height: 1px; background: #333; margin: 0 6px;"></span>
+      <span style="font-size: 0.55em; color: #555; letter-spacing: 2px;">NAVIGATION</span>
+    </div>
+    
+    <div style="display: flex; gap: 32px;">
+      
+      <!-- 侧栏导航 -->
+      <div style="flex: 1;">
+        <div style="font-size: 0.5em; color: #666; letter-spacing: 2px; margin-bottom: 10px;">SIDEBAR</div>
+        <div style="background: #0F0F0F; border: 1px solid #1A1A1A; padding: 12px; display: flex; flex-direction: column; gap: 2px;">
+          <div style="background: #1A1A1A; padding: 8px 10px; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); position: relative;">
+            <div style="position: absolute; left: -10px; top: 50%; transform: translateY(-50%); width: 3px; height: 12px; background: #FFE600;"></div>
+            <span style="font-size: 0.65em; font-weight: 700; color: #FFF; letter-spacing: 1px;">主页</span>
+          </div>
+          <div style="padding: 8px 10px; font-size: 0.65em; font-weight: 600; color: #555; letter-spacing: 1px;">实例管理</div>
+          <div style="padding: 8px 10px; font-size: 0.65em; font-weight: 600; color: #555; letter-spacing: 1px;">Mods</div>
+          <div style="padding: 8px 10px; font-size: 0.65em; font-weight: 600; color: #555; letter-spacing: 1px;">资源包</div>
+          <div style="padding: 8px 10px; font-size: 0.65em; font-weight: 600; color: #555; letter-spacing: 1px;">截图</div>
+          <div style="border-top: 1px solid #1A1A1A; padding-top: 8px; margin-top: 8px;">
+            <div style="padding: 8px 10px; font-size: 0.65em; font-weight: 600; color: #555; letter-spacing: 1px;">设置</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 标签导航 -->
+      <div style="flex: 1;">
+        <div style="font-size: 0.5em; color: #666; letter-spacing: 2px; margin-bottom: 10px;">TABS</div>
+        <div style="border-bottom: 1px solid #1A1A1A; display: flex; gap: 0;">
+          <div style="padding: 8px 18px; font-size: 0.65em; font-weight: 700; color: #FFF; border-bottom: 2px solid #FFE600; margin-bottom: -1px;">主页</div>
+          <div style="padding: 8px 18px; font-size: 0.65em; font-weight: 600; color: #555;">实例</div>
+          <div style="padding: 8px 18px; font-size: 0.65em; font-weight: 600; color: #555;">Mods</div>
+          <div style="padding: 8px 18px; font-size: 0.65em; font-weight: 600; color: #555;">设置</div>
+        </div>
+        <div style="margin-top: 12px; padding: 16px; background: #1A1A1A; border: 1px solid #1F1F1F;">
+          <span style="font-size: 0.6em; color: #555;">标签内容区域</span>
+        </div>
+      </div>
+
+      <!-- 面包屑 -->
+      <div style="flex: 1;">
+        <div style="font-size: 0.5em; color: #666; letter-spacing: 2px; margin-bottom: 10px;">BREADCRUMB</div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 0.6em; color: #555; font-weight: 600;">实例管理</span>
+          <span style="color: #333; font-size: 0.6em;">/</span>
+          <span style="font-size: 0.6em; color: #FFE600; font-weight: 700;">Vanilla 1.21.4</span>
+          <span style="color: #333; font-size: 0.6em;">/</span>
+          <span style="font-size: 0.6em; color: #FFF; font-weight: 600;">设置</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div style="height: 1px; background: #1A1A1A;"></div>
+
+  <!-- ==================== 4. CARDS ==================== -->
+  <div>
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
+      <div style="width: 3px; height: 16px; background: #FFE600;"></div>
+      <span style="font-family: 'Bebas Neue', sans-serif; font-size: 1em; color: #FFF; letter-spacing: 3px;">04 · 卡片</span>
+      <span style="width: 20px; height: 1px; background: #333; margin: 0 6px;"></span>
+      <span style="font-size: 0.55em; color: #555; letter-spacing: 2px;">CARDS</span>
+    </div>
+    
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      
+      <!-- 激活实例卡片 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">ACTIVE</span>
+        <div style="flex: 1; background: #1A1A1A; border: 1px solid #2A2A2A; padding: 14px 16px; position: relative;">
+          <div style="position: absolute; top: -1px; left: -1px; width: 34px; height: 2px; background: #FFE600;"></div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 42px; height: 42px; background: #252525; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); display: flex; align-items: center; justify-content: center; color: #FFE600; font-size: 1em;">⛏</div>
+            <div style="flex: 1;">
+              <div style="font-weight: 700; font-size: 0.75em; color: #FFF;">Vanilla 1.21.4</div>
+              <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+                <span style="font-size: 0.55em; color: #666;">纯净生存</span>
+                <span style="color: #444;">·</span>
+                <span style="font-size: 0.55em; color: #666;">2h 前</span>
+              </div>
+            </div>
+            <span style="font-family: 'DM Mono', monospace; font-size: 0.5em; color: #FFE600; background: #252525; padding: 2px 6px;">1.21.4</span>
+            <div style="width: 8px; height: 8px; background: #00FF88; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 普通实例卡片 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">DEFAULT</span>
+        <div style="flex: 1; background: #141414; border: 1px solid #1C1C1C; padding: 14px 16px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 42px; height: 42px; background: #1A1A1A; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); display: flex; align-items: center; justify-content: center; color: #555;">🧵</div>
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-weight: 700; font-size: 0.75em; color: #AAA;">Fabric 1.20.4</span>
+                <span style="font-size: 0.45em; color: #444; background: #1A1A1A; padding: 2px 5px;">SODIUM</span>
+              </div>
+              <div style="font-size: 0.55em; color: #555; margin-top: 2px;">Iris · Lithium · 3天前</div>
+            </div>
+            <span style="font-family: 'DM Mono', monospace; font-size: 0.5em; color: #555;">1.20.4</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 信息卡片 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">STATS</span>
+        <div style="display: flex; gap: 8px;">
+          <div style="background: #141414; border: 1px solid #1C1C1C; padding: 16px 24px; text-align: center;">
+            <div style="font-family: 'DM Mono', monospace; font-size: 0.9em; color: #FFF; font-weight: 500;">4GB</div>
+            <div style="font-size: 0.45em; color: #555; margin-top: 4px; letter-spacing: 2px;">RAM</div>
+          </div>
+          <div style="background: #141414; border: 1px solid #1C1C1C; padding: 16px 24px; text-align: center;">
+            <div style="font-family: 'DM Mono', monospace; font-size: 0.9em; color: #FFF; font-weight: 500;">J21</div>
+            <div style="font-size: 0.45em; color: #555; margin-top: 4px; letter-spacing: 2px;">JDK</div>
+          </div>
+          <div style="background: #141414; border: 1px solid #1C1C1C; padding: 16px 24px; text-align: center;">
+            <div style="font-family: 'DM Mono', monospace; font-size: 0.9em; color: #FFF; font-weight: 500;">FHD</div>
+            <div style="font-size: 0.45em; color: #555; margin-top: 4px; letter-spacing: 2px;">RES</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 用户卡片 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">USER</span>
+        <div style="background: #1A1A1A; border: 1px solid #2A2A2A; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+          <div style="width: 30px; height: 30px; background: #252525; display: flex; align-items: center; justify-content: center; font-size: 0.8em;">🧟</div>
+          <div>
+            <div style="font-weight: 700; font-size: 0.7em; color: #FFF;">Steve_Alex</div>
+            <div style="font-size: 0.5em; color: #FFE600; letter-spacing: 1px; font-weight: 700;">MICROSOFT</div>
+          </div>
+          <div style="margin-left: auto; font-size: 0.6em; color: #555;">▼</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div style="height: 1px; background: #1A1A1A;"></div>
+
+  <!-- ==================== 5. STATUS & INDICATORS ==================== -->
+  <div>
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
+      <div style="width: 3px; height: 16px; background: #FFE600;"></div>
+      <span style="font-family: 'Bebas Neue', sans-serif; font-size: 1em; color: #FFF; letter-spacing: 3px;">05 · 状态与徽章</span>
+      <span style="width: 20px; height: 1px; background: #333; margin: 0 6px;"></span>
+      <span style="font-size: 0.55em; color: #555; letter-spacing: 2px;">STATUS · BADGES</span>
+    </div>
+    
+    <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start;">
+      
+      <!-- 状态指示灯 -->
+      <div>
+        <div style="font-size: 0.45em; color: #555; letter-spacing: 2px; margin-bottom: 8px;">STATUS DOTS</div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <div style="width: 6px; height: 6px; background: #00FF88; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);"></div>
+            <span style="font-size: 0.6em; color: #FFF;">就绪</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <div style="width: 6px; height: 6px; background: #FFE600; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);"></div>
+            <span style="font-size: 0.6em; color: #FFF;">下载中</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <div style="width: 6px; height: 6px; background: #FF4444; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);"></div>
+            <span style="font-size: 0.6em; color: #FFF;">错误</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 徽章标签 -->
+      <div>
+        <div style="font-size: 0.45em; color: #555; letter-spacing: 2px; margin-bottom: 8px;">BADGES</div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <span style="font-family: 'DM Mono', monospace; font-size: 0.5em; color: #FFE600; background: #252525; padding: 3px 8px; clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);">1.21.4</span>
+          <span style="font-family: 'DM Mono', monospace; font-size: 0.5em; color: #888; background: #1A1A1A; padding: 3px 8px; clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);">FABRIC</span>
+          <span style="font-size: 0.5em; color: #555; background: #1A1A1A; padding: 3px 8px; clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);">SODIUM</span>
+          <span style="font-size: 0.5em; color: #555; background: #1A1A1A; padding: 3px 8px; clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%); letter-spacing: 1px;">120+</span>
+        </div>
+      </div>
+
+      <!-- 进度条 -->
+      <div>
+        <div style="font-size: 0.45em; color: #555; letter-spacing: 2px; margin-bottom: 8px;">PROGRESS</div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 180px; height: 4px; background: #2A2A2A;">
+              <div style="width: 65%; height: 100%; background: #FFE600;"></div>
+            </div>
+            <span style="font-family: 'DM Mono', monospace; font-size: 0.55em; color: #FFE600;">65%</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 180px; height: 4px; background: #2A2A2A;">
+              <div style="width: 100%; height: 100%; background: #00FF88;"></div>
+            </div>
+            <span style="font-family: 'DM Mono', monospace; font-size: 0.55em; color: #00FF88;">DONE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 账号类型 -->
+      <div>
+        <div style="font-size: 0.45em; color: #555; letter-spacing: 2px; margin-bottom: 8px;">ACCOUNT TYPE</div>
+        <div style="display: flex; gap: 8px;">
+          <span style="font-size: 0.55em; color: #FFE600; letter-spacing: 2px; font-weight: 700;">MICROSOFT</span>
+          <span style="font-size: 0.55em; color: #555; letter-spacing: 1px; font-weight: 600;">OFFLINE</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div style="height: 1px; background: #1A1A1A;"></div>
+
+  <!-- ==================== 6. LAYOUT ELEMENTS ==================== -->
+  <div>
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
+      <div style="width: 3px; height: 16px; background: #FFE600;"></div>
+      <span style="font-family: 'Bebas Neue', sans-serif; font-size: 1em; color: #FFF; letter-spacing: 3px;">06 · 装饰与布局</span>
+      <span style="width: 20px; height: 1px; background: #333; margin: 0 6px;"></span>
+      <span style="font-size: 0.55em; color: #555; letter-spacing: 2px;">DECORATION · LAYOUT</span>
+    </div>
+    
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+
+      <!-- 章节标题 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">HEADING</span>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-family: 'Bebas Neue', sans-serif; font-size: 1.6em; color: #FFF; letter-spacing: 4px;">WELCOME BACK</div>
+          <div style="font-family: 'Bebas Neue', sans-serif; font-size: 1.1em; color: #FFF; letter-spacing: 3px;">INSTANCES</div>
+          <div style="font-size: 0.55em; color: #666; letter-spacing: 3px; font-weight: 700;">SUB SECTION LABEL</div>
+        </div>
+      </div>
+
+      <!-- 标签 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">LABELS</span>
+        <div style="display: flex; gap: 16px;">
+          <div style="padding: 3px 10px; background: #1A1A1A; font-family: 'Bebas Neue', sans-serif; font-size: 0.6em; color: #FFE600; letter-spacing: 2px; clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 100%, 0 100%);">NEWS</div>
+          <div style="padding: 3px 10px; background: #1A1A1A; font-family: 'Bebas Neue', sans-serif; font-size: 0.6em; color: #555; letter-spacing: 2px; clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 100%, 0 100%);">INSTANCES</div>
+        </div>
+      </div>
+
+      <!-- 分割线 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">DIVIDER</span>
+        <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+          <div style="height: 1px; background: #FFE600; opacity: 0.2;"></div>
+          <div style="height: 1px; background: #1A1A1A;"></div>
+          <div style="height: 1px; background: #FFE600; opacity: 0.05;"></div>
+        </div>
+      </div>
+
+      <!-- 装饰角标 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">ACCENTS</span>
+        <div style="display: flex; gap: 16px; align-items: flex-end;">
+          <div style="position: relative; width: 60px; height: 60px; background: #1A1A1A; border: 1px solid #2A2A2A;">
+            <div style="position: absolute; top: -1px; right: -1px; width: 0; height: 0; border-left: 14px solid transparent; border-top: 14px solid #FFE600;"></div>
+          </div>
+          <div style="position: relative; width: 60px; height: 60px; background: #1A1A1A; border: 1px solid #2A2A2A;">
+            <div style="position: absolute; bottom: -1px; left: -1px; width: 0; height: 0; border-right: 14px solid transparent; border-bottom: 14px solid #FFE600;"></div>
+          </div>
+          <div style="position: relative; width: 60px; height: 60px; background: #1A1A1A; border: 1px solid #2A2A2A;">
+            <div style="position: absolute; top: -1px; left: -1px; width: 14px; height: 2px; background: #FFE600;"></div>
+          </div>
+          <div style="position: relative; width: 60px; height: 60px; background: #1A1A1A; border: 1px solid #2A2A2A;">
+            <div style="position: absolute; top: 8px; left: 8px; right: 8px; bottom: 8px; border: 1px solid rgba(255,230,0,0.08); transform: rotate(-3deg);"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 滚动消息条 -->
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <span style="font-size: 0.5em; color: #666; width: 110px; text-align: right; letter-spacing: 2px;">TICKER</span>
+        <div style="flex: 1; background: #111; border: 1px solid #1A1A1A; padding: 8px 14px; display: flex; align-items: center; gap: 10px;">
+          <div style="flex-shrink: 0; padding: 3px 8px; background: #1A1A1A; font-family: 'Bebas Neue', sans-serif; font-size: 0.55em; color: #FFE600; letter-spacing: 2px; clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 100%, 0 100%);">NEWS</div>
+          <span style="font-size: 0.55em; color: #888;">Minecraft Live 2026 · 新生物群系预告</span>
+          <span style="color: #333;">·</span>
+          <span style="font-size: 0.55em; color: #666;">Sodium 0.7 发布</span>
+          <span style="color: #333;">·</span>
+          <span style="font-size: 0.55em; color: #555;">社群服务器活动</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div style="height: 1px; background: #1A1A1A;"></div>
+
+  <!-- ==================== 7. DIALOG / MODAL ==================== -->
+  <div>
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px;">
+      <div style="width: 3px; height: 16px; background: #FFE600;"></div>
+      <span style="font-family: 'Bebas Neue', sans-serif; font-size: 1em; color: #FFF; letter-spacing: 3px;">07 · 弹窗</span>
+      <span style="width: 20px; height: 1px; background: #333; margin: 0 6px;"></span>
+      <span style="font-size: 0.55em; color: #555; letter-spacing: 2px;">MODAL</span>
+    </div>
+    
+    <div style="display: flex; gap: 20px;">
+      <!-- 确认弹窗 -->
+      <div style="background: #141414; border: 1px solid #2A2A2A; padding: 20px; min-width: 260px;">
+        <div style="font-family: 'Bebas Neue', sans-serif; font-size: 0.85em; color: #FFF; letter-spacing: 3px; margin-bottom: 12px;">确认删除</div>
+        <div style="font-size: 0.6em; color: #888; margin-bottom: 16px; line-height: 1.5;">确定要删除实例 "Forge 1.19.2" 吗？此操作不可撤销。</div>
+        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+          <div style="border: 1px solid #333; color: #999; padding: 8px 20px; font-weight: 700; font-size: 0.65em; letter-spacing: 2px; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);">取消</div>
+          <div style="border: 1px solid #FF4444; color: #FF4444; padding: 8px 20px; font-weight: 700; font-size: 0.65em; letter-spacing: 2px; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);">删除</div>
+        </div>
+      </div>
+
+      <!-- 新建实例弹窗 -->
+      <div style="background: #141414; border: 1px solid #2A2A2A; padding: 20px; min-width: 280px;">
+        <div style="font-family: 'Bebas Neue', sans-serif; font-size: 0.85em; color: #FFF; letter-spacing: 3px; margin-bottom: 14px;">新建实例</div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="background: #0D0D0D; border: 1px solid #2A2A2A; padding: 8px 12px; clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);">
+            <span style="color: #FFF; font-size: 0.65em;">实例名称</span>
+          </div>
+          <div style="background: #0D0D0D; border: 1px solid #2A2A2A; padding: 8px 12px; clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%); display: flex; justify-content: space-between;">
+            <span style="color: #FFF; font-size: 0.65em;">Minecraft 1.21.4</span>
+            <span style="color: #555;">▼</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
+          <div style="border: 1px solid #333; color: #999; padding: 8px 20px; font-weight: 700; font-size: 0.65em; letter-spacing: 2px; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);">取消</div>
+          <div style="background: #FFE600; color: #0D0D0D; padding: 8px 20px; font-weight: 800; font-size: 0.65em; letter-spacing: 2px; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); font-family: 'Bebas Neue', sans-serif;">创建</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+```
