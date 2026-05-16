@@ -13,6 +13,20 @@ use tokio::sync::Semaphore;
 const MAX_RETRIES: u32 = 3;
 const RETRY_BASE_DELAY_MS: u64 = 500;
 
+fn compute_speed_eta(downloaded: u64, total: u64, elapsed: std::time::Duration) -> (u64, u64) {
+    if downloaded == 0 || elapsed.as_millis() < 100 {
+        return (0, 0);
+    }
+    let bytes_per_second = (downloaded as f64 / elapsed.as_secs_f64()) as u64;
+    let remaining = total.saturating_sub(downloaded);
+    let eta_seconds = if bytes_per_second > 0 {
+        remaining / bytes_per_second
+    } else {
+        0
+    };
+    (bytes_per_second, eta_seconds)
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct DownloadProgress {
     pub url: String,
@@ -20,6 +34,8 @@ pub struct DownloadProgress {
     pub total: u64,
     pub finished: bool,
     pub error: Option<String>,
+    pub bytes_per_second: u64,
+    pub eta_seconds: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -83,6 +99,8 @@ impl DownloadQueue {
                 total: task.size,
                 finished: true,
                 error: None,
+                bytes_per_second: 0,
+                eta_seconds: 0,
             });
             return Ok(());
         }
@@ -120,6 +138,8 @@ impl DownloadQueue {
                         total: task.size,
                         finished: true,
                         error: None,
+                        bytes_per_second: 0,
+                        eta_seconds: 0,
                     });
                     return Ok(());
                 }
@@ -163,6 +183,7 @@ impl DownloadQueue {
         let mut stream = response.bytes_stream();
         let mut downloaded: u64 = 0;
         let mut last_emit = std::time::Instant::now();
+        let start_time = std::time::Instant::now();
 
         while let Some(chunk_result) = stream.next().await {
             let chunk = chunk_result?;
@@ -172,12 +193,16 @@ impl DownloadQueue {
             let now = std::time::Instant::now();
             if now.duration_since(last_emit).as_millis() >= 200 {
                 last_emit = now;
+                let elapsed = start_time.elapsed();
+                let (bytes_per_second, eta_seconds) = compute_speed_eta(downloaded, total_size, elapsed);
                 self.emit_progress(DownloadProgress {
                     url: url.to_string(),
                     downloaded,
                     total: total_size,
                     finished: false,
                     error: None,
+                    bytes_per_second,
+                    eta_seconds,
                 });
             }
         }
@@ -216,6 +241,8 @@ impl DownloadQueue {
                         total: task.size,
                         finished: true,
                         error: result.as_ref().err().map(|e| e.to_string()),
+                        bytes_per_second: 0,
+                        eta_seconds: 0,
                     });
                 }
                 (index, result)

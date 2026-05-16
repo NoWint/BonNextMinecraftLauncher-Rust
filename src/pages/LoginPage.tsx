@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api, type DeviceCodeResponse } from '../api';
 import { useAuth } from '../stores/authStore';
+import { useI18n } from '../i18n';
 import { SubLabel } from '../components/layout';
 import { StatusDot, ProgressBar, Button, TextInput } from '../components/ui';
 import { useGreeting, getRandomLoadingMessage } from '../hooks/useGreeting';
@@ -9,6 +10,7 @@ import styles from './LoginPage.module.css';
 
 export default function LoginPage() {
   const { state, offlineLogin } = useAuth();
+  const { t } = useI18n();
   const greeting = useGreeting();
   const fireConfetti = useConfetti();
   const [username, setUsername] = useState('');
@@ -46,7 +48,7 @@ export default function LoginPage() {
       await offlineLogin(username.trim());
       fireConfetti();
     } catch (e: any) {
-      setError(e?.toString() || '呜哇，登录失败了，再试一次？');
+      setError(e?.toString() || t('login.error.default'));
       setShakeInput(true);
       setTimeout(() => setShakeInput(false), 500);
     } finally {
@@ -107,7 +109,7 @@ export default function LoginPage() {
         <div className={styles.logoRow}>
           <div className={`${styles.logoHex} ${busy ? '' : 'breathe-strong'}`} />
           <span className={styles.logoText}>BONNEXT</span>
-          <span className={styles.logoVersion}>v0.2</span>
+          <span className={styles.logoVersion}>{t('app.version')}</span>
         </div>
 
         {/* Time-based greeting */}
@@ -118,7 +120,7 @@ export default function LoginPage() {
           {greeting.emoji} {greeting.subtitle}
         </div>
 
-        <div className={styles.tagline}>MINECRAFT LAUNCHER · NEO-TOKYO EDITION</div>
+        <div className={styles.tagline}>{t('login.title')}</div>
 
         {/* Microsoft login */}
         <div className={styles.msSection}>
@@ -130,7 +132,7 @@ export default function LoginPage() {
                 onClick={handleMicrosoftLogin}
                 style={{ width: '100%', justifyContent: 'center', fontSize: '0.9em', padding: '14px 48px' }}
               >
-                {msLoading ? `${loadingMsg}${'.'.repeat(dots)}` : '🔑 MICROSOFT 登录'}
+                {msLoading ? `${loadingMsg}${'.'.repeat(dots)}` : '\u{1F511} ' + t('login.microsoft')}
               </Button>
               {msError && (
                 <div className={styles.msError} style={{ animation: 'shake-x 0.5s var(--ease-out-expo)' }}>
@@ -140,7 +142,7 @@ export default function LoginPage() {
             </>
           ) : (
             <div className={styles.deviceCodeBox}>
-              <SubLabel>MICROSOFT VERIFICATION</SubLabel>
+              <SubLabel>{t('login.verification')}</SubLabel>
               <div className={styles.deviceCodeValue} style={{
                 fontFamily: 'var(--font-mono)',
                 fontSize: '1.1em',
@@ -151,8 +153,7 @@ export default function LoginPage() {
               </div>
               <div className={styles.deviceCodeMsg}>{deviceCode.message}</div>
               <div className={styles.deviceCodeHint}>
-                打开 <span className={styles.deviceCodeHintAccent}>{deviceCode.verification_uri}</span>{' '}
-                并输入上方代码
+                {t('login.verificationHint', { url: deviceCode.verification_uri })}
               </div>
               <div className={styles.deviceCodeProgress}>
                 <ProgressBar progress={50} showLabel={false} />
@@ -162,7 +163,7 @@ export default function LoginPage() {
                   variant="secondary" size="sm"
                   onClick={() => { setDeviceCode(null); setMsLoading(false); setMsError(''); }}
                 >
-                  CANCEL
+                  {t('login.cancel')}
                 </Button>
               </div>
             </div>
@@ -172,7 +173,7 @@ export default function LoginPage() {
         {/* Divider */}
         <div className={styles.divider}>
           <div className={styles.dividerLine} />
-          <span className={styles.dividerText}>或</span>
+          <span className={styles.dividerText}>{t('login.divider')}</span>
           <div className={styles.dividerLine} />
         </div>
 
@@ -181,7 +182,7 @@ export default function LoginPage() {
           <div className={`${styles.offlineRow} ${shakeInput ? 'shake' : ''}`}>
             <div className={styles.offlineInput}>
               <TextInput
-                placeholder="玩家名称"
+                placeholder={t('login.usernamePlaceholder')}
                 value={username}
                 onChange={(e) => { setUsername(e.target.value); setError(''); }}
                 onKeyDown={(e) => e.key === 'Enter' && handleOfflineLogin()}
@@ -193,7 +194,7 @@ export default function LoginPage() {
               onClick={handleOfflineLogin}
               style={{ fontSize: '0.65em', padding: '10px 20px' }}
             >
-              {loading ? `${loadingMsg}${'.'.repeat(dots)}` : '离线启动'}
+              {loading ? `${loadingMsg}${'.'.repeat(dots)}` : t('login.offline')}
             </Button>
           </div>
           {error && (
@@ -207,7 +208,7 @@ export default function LoginPage() {
         <div className={styles.statusRow}>
           <StatusDot status={busy ? 'processing' : 'inactive'} />
           <span className={styles.statusText}>
-            SIGNAL · {loading ? 'AUTHENTICATING' : msLoading ? 'WAITING' : 'AWAITING AUTH'}
+            {t('login.signal')} · {loading ? t('login.status.authing') : msLoading ? t('login.status.waiting') : t('login.status.awaiting')}
           </span>
         </div>
       </div>

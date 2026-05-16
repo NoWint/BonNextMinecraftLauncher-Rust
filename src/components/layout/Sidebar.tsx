@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../../i18n';
 import { StatusDot } from '../ui/Status';
 import styles from './Sidebar.module.css';
 
@@ -25,6 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   accountType = 'OFFLINE',
   playtimeHours = 0,
 }) => {
+  const { t } = useI18n();
   const mainItems = navItems.filter((item) => !['settings'].includes(item.id));
   const settingsItem = navItems.find((item) => item.id === 'settings');
 
@@ -83,7 +85,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className={styles.sidebar__playtimeLabel}>TODAY</div>
         <div>
           <span className={styles.sidebar__playtimeValue}>{playtimeHours.toFixed(1)}</span>
-          <span className={styles.sidebar__playtimeUnit}>小时</span>
+          <span className={styles.sidebar__playtimeUnit}>{t('common.unit.hours')}</span>
         </div>
       </div>
 

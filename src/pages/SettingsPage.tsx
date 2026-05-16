@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { api, type AppConfig } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useConfig } from '../stores/configStore';
+import { useTheme, type Theme } from '../stores/themeStore';
+import { useI18n } from '../i18n';
 import { StatusDot, Badge, Button, TextInput, Select, Checkbox, Slider } from '../components/ui';
 import { open } from '@tauri-apps/plugin-dialog';
 import styles from './SettingsPage.module.css';
@@ -38,6 +40,8 @@ function SettingRow({ label, children }: { label: string; children: React.ReactN
 export default function SettingsPage() {
   const { state: authState, logout, switchAccount } = useAuth();
   const { state: cfgState, saveConfig } = useConfig();
+  const { theme, setTheme } = useTheme();
+  const { t } = useI18n();
   const auth = authState.currentUser;
   const config = cfgState.config;
   const [localConfig, setLocalConfig] = useState<AppConfig | null>(config);
@@ -90,7 +94,7 @@ export default function SettingsPage() {
   };
 
   if (!localConfig || !auth) return (
-    <div style={{ color: '#555', fontSize: '0.7em', padding: 40, textAlign: 'center' }}>Loading...</div>
+    <div style={{ color: '#555', fontSize: '0.7em', padding: 40, textAlign: 'center' }}>{t('common.loading')}</div>
   );
 
   const memoryGB = Math.round(localConfig.max_memory / 1024);
@@ -99,7 +103,7 @@ export default function SettingsPage() {
     <div className={`page-enter ${styles.page}`}>
 
       {/* Account section */}
-      <SectionCard title="账户">
+      <SectionCard title={t('settings.account')}>
         <div className={styles.accountRow}>
           <StatusDot status="ready" />
           <span className={styles.accountName}>{auth.username}</span>
@@ -108,14 +112,14 @@ export default function SettingsPage() {
           </Badge>
           <div style={{ marginLeft: 'auto' }}>
             <Button variant="secondary" size="sm" onClick={() => { logout(); window.location.reload(); }}>
-              登出
+              {t('settings.logout')}
             </Button>
           </div>
         </div>
 
         {authState.accounts.length > 1 && (
           <div className={styles.switchAccounts}>
-            <div className={styles.switchAccounts__label}>切换账户</div>
+            <div className={styles.switchAccounts__label}>{t('settings.switchAccount')}</div>
             <div className={styles.switchAccounts__list}>
               {authState.accounts.map((acct) => (
                 <Button
@@ -133,24 +137,24 @@ export default function SettingsPage() {
       </SectionCard>
 
       {/* Java runtime */}
-      <SectionCard title="Java 运行时">
-        <SettingRow label="Java 版本">
+      <SectionCard title={t('settings.java')}>
+        <SettingRow label={t('settings.javaVersion')}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1 }}>
             <div style={{ minWidth: 200 }}>
               <Select
                 value={localConfig.java_path || ''}
                 onChange={(e) => setLocalConfig({ ...localConfig, java_path: e.target.value || null })}
                 options={[
-                  { value: '', label: javaVersion ? `Java ${javaVersion} (自动检测)` : '自动检测' },
+                  { value: '', label: javaVersion ? `Java ${javaVersion} (${t('instanceDetail.autoDetect')})` : t('instanceDetail.autoDetect') },
                   ...(localConfig.java_path ? [{ value: localConfig.java_path, label: localConfig.java_path }] : []),
                 ]}
               />
             </div>
-            <Button variant="secondary" size="sm" onClick={handleBrowseJava}>浏览</Button>
+            <Button variant="secondary" size="sm" onClick={handleBrowseJava}>{t('settings.browse')}</Button>
           </div>
         </SettingRow>
 
-        <SettingRow label="JVM 参数">
+        <SettingRow label={t('settings.jvmArgs')}>
           <div style={{ flex: 1 }}>
             <TextInput
               value={localConfig.jvm_args || ''}
@@ -162,11 +166,11 @@ export default function SettingsPage() {
       </SectionCard>
 
       {/* Memory & Performance */}
-      <SectionCard title="内存与性能">
-        <SettingRow label="分配内存">
+      <SectionCard title={t('settings.memory')}>
+        <SettingRow label={t('settings.allocatedMemory')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6em', color: '#FFF' }}>
-              {memoryGB} GB
+              {memoryGB} {t('common.unit.gb')}
             </span>
             <div style={{ flex: 1 }}>
               <Slider
@@ -177,12 +181,12 @@ export default function SettingsPage() {
               />
             </div>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.5em', color: '#555' }}>
-              {memoryGB} GB
+              {memoryGB} {t('common.unit.gb')}
             </span>
           </div>
         </SettingRow>
 
-        <SettingRow label="游戏分辨率">
+        <SettingRow label={t('settings.resolution')}>
           <div style={{ minWidth: 180 }}>
             <Select
               value={`${localConfig.window_width}x${localConfig.window_height}`}
@@ -197,14 +201,14 @@ export default function SettingsPage() {
       </SectionCard>
 
       {/* Launch behavior */}
-      <SectionCard title="启动行为">
+      <SectionCard title={t('settings.launchBehavior')}>
         <div className={styles.checkboxGroup}>
           <label className={styles.checkboxLabel}>
             <Checkbox
               on={localConfig.keep_launcher_open}
               onChange={() => setLocalConfig({ ...localConfig, keep_launcher_open: !localConfig.keep_launcher_open })}
             />
-            <span className={styles.checkboxLabel__text}>启动后保持启动器打开</span>
+            <span className={styles.checkboxLabel__text}>{t('settings.keepOpen')}</span>
           </label>
           <label className={styles.checkboxLabel}>
             <Checkbox
@@ -212,7 +216,7 @@ export default function SettingsPage() {
               onChange={() => setLocalConfig({ ...localConfig, keep_launcher_open: !localConfig.keep_launcher_open })}
             />
             <span className={!localConfig.keep_launcher_open ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']}>
-              启动后自动关闭启动器
+              {t('settings.autoClose')}
             </span>
           </label>
           <label className={styles.checkboxLabel}>
@@ -220,7 +224,7 @@ export default function SettingsPage() {
               on={localConfig.show_log_on_crash}
               onChange={() => setLocalConfig({ ...localConfig, show_log_on_crash: !localConfig.show_log_on_crash })}
             />
-            <span className={styles.checkboxLabel__text}>游戏崩溃时显示日志</span>
+            <span className={styles.checkboxLabel__text}>{t('settings.showLog')}</span>
           </label>
           <label className={styles.checkboxLabel}>
             <Checkbox
@@ -228,15 +232,15 @@ export default function SettingsPage() {
               onChange={() => setLocalConfig({ ...localConfig, auto_update_java: !localConfig.auto_update_java })}
             />
             <span className={localConfig.auto_update_java ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']}>
-              自动更新 Java 版本
+              {t('settings.autoUpdateJava')}
             </span>
           </label>
         </div>
       </SectionCard>
 
       {/* Data directory */}
-      <SectionCard title="数据目录">
-        <SettingRow label="实例路径">
+      <SectionCard title={t('settings.dataDir')}>
+        <SettingRow label={t('settings.instancePath')}>
           <div style={{ display: 'flex', gap: 8, flex: 1 }}>
             <div style={{ flex: 1 }}>
               <TextInput
@@ -245,7 +249,29 @@ export default function SettingsPage() {
                 placeholder="~/BonNext/instances/"
               />
             </div>
-            <Button variant="secondary" size="sm" onClick={handleBrowseGameDir}>浏览</Button>
+            <Button variant="secondary" size="sm" onClick={handleBrowseGameDir}>{t('settings.browse')}</Button>
+          </div>
+        </SettingRow>
+      </SectionCard>
+
+      {/* Theme */}
+      <SectionCard title={t('settings.theme')}>
+        <SettingRow label={t('settings.theme')}>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {([
+              ['dark', t('settings.themeDark')],
+              ['light', t('settings.themeLight')],
+              ['oled', t('settings.themeOled')],
+            ] as [Theme, string][]).map(([val, label]) => (
+              <Button
+                key={val}
+                variant={theme === val ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() => setTheme(val)}
+              >
+                {label}
+              </Button>
+            ))}
           </div>
         </SettingRow>
       </SectionCard>
@@ -253,9 +279,9 @@ export default function SettingsPage() {
       {error && <div className={styles.errorBox}>{error}</div>}
 
       <div className={styles.actions}>
-        <Button variant="secondary" onClick={() => setLocalConfig(config)}>重置</Button>
+        <Button variant="secondary" onClick={() => setLocalConfig(config)}>{t('settings.reset')}</Button>
         <Button variant="primary" size="md" disabled={saving} onClick={handleSave}>
-          {saving ? 'SAVING...' : saved ? '✓ SAVED' : '保存设置'}
+          {saving ? t('settings.saving') : saved ? '✓ ' + t('settings.saved') : t('settings.save')}
         </Button>
       </div>
     </div>

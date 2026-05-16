@@ -1,5 +1,6 @@
 mod auth;
 mod config;
+mod crash_parser;
 mod download;
 mod error;
 mod http_client;
@@ -11,6 +12,7 @@ mod platform;
 mod version;
 
 use config::AppConfig;
+use crash_parser::CrashInfo;
 use download::queue::{DownloadProgress, DownloadQueue};
 use error::LauncherError;
 use instance::manager::GameInstance;
@@ -168,6 +170,7 @@ async fn launch_game(
     min_memory: Option<u32>,
     java_path: Option<String>,
     jvm_args: Option<String>,
+    instance_id: Option<String>,
 ) -> Result<(), LauncherError> {
     // Attempt token refresh for Microsoft accounts before launch
     let access_token = match auth::token_store::ensure_fresh_token().await {
@@ -185,6 +188,10 @@ async fn launch_game(
         .map(|a| if a.account_type == "microsoft" { "msa".to_string() } else { "mojang".to_string() })
         .unwrap_or_else(|| "mojang".to_string());
 
+    // Record launch start time for playtime tracking
+    let launch_start = std::time::Instant::now();
+    let instance_id_for_playtime = instance_id.clone();
+
     let result = launch_game_inner(
         app,
         state.launch_state.clone(),
@@ -192,6 +199,7 @@ async fn launch_game(
         username, uuid, access_token,
         user_type,
         max_memory, min_memory, java_path, jvm_args,
+        instance_id,
     ).await;
 
     if let Err(ref e) = result {
@@ -216,6 +224,7 @@ async fn launch_game_inner(
     min_memory: Option<u32>,
     java_path: Option<String>,
     jvm_args: Option<String>,
+    _instance_id: Option<String>,
 ) -> Result<(), LauncherError> {
     {
         let mut current = launch_state.lock().unwrap();
@@ -252,7 +261,7 @@ async fn launch_game_inner(
 
     let instance_settings = InstanceSettings { max_memory, min_memory, java_path, jvm_args, user_type: Some(user_type) };
     let ctx = LaunchContext::build(resolved, username, uuid, access_token, Some(instance_settings))?;
-    let launcher = LaunchProcess::new(launch_state);
+    let launcher = LaunchProcess::with_app_handle(launch_state, _app.clone());
     launcher.launch(ctx).await
 }
 
@@ -272,6 +281,7 @@ async fn download_version_inner(
         completed: 0, total: total_downloads as u64,
         bytes_downloaded: 0, total_bytes: 0,
         current_url: String::new(), phase: "core".to_string(),
+        start_time: std::time::Instant::now(),
     }));
 
     let progress_for_cb = progress.clone();
@@ -281,12 +291,16 @@ async fn download_version_inner(
         agg.bytes_downloaded = agg.bytes_downloaded.saturating_add(p.downloaded);
         agg.current_url = p.url.clone();
         if p.finished { agg.completed += 1; }
+        let elapsed = agg.start_time.elapsed();
+        let (speed, eta) = compute_agg_speed_eta(agg.bytes_downloaded, agg.start_time);
         let _ = app_for_cb.emit("download-progress", AggProgressSnapshot {
             completed: agg.completed, total: agg.total,
             bytes_downloaded: agg.bytes_downloaded,
             current_url: agg.current_url.clone(),
             phase: agg.phase.clone(),
             finished: agg.completed >= agg.total,
+            speed_bytes_per_sec: speed,
+            eta_seconds: eta,
         });
     };
 
@@ -322,6 +336,7 @@ async fn download_version_inner(
             completed: 0, total: total_assets as u64,
             bytes_downloaded: 0, total_bytes: 0,
             current_url: String::new(), phase: "assets".to_string(),
+            start_time: std::time::Instant::now(),
         }));
         let progress_assets_cb = progress_assets.clone();
         let asset_callback = move |p: DownloadProgress| {
@@ -329,12 +344,16 @@ async fn download_version_inner(
             agg.bytes_downloaded = agg.bytes_downloaded.saturating_add(p.downloaded);
             agg.current_url = p.url.clone();
             if p.finished { agg.completed += 1; }
+            let elapsed = agg.start_time.elapsed();
+            let (speed, eta) = compute_agg_speed_eta(agg.bytes_downloaded, agg.start_time);
             let _ = app_for_assets.emit("download-progress", AggProgressSnapshot {
                 completed: agg.completed, total: agg.total,
                 bytes_downloaded: agg.bytes_downloaded,
                 current_url: agg.current_url.clone(),
                 phase: agg.phase.clone(),
                 finished: agg.completed >= agg.total,
+                speed_bytes_per_sec: speed,
+                eta_seconds: eta,
             });
         };
 
@@ -352,6 +371,8 @@ async fn download_version_inner(
         completed: 1, total: 1, bytes_downloaded: 0,
         current_url: String::new(), phase: "done".to_string(),
         finished: true,
+        speed_bytes_per_sec: 0,
+        eta_seconds: 0,
     });
 
     Ok(())
@@ -441,6 +462,26 @@ async fn update_instance(instance: GameInstance) -> Result<(), LauncherError> {
 #[tauri::command]
 async fn get_instance(id: String) -> Result<Option<GameInstance>, LauncherError> {
     instance::manager::get_instance(&id)
+}
+
+#[tauri::command]
+async fn duplicate_instance(id: String, new_name: String) -> Result<GameInstance, LauncherError> {
+    instance::manager::duplicate_instance(&id, &new_name)
+}
+
+#[tauri::command]
+async fn export_instance(id: String, output_path: String) -> Result<(), LauncherError> {
+    instance::manager::export_instance(&id, std::path::Path::new(&output_path))
+}
+
+#[tauri::command]
+async fn parse_crash_report(report_path: String) -> Result<CrashInfo, LauncherError> {
+    crash_parser::parse_crash_report(&report_path)
+}
+
+#[tauri::command]
+async fn check_instance_ready(instance_id: String) -> Result<bool, LauncherError> {
+    instance::manager::check_instance_ready(&instance_id)
 }
 
 #[tauri::command]
@@ -566,7 +607,7 @@ async fn quick_start(
         app, state,
         latest_release.id.clone(), latest_release.url.clone(),
         auth.username, auth.uuid, auth.access_token,
-        Some(mem), Some(256), None, None,
+        Some(mem), Some(256), None, None, None,
     ).await
 }
 
@@ -623,6 +664,8 @@ struct AggProgressSnapshot {
     current_url: String,
     phase: String,
     finished: bool,
+    speed_bytes_per_sec: u64,
+    eta_seconds: u64,
 }
 
 struct DownloadAggregateProgress {
@@ -632,6 +675,14 @@ struct DownloadAggregateProgress {
     total_bytes: u64,
     current_url: String,
     phase: String,
+    start_time: std::time::Instant,
+}
+
+fn compute_agg_speed_eta(bytes: u64, elapsed: std::time::Duration) -> (u64, u64) {
+    let secs = elapsed.as_secs().max(1);
+    let speed = bytes / secs;
+    let eta = if speed > 0 { (bytes / speed).saturating_sub(secs) } else { 0 };
+    (speed, eta)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -657,7 +708,9 @@ pub fn run() {
             download_version, launch_game,
             get_game_dir, get_default_game_dir,
             list_instances, create_instance, delete_instance,
-            update_instance, get_instance, open_folder,
+            update_instance, get_instance, duplicate_instance,
+            export_instance, check_instance_ready, open_folder,
+            parse_crash_report,
             get_loader_versions, install_loader,
             search_mods, get_popular_mods, get_mod_details,
             get_mod_versions, install_mod,

@@ -2,26 +2,53 @@ import { useState, useEffect, useCallback } from 'react';
 import { api, type GameInstance } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useInstances } from '../stores/instanceStore';
-import { Badge, Tabs, Modal, Breadcrumb as BreadcrumbComp } from '../components/ui';
+import { useToast } from '../stores/toastStore';
+import { useI18n } from '../i18n';
+import { Badge, Tabs, Modal, Breadcrumb as BreadcrumbComp, TextInput, Tooltip } from '../components/ui';
 import { Button } from '../components/ui';
+import { relativeTime } from '../utils/time';
 import styles from './InstanceDetailPage.module.css';
 
-const DETAIL_TABS = [
-  { id: 'overview', label: '概览' },
-  { id: 'mods', label: 'Mods (0)' },
-  { id: 'saves', label: '存档' },
-  { id: 'logs', label: '日志' },
-];
+function getLoaderIcon(loaderType: string | null): string {
+  switch (loaderType) {
+    case 'fabric': return '\u{1F9F5}';
+    case 'forge': return '\u{2692}';
+    default: return '\u{1F4E6}';
+  }
+}
+
+function getLoaderLabel(loaderType: string | null): string {
+  switch (loaderType) {
+    case 'fabric': return 'Fabric';
+    case 'forge': return 'Forge';
+    default: return 'Vanilla';
+  }
+}
+
+function useDetailTabs(t: (key: string) => string) {
+  return [
+    { id: 'overview', label: t('instanceDetail.overview') },
+    { id: 'mods', label: t('instanceDetail.mods') },
+    { id: 'saves', label: t('instanceDetail.saves') },
+    { id: 'logs', label: t('instanceDetail.logs') },
+  ];
+}
 
 export default function InstanceDetailPage() {
   const { state: authState } = useAuth();
-  const { state, deleteInstance } = useInstances();
+  const { state, deleteInstance, reloadInstances } = useInstances();
+  const { addToast } = useToast();
+  const { t } = useI18n();
   const auth = authState.currentUser;
   const [instance, setInstance] = useState<GameInstance | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState('');
+  const [isReady, setIsReady] = useState<boolean | null>(null);
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [duplicateName, setDuplicateName] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   const instanceId = window.location.hash.replace('#/instances/', '').split('?')[0];
 
@@ -40,6 +67,12 @@ export default function InstanceDetailPage() {
     load();
   }, [instanceId]);
 
+  useEffect(() => {
+    if (instanceId) {
+      api.checkInstanceReady(instanceId).then(setIsReady).catch(() => setIsReady(null));
+    }
+  }, [instanceId]);
+
   const handleLaunch = useCallback(async () => {
     if (!instance) return;
     setError('');
@@ -50,16 +83,54 @@ export default function InstanceDetailPage() {
         auth?.access_token || '', instance.max_memory, instance.min_memory,
         instance.java_path || undefined, instance.jvm_args || undefined,
       );
+      addToast({ type: 'success', title: 'Launching', message: `${instance.name} is starting...` });
     } catch (e: any) {
       setError(e?.toString() || 'Launch failed');
+      addToast({ type: 'error', title: 'Launch failed', message: e?.toString() || 'Launch failed' });
       setTimeout(() => setError(''), 8000);
     }
-  }, [instance, auth]);
+  }, [instance, auth, addToast]);
 
   const handleDelete = async () => {
     if (!instance) return;
     await deleteInstance(instance.id);
+    addToast({ type: 'success', title: 'Deleted', message: `Instance "${instance.name}" deleted` });
     window.location.hash = '#/instances';
+  };
+
+  const handleDuplicate = async () => {
+    if (!instance) return;
+    setDuplicateName(`${instance.name} (Copy)`);
+    setDuplicateOpen(true);
+  };
+
+  const confirmDuplicate = async () => {
+    if (!instance || !duplicateName.trim()) return;
+    try {
+      await api.duplicateInstance(instance.id, duplicateName.trim());
+      addToast({ type: 'success', title: 'Duplicated', message: `Instance "${duplicateName}" created` });
+      setDuplicateOpen(false);
+      await reloadInstances();
+      window.location.hash = '#/instances';
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Duplicate failed', message: e?.toString() || 'Failed to duplicate' });
+    }
+  };
+
+  const handleExport = async () => {
+    if (!instance) return;
+    setExporting(true);
+    try {
+      const gameDir = await api.getGameDir();
+      const defaultName = `${instance.name.replace(/[^a-zA-Z0-9_-]/g, '_')}_${instance.version_id}.zip`;
+      const outputPath = `${gameDir}/${defaultName}`;
+      await api.exportInstance(instance.id, outputPath);
+      addToast({ type: 'success', title: 'Exported', message: `Saved to ${defaultName}` });
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Export failed', message: e?.toString() || 'Failed to export' });
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (loading) {
@@ -71,50 +142,61 @@ export default function InstanceDetailPage() {
   }
 
   if (!instance) {
-    return <div className={styles.notFound}>实例未找到</div>;
+    return <div className={styles.notFound}>{t('instanceDetail.notFound')}</div>;
   }
 
+  const DETAIL_TABS = useDetailTabs(t);
   const memoryGB = Math.round(instance.max_memory / 1024);
-  const playtimeH = (instance.playtime_seconds / 3600).toFixed(1);
+  const playtimeH = instance.playtime_seconds > 0
+    ? (instance.playtime_seconds / 3600).toFixed(1)
+    : '0';
 
   return (
     <div className={`page-enter ${styles.page}`}>
       <BreadcrumbComp
         items={[
-          { label: '实例管理', href: '#/instances' },
+          { label: t('instances.title'), href: '#/instances' },
           { label: instance.name },
         ]}
       />
 
       {/* Top info bar */}
       <div className={styles.topBar}>
-        <div className={styles.topBarIcon}>⛏</div>
+        <div className={styles.topBarIcon}>{getLoaderIcon(instance.loader_type)}</div>
         <div className={styles.topBarInfo}>
           <div className={styles.topBarNameRow}>
             <span className={styles.topBarName}>{instance.name.toUpperCase()}</span>
             <Badge variant="accent">{instance.version_id}</Badge>
             {instance.loader_type && <Badge variant="muted">{instance.loader_type}</Badge>}
+            {isReady !== null && (
+              <span style={{ fontSize: '0.6em' }}>
+                {isReady ? '✅' : '⚠️'}
+              </span>
+            )}
           </div>
           <div className={styles.topBarMeta}>
-            {instance.loader_type && (
-              <>
-                <span className={styles.topBarMetaText}>
-                  {instance.loader_type} {instance.loader_version || ''}
-                </span>
-                <div className={styles.topBarMetaSep} />
-              </>
-            )}
+            <span className={styles.topBarMetaText}>
+              {getLoaderLabel(instance.loader_type)}
+              {instance.loader_version ? ` ${instance.loader_version}` : ''}
+            </span>
+            <div className={styles.topBarMetaSep} />
             <span className={styles.topBarRam}>{memoryGB}GB</span>
             <div className={styles.topBarMetaSep} />
             <span className={styles.topBarMetaText}>
-              最后游玩 {instance.last_played ? new Date(instance.last_played).toLocaleDateString() : '从未'}
+              {t('instances.lastPlayed')}: {relativeTime(instance.last_played)}
             </span>
           </div>
         </div>
         <div className={styles.topBarActions}>
-          <Button variant="primary" size="md" onClick={handleLaunch}>▶ 启动</Button>
-          <Button variant="secondary" size="sm">⚙ 设置</Button>
-          <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>删除</Button>
+          <Tooltip content={t('common.launch')}>
+            <Button variant="primary" size="md" onClick={handleLaunch}>▶ {t('instanceDetail.launch')}</Button>
+          </Tooltip>
+          <Tooltip content={t('instances.export')}>
+            <Button variant="secondary" size="sm" onClick={handleDuplicate}>📋 {t('instanceDetail.exportInstance')}</Button>
+          </Tooltip>
+          <Tooltip content={t('instanceDetail.delete')}>
+            <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>{t('instanceDetail.delete')}</Button>
+          </Tooltip>
         </div>
       </div>
 
@@ -129,21 +211,22 @@ export default function InstanceDetailPage() {
           {/* Left column */}
           <div className={styles.leftCol}>
             <div className={styles.infoCard}>
-              <div className={styles.infoCardHeader}>版本信息</div>
+              <div className={styles.infoCardHeader}>{t('instanceDetail.versionInfo').toUpperCase()}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <InfoRow label="Minecraft" value={instance.version_id} />
-                <InfoRow label="加载器" value={instance.loader_type ? `${instance.loader_type} ${instance.loader_version || ''}` : 'Vanilla'} />
-                <InfoRow label="Java" value={instance.java_path || '自动检测'} />
-                <InfoRow label="实例路径" value={`~/BonNext/instances/${instance.id}`} mono />
+                <InfoRow label="Loader" value={instance.loader_type ? `${getLoaderLabel(instance.loader_type)} ${instance.loader_version || ''}` : 'Vanilla'} />
+                <InfoRow label="Java" value={instance.java_path || t('instanceDetail.autoDetect')} />
+                <InfoRow label="Created" value={new Date(instance.created_at).toLocaleDateString()} />
+                <InfoRow label="Status" value={isReady === null ? 'Checking...' : isReady ? 'Ready' : 'Needs download'} mono />
               </div>
             </div>
 
             <div className={styles.infoCard}>
-              <div className={styles.infoCardHeader}>启动配置</div>
+              <div className={styles.infoCardHeader}>{t('instanceDetail.launchConfig').toUpperCase()}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <InfoRow label="分配内存" value={`${memoryGB} GB`} mono />
-                <InfoRow label="窗口分辨率" value="默认" />
-                <InfoRow label="全屏" value="否" />
+                <InfoRow label={t('instanceDetail.allocatedMemory')} value={`${memoryGB} GB`} mono />
+                <InfoRow label="Min Memory" value={`${Math.round(instance.min_memory / 1024)} GB`} mono />
+                <InfoRow label="JVM Args" value={instance.jvm_args || t('instanceDetail.default')} mono />
               </div>
             </div>
           </div>
@@ -151,25 +234,40 @@ export default function InstanceDetailPage() {
           {/* Right column */}
           <div className={styles.rightCol}>
             <div className={styles.statCard}>
-              <div className={styles.statCardLabel}>磁盘占用</div>
-              <div className={styles.statCardValue}>— GB</div>
-              <div className={styles.statBar}>
-                <div className={styles.statBarFill} style={{ width: '0%' }} />
+              <div className={styles.statCardLabel}>{t('instanceDetail.playtime').toUpperCase()}</div>
+              <div className={styles.statCardValue}>{playtimeH} h</div>
+              <div className={styles.statCardSub}>
+                {instance.playtime_seconds > 0 ? `${Math.floor(instance.playtime_seconds / 60)} minutes total` : 'No playtime recorded'}
               </div>
             </div>
 
             <div className={styles.statCard}>
-              <div className={styles.statCardLabel}>游玩时长</div>
-              <div className={styles.statCardValue}>{playtimeH} h</div>
-              <div className={styles.statCardSub}>
-                共 {instance.playtime_seconds > 0 ? '?' : '0'} 次启动
+              <div className={styles.statCardLabel}>DOWNLOAD STATUS</div>
+              <div className={styles.statCardValue}>
+                {isReady === null ? '⏳' : isReady ? '✅ Ready' : '⚠️ Not ready'}
               </div>
+              <div className={styles.statCardSub}>
+                {isReady ? 'Game files are ready to play' : 'Run launch to download required files'}
+              </div>
+              {!isReady && isReady !== null && (
+                <div className={styles.statBar}>
+                  <div className={styles.statBarFill} style={{ width: '10%' }} />
+                </div>
+              )}
             </div>
 
             <div className={styles.exportBtn}>
-              <Button variant="secondary-highlight" size="md" style={{ width: '100%', justifyContent: 'center' }}>
-                📤 导出实例
-              </Button>
+              <Tooltip content="Export instance as ZIP archive">
+                <Button
+                  variant="secondary-highlight"
+                  size="md"
+                  style={{ width: '100%', justifyContent: 'center' }}
+                  onClick={handleExport}
+                  disabled={exporting}
+                >
+                  {exporting ? '⏳ Exporting...' : '📤 ' + t('instanceDetail.exportInstance')}
+                </Button>
+              </Tooltip>
             </div>
           </div>
         </div>
@@ -177,9 +275,9 @@ export default function InstanceDetailPage() {
 
       {activeTab !== 'overview' && (
         <div className={styles.placeholderTab}>
-          {activeTab === 'mods' && 'Mod 管理功能即将推出'}
-          {activeTab === 'saves' && '存档管理功能即将推出'}
-          {activeTab === 'logs' && '日志查看功能即将推出'}
+          {activeTab === 'mods' && t('instanceDetail.comingSoon')}
+          {activeTab === 'saves' && t('instanceDetail.comingSoon')}
+          {activeTab === 'logs' && t('instanceDetail.comingSoon')}
         </div>
       )}
 
@@ -187,15 +285,40 @@ export default function InstanceDetailPage() {
       <Modal
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}
-        title="确认删除"
+        title={t('instances.deleteTitle')}
         actions={
           <>
-            <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)}>取消</Button>
-            <Button variant="danger" size="sm" onClick={handleDelete}>删除</Button>
+            <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)}>{t('common.cancel')}</Button>
+            <Button variant="danger" size="sm" onClick={handleDelete}>{t('common.delete')}</Button>
           </>
         }
       >
-        确定要删除实例 "{instance.name}" 吗？此操作不可撤销。
+        {t('instanceDetail.deleteConfirm', { name: instance.name })}
+      </Modal>
+
+      {/* Duplicate modal */}
+      <Modal
+        open={duplicateOpen}
+        onClose={() => setDuplicateOpen(false)}
+        title="Duplicate Instance"
+        actions={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setDuplicateOpen(false)}>{t('common.cancel')}</Button>
+            <Button variant="primary" size="sm" onClick={confirmDuplicate} disabled={!duplicateName.trim()}>
+              Duplicate
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label style={{ fontSize: '0.6em', color: 'var(--color-text-secondary)' }}>New instance name:</label>
+          <TextInput
+            value={duplicateName}
+            onChange={(e) => setDuplicateName(e.target.value)}
+            placeholder="Instance name"
+            autoFocus
+          />
+        </div>
       </Modal>
     </div>
   );

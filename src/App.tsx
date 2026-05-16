@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react';
+import { api } from './api';
 import { AuthProvider, useAuth } from './stores/authStore';
 import { ConfigProvider } from './stores/configStore';
-import { InstanceProvider } from './stores/instanceStore';
+import { InstanceProvider, useInstances } from './stores/instanceStore';
 import { ToastProvider } from './stores/toastStore';
+import { ThemeProvider } from './stores/themeStore';
+import { I18nProvider, useI18n } from './i18n';
 import { Sidebar } from './components/layout';
-import { ToastContainer } from './components/ui';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { useKeyboardShortcuts } from './hooks/useKeyboard';
+import { ParticleBackground } from './components/ParticleBackground';
+import { CommandPalette } from './components/CommandPalette';
+import { SearchPalette } from './components/ui/SearchPalette';
+import { ContextMenuProvider } from './components/ContextMenu';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import InstancesPage from './pages/InstancesPage';
@@ -25,14 +31,6 @@ type Page =
   | 'mods'
   | 'settings';
 
-const NAV_ITEMS = [
-  { id: 'home', label: '主页', shortcut: 'H' },
-  { id: 'instances', label: '实例管理', shortcut: 'I' },
-  { id: 'mods', label: '模组市场', shortcut: 'M' },
-  { id: 'versions', label: '版本列表', shortcut: 'V' },
-  { id: 'settings', label: '设置', shortcut: ',' },
-];
-
 function getPageFromHash(): Page {
   const hash = window.location.hash.replace('#/', '').split('?')[0];
   if (hash.startsWith('instances/') && hash.split('/')[1]) return 'instance_detail';
@@ -46,7 +44,10 @@ function getPageFromHash(): Page {
 
 function AppShell() {
   const { state: authState } = useAuth();
+  const { state: instState } = useInstances();
+  const { t } = useI18n();
   const [page, setPage] = useState<Page>(getPageFromHash);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     const onHashChange = () => setPage(getPageFromHash());
@@ -62,14 +63,37 @@ function AppShell() {
     window.location.hash = `#/${map[id] || id}`;
   };
 
-  useKeyboardShortcuts([
-    { key: 'h', ctrl: true, handler: () => navigate('home'), description: 'Go home' },
-    { key: 'i', ctrl: true, handler: () => navigate('instances'), description: 'Instances' },
-    { key: 'm', ctrl: true, handler: () => navigate('mods'), description: 'Mod browser' },
-    { key: 'v', ctrl: true, handler: () => navigate('versions'), description: 'Versions' },
-    { key: ',', ctrl: true, handler: () => navigate('settings'), description: 'Settings' },
-    { key: 'n', ctrl: true, handler: () => navigate('new_instance'), description: 'New instance' },
-  ]);
+  const NAV_ITEMS = [
+    { id: 'home', label: t('nav.home'), shortcut: 'H' },
+    { id: 'instances', label: t('nav.instances'), shortcut: 'I' },
+    { id: 'mods', label: t('nav.mods'), shortcut: 'M' },
+    { id: 'versions', label: t('nav.versions'), shortcut: 'V' },
+    { id: 'settings', label: t('nav.settings'), shortcut: ',' },
+  ];
+
+  useKeyboardShortcuts({
+    navigate,
+    launchInstance: async (instanceId: string) => {
+      const inst = instState.instances.find((i) => i.id === instanceId);
+      if (!inst || !authState.currentUser) return;
+      try {
+        await api.launchGame(
+          inst.version_id, inst.version_url,
+          authState.currentUser.username, authState.currentUser.uuid,
+          authState.currentUser.access_token, inst.max_memory, inst.min_memory,
+          inst.java_path || undefined, inst.jvm_args || undefined,
+        );
+      } catch (e) {
+        console.error('Quick launch failed:', e);
+      }
+    },
+    setSearchOpen,
+    onRefresh: () => {
+      if (page === 'versions') navigate('versions');
+    },
+    instances: instState.instances,
+    enabled: !!authState.currentUser,
+  });
 
   if (!authState.currentUser) {
     return (
@@ -111,21 +135,36 @@ function AppShell() {
           </ErrorBoundary>
         </main>
       </div>
+
+      <SearchPalette
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        instances={instState.instances}
+        versions={[]}
+        navigate={navigate}
+      />
     </>
   );
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ConfigProvider>
-        <InstanceProvider>
-          <ToastProvider>
-            <AppShell />
-            <ToastContainer />
-          </ToastProvider>
-        </InstanceProvider>
-      </ConfigProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <I18nProvider>
+        <AuthProvider>
+          <ConfigProvider>
+            <InstanceProvider>
+              <ToastProvider>
+                <ContextMenuProvider>
+                  <ParticleBackground />
+                  <CommandPalette />
+                  <AppShell />
+                </ContextMenuProvider>
+              </ToastProvider>
+            </InstanceProvider>
+          </ConfigProvider>
+        </AuthProvider>
+      </I18nProvider>
+    </ThemeProvider>
   );
 }

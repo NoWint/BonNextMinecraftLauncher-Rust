@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { api, type VersionEntry } from '../api';
+import { useI18n } from '../i18n';
 import { SectionHeader } from '../components/layout';
 import { Badge, Button, Select } from '../components/ui';
 import styles from './VersionsPage.module.css';
 
 export default function VersionsPage() {
+  const { t } = useI18n();
   const [versions, setVersions] = useState<VersionEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -42,19 +44,19 @@ export default function VersionsPage() {
 
   return (
     <div className="page-enter">
-      <SectionHeader title="VERSIONS" subtitle={`${versions.length} 个版本`} />
+      <SectionHeader title={t('versions.title').toUpperCase()} subtitle={`${versions.length} ${t('versions.count')}`} />
       <div className={styles.controls}>
         <Select
           value={filter}
           onChange={(e) => setFilter(e.target.value as any)}
           options={[
-            { value: 'release', label: '正式版' },
-            { value: 'snapshot', label: '快照' },
-            { value: 'all', label: '全部' },
+            { value: 'release', label: t('versions.release') },
+            { value: 'snapshot', label: t('versions.snapshot') },
+            { value: 'all', label: t('versions.all') },
           ]}
         />
         <Button variant="secondary" size="sm" onClick={loadVersions} disabled={loading}>
-          {loading ? '加载中...' : '刷新'}
+          {loading ? t('versions.loading') : t('versions.refresh')}
         </Button>
       </div>
       {error && <div className={styles.error}>{error}</div>}
@@ -68,7 +70,7 @@ export default function VersionsPage() {
               </Badge>
             </div>
             <Button variant="primary" size="sm" disabled={downloading !== null} onClick={() => handleDownload(v)}>
-              {downloading === v.id ? '下载中...' : '下载'}
+              {downloading === v.id ? t('versions.downloading') : t('versions.download')}
             </Button>
           </div>
         ))}
