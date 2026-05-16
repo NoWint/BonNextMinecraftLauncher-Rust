@@ -258,17 +258,20 @@ fn resolve_template(template: &str, variables: &HashMap<String, String>) -> Stri
     result
 }
 
-/// If the logging config URL was downloaded locally, return the local path.
+/// Resolve the logging config path. If `${path}` is in the argument,
+/// replace it with the local downloaded file path.
 fn resolve_logging_path(logging_arg: &str, version_id: &str) -> Option<String> {
-    let url = logging_arg.strip_prefix("-Dlog4j.configurationFile=")?;
-    // If it looks like a URL (not a local path), resolve to downloaded location
-    if url.starts_with("http://") || url.starts_with("https://") {
-        let file_name = url.rsplit('/').next().unwrap_or("log4j.xml");
-        let local_path = paths::get_versions_dir()
-            .join(version_id)
-            .join(file_name);
-        if local_path.exists() {
-            return Some(local_path.to_string_lossy().to_string());
+    // If the argument contains ${path}, resolve it to the local file
+    if logging_arg.contains("${path}") {
+        let version_dir = paths::get_versions_dir().join(version_id);
+        // Find the downloaded log config file (log4j2.xml or similar)
+        if let Ok(entries) = std::fs::read_dir(&version_dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.ends_with(".xml") || name.ends_with(".cfg") {
+                    return Some(entry.path().to_string_lossy().to_string());
+                }
+            }
         }
     }
     None

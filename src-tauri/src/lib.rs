@@ -296,9 +296,8 @@ async fn download_version_inner(
     tasks.extend(download::queue::build_library_download_tasks(&resolved.libraries));
     tasks.extend(download::queue::build_library_download_tasks(&resolved.native_libraries));
     if let Some(ref logging) = resolved.logging_config {
-        let url = logging.argument.strip_prefix("-Dlog4j.configurationFile=").unwrap_or("");
-        if !url.is_empty() {
-            tasks.push(download::queue::build_logging_config_task(&resolved.id, url));
+        if !logging.file.url.is_empty() {
+            tasks.push(download::queue::build_logging_config_task(&resolved.id, &logging.file.url));
         }
     }
     tasks.push(download::queue::build_asset_index_task(&resolved.asset_index));
