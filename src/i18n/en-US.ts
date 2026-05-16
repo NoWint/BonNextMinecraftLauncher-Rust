@@ -238,6 +238,8 @@ const enUS: Record<string, string> = {
 
   'collections.title': 'Collections',
   'collections.empty': 'No collections yet. Add some from the marketplace.',
+  'collections.emptyDesc': 'Click the heart icon on any content to save it to your collection.',
+  'collections.tryDifferent': 'Try selecting a different category.',
 
   'library.title': 'Library',
   'library.installedMods': 'Installed Mods',

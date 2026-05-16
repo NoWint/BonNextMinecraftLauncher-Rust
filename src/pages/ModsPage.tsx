@@ -152,27 +152,40 @@ export default function ModsPage() {
     }
     setInstalling(mod.slug);
     try {
-      const versions = await api.getModVersions(
-        mod.slug,
-        version || activeInstance.version_id,
-        loader || activeInstance.loader_type || 'fabric',
-      );
-      if (versions.length === 0) {
-        addToast({ type: 'error', title: 'Not compatible', message: `${mod.title} has no version for your setup.` });
-        setInstalling(null);
-        return;
-      }
-      const latest = versions[0];
-      const primaryFile = latest.files.find(
-        (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
-      ) || latest.files[0];
+      if (source === 'curseforge') {
+        const modId = parseInt(mod.slug, 10);
+        const files = await api.getCfModFiles(modId);
+        if (files.length === 0) {
+          addToast({ type: 'error', title: 'No files', message: `${mod.title} has no downloadable files.` });
+          setInstalling(null);
+          return;
+        }
+        const latest = files[0];
+        await api.downloadCfMod(latest.url, latest.filename, activeInstance.id);
+        addToast({ type: 'success', title: 'Installed', message: `${mod.title}` });
+      } else {
+        const versions = await api.getModVersions(
+          mod.slug,
+          version || activeInstance.version_id,
+          loader || activeInstance.loader_type || 'fabric',
+        );
+        if (versions.length === 0) {
+          addToast({ type: 'error', title: 'Not compatible', message: `${mod.title} has no version for your setup.` });
+          setInstalling(null);
+          return;
+        }
+        const latest = versions[0];
+        const primaryFile = latest.files.find(
+          (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
+        ) || latest.files[0];
 
-      await api.installContent(
-        primaryFile.url, primaryFile.filename, activeInstance.id,
-        'mod', primaryFile.hashes.sha1 || undefined,
-        mod.slug, latest.id,
-      );
-      addToast({ type: 'success', title: 'Installed', message: `${mod.title} ${latest.version_number}` });
+        await api.installContent(
+          primaryFile.url, primaryFile.filename, activeInstance.id,
+          'mod', primaryFile.hashes.sha1 || undefined,
+          mod.slug, latest.id,
+        );
+        addToast({ type: 'success', title: 'Installed', message: `${mod.title} ${latest.version_number}` });
+      }
     } catch (e: any) {
       addToast({ type: 'error', title: 'Install failed', message: e?.toString() || '' });
     } finally {
