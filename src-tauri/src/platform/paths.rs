@@ -88,6 +88,7 @@ pub fn get_instance_libraries_dir(instance_id: &str) -> PathBuf {
 }
 
 /// Instance-specific natives directory.
+#[allow(dead_code)]
 pub fn get_instance_natives_dir(instance_id: &str, version_id: &str) -> PathBuf {
     get_instance_versions_dir(instance_id)
         .join(version_id)
@@ -175,6 +176,7 @@ pub fn ensure_instance_dirs(instance_id: &str) -> std::io::Result<()> {
 
 /// Hard-link a file from source to destination, falling back to copy if
 /// hard linking fails (e.g., cross-filesystem).
+#[allow(dead_code)]
 pub fn hard_link_or_copy(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
     if dst.exists() {
         return Ok(());
