@@ -20,6 +20,9 @@ import InstanceDetailPage from './pages/InstanceDetailPage';
 import NewInstancePage from './pages/NewInstancePage';
 import VersionsPage from './pages/VersionsPage';
 import ModsPage from './pages/ModsPage';
+import StorePage from './pages/StorePage';
+import ContentDetailPage from './pages/ContentDetailPage';
+import LibraryPage from './pages/LibraryPage';
 import SettingsPage from './pages/SettingsPage';
 
 type Page =
@@ -29,6 +32,9 @@ type Page =
   | 'new_instance'
   | 'versions'
   | 'mods'
+  | 'store'
+  | 'content_detail'
+  | 'library'
   | 'settings';
 
 function getPageFromHash(): Page {
@@ -36,8 +42,11 @@ function getPageFromHash(): Page {
   if (hash.startsWith('instances/') && hash.split('/')[1]) return 'instance_detail';
   if (hash === 'instances/new') return 'new_instance';
   if (hash === 'instances') return 'instances';
+  if (hash.startsWith('store/') && hash.split('/').length >= 3) return 'content_detail';
+  if (hash === 'store') return 'store';
   if (hash === 'versions') return 'versions';
   if (hash === 'mods') return 'mods';
+  if (hash === 'library') return 'library';
   if (hash === 'settings') return 'settings';
   return 'home';
 }
@@ -59,14 +68,17 @@ function AppShell() {
     const map: Record<string, string> = {
       new_instance: 'instances/new',
       instance_detail: 'instances',
+      content_detail: 'store',
     };
     window.location.hash = `#/${map[id] || id}`;
   };
 
   const NAV_ITEMS = [
     { id: 'home', label: t('nav.home'), shortcut: 'H' },
+    { id: 'store', label: t('nav.store'), shortcut: 'S' },
     { id: 'instances', label: t('nav.instances'), shortcut: 'I' },
     { id: 'mods', label: t('nav.mods'), shortcut: 'M' },
+    { id: 'library', label: t('nav.library'), shortcut: 'L' },
     { id: 'versions', label: t('nav.versions'), shortcut: 'V' },
     { id: 'settings', label: t('nav.settings'), shortcut: ',' },
   ];
@@ -105,7 +117,10 @@ function AppShell() {
     );
   }
 
-  const activeNav = page === 'new_instance' || page === 'instance_detail' ? 'instances' : page;
+  const activeNav =
+    page === 'new_instance' || page === 'instance_detail' ? 'instances' :
+    page === 'content_detail' ? 'store' :
+    page;
 
   return (
     <>
@@ -131,6 +146,9 @@ function AppShell() {
             {page === 'new_instance' && <NewInstancePage />}
             {page === 'versions' && <VersionsPage />}
             {page === 'mods' && <ModsPage />}
+            {page === 'store' && <StorePage />}
+            {page === 'content_detail' && <ContentDetailPage />}
+            {page === 'library' && <LibraryPage />}
             {page === 'settings' && <SettingsPage />}
           </ErrorBoundary>
         </main>

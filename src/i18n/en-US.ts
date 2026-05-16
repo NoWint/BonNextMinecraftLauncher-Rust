@@ -3,10 +3,12 @@ const enUS: Record<string, string> = {
   'app.version': 'v0.2',
 
   'nav.home': 'Home',
+  'nav.store': 'Marketplace',
   'nav.instances': 'Instances',
   'nav.versions': 'Versions',
   'nav.settings': 'Settings',
   'nav.mods': 'Mod Browser',
+  'nav.library': 'Library',
 
   'login.title': 'MINECRAFT LAUNCHER · NEO-TOKYO EDITION',
   'login.greeting.morning': 'Good Morning',

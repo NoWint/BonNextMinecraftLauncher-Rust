@@ -541,7 +541,7 @@ export default function HomePage() {
           </div>
 
           {/* Right: PLAY area + quick actions */}
-          <div style={{ flex: 0.7, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ flex: 0.7, display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>
             <PlayArea
               instance={activeInstance}
               isBusy={isBusy}

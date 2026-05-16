@@ -7,6 +7,10 @@ use serde::{Deserialize, Serialize};
 
 const MODRINTH_API_BASE: &str = "https://api.modrinth.com/v2";
 
+// ---------------------------------------------------------------
+// Public types (serialized to frontend)
+// ---------------------------------------------------------------
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModResult {
     pub slug: String,
@@ -22,6 +26,46 @@ pub struct ModResult {
     pub latest_version: Option<String>,
     pub date_created: String,
     pub date_modified: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModProjectFull {
+    pub slug: String,
+    pub title: String,
+    pub description: String,
+    pub body: String,
+    pub author: String,
+    pub categories: Vec<String>,
+    pub downloads: u64,
+    pub follows: u64,
+    pub icon_url: String,
+    pub client_side: String,
+    pub server_side: String,
+    pub project_type: String,
+    pub gallery: Vec<ModGalleryImage>,
+    pub issues_url: Option<String>,
+    pub source_url: Option<String>,
+    pub wiki_url: Option<String>,
+    pub discord_url: Option<String>,
+    pub license: Option<ModLicense>,
+    pub date_created: String,
+    pub date_modified: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModGalleryImage {
+    pub url: String,
+    pub featured: bool,
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub created: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModLicense {
+    pub id: String,
+    pub name: String,
+    pub url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,6 +100,10 @@ pub struct ModDependency {
     pub dependency_type: String,
     pub version_id: Option<String>,
 }
+
+// ---------------------------------------------------------------
+// Internal deserialization types (Modrinth API response shapes)
+// ---------------------------------------------------------------
 
 #[derive(Debug, Deserialize)]
 struct ModrinthSearchResponse {
@@ -94,6 +142,46 @@ struct ModrinthProject {
     server_side: String,
     date_created: String,
     date_modified: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModrinthProjectFull {
+    slug: String,
+    title: String,
+    description: String,
+    body: String,
+    author: String,
+    categories: Vec<String>,
+    downloads: u64,
+    follows: u64,
+    icon_url: String,
+    client_side: String,
+    server_side: String,
+    project_type: String,
+    gallery: Vec<ModrinthGalleryImage>,
+    issues_url: Option<String>,
+    source_url: Option<String>,
+    wiki_url: Option<String>,
+    discord_url: Option<String>,
+    license: Option<ModrinthLicense>,
+    date_created: String,
+    date_modified: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModrinthGalleryImage {
+    url: String,
+    featured: bool,
+    title: Option<String>,
+    description: Option<String>,
+    created: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModrinthLicense {
+    id: String,
+    name: String,
+    url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -316,6 +404,229 @@ pub async fn get_popular_mods(
             date_modified: h.date_modified,
         })
         .collect())
+}
+
+/// Search with combined facets for market-style browsing.
+/// Supports multi-facet queries and sort options.
+pub async fn search_with_facets(
+    query: &str,
+    project_type: &str,
+    game_version: Option<&str>,
+    loader: Option<&str>,
+    sort: Option<&str>,
+    limit: u64,
+    offset: u64,
+) -> Result<(Vec<ModResult>, u64), LauncherError> {
+    let client = http_client::build_client();
+    let base = format!("{}/search", MODRINTH_API_BASE);
+
+    let mut facets = vec![format!(r#"["project_type:{}"]"#, project_type)];
+
+    if let Some(ver) = game_version {
+        if !ver.is_empty() {
+            facets.push(format!(r#"["versions:{}"]"#, ver));
+        }
+    }
+    if let Some(ldr) = loader {
+        if !ldr.is_empty() {
+            facets.push(format!(r#"["categories:{}"]"#, ldr));
+        }
+    }
+
+    let facets_param = format!("[{}]", facets.join(","));
+    let sort_order = match sort.unwrap_or("relevance") {
+        "downloads" => "downloads",
+        "newest" => "newest",
+        "updated" => "updated",
+        _ => "relevance",
+    };
+
+    let url = format!(
+        "{}?query={}&facets={}&limit={}&offset={}&index={}",
+        base,
+        urlencoding::encode(query),
+        facets_param,
+        limit.min(50),
+        offset,
+        sort_order,
+    );
+
+    tracing::debug!("Modrinth search (facets): {}", url);
+
+    let resp: ModrinthSearchResponse = client
+        .get(&url)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    let results = resp
+        .hits
+        .into_iter()
+        .map(|h| ModResult {
+            slug: h.slug,
+            title: h.title,
+            description: h.description,
+            author: h.author,
+            categories: h.categories,
+            downloads: h.downloads,
+            follows: h.follows,
+            icon_url: h.icon_url,
+            client_side: h.client_side,
+            server_side: h.server_side,
+            latest_version: h.latest_version,
+            date_created: h.date_created,
+            date_modified: h.date_modified,
+        })
+        .collect();
+
+    Ok((results, resp.total_hits))
+}
+
+/// Get full project details including body HTML, gallery, and license.
+pub async fn get_project_full(slug: &str) -> Result<ModProjectFull, LauncherError> {
+    let client = http_client::build_client();
+    let url = format!("{}/project/{}", MODRINTH_API_BASE, slug);
+
+    let resp: ModrinthProjectFull = client
+        .get(&url)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    Ok(ModProjectFull {
+        slug: resp.slug,
+        title: resp.title,
+        description: resp.description,
+        body: resp.body,
+        author: resp.author,
+        categories: resp.categories,
+        downloads: resp.downloads,
+        follows: resp.follows,
+        icon_url: resp.icon_url,
+        client_side: resp.client_side,
+        server_side: resp.server_side,
+        project_type: resp.project_type,
+        gallery: resp.gallery.into_iter().map(|g| ModGalleryImage {
+            url: g.url,
+            featured: g.featured,
+            title: g.title,
+            description: g.description,
+            created: g.created,
+        }).collect(),
+        issues_url: resp.issues_url,
+        source_url: resp.source_url,
+        wiki_url: resp.wiki_url,
+        discord_url: resp.discord_url,
+        license: resp.license.map(|l| ModLicense {
+            id: l.id,
+            name: l.name,
+            url: l.url,
+        }),
+        date_created: resp.date_created,
+        date_modified: resp.date_modified,
+    })
+}
+
+/// Get popular content for any project type.
+pub async fn get_popular_by_type(
+    project_type: &str,
+    game_version: Option<&str>,
+    limit: u64,
+) -> Result<Vec<ModResult>, LauncherError> {
+    let client = http_client::build_client();
+    let base = format!("{}/search", MODRINTH_API_BASE);
+
+    let mut facets = vec![format!(r#"["project_type:{}"]"#, project_type)];
+    if let Some(ver) = game_version {
+        if !ver.is_empty() {
+            facets.push(format!(r#"["versions:{}"]"#, ver));
+        }
+    }
+
+    let facets_param = format!("[{}]", facets.join(","));
+    let url = format!(
+        "{}?facets={}&limit={}&index=downloads",
+        base, facets_param, limit.min(50)
+    );
+
+    tracing::debug!("Modrinth popular by type: {}", url);
+
+    let resp: ModrinthSearchResponse = client
+        .get(&url)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    Ok(resp.hits.into_iter().map(|h| ModResult {
+        slug: h.slug,
+        title: h.title,
+        description: h.description,
+        author: h.author,
+        categories: h.categories,
+        downloads: h.downloads,
+        follows: h.follows,
+        icon_url: h.icon_url,
+        client_side: h.client_side,
+        server_side: h.server_side,
+        latest_version: h.latest_version,
+        date_created: h.date_created,
+        date_modified: h.date_modified,
+    }).collect())
+}
+
+/// Get recently updated content, optionally filtered by project type.
+pub async fn get_recently_updated(
+    project_type: Option<&str>,
+    limit: u64,
+) -> Result<Vec<ModResult>, LauncherError> {
+    let client = http_client::build_client();
+    let base = format!("{}/search", MODRINTH_API_BASE);
+
+    let mut facets = Vec::new();
+    if let Some(pt) = project_type {
+        if !pt.is_empty() {
+            facets.push(format!(r#"["project_type:{}"]"#, pt));
+        }
+    }
+
+    let url = if facets.is_empty() {
+        format!("{}?limit={}&index=updated", base, limit.min(50))
+    } else {
+        let facets_param = format!("[{}]", facets.join(","));
+        format!("{}?facets={}&limit={}&index=updated", base, facets_param, limit.min(50))
+    };
+
+    tracing::debug!("Modrinth recently updated: {}", url);
+
+    let resp: ModrinthSearchResponse = client
+        .get(&url)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    Ok(resp.hits.into_iter().map(|h| ModResult {
+        slug: h.slug,
+        title: h.title,
+        description: h.description,
+        author: h.author,
+        categories: h.categories,
+        downloads: h.downloads,
+        follows: h.follows,
+        icon_url: h.icon_url,
+        client_side: h.client_side,
+        server_side: h.server_side,
+        latest_version: h.latest_version,
+        date_created: h.date_created,
+        date_modified: h.date_modified,
+    }).collect())
 }
 
 /// Download a mod file to the instance's mods directory.

@@ -61,10 +61,27 @@ interface SliderProps {
   max: number;
   onChange: (value: number) => void;
   className?: string;
+  /** Show gradient fill colors (green→yellow→red) */
+  gradient?: boolean;
 }
 
-export const Slider: React.FC<SliderProps> = ({ value, min, max, onChange, className = '' }) => {
+function getSliderColor(pct: number): string {
+  // Green at 0%, yellow at 50%, red at 100%
+  if (pct <= 50) {
+    const t = pct / 50;
+    const r = Math.round(0 + t * 255);
+    const g = Math.round(255 - t * 25);
+    return `rgb(${r}, ${g}, 0)`;
+  } else {
+    const t = (pct - 50) / 50;
+    const g = Math.round(230 - t * 140);
+    return `rgb(255, ${g}, 0)`;
+  }
+}
+
+export const Slider: React.FC<SliderProps> = ({ value, min, max, onChange, className = '', gradient }) => {
   const pct = ((value - min) / (max - min)) * 100;
+  const fillColor = gradient ? getSliderColor(pct) : undefined;
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -76,7 +93,10 @@ export const Slider: React.FC<SliderProps> = ({ value, min, max, onChange, class
 
   return (
     <div className={`${styles.slider} ${className}`} onClick={handleClick}>
-      <div className={styles.slider__fill} style={{ width: `${pct}%` }} />
+      <div
+        className={styles.slider__fill}
+        style={{ width: `${pct}%`, background: fillColor }}
+      />
       <div className={styles.slider__thumb} style={{ left: `${pct}%` }} />
     </div>
   );

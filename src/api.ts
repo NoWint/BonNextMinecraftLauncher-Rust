@@ -135,6 +135,42 @@ export interface ModDependency {
   version_id: string | null;
 }
 
+export interface ModProjectFull {
+  slug: string;
+  title: string;
+  description: string;
+  body: string;
+  author: string;
+  categories: string[];
+  downloads: number;
+  follows: number;
+  icon_url: string;
+  client_side: string;
+  server_side: string;
+  project_type: string;
+  gallery: { url: string; featured: boolean; title?: string; description?: string; created: string }[];
+  issues_url: string | null;
+  source_url: string | null;
+  wiki_url: string | null;
+  discord_url: string | null;
+  license: { id: string; name: string; url: string | null } | null;
+  date_created: string;
+  date_modified: string;
+}
+
+export interface InstalledModInfo {
+  filename: string;
+  size: number;
+  installed_at: string;
+}
+
+export interface ContentCounts {
+  mods: number;
+  resourcepacks: number;
+  shaders: number;
+  worlds: number;
+}
+
 export type LaunchState =
   | 'idle'
   | 'checking'
@@ -197,6 +233,53 @@ export const api = {
     invoke<ModVersion[]>('get_mod_versions', { slug, gameVersion, loader }),
   installMod: (fileUrl: string, filename: string, instanceId: string, sha1?: string) =>
     invoke<string>('install_mod', { fileUrl, filename, instanceId, sha1 }),
+
+  // Marketplace
+  searchContent: (
+    query: string,
+    contentType?: string,
+    gameVersion?: string,
+    loader?: string,
+    sort?: string,
+    limit?: number,
+    offset?: number,
+  ) => invoke<[ModResult[], number]>('search_content', {
+    query, contentType, gameVersion, loader, sort, limit, offset,
+  }),
+
+  getProjectDetails: (slug: string) =>
+    invoke<ModProjectFull>('get_project_details', { slug }),
+
+  getTrendingContent: (
+    projectType?: string,
+    gameVersion?: string,
+    limit?: number,
+  ) => invoke<ModResult[]>('get_trending_content', {
+    projectType, gameVersion, limit,
+  }),
+
+  getRecentlyUpdated: (
+    projectType?: string,
+    limit?: number,
+  ) => invoke<ModResult[]>('get_recently_updated', {
+    projectType, limit,
+  }),
+
+  // Content library
+  listInstanceMods: (instanceId: string) =>
+    invoke<InstalledModInfo[]>('list_instance_mods', { instanceId }),
+
+  listInstanceResourcepacks: (instanceId: string) =>
+    invoke<string[]>('list_instance_resourcepacks', { instanceId }),
+
+  listInstanceShaders: (instanceId: string) =>
+    invoke<string[]>('list_instance_shaders', { instanceId }),
+
+  removeInstalledMod: (instanceId: string, filename: string) =>
+    invoke<void>('remove_installed_mod', { instanceId, filename }),
+
+  getContentCounts: (instanceId: string) =>
+    invoke<ContentCounts>('get_content_counts', { instanceId }),
 
   // Quick start & UX
   quickStart: () => invoke<void>('quick_start'),
