@@ -303,7 +303,10 @@ impl ResolvedVersion {
         }
 
         let logging_config = version.logging_client.as_ref().map(|lc| {
-            LoggingConfig { argument: lc.client.argument.clone() }
+            LoggingConfig {
+                argument: lc.client.argument.clone(),
+                file: lc.client.file.clone(),
+            }
         });
 
         let jvm_args = resolve_arg_templates(&version.arguments.jvm, &ctx);
