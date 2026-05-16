@@ -13,15 +13,16 @@
     "windows": [
       {
         "title": "BonNext",
-        "width": 900,
-        "height": 600,
-        "minWidth": 700,
-        "minHeight": 500,
-        "resizable": true
+        "width": 1200,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true,
+        "decorations": true
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+      "csp": null
     }
   },
   "bundle": {

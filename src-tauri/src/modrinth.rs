@@ -1,0 +1,353 @@
+//! Modrinth API integration for mod browsing and downloading.
+//! Uses the public Modrinth v2 API: https://docs.modrinth.com/
+
+use crate::error::LauncherError;
+use crate::http_client;
+use serde::{Deserialize, Serialize};
+
+const MODRINTH_API_BASE: &str = "https://api.modrinth.com/v2";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModResult {
+    pub slug: String,
+    pub title: String,
+    pub description: String,
+    pub author: String,
+    pub categories: Vec<String>,
+    pub downloads: u64,
+    pub follows: u64,
+    pub icon_url: String,
+    pub client_side: String,
+    pub server_side: String,
+    pub latest_version: Option<String>,
+    pub date_created: String,
+    pub date_modified: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModVersion {
+    pub id: String,
+    pub name: String,
+    pub version_number: String,
+    pub game_versions: Vec<String>,
+    pub loaders: Vec<String>,
+    pub files: Vec<ModFile>,
+    pub dependencies: Vec<ModDependency>,
+    pub date_published: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModFile {
+    pub url: String,
+    pub filename: String,
+    pub size: u64,
+    pub hashes: ModHashes,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModHashes {
+    pub sha1: Option<String>,
+    pub sha512: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModDependency {
+    pub project_id: Option<String>,
+    pub dependency_type: String,
+    pub version_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModrinthSearchResponse {
+    hits: Vec<ModrinthSearchHit>,
+    total_hits: u64,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModrinthSearchHit {
+    slug: String,
+    title: String,
+    description: String,
+    author: String,
+    categories: Vec<String>,
+    downloads: u64,
+    follows: u64,
+    icon_url: String,
+    client_side: String,
+    server_side: String,
+    date_created: String,
+    date_modified: String,
+    latest_version: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModrinthProject {
+    slug: String,
+    title: String,
+    description: String,
+    author: String,
+    categories: Vec<String>,
+    downloads: u64,
+    follows: u64,
+    icon_url: String,
+    client_side: String,
+    server_side: String,
+    date_created: String,
+    date_modified: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModrinthVersion {
+    id: String,
+    name: String,
+    version_number: String,
+    game_versions: Vec<String>,
+    loaders: Vec<String>,
+    files: Vec<ModrinthFile>,
+    dependencies: Vec<ModrinthDependency>,
+    date_published: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModrinthFile {
+    url: String,
+    filename: String,
+    size: u64,
+    hashes: ModrinthHashes,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModrinthHashes {
+    sha1: Option<String>,
+    sha512: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModrinthDependency {
+    project_id: Option<String>,
+    dependency_type: String,
+    version_id: Option<String>,
+}
+
+/// Search for mods on Modrinth.
+pub async fn search_mods(
+    query: &str,
+    game_version: Option<&str>,
+    loader: Option<&str>,
+    limit: u64,
+    offset: u64,
+) -> Result<(Vec<ModResult>, u64), LauncherError> {
+    let client = http_client::build_client();
+    let base = format!("{}/search", MODRINTH_API_BASE);
+    let mut facets = vec![r#"["project_type:mod"]"#.to_string()];
+
+    if let Some(ver) = game_version {
+        facets.push(format!(r#"["versions:{}"]"#, ver));
+    }
+    if let Some(ldr) = loader {
+        facets.push(format!(r#"["categories:{}"]"#, ldr));
+    }
+
+    let facets_param = format!("[{}]", facets.join(","));
+    let url = format!(
+        "{}?query={}&facets={}&limit={}&offset={}",
+        base, urlencoding::encode(query), facets_param, limit.min(50), offset
+    );
+
+    tracing::debug!("Modrinth search: {}", url);
+
+    let resp: ModrinthSearchResponse = client
+        .get(&url)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    let results = resp
+        .hits
+        .into_iter()
+        .map(|h| ModResult {
+            slug: h.slug,
+            title: h.title,
+            description: h.description,
+            author: h.author,
+            categories: h.categories,
+            downloads: h.downloads,
+            follows: h.follows,
+            icon_url: h.icon_url,
+            client_side: h.client_side,
+            server_side: h.server_side,
+            latest_version: h.latest_version,
+            date_created: h.date_created,
+            date_modified: h.date_modified,
+        })
+        .collect();
+
+    Ok((results, resp.total_hits))
+}
+
+/// Get detailed information about a specific mod.
+pub async fn get_mod(slug: &str) -> Result<ModResult, LauncherError> {
+    let client = http_client::build_client();
+    let url = format!("{}/project/{}", MODRINTH_API_BASE, slug);
+
+    let resp: ModrinthProject = client
+        .get(&url)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    Ok(ModResult {
+        slug: resp.slug,
+        title: resp.title,
+        description: resp.description,
+        author: resp.author,
+        categories: resp.categories,
+        downloads: resp.downloads,
+        follows: resp.follows,
+        icon_url: resp.icon_url,
+        client_side: resp.client_side,
+        server_side: resp.server_side,
+        latest_version: None, // Project endpoint doesn't include this
+        date_created: resp.date_created,
+        date_modified: resp.date_modified,
+    })
+}
+
+/// Get versions of a mod, filtered by game version and loader.
+pub async fn get_mod_versions(
+    slug: &str,
+    game_version: Option<&str>,
+    loader: Option<&str>,
+) -> Result<Vec<ModVersion>, LauncherError> {
+    let client = http_client::build_client();
+    let mut url = format!("{}/project/{}/version", MODRINTH_API_BASE, slug);
+
+    let mut params = Vec::new();
+    if let Some(ver) = game_version {
+        params.push(format!("game_versions=[\"{}\"]", ver));
+    }
+    if let Some(ldr) = loader {
+        params.push(format!("loaders=[\"{}\"]", ldr));
+    }
+    if !params.is_empty() {
+        url.push('?');
+        url.push_str(&params.join("&"));
+    }
+
+    let resp: Vec<ModrinthVersion> = client
+        .get(&url)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    Ok(resp
+        .into_iter()
+        .map(|v| ModVersion {
+            id: v.id,
+            name: v.name,
+            version_number: v.version_number,
+            game_versions: v.game_versions,
+            loaders: v.loaders,
+            files: v.files.into_iter().map(|f| ModFile {
+                url: f.url,
+                filename: f.filename,
+                size: f.size,
+                hashes: ModHashes { sha1: f.hashes.sha1, sha512: f.hashes.sha512 },
+            }).collect(),
+            dependencies: v.dependencies.into_iter().map(|d| ModDependency {
+                project_id: d.project_id,
+                dependency_type: d.dependency_type,
+                version_id: d.version_id,
+            }).collect(),
+            date_published: v.date_published,
+        })
+        .collect())
+}
+
+/// Get popular mods for a Minecraft version.
+pub async fn get_popular_mods(
+    game_version: Option<&str>,
+    limit: u64,
+) -> Result<Vec<ModResult>, LauncherError> {
+    let client = http_client::build_client();
+    let base = format!("{}/search", MODRINTH_API_BASE);
+    let mut facets = vec![r#"["project_type:mod"]"#.to_string()];
+
+    if let Some(ver) = game_version {
+        facets.push(format!(r#"["versions:{}"]"#, ver));
+    }
+
+    let facets_param = format!("[{}]", facets.join(","));
+    let url = format!(
+        "{}?facets={}&limit={}&order=desc",
+        base, facets_param, limit.min(50)
+    );
+
+    let resp: ModrinthSearchResponse = client
+        .get(&url)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    Ok(resp
+        .hits
+        .into_iter()
+        .map(|h| ModResult {
+            slug: h.slug,
+            title: h.title,
+            description: h.description,
+            author: h.author,
+            categories: h.categories,
+            downloads: h.downloads,
+            follows: h.follows,
+            icon_url: h.icon_url,
+            client_side: h.client_side,
+            server_side: h.server_side,
+            latest_version: h.latest_version,
+            date_created: h.date_created,
+            date_modified: h.date_modified,
+        })
+        .collect())
+}
+
+/// Download a mod file to the instance's mods directory.
+pub async fn download_mod_file(
+    file_url: &str,
+    filename: &str,
+    instance_id: &str,
+    sha1_hash: Option<&str>,
+) -> Result<String, LauncherError> {
+    let mods_dir = crate::platform::paths::get_instance_mods_dir(instance_id);
+    std::fs::create_dir_all(&mods_dir)?;
+    let target_path = mods_dir.join(filename);
+
+    let client = http_client::build_download_client();
+    let response = client.get(file_url).send().await?.error_for_status()?;
+    let bytes = response.bytes().await?;
+
+    // Verify SHA1 if provided
+    if let Some(expected_sha1) = sha1_hash {
+        use sha1::{Digest, Sha1};
+        let mut hasher = Sha1::new();
+        hasher.update(&bytes);
+        let actual = hex::encode(hasher.finalize());
+        if !actual.eq_ignore_ascii_case(expected_sha1) {
+            return Err(LauncherError::Sha1Mismatch(format!(
+                "Mod file {} expected SHA1 {} but got {}",
+                filename, expected_sha1, actual
+            )));
+        }
+    }
+
+    std::fs::write(&target_path, &bytes)?;
+    tracing::info!("Mod downloaded: {} -> {}", filename, target_path.display());
+    Ok(target_path.to_string_lossy().to_string())
+}

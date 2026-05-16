@@ -1,0 +1,210 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+}
+
+.loadingWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--color-border-light);
+  border-top-color: var(--color-accent);
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  animation: spin-clip 0.8s linear infinite;
+}
+
+.notFound {
+  color: var(--color-text-dim);
+  font-size: 0.7em;
+  padding: 40px;
+  text-align: center;
+}
+
+.topBar {
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border-light);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.topBarIcon {
+  width: 56px;
+  height: 56px;
+  background: #252525;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent);
+  font-size: 1.3em;
+}
+
+.topBarInfo {
+  flex: 1;
+}
+
+.topBarNameRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topBarName {
+  font-family: var(--font-heading);
+  font-size: 1.3em;
+  color: var(--color-text);
+  letter-spacing: 3px;
+}
+
+.topBarMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.topBarMetaText {
+  font-size: 0.55em;
+  color: var(--color-text-muted);
+}
+
+.topBarMetaSep {
+  width: 1px;
+  height: 8px;
+  background: #333;
+}
+
+.topBarRam {
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+  color: var(--color-accent);
+}
+
+.topBarActions {
+  display: flex;
+  gap: 6px;
+}
+
+.error {
+  color: var(--color-error);
+  font-size: 0.55em;
+}
+
+.tabContent {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+.leftCol {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rightCol {
+  width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.infoCard {
+  background: var(--color-panel);
+  border: 1px solid #1C1C1C;
+  padding: 16px;
+}
+
+.infoCardHeader {
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+  letter-spacing: 3px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.infoRowLabel {
+  font-size: 0.6em;
+  color: var(--color-text-tertiary);
+}
+
+.infoRowValue {
+  font-size: 0.6em;
+  color: var(--color-text);
+}
+
+.infoRowValueMono {
+  font-size: 0.6em;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+}
+
+.statCard {
+  background: var(--color-panel);
+  border: 1px solid #1C1C1C;
+  padding: 16px;
+  text-align: center;
+}
+
+.statCardLabel {
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+.statCardValue {
+  font-family: var(--font-mono);
+  font-size: 1.2em;
+  color: var(--color-text);
+}
+
+.statCardSub {
+  font-size: 0.45em;
+  color: var(--color-text-dim);
+  margin-top: 2px;
+}
+
+.statBar {
+  margin-top: 8px;
+  height: 4px;
+  background: var(--color-border-light);
+}
+
+.statBarFill {
+  height: 100%;
+  background: var(--color-accent);
+}
+
+.exportBtn {
+  margin-top: auto;
+}
+
+.placeholderTab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #333;
+  color: var(--color-text-dim);
+  font-size: 0.7em;
+}

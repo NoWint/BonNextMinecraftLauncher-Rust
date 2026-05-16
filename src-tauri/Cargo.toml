@@ -28,8 +28,14 @@ hex = "0.4"
 thiserror = "2"
 directories = "6"
 futures-util = "0.3"
-uuid = { version = "1", features = ["v4"] }
+uuid = { version = "1", features = ["v4", "v5"] }
 url = "2"
 parking_lot = "0.12"
 webbrowser = "1"
 zip = "2"
+chrono = "0.4"
+opener = "0.7"
+urlencoding = "2"
+
+[dev-dependencies]
+tempfile = "3"

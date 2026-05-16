@@ -1,140 +1,165 @@
-use crate::error::LauncherError;
 use serde::{Deserialize, Serialize};
-use std::io::{BufRead, BufReader, Write};
-use std::net::TcpListener;
-use url::Url;
+use std::collections::HashMap;
+
+use crate::error::LauncherError;
 
 const CLIENT_ID: &str = "00000000402b5328";
-const REDIRECT_PORT: u16 = 36789;
-const REDIRECT_URI: &str = "http://localhost:36789/callback";
-const OAUTH_AUTHORIZE_URL: &str = "https://login.live.com/oauth20_authorize.srf";
-const OAUTH_TOKEN_URL: &str = "https://login.live.com/oauth20_token.srf";
-const XBOX_AUTH_URL: &str = "https://user.auth.xboxlive.com/user/authenticate";
-const XSTS_AUTH_URL: &str = "https://xsts.auth.xboxlive.com/xsts/authorize";
-const MC_AUTH_URL: &str =
-    "https://api.minecraftservices.com/authentication/login_with_xbox";
+const DEVICE_CODE_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode";
+const TOKEN_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
+const XBL_URL: &str = "https://user.auth.xboxlive.com/user/authenticate";
+const XSTS_URL: &str = "https://xsts.auth.xboxlive.com/xsts/authorize";
+const MC_LOGIN_URL: &str = "https://api.minecraftservices.com/authentication/login_with_xbox";
 const MC_PROFILE_URL: &str = "https://api.minecraftservices.com/minecraft/profile";
+const SCOPE: &str = "XboxLive.signin offline_access";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AuthResult {
-    pub access_token: String,
-    pub refresh_token: String,
+pub struct DeviceCodeResponse {
+    pub user_code: String,
+    pub device_code: String,
+    pub verification_uri: String,
+    #[serde(rename = "expires_in")]
+    pub expires_in: u64,
+    pub interval: u64,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MicrosoftAuthResult {
     pub username: String,
     pub uuid: String,
-    pub expires_at: u64,
+    pub access_token: String,
+    pub refresh_token: String,
 }
 
-fn start_callback_server() -> Result<TcpListener, LauncherError> {
-    TcpListener::bind(format!("127.0.0.1:{}", REDIRECT_PORT)).map_err(|e| {
-        LauncherError::AuthFailed(format!("Failed to bind callback server: {}", e))
-    })
-}
+pub async fn start_device_auth() -> Result<DeviceCodeResponse, LauncherError> {
+    let client = crate::http_client::build_client();
+    let mut params = HashMap::new();
+    params.insert("client_id", CLIENT_ID);
+    params.insert("scope", SCOPE);
 
-fn get_auth_code(listener: TcpListener) -> Result<String, LauncherError> {
-    listener.set_nonblocking(false).map_err(|e| {
-        LauncherError::AuthFailed(format!("Failed to set blocking: {}", e))
-    })?;
-
-    let (mut stream, _) = listener.accept().map_err(|e| {
-        LauncherError::AuthFailed(format!("Failed to accept callback: {}", e))
-    })?;
-
-    let mut reader = BufReader::new(&mut stream);
-    let mut request_line = String::new();
-    reader
-        .read_line(&mut request_line)
-        .map_err(|e| LauncherError::AuthFailed(e.to_string()))?;
-
-    let parts: Vec<&str> = request_line.split_whitespace().collect();
-    if parts.len() < 2 {
-        return Err(LauncherError::AuthFailed(
-            "Invalid callback request".to_string(),
-        ));
-    }
-
-    let path = parts[1];
-    let url = Url::parse(&format!("http://localhost{}", path))
-        .map_err(|e| LauncherError::AuthFailed(e.to_string()))?;
-
-    let error = url.query_pairs().find(|(key, _)| key == "error");
-    if let Some((_, desc)) = error {
-        let desc_val = url
-            .query_pairs()
-            .find(|(key, _)| key == "error_description")
-            .map(|(_, v)| v.to_string())
-            .unwrap_or_default();
-        return Err(LauncherError::AuthFailed(format!("{}: {}", desc, desc_val)));
-    }
-
-    let code = url
-        .query_pairs()
-        .find(|(key, _)| key == "code")
-        .map(|(_, val)| val.to_string())
-        .ok_or_else(|| {
-            LauncherError::AuthFailed("No auth code in callback".to_string())
-        })?;
-
-    let response = if code.is_empty() {
-        "HTTP/1.1 400 Bad Request\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<html><body><h1>登录失败</h1><p>未收到授权码。请重试。</p></body></html>"
-    } else {
-        "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<html><body><h1>登录成功!</h1><p>您可以关闭此页面并返回启动器。</p></body></html>"
-    };
-
-    let _ = stream.write_all(response.as_bytes());
-    let _ = stream.flush();
-
-    if code.is_empty() {
-        return Err(LauncherError::AuthFailed(
-            "Empty auth code in callback".to_string(),
-        ));
-    }
-
-    Ok(code)
-}
-
-#[derive(Debug, Deserialize)]
-struct OAuthTokenResponse {
-    access_token: String,
-    refresh_token: String,
-    expires_in: u64,
-}
-
-async fn exchange_code_for_token(
-    code: &str,
-) -> Result<OAuthTokenResponse, LauncherError> {
-    let client = reqwest::Client::new();
-    let params = [
-        ("client_id", CLIENT_ID),
-        ("code", code),
-        ("grant_type", "authorization_code"),
-        ("redirect_uri", REDIRECT_URI),
-    ];
-
-    let response = client
-        .post(OAUTH_TOKEN_URL)
+    let resp: DeviceCodeResponse = client
+        .post(DEVICE_CODE_URL)
         .form(&params)
         .send()
         .await?
-        .error_for_status()?;
+        .error_for_status()?
+        .json()
+        .await?;
 
-    let token: OAuthTokenResponse = response.json().await?;
-    Ok(token)
+    Ok(resp)
 }
 
-async fn xbox_live_auth(access_token: &str) -> Result<String, LauncherError> {
-    let client = reqwest::Client::new();
-    let body = serde_json::json!({
-        "Properties": {
-            "AuthMethod": "RPS",
-            "SiteName": "user.auth.xboxlive.com",
-            "RpsTicket": format!("d={}", access_token),
+pub async fn poll_device_auth(device_code: &str) -> Result<MicrosoftAuthResult, LauncherError> {
+    let client = crate::http_client::build_client();
+    let mut params = HashMap::new();
+    params.insert("client_id", CLIENT_ID);
+    params.insert("grant_type", "urn:ietf:params:oauth:grant-type:device_code");
+    params.insert("device_code", device_code);
+
+    let max_attempts = 180u32;
+    let interval_ms = 5000u64;
+
+    for _ in 0..max_attempts {
+        let mut token_params = params.clone();
+        token_params.insert("client_id", CLIENT_ID);
+        token_params.insert("grant_type", "urn:ietf:params:oauth:grant-type:device_code");
+        token_params.insert("device_code", device_code);
+
+        let resp = client
+            .post(TOKEN_URL)
+            .form(&token_params)
+            .send()
+            .await?;
+
+        let status = resp.status();
+        let body: serde_json::Value = resp.json().await?;
+
+        if status.is_success() {
+            let ms_access_token = body["access_token"]
+                .as_str()
+                .ok_or_else(|| LauncherError::AuthFailed("Missing access_token".to_string()))?;
+            let refresh_token = body["refresh_token"]
+                .as_str()
+                .unwrap_or("")
+                .to_string();
+
+            return complete_auth(client, ms_access_token, &refresh_token).await;
+        }
+
+        let error = body["error"].as_str().unwrap_or("");
+        match error {
+            "authorization_pending" => {
+                tokio::time::sleep(std::time::Duration::from_millis(interval_ms)).await;
+                continue;
+            }
+            "slow_down" => {
+                tokio::time::sleep(std::time::Duration::from_millis(interval_ms + 5000)).await;
+                continue;
+            }
+            "expired_token" => {
+                return Err(LauncherError::AuthFailed("Device code expired".to_string()));
+            }
+            "access_denied" => {
+                return Err(LauncherError::AuthFailed("Access denied by user".to_string()));
+            }
+            _ => {
+                let desc = body["error_description"].as_str().unwrap_or(error);
+                return Err(LauncherError::AuthFailed(desc.to_string()));
+            }
+        }
+    }
+
+    Err(LauncherError::AuthFailed("Authentication timed out".to_string()))
+}
+
+async fn complete_auth(
+    client: reqwest::Client,
+    ms_access_token: &str,
+    refresh_token: &str,
+) -> Result<MicrosoftAuthResult, LauncherError> {
+    let xbl_token = auth_xbl(&client, ms_access_token).await?;
+    let (xsts_token, user_hash) = auth_xsts(&client, &xbl_token).await?;
+    let mc_token = auth_minecraft(&client, &xsts_token, &user_hash).await?;
+    let profile = get_mc_profile(&client, &mc_token).await?;
+
+    Ok(MicrosoftAuthResult {
+        username: profile.name,
+        uuid: profile.id,
+        access_token: mc_token,
+        refresh_token: refresh_token.to_string(),
+    })
+}
+
+async fn auth_xbl(client: &reqwest::Client, ms_token: &str) -> Result<String, LauncherError> {
+    #[derive(Serialize)]
+    #[allow(non_snake_case)]
+    struct XblRequest {
+        Properties: XblProperties,
+        RelyingParty: String,
+        TokenType: String,
+    }
+    #[derive(Serialize)]
+    #[allow(non_snake_case)]
+    struct XblProperties {
+        AuthMethod: String,
+        IdToken: String,
+        RelyingParty: String,
+        TokenType: String,
+    }
+
+    let body = XblRequest {
+        Properties: XblProperties {
+            AuthMethod: "RPS".to_string(),
+            IdToken: ms_token.to_string(),
+            RelyingParty: "http://auth.xboxlive.com".to_string(),
+            TokenType: "JWT".to_string(),
         },
-        "RelyingParty": "http://auth.xboxlive.com",
-        "TokenType": "JWT",
-    });
+        RelyingParty: "http://auth.xboxlive.com".to_string(),
+        TokenType: "JWT".to_string(),
+    };
 
-    let response: serde_json::Value = client
-        .post(XBOX_AUTH_URL)
+    let resp: serde_json::Value = client
+        .post(XBL_URL)
         .json(&body)
         .send()
         .await?
@@ -142,73 +167,98 @@ async fn xbox_live_auth(access_token: &str) -> Result<String, LauncherError> {
         .json()
         .await?;
 
-    response["Token"]
+    resp["Token"]
         .as_str()
         .map(|s| s.to_string())
-        .ok_or_else(|| LauncherError::AuthFailed("No Xbox Live token".to_string()))
+        .ok_or_else(|| LauncherError::AuthFailed("Missing XBL token".to_string()))
 }
 
-async fn xsts_auth(xbl_token: &str) -> Result<(String, String), LauncherError> {
-    let client = reqwest::Client::new();
-    let body = serde_json::json!({
-        "Properties": {
-            "SandboxId": "RETAIL",
-            "UserTokens": [xbl_token],
-        },
-        "RelyingParty": "rp://api.minecraftservices.com/",
-        "TokenType": "JWT",
-    });
-
-    let response: serde_json::Value = client
-        .post(XSTS_AUTH_URL)
-        .json(&body)
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await?;
-
-    let token = response["Token"]
-        .as_str()
-        .map(|s| s.to_string())
-        .ok_or_else(|| LauncherError::AuthFailed("No XSTS token".to_string()))?;
-
-    let uhs = response["DisplayClaims"]["xui"][0]["uhs"]
-        .as_str()
-        .map(|s| s.to_string())
-        .ok_or_else(|| LauncherError::AuthFailed("No XSTS UHS".to_string()))?;
-
-    Ok((token, uhs))
-}
-
-async fn minecraft_auth(uhs: &str, xsts_token: &str) -> Result<String, LauncherError> {
-    let client = reqwest::Client::new();
-    let body = serde_json::json!({
-        "identityToken": format!("XBL3.0 x={};{}", uhs, xsts_token),
-    });
-
-    let response: serde_json::Value = client
-        .post(MC_AUTH_URL)
-        .json(&body)
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await?;
-
-    response["access_token"]
-        .as_str()
-        .map(|s| s.to_string())
-        .ok_or_else(|| {
-            LauncherError::AuthFailed("No Minecraft token".to_string())
-        })
-}
-
-async fn get_minecraft_profile(
-    mc_token: &str,
+async fn auth_xsts(
+    client: &reqwest::Client,
+    xbl_token: &str,
 ) -> Result<(String, String), LauncherError> {
-    let client = reqwest::Client::new();
-    let response: serde_json::Value = client
+    #[derive(Serialize)]
+    #[allow(non_snake_case)]
+    struct XstsRequest {
+        Properties: XstsProperties,
+        RelyingParty: String,
+        TokenType: String,
+    }
+    #[derive(Serialize)]
+    #[allow(non_snake_case)]
+    struct XstsProperties {
+        SandboxId: String,
+        UserTokens: Vec<String>,
+    }
+
+    let body = XstsRequest {
+        Properties: XstsProperties {
+            SandboxId: "RETAIL".to_string(),
+            UserTokens: vec![xbl_token.to_string()],
+        },
+        RelyingParty: "rp://api.minecraftservices.com/".to_string(),
+        TokenType: "JWT".to_string(),
+    };
+
+    let resp: serde_json::Value = client
+        .post(XSTS_URL)
+        .json(&body)
+        .send()
+        .await?
+        .json()
+        .await?;
+
+    let token = resp["Token"]
+        .as_str()
+        .ok_or_else(|| LauncherError::AuthFailed("Missing XSTS token".to_string()))?;
+    let user_hash = resp["DisplayClaims"]["xui"][0]["uhs"]
+        .as_str()
+        .ok_or_else(|| LauncherError::AuthFailed("Missing user hash".to_string()))?;
+
+    Ok((token.to_string(), user_hash.to_string()))
+}
+
+async fn auth_minecraft(
+    client: &reqwest::Client,
+    xsts_token: &str,
+    user_hash: &str,
+) -> Result<String, LauncherError> {
+    #[derive(Serialize)]
+    #[allow(non_snake_case)]
+    struct McRequest {
+        identityToken: String,
+    }
+
+    let body = McRequest {
+        identityToken: format!("XBL3.0 x={};{}", user_hash, xsts_token),
+    };
+
+    let resp: serde_json::Value = client
+        .post(MC_LOGIN_URL)
+        .json(&body)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    resp["access_token"]
+        .as_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| LauncherError::AuthFailed("Missing MC access token".to_string()))
+}
+
+#[derive(Debug, Deserialize)]
+struct McProfile {
+    id: String,
+    name: String,
+}
+
+async fn get_mc_profile(
+    client: &reqwest::Client,
+    mc_token: &str,
+) -> Result<McProfile, LauncherError> {
+    let profile: McProfile = client
         .get(MC_PROFILE_URL)
         .header("Authorization", format!("Bearer {}", mc_token))
         .send()
@@ -217,49 +267,5 @@ async fn get_minecraft_profile(
         .json()
         .await?;
 
-    let username = response["name"]
-        .as_str()
-        .map(|s| s.to_string())
-        .ok_or_else(|| {
-            LauncherError::AuthFailed("No username in profile".to_string())
-        })?;
-
-    let uuid = response["id"]
-        .as_str()
-        .map(|s| s.to_string())
-        .ok_or_else(|| {
-            LauncherError::AuthFailed("No UUID in profile".to_string())
-        })?;
-
-    Ok((username, uuid))
-}
-
-pub async fn perform_full_auth() -> Result<AuthResult, LauncherError> {
-    let auth_url = format!(
-        "{}?client_id={}&response_type=code&redirect_uri={}&scope=XboxLive.signin%20offline_access",
-        OAUTH_AUTHORIZE_URL, CLIENT_ID, REDIRECT_URI
-    );
-
-    let listener = start_callback_server()?;
-    webbrowser::open(&auth_url)
-        .map_err(|e| LauncherError::AuthFailed(format!("Failed to open browser: {}", e)))?;
-
-    let code = get_auth_code(listener)?;
-    let token_response = exchange_code_for_token(&code).await?;
-    let xbl_token = xbox_live_auth(&token_response.access_token).await?;
-    let (xsts_token, uhs) = xsts_auth(&xbl_token).await?;
-    let mc_token = minecraft_auth(&uhs, &xsts_token).await?;
-    let (username, uuid) = get_minecraft_profile(&mc_token).await?;
-
-    Ok(AuthResult {
-        access_token: mc_token,
-        refresh_token: token_response.refresh_token,
-        username,
-        uuid,
-        expires_at: std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs()
-            + token_response.expires_in,
-    })
+    Ok(profile)
 }

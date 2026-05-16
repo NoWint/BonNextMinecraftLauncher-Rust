@@ -1,0 +1,39 @@
+.controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.error {
+  color: var(--color-error);
+  font-size: 0.6em;
+  margin-bottom: 8px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--color-panel);
+  border: 1px solid #1C1C1C;
+  padding: 8px 14px;
+}
+
+.rowInfo {
+  flex: 1;
+}
+
+.rowName {
+  font-weight: 600;
+  font-size: 0.72em;
+  color: var(--color-text);
+  margin-right: 8px;
+}

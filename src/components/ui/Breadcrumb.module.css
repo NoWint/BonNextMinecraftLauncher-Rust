@@ -1,0 +1,42 @@
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.crumb {
+  font-size: 0.6em;
+  font-weight: 600;
+  color: #555;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  letter-spacing: 1px;
+  transition: color var(--transition-fast);
+
+  &:hover {
+    color: #AAA;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+.crumb--active {
+  color: var(--color-accent);
+  font-weight: 700;
+  cursor: default;
+
+  &:hover {
+    color: var(--color-accent);
+  }
+}
+
+.separator {
+  font-size: 0.45em;
+  color: #333;
+  user-select: none;
+}

@@ -1,0 +1,275 @@
+use crate::config;
+use crate::error::LauncherError;
+use crate::platform::java;
+use crate::platform::paths;
+use crate::version::resolver::ResolvedVersion;
+use std::collections::HashMap;
+use std::path::PathBuf;
+
+pub struct LaunchContext {
+    pub version: ResolvedVersion,
+    pub username: String,
+    pub uuid: String,
+    pub access_token: String,
+    pub game_dir: PathBuf,
+    pub assets_dir: PathBuf,
+    pub version_dir: PathBuf,
+    pub natives_dir: PathBuf,
+    pub java_path: PathBuf,
+    pub min_memory: u32,
+    pub max_memory: u32,
+    pub window_width: u32,
+    pub window_height: u32,
+    pub fullscreen: bool,
+    pub user_type: String,
+    pub extra_jvm_args: Option<String>,
+}
+
+pub struct InstanceSettings {
+    pub max_memory: Option<u32>,
+    pub min_memory: Option<u32>,
+    pub java_path: Option<String>,
+    pub jvm_args: Option<String>,
+    pub user_type: Option<String>,
+}
+
+impl LaunchContext {
+    pub fn build(
+        version: ResolvedVersion,
+        username: String,
+        uuid: String,
+        access_token: String,
+        instance: Option<InstanceSettings>,
+    ) -> Result<Self, LauncherError> {
+        let cfg = config::load_config()?;
+        let java_path = if let Some(ref inst) = instance {
+            if let Some(ref custom_java) = inst.java_path {
+                let p = PathBuf::from(custom_java);
+                if p.exists() { p } else { java::find_java()? }
+            } else {
+                java::find_java()?
+            }
+        } else {
+            java::find_java()?
+        };
+
+        let max_memory = instance.as_ref().and_then(|i| i.max_memory).unwrap_or(cfg.max_memory);
+        let min_memory = instance.as_ref().and_then(|i| i.min_memory).unwrap_or(cfg.min_memory);
+
+        if min_memory < 256 {
+            return Err(LauncherError::InvalidConfig(
+                "Minimum memory must be at least 256MB".into()
+            ));
+        }
+        if max_memory < min_memory {
+            return Err(LauncherError::InvalidConfig(
+                "Maximum memory must be greater than or equal to minimum memory".into()
+            ));
+        }
+        if max_memory > 65536 {
+            return Err(LauncherError::InvalidConfig(
+                "Maximum memory cannot exceed 65536MB (64GB)".into()
+            ));
+        }
+
+        let user_type = instance.as_ref()
+            .and_then(|i| i.user_type.clone())
+            .unwrap_or_else(|| "mojang".to_string());
+
+        let game_dir = paths::get_game_dir();
+        let assets_dir = paths::get_assets_dir();
+        let version_dir = paths::get_versions_dir().join(&version.id);
+        let natives_dir = version_dir.join("natives");
+
+        let extra_jvm_args = instance.as_ref().and_then(|i| i.jvm_args.clone())
+            .or_else(|| cfg.jvm_args.clone());
+
+        Ok(LaunchContext {
+            version,
+            username,
+            uuid,
+            access_token,
+            game_dir,
+            assets_dir,
+            version_dir,
+            natives_dir,
+            java_path,
+            min_memory,
+            max_memory,
+            window_width: cfg.window_width,
+            window_height: cfg.window_height,
+            fullscreen: cfg.fullscreen,
+            user_type,
+            extra_jvm_args,
+        })
+    }
+}
+
+pub fn build_launch_command(ctx: &LaunchContext) -> Result<Vec<String>, LauncherError> {
+    let mut cmd = Vec::new();
+
+    // Java executable
+    cmd.push(ctx.java_path.to_string_lossy().to_string());
+
+    // Memory settings
+    cmd.push(format!("-Xms{}m", ctx.min_memory));
+    cmd.push(format!("-Xmx{}m", ctx.max_memory));
+
+    // Extra JVM args from user config
+    if let Some(ref extra_args) = ctx.extra_jvm_args {
+        if !extra_args.is_empty() {
+            for arg in extra_args.split_whitespace() {
+                cmd.push(arg.to_string());
+            }
+        }
+    }
+
+    // Native library path
+    cmd.push("-Djava.library.path=".to_string() + &ctx.natives_dir.to_string_lossy());
+
+    // Launcher branding
+    cmd.push("-Dminecraft.launcher.brand=BonNext".to_string());
+    cmd.push("-Dminecraft.launcher.version=1.0.0".to_string());
+
+    // Log4j security fix (CVE-2021-44228)
+    cmd.push("-Dlog4j2.formatMsgNoLookups=true".to_string());
+
+    // Build template variables (available for all JVM and game args)
+    let variables = build_template_variables(ctx);
+
+    // Classpath
+    let classpath = build_classpath(ctx)?;
+    cmd.push("-cp".to_string());
+    cmd.push(classpath);
+
+    // Logging config (if the version defines one)
+    if let Some(ref logging) = ctx.version.logging_config {
+        let resolved = resolve_template(&logging.argument, &variables);
+        // The logging argument is something like:
+        // -Dlog4j.configurationFile=<path or URL>
+        // We need to turn the URL into a local path if we downloaded it
+        if let Some(local_path) = resolve_logging_path(&logging.argument, &ctx.version.id) {
+            cmd.push(format!("-Dlog4j.configurationFile={}", local_path));
+        } else {
+            cmd.push(resolved);
+        }
+    }
+
+    // JVM args from version JSON
+    for arg in &ctx.version.jvm_args {
+        let resolved = resolve_template(arg, &variables);
+        cmd.push(resolved);
+    }
+
+    // Main class
+    cmd.push(ctx.version.main_class.clone());
+
+    // Game args from version JSON
+    for arg in &ctx.version.game_args {
+        let resolved = resolve_template(arg, &variables);
+        cmd.push(resolved);
+    }
+
+    // Fullscreen flag
+    if ctx.fullscreen {
+        cmd.push("--fullscreen".to_string());
+    }
+
+    Ok(cmd)
+}
+
+fn build_classpath(ctx: &LaunchContext) -> Result<String, LauncherError> {
+    let mut paths = Vec::new();
+    let libraries_dir = paths::get_libraries_dir();
+
+    // Only non-native libraries go on classpath
+    for lib in &ctx.version.libraries {
+        let lib_path = libraries_dir.join(&lib.path);
+        paths.push(lib_path.to_string_lossy().to_string());
+    }
+
+    // Client JAR
+    let client_jar = ctx.version_dir.join(format!("{}.jar", ctx.version.id));
+    paths.push(client_jar.to_string_lossy().to_string());
+
+    let separator = if cfg!(target_os = "windows") { ";" } else { ":" };
+    Ok(paths.join(separator))
+}
+
+fn build_template_variables(ctx: &LaunchContext) -> HashMap<String, String> {
+    let mut vars = HashMap::new();
+
+    // Auth
+    vars.insert("${auth_player_name}".to_string(), ctx.username.clone());
+    vars.insert("${auth_uuid}".to_string(), ctx.uuid.clone());
+    vars.insert("${auth_access_token}".to_string(), ctx.access_token.clone());
+    vars.insert("${auth_session}".to_string(), ctx.access_token.clone());
+    vars.insert("${user_type}".to_string(), ctx.user_type.clone());
+    vars.insert("${user_properties}".to_string(), "{}".to_string());
+
+    // Version
+    vars.insert("${version_name}".to_string(), ctx.version.id.clone());
+    vars.insert("${version_type}".to_string(), ctx.version.version_type.clone());
+    vars.insert("${assets_root}".to_string(), ctx.assets_dir.to_string_lossy().to_string());
+    vars.insert("${assets_index_name}".to_string(), ctx.version.asset_index.id.clone());
+    vars.insert("${game_directory}".to_string(), ctx.game_dir.to_string_lossy().to_string());
+    vars.insert("${game_assets}".to_string(), ctx.assets_dir.join("virtual").join("legacy").to_string_lossy().to_string());
+
+    // Paths
+    vars.insert("${natives_directory}".to_string(), ctx.natives_dir.to_string_lossy().to_string());
+    vars.insert("${library_directory}".to_string(), paths::get_libraries_dir().to_string_lossy().to_string());
+    vars.insert("${classpath_separator}".to_string(), if cfg!(target_os = "windows") { ";".to_string() } else { ":".to_string() });
+
+    // Launcher info
+    vars.insert("${launcher_name}".to_string(), "BonNext".to_string());
+    vars.insert("${launcher_version}".to_string(), "1.0.0".to_string());
+
+    // Classpath (constructed on demand by old versions)
+    vars.insert("${classpath}".to_string(), build_classpath_string(ctx));
+
+    // Resolution (for versions that support it)
+    if ctx.fullscreen || ctx.window_width > 0 {
+        vars.insert("${resolution_width}".to_string(), ctx.window_width.to_string());
+        vars.insert("${resolution_height}".to_string(), ctx.window_height.to_string());
+    }
+
+    vars
+}
+
+fn build_classpath_string(ctx: &LaunchContext) -> String {
+    let mut paths = Vec::new();
+    let libraries_dir = paths::get_libraries_dir();
+    for lib in &ctx.version.libraries {
+        let lib_path = libraries_dir.join(&lib.path);
+        paths.push(lib_path.to_string_lossy().to_string());
+    }
+    let client_jar = ctx.version_dir.join(format!("{}.jar", ctx.version.id));
+    paths.push(client_jar.to_string_lossy().to_string());
+
+    let separator = if cfg!(target_os = "windows") { ";" } else { ":" };
+    paths.join(separator)
+}
+
+fn resolve_template(template: &str, variables: &HashMap<String, String>) -> String {
+    let mut result = template.to_string();
+    for (key, value) in variables {
+        result = result.replace(key, value);
+    }
+    result
+}
+
+/// If the logging config URL was downloaded locally, return the local path.
+fn resolve_logging_path(logging_arg: &str, version_id: &str) -> Option<String> {
+    let url = logging_arg.strip_prefix("-Dlog4j.configurationFile=")?;
+    // If it looks like a URL (not a local path), resolve to downloaded location
+    if url.starts_with("http://") || url.starts_with("https://") {
+        let file_name = url.rsplit('/').next().unwrap_or("log4j.xml");
+        let local_path = paths::get_versions_dir()
+            .join(version_id)
+            .join(file_name);
+        if local_path.exists() {
+            return Some(local_path.to_string_lossy().to_string());
+        }
+    }
+    None
+}
