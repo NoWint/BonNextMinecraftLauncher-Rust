@@ -23,14 +23,16 @@ impl LoaderType {
         }
     }
 
-    pub fn name(&self) -> &'static str {
+    #[allow(dead_code)]
+pub fn name(&self) -> &'static str {
         match self {
             LoaderType::Fabric => "fabric",
             LoaderType::Forge => "forge",
         }
     }
 
-    pub fn display_name(&self) -> &'static str {
+    #[allow(dead_code)]
+pub fn display_name(&self) -> &'static str {
         match self {
             LoaderType::Fabric => "Fabric",
             LoaderType::Forge => "Forge",

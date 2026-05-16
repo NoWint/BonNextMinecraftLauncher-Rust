@@ -13,6 +13,7 @@ struct FabricLoaderVersion {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct FabricGameVersion {
     version: String,
     stable: bool,
@@ -20,6 +21,7 @@ struct FabricGameVersion {
 
 #[derive(Debug, Deserialize)]
 #[allow(non_snake_case)]
+#[allow(dead_code)]
 struct FabricLoaderInfo {
     loader: FabricLoaderDetail,
     #[allow(dead_code)]
@@ -27,12 +29,14 @@ struct FabricLoaderInfo {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct FabricLoaderDetail {
     version: String,
     maven: String,
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct FabricLauncherMeta {
     version: u32,
     #[serde(rename = "mainClass")]

@@ -3,6 +3,7 @@ mod cache;
 mod collections;
 mod config;
 mod content;
+mod curseforge;
 mod crash_parser;
 mod download;
 mod error;
@@ -192,8 +193,8 @@ async fn launch_game(
         .unwrap_or_else(|| "mojang".to_string());
 
     // Record launch start time for playtime tracking
-    let launch_start = std::time::Instant::now();
-    let instance_id_for_playtime = instance_id.clone();
+    let _launch_start = std::time::Instant::now();
+    let _instance_id_for_playtime = instance_id.clone();
 
     let result = launch_game_inner(
         app,
@@ -294,7 +295,6 @@ async fn download_version_inner(
         agg.bytes_downloaded = agg.bytes_downloaded.saturating_add(p.downloaded);
         agg.current_url = p.url.clone();
         if p.finished { agg.completed += 1; }
-        let elapsed = agg.start_time.elapsed();
         let (speed, eta) = compute_agg_speed_eta(agg.bytes_downloaded, agg.start_time);
         let _ = app_for_cb.emit("download-progress", AggProgressSnapshot {
             completed: agg.completed, total: agg.total,
@@ -347,7 +347,6 @@ async fn download_version_inner(
             agg.bytes_downloaded = agg.bytes_downloaded.saturating_add(p.downloaded);
             agg.current_url = p.url.clone();
             if p.finished { agg.completed += 1; }
-            let elapsed = agg.start_time.elapsed();
             let (speed, eta) = compute_agg_speed_eta(agg.bytes_downloaded, agg.start_time);
             let _ = app_for_assets.emit("download-progress", AggProgressSnapshot {
                 completed: agg.completed, total: agg.total,
@@ -892,6 +891,53 @@ async fn get_content_counts(instance_id: String) -> Result<ContentCounts, Launch
 }
 
 // ---------------------------------------------------------------
+// CurseForge commands
+// ---------------------------------------------------------------
+
+#[tauri::command]
+async fn search_cf_mods(
+    query: String,
+    game_version: Option<String>,
+    category: Option<String>,
+    sort: Option<String>,
+    limit: Option<u64>,
+    offset: Option<u64>,
+) -> Result<(Vec<modrinth::ModResult>, u64), LauncherError> {
+    curseforge::search_mods(
+        &query,
+        game_version.as_deref(),
+        category.as_deref(),
+        sort.as_deref(),
+        limit.unwrap_or(20),
+        offset.unwrap_or(0),
+    ).await
+}
+
+#[tauri::command]
+async fn get_cf_mod(mod_id: u64) -> Result<modrinth::ModResult, LauncherError> {
+    curseforge::get_mod(mod_id).await
+}
+
+#[tauri::command]
+async fn get_cf_featured() -> Result<Vec<modrinth::ModResult>, LauncherError> {
+    curseforge::get_featured().await
+}
+
+#[tauri::command]
+async fn get_cf_mod_files(mod_id: u64) -> Result<Vec<modrinth::ModFile>, LauncherError> {
+    curseforge::get_mod_files(mod_id).await
+}
+
+#[tauri::command]
+async fn download_cf_mod(
+    file_url: String,
+    filename: String,
+    instance_id: String,
+) -> Result<String, LauncherError> {
+    curseforge::download_mod_file(&file_url, &filename, &instance_id).await
+}
+
+// ---------------------------------------------------------------
 // Collections / wishlist commands
 // ---------------------------------------------------------------
 
@@ -1058,6 +1104,8 @@ pub fn run() {
             list_instance_mods, list_instance_resourcepacks,
             list_instance_shaders, remove_installed_mod, get_content_counts,
             check_content_updates,
+            search_cf_mods, get_cf_mod, get_cf_featured,
+            get_cf_mod_files, download_cf_mod,
             add_to_collection, remove_from_collection,
             is_in_collection, list_collection,
             quick_start, select_fastest_mirror,

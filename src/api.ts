@@ -330,6 +330,26 @@ export const api = {
   listCollection: () =>
     invoke<CollectionItem[]>('list_collection'),
 
+  // CurseForge
+  searchCfMods: (
+    query: string, gameVersion?: string, category?: string,
+    sort?: string, limit?: number, offset?: number,
+  ) => invoke<[ModResult[], number]>('search_cf_mods', {
+    query, gameVersion, category, sort, limit, offset,
+  }),
+
+  getCfMod: (modId: number) =>
+    invoke<ModResult>('get_cf_mod', { modId }),
+
+  getCfFeatured: () =>
+    invoke<ModResult[]>('get_cf_featured'),
+
+  getCfModFiles: (modId: number) =>
+    invoke<ModFile[]>('get_cf_mod_files', { modId }),
+
+  downloadCfMod: (fileUrl: string, filename: string, instanceId: string) =>
+    invoke<string>('download_cf_mod', { fileUrl, filename, instanceId }),
+
   // Quick start & UX
   quickStart: () => invoke<void>('quick_start'),
   selectFastestMirror: () => invoke<string>('select_fastest_mirror'),

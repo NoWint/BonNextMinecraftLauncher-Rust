@@ -58,6 +58,7 @@ export default function ModsPage() {
   const { addToast } = useToast();
 
   const [viewMode, setViewMode] = useState<'list' | 'gallery'>('gallery');
+  const [source, setSource] = useState<'modrinth' | 'curseforge'>('modrinth');
   const [sort, setSort] = useState('relevance');
   const [mods, setMods] = useState<ModResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,12 +86,23 @@ export default function ModsPage() {
       let total: number;
 
       if (effectiveQuery.trim()) {
-        [results, total] = await api.searchContent(
-          effectiveQuery, 'mod', version || undefined, loader || undefined,
-          sort, PAGE_SIZE, offset,
-        );
+        if (source === 'curseforge') {
+          [results, total] = await api.searchCfMods(
+            effectiveQuery, version || undefined, tag || undefined,
+            sort, PAGE_SIZE, offset,
+          );
+        } else {
+          [results, total] = await api.searchContent(
+            effectiveQuery, 'mod', version || undefined, loader || undefined,
+            sort, PAGE_SIZE, offset,
+          );
+        }
       } else {
-        results = await api.getTrendingContent('mod', version || undefined, PAGE_SIZE);
+        if (source === 'curseforge') {
+          results = await api.getCfFeatured();
+        } else {
+          results = await api.getTrendingContent('mod', version || undefined, PAGE_SIZE);
+        }
         total = results.length;
       }
 
@@ -102,7 +114,7 @@ export default function ModsPage() {
     } finally {
       setLoading(false);
     }
-  }, [version, loader, sort]);
+  }, [version, loader, sort, source]);
 
   useEffect(() => {
     setPage(1);
@@ -112,7 +124,7 @@ export default function ModsPage() {
   useEffect(() => {
     setPage(1);
     loadMods(activeTag ? '' : search, 1, activeTag);
-  }, [activeTag, version, loader]);
+  }, [activeTag, version, loader, source]);
 
   const handleSearch = () => {
     setPage(1);
@@ -188,6 +200,20 @@ export default function ModsPage() {
           </span>
         </div>
 
+        <div className={styles.viewToggle}>
+          <button
+            className={`${styles.viewToggle__btn} ${source === 'modrinth' ? styles['viewToggle__btn--active'] : ''}`}
+            onClick={() => setSource('modrinth')}
+          >
+            MODRINTH
+          </button>
+          <button
+            className={`${styles.viewToggle__btn} ${source === 'curseforge' ? styles['viewToggle__btn--active'] : ''}`}
+            onClick={() => setSource('curseforge')}
+          >
+            CURSEFORGE
+          </button>
+        </div>
         <div className={styles.viewToggle}>
           <button
             className={`${styles.viewToggle__btn} ${viewMode === 'gallery' ? styles['viewToggle__btn--active'] : ''}`}
