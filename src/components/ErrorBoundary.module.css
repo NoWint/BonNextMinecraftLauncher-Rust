@@ -1,0 +1,46 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: var(--color-bg);
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bar {
+  width: 4px;
+  height: 40px;
+  background: var(--color-error);
+  clip-path: polygon(0 0, calc(100% - 2px) 0, 100% 2px, 100% 100%, 0 100%);
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: 1.2em;
+  color: var(--color-error);
+  letter-spacing: 4px;
+}
+
+.message {
+  font-size: 0.55em;
+  color: #666;
+  max-width: 400px;
+  text-align: center;
+}
+
+.homeBtn {
+  background: #1A1A1A;
+  border: 1px solid #2A2A2A;
+  color: #FFF;
+  padding: 8px 24px;
+  cursor: pointer;
+  font-size: 0.6em;
+  font-family: var(--font-body);
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+}
+
+.homeBtn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
