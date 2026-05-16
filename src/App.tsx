@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './stores/authStore';
 import { ConfigProvider } from './stores/configStore';
 import { InstanceProvider, useInstances } from './stores/instanceStore';
 import { ToastProvider } from './stores/toastStore';
+import { DownloadProvider } from './stores/downloadStore';
 import { ThemeProvider } from './stores/themeStore';
 import { I18nProvider, useI18n } from './i18n';
 import { Sidebar } from './components/layout';
@@ -11,6 +12,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ParticleBackground } from './components/ParticleBackground';
 import { CommandPalette } from './components/CommandPalette';
 import { SearchPalette } from './components/ui/SearchPalette';
+import { DownloadPanel } from './components/ui/DownloadPanel';
 import { ContextMenuProvider } from './components/ContextMenu';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import LoginPage from './pages/LoginPage';
@@ -178,11 +180,14 @@ export default function App() {
           <ConfigProvider>
             <InstanceProvider>
               <ToastProvider>
+                <DownloadProvider>
                 <ContextMenuProvider>
                   <ParticleBackground />
                   <CommandPalette />
                   <AppShell />
+                  <DownloadPanel />
                 </ContextMenuProvider>
+                </DownloadProvider>
               </ToastProvider>
             </InstanceProvider>
           </ConfigProvider>

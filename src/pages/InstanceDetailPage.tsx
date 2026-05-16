@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api, type GameInstance } from '../api';
+import { api, type GameInstance, type InstalledModInfo } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useInstances } from '../stores/instanceStore';
 import { useToast } from '../stores/toastStore';
@@ -25,10 +25,10 @@ function getLoaderLabel(loaderType: string | null): string {
   }
 }
 
-function useDetailTabs(t: (key: string) => string) {
+function useDetailTabs(t: (key: string) => string, modCount: number) {
   return [
     { id: 'overview', label: t('instanceDetail.overview') },
-    { id: 'mods', label: t('instanceDetail.mods') },
+    { id: 'mods', label: `${t('instanceDetail.mods')} (${modCount})` },
     { id: 'saves', label: t('instanceDetail.saves') },
     { id: 'logs', label: t('instanceDetail.logs') },
   ];
@@ -49,6 +49,7 @@ export default function InstanceDetailPage() {
   const [duplicateOpen, setDuplicateOpen] = useState(false);
   const [duplicateName, setDuplicateName] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [installedMods, setInstalledMods] = useState<InstalledModInfo[]>([]);
 
   const instanceId = window.location.hash.replace('#/instances/', '').split('?')[0];
 
@@ -70,6 +71,7 @@ export default function InstanceDetailPage() {
   useEffect(() => {
     if (instanceId) {
       api.checkInstanceReady(instanceId).then(setIsReady).catch(() => setIsReady(null));
+      api.listInstanceMods(instanceId).then(setInstalledMods).catch(() => setInstalledMods([]));
     }
   }, [instanceId]);
 
@@ -145,7 +147,7 @@ export default function InstanceDetailPage() {
     return <div className={styles.notFound}>{t('instanceDetail.notFound')}</div>;
   }
 
-  const DETAIL_TABS = useDetailTabs(t);
+  const DETAIL_TABS = useDetailTabs(t, installedMods.length);
   const memoryGB = Math.round(instance.max_memory / 1024);
   const playtimeH = instance.playtime_seconds > 0
     ? (instance.playtime_seconds / 3600).toFixed(1)
@@ -273,12 +275,39 @@ export default function InstanceDetailPage() {
         </div>
       )}
 
-      {activeTab !== 'overview' && (
-        <div className={styles.placeholderTab}>
-          {activeTab === 'mods' && t('instanceDetail.comingSoon')}
-          {activeTab === 'saves' && t('instanceDetail.comingSoon')}
-          {activeTab === 'logs' && t('instanceDetail.comingSoon')}
+      {activeTab === 'mods' && (
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          {installedMods.length === 0 ? (
+            <div className={styles.placeholderTab}>
+              No mods installed yet. Browse the mod marketplace to find mods.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {installedMods.map((mod) => (
+                <div key={mod.filename} style={{
+                  background: '#141414', border: '1px solid #1C1C1C',
+                  padding: '10px 14px', display: 'flex', alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6em', color: '#FFF' }}>
+                      {mod.filename}
+                    </div>
+                    <div style={{ fontSize: '0.5em', color: '#666', marginTop: 2 }}>
+                      {(mod.size / 1024).toFixed(1)} KB · Installed {new Date(mod.installed_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+      )}
+      {activeTab === 'saves' && (
+        <div className={styles.placeholderTab}>{t('instanceDetail.comingSoon')}</div>
+      )}
+      {activeTab === 'logs' && (
+        <div className={styles.placeholderTab}>{t('instanceDetail.comingSoon')}</div>
       )}
 
       {/* Delete modal */}

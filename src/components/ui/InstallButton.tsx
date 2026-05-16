@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../../api';
 import { useToast } from '../../stores/toastStore';
+import { useDownloads } from '../../stores/downloadStore';
 import { Button } from './Button';
 
 interface InstallButtonProps {
@@ -26,6 +27,7 @@ export function InstallButton({
 }: InstallButtonProps) {
   const [installing, setInstalling] = useState(false);
   const { addToast } = useToast();
+  const { addTask, updateTask } = useDownloads();
 
   const handleInstall = async () => {
     if (!instanceId) {
@@ -34,6 +36,16 @@ export function InstallButton({
     }
 
     setInstalling(true);
+    const taskId = `${contentSlug}-${Date.now()}`;
+
+    addTask({
+      id: taskId,
+      title: contentTitle,
+      filename: '',
+      status: 'pending',
+      startedAt: Date.now(),
+    });
+
     try {
       const versions = await api.getModVersions(
         contentSlug,
@@ -42,6 +54,7 @@ export function InstallButton({
       );
 
       if (versions.length === 0) {
+        updateTask(taskId, 'failed', 'No compatible version');
         addToast({
           type: 'error',
           title: 'No compatible version',
@@ -56,6 +69,8 @@ export function InstallButton({
         (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
       ) || latest.files[0];
 
+      updateTask(taskId, 'downloading');
+
       await api.installContent(
         primaryFile.url,
         primaryFile.filename,
@@ -66,6 +81,7 @@ export function InstallButton({
         latest.id,
       );
 
+      updateTask(taskId, 'complete');
       addToast({
         type: 'success',
         title: 'Installed',
@@ -73,6 +89,7 @@ export function InstallButton({
       });
       onInstalled?.();
     } catch (e: any) {
+      updateTask(taskId, 'failed', e?.toString());
       addToast({
         type: 'error',
         title: 'Install failed',

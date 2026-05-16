@@ -3,6 +3,7 @@ import { api, type GameInstance } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useInstances } from '../stores/instanceStore';
 import { useToast } from '../stores/toastStore';
+import { useI18n } from '../i18n';
 import { Badge, Modal, TextInput, Button } from '../components/ui';
 import styles from './InstancesPage.module.css';
 
@@ -10,27 +11,8 @@ function getLoaderIcon(loader: string | null): string {
   switch (loader) { case 'fabric': return '🧵'; case 'forge': return '⚒'; default: return '📦'; }
 }
 
-function getLoaderLabel(loader: string | null): string {
-  switch (loader) { case 'fabric': return 'Fabric'; case 'forge': return 'Forge'; default: return 'Vanilla'; }
-}
-
 function getLoaderClass(loader: string | null): string {
   return loader === 'fabric' ? 'fabric' : loader === 'forge' ? 'forge' : 'vanilla';
-}
-
-function relativeTime(dateStr: string | null): string {
-  if (!dateStr) return 'Never played';
-  const d = new Date(dateStr);
-  const now = Date.now();
-  const diff = now - d.getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
-  return d.toLocaleDateString();
 }
 
 function formatPlaytime(seconds: number): string {
@@ -52,7 +34,27 @@ export default function InstancesPage() {
   const { state: authState } = useAuth();
   const { state, deleteInstance, reloadInstances } = useInstances();
   const { addToast } = useToast();
+  const { t } = useI18n();
   const auth = authState.currentUser;
+
+  const getLoaderLabel = (loader: string | null): string => {
+    switch (loader) { case 'fabric': return t('common.fabric'); case 'forge': return t('common.forge'); default: return t('common.vanilla'); }
+  };
+
+  const relativeTime = (dateStr: string | null): string => {
+    if (!dateStr) return t('common.neverPlayed');
+    const d = new Date(dateStr);
+    const now = Date.now();
+    const diff = now - d.getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return d.toLocaleDateString();
+  };
   const { instances } = state;
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('recent');
@@ -162,7 +164,7 @@ export default function InstancesPage() {
               <div className={styles.hero__meta}>
                 <span className={styles.hero__metaItem}>
                   <span className={`${styles.hero__metaDot} ${isHeroReady === true ? styles['hero__metaDot--ready'] : isHeroReady === false ? styles['hero__metaDot--download'] : styles['hero__metaDot--unknown']}`} />
-                  {isHeroReady === null ? 'Checking...' : isHeroReady ? 'Ready' : 'Needs download'}
+                  {isHeroReady === null ? t('common.checking') : isHeroReady ? t('common.ready') : t('common.needsDownload')}
                 </span>
                 <span className={styles.hero__metaItem}>
                   <Badge variant="accent">{heroInstance.version_id}</Badge>

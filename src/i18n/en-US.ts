@@ -204,6 +204,45 @@ const enUS: Record<string, string> = {
   'common.unit.gb': 'GB',
   'common.unit.ram': 'RAM',
   'common.vanilla': 'Vanilla',
+  'common.fabric': 'Fabric',
+  'common.forge': 'Forge',
+  'common.quilt': 'Quilt',
+  'common.neoforge': 'NeoForge',
+  'common.ready': 'Ready',
+  'common.checking': 'Checking...',
+  'common.needsDownload': 'Needs download',
+  'common.neverPlayed': 'Never played',
+  'common.slug': 'Slug',
+  'common.author': 'Author',
+  'common.updated': 'Updated',
+  'common.installed': 'Installed',
+  'common.remove': 'Remove',
+  'common.install': 'Install',
+  'common.openFolder': 'Open Folder',
+  'common.duplicate': 'Duplicate',
+  'common.browse': 'Browse',
+  'common.noMods': 'No mods installed yet. Browse the marketplace to find mods.',
+  'common.noneVanilla': 'None (Vanilla)',
+
+  'store.title': 'Marketplace',
+  'store.dataPacks': 'Data Packs',
+  'store.resourcePacks': 'Resource Packs',
+  'store.shaders': 'Shaders',
+  'store.modpacks': 'Modpacks',
+
+  'instances.sortPlaytime': 'Most Played',
+  'instances.sortName': 'By Name',
+  'instances.sortRecent': 'Recently Played',
+
+  'instanceDetail.minMemory': 'Min Memory',
+
+  'collections.title': 'Collections',
+  'collections.empty': 'No collections yet. Add some from the marketplace.',
+
+  'library.title': 'Library',
+  'library.installedMods': 'Installed Mods',
+  'library.installedPacks': 'Installed Packs',
+  'library.installedShaders': 'Installed Shaders',
 };
 
 export default enUS;
