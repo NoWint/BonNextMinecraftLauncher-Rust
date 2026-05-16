@@ -25,7 +25,6 @@ impl<T> CacheEntry<T> {
 pub struct ApiCache {
     searches: Mutex<HashMap<String, CacheEntry<String>>>,
     projects: Mutex<HashMap<String, CacheEntry<String>>>,
-    versions: Mutex<HashMap<String, CacheEntry<String>>>,
     popular: Mutex<HashMap<String, CacheEntry<String>>>,
 }
 
@@ -34,7 +33,6 @@ impl ApiCache {
         Self {
             searches: Mutex::new(HashMap::new()),
             projects: Mutex::new(HashMap::new()),
-            versions: Mutex::new(HashMap::new()),
             popular: Mutex::new(HashMap::new()),
         }
     }
@@ -86,16 +84,6 @@ impl ApiCache {
 
     pub fn get_project(&self, slug: &str) -> Option<super::modrinth::ModProjectFull> {
         Self::get_raw(&self.projects, slug)
-    }
-
-    pub fn cache_versions(&self, key: &str, versions: &[super::modrinth::ModVersion]) {
-        if let Ok(json) = serde_json::to_string(versions) {
-            Self::put_raw(&self.versions, key.to_string(), json, Duration::from_secs(120));
-        }
-    }
-
-    pub fn get_versions(&self, key: &str) -> Option<Vec<super::modrinth::ModVersion>> {
-        Self::get_raw(&self.versions, key)
     }
 
     pub fn cache_popular(&self, key: &str, results: &[super::modrinth::ModResult]) {

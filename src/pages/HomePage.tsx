@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { api, type DownloadProgressEvent, type LaunchState, type GameInstance } from '../api';
+import { api, type DownloadProgressEvent, type LaunchState, type GameInstance, type SystemInfo } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useInstances } from '../stores/instanceStore';
 import { useToast } from '../stores/toastStore';
 import { useI18n } from '../i18n';
+import { useGreeting } from '../hooks/useGreeting';
 import { Heading, SubLabel, AccentCorner, Ticker } from '../components/layout';
 import { StatusDot, Badge, ProgressBar, Tooltip } from '../components/ui';
 import { Button } from '../components/ui';
@@ -12,12 +13,12 @@ import { relativeTime } from '../utils/time';
 import styles from './HomePage.module.css';
 
 const BANNER_SLIDES = [
-  { label: 'Featured', title: 'Minecraft 1.21 Tricky Trials', desc: 'Explore trial chambers, battle the breeze, and craft with new copper blocks.', theme: 1 },
-  { label: 'Performance', title: 'Sodium 0.7 Released', desc: 'Up to 40% FPS improvement. Now on Fabric, Quilt, and NeoForge.', theme: 2 },
-  { label: 'Community', title: 'Create Mod 6.0', desc: 'Mechanical marvels expanded. New logistics, trains, and contraptions.', theme: 3 },
-  { label: 'BonNext', title: 'One Click to Play', desc: 'Auto-detect Java, best version, optimal settings. Zero config needed.', theme: 4 },
-  { label: 'Technology', title: 'VulkanMod for Minecraft', desc: 'Native Vulkan rendering. Smoother frametimes on modern GPUs.', theme: 5 },
-  { label: 'Updates', title: 'Fabric 1.0 Milestone', desc: 'Stable API, better mod compat, 30% faster loader.', theme: 6 },
+  { label: 'Featured', title: 'Minecraft 1.21 Tricky Trials', desc: 'Explore trial chambers, battle the breeze, and craft with new copper blocks.', theme: 1, image: 'https://cdn.modrinth.com/data/1bJ4r7q7/icon.png' },
+  { label: 'Performance', title: 'Sodium 0.7 Released', desc: 'Up to 40% FPS improvement. Now on Fabric, Quilt, and NeoForge.', theme: 2, image: 'https://cdn.modrinth.com/data/AANobbMI/icon.png' },
+  { label: 'Community', title: 'Create Mod 6.0', desc: 'Mechanical marvels expanded. New logistics, trains, and contraptions.', theme: 3, image: 'https://cdn.modrinth.com/data/LNytGWDc/icon.png' },
+  { label: 'BonNext', title: 'One Click to Play', desc: 'Auto-detect Java, best version, optimal settings. Zero config needed.', theme: 4, image: '' },
+  { label: 'Technology', title: 'VulkanMod for Minecraft', desc: 'Native Vulkan rendering. Smoother frametimes on modern GPUs.', theme: 5, image: 'https://cdn.modrinth.com/data/Vl0LrE6N/icon.png' },
+  { label: 'Updates', title: 'Fabric 1.0 Milestone', desc: 'Stable API, better mod compat, 30% faster loader.', theme: 6, image: 'https://cdn.modrinth.com/data/P7dR8mSH/icon.png' },
 ];
 
 const NEWS_ITEMS = [
@@ -70,18 +71,21 @@ function InstanceCard({
   isActive,
   isReady,
   onLaunch,
+  onSelect,
 }: {
   instance: GameInstance;
   isActive: boolean;
   isReady: boolean | null;
   onLaunch: (inst: GameInstance) => void;
+  onSelect: (inst: GameInstance) => void;
 }) {
   const loaderLabel = getLoaderLabel(instance.loader_type);
   const playtimeLabel = formatPlaytime(instance.playtime_seconds);
 
   return (
     <div
-      className={`${styles.card} ${isActive ? styles['card--active'] : styles['card--default']}`}
+      className={`${styles.card} ${isActive ? styles['card--active'] : styles['card--default']} card-hover-glow`}
+      onClick={() => onSelect(instance)}
     >
       {isActive && <div className={styles.card__accent} />}
       <div className={styles.card__body}>
@@ -131,6 +135,7 @@ function PlayArea({
   isBusy,
   launchState,
   javaVersion,
+  sysInfo,
   onLaunch,
   onReset,
   t,
@@ -139,6 +144,7 @@ function PlayArea({
   isBusy: boolean;
   launchState: LaunchState;
   javaVersion: number | null;
+  sysInfo: SystemInfo | null;
   onLaunch: () => void;
   onReset: () => void;
   t: (key: string) => string;
@@ -250,19 +256,21 @@ function PlayArea({
       <div className={styles.quickStats}>
         <div className={styles.statCard}>
           <div className={styles.statCard__value}>
-            {instance ? `${Math.round(instance.max_memory / 1024)}GB` : '—'}
+            {instance ? `${Math.round(instance.max_memory / 1024)}GB` : sysInfo ? `${Math.round(sysInfo.total_ram_mb / 1024)}GB` : '—'}
           </div>
           <div className={styles.statCard__label}>{t('home.playArea.ram')}</div>
         </div>
         <div className={styles.statCard}>
           <div className={styles.statCard__value}>
-            {javaVersion ? `J${javaVersion}` : '—'}
+            {javaVersion ? `Java ${javaVersion}` : sysInfo?.java_version || '—'}
           </div>
           <div className={styles.statCard__label}>{t('home.playArea.jdk')}</div>
         </div>
         <div className={styles.statCard}>
-          <div className={styles.statCard__value}>FHD</div>
-          <div className={styles.statCard__label}>{t('home.playArea.res')}</div>
+          <div className={styles.statCard__value}>
+            {sysInfo ? `${sysInfo.cpu_count}c` : '—'}
+          </div>
+          <div className={styles.statCard__label}>CPU</div>
         </div>
       </div>
     </div>
@@ -274,6 +282,7 @@ export default function HomePage() {
   const { state: instState } = useInstances();
   const { addToast } = useToast();
   const { t } = useI18n();
+  const greeting = useGreeting(t);
   const auth = authState.currentUser!;
   const instances = instState.instances;
   const launchState = usePollLaunchState();
@@ -283,7 +292,10 @@ export default function HomePage() {
   const [newsIndex, setNewsIndex] = useState(0);
   const [bannerIndex, setBannerIndex] = useState(0);
   const [readyStates, setReadyStates] = useState<Record<string, boolean | null>>({});
-  const activeInstance = instances.length > 0 ? instances[0] : null;
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
+  const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
+  const activeInstance = instances.find((i) => i.id === selectedInstanceId)
+    || (instances.length > 0 ? instances[0] : null);
   const isBusy = launchState !== 'idle' && launchState !== 'exited' && launchState !== 'crashed' && launchState !== 'error';
   const loading = instState.loading;
 
@@ -313,6 +325,7 @@ export default function HomePage() {
 
   useEffect(() => {
     api.findJava().then((path) => api.checkJavaVersion(path).then(setJavaVersion)).catch(() => {});
+    api.getSystemInfo().then(setSysInfo).catch(() => {});
   }, []);
 
   // Rotate news items
@@ -390,6 +403,10 @@ export default function HomePage() {
                 <div className={styles.bannerTitle}>{slide.title}</div>
                 <div className={styles.bannerDesc}>{slide.desc}</div>
               </div>
+              {/* Right side image with gradient fade */}
+              <div className={styles.bannerImage}>
+                {slide.image && <img className={styles.bannerImage__img} src={slide.image} alt="" />}
+              </div>
             </div>
           ))}
         </div>
@@ -438,7 +455,7 @@ export default function HomePage() {
       {/* Top bar */}
       <div className={styles.topBar}>
         <div>
-          <Heading level="xl">{t('home.welcome')}</Heading>
+          <Heading level="xl">{greeting.title}</Heading>
           <div className={styles.topBar__stats}>
             <span className={styles.topBar__username}>{auth.username}</span>
             <div className={styles.topBar__statSep} />
@@ -485,13 +502,14 @@ export default function HomePage() {
                 </Button>
               </div>
             ) : (
-              instances.map((inst, i) => (
+              instances.map((inst) => (
                 <InstanceCard
                   key={inst.id}
                   instance={inst}
-                  isActive={i === 0}
+                  isActive={inst.id === (selectedInstanceId || instances[0]?.id)}
                   isReady={readyStates[inst.id] ?? null}
                   onLaunch={handleLaunch}
+                  onSelect={(inst) => setSelectedInstanceId(inst.id)}
                 />
               ))
             )}
@@ -547,6 +565,7 @@ export default function HomePage() {
               isBusy={isBusy}
               launchState={launchState}
               javaVersion={javaVersion}
+              sysInfo={sysInfo}
               onLaunch={() => activeInstance && handleLaunch(activeInstance)}
               onReset={() => api.resetLaunchState()}
               t={t}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api, type ContentCounts, type InstalledModInfo } from '../api';
+import { api, type ContentCounts, type InstalledModInfo, type UpdateInfo } from '../api';
 import { useInstances } from '../stores/instanceStore';
 import { useToast } from '../stores/toastStore';
 import { SectionHeader, Ticker } from '../components/layout';
@@ -32,6 +32,9 @@ export default function LibraryPage() {
   const [counts, setCounts] = useState<ContentCounts | null>(null);
   const [loading, setLoading] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
+  const [updates, setUpdates] = useState<UpdateInfo[]>([]);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
 
   const instances = instState.instances;
   const selectedInstance = instances.find((i) => i.id === selectedId);
@@ -66,6 +69,65 @@ export default function LibraryPage() {
   useEffect(() => {
     loadContent();
   }, [loadContent]);
+
+  const checkForUpdates = async () => {
+    if (!selectedId) return;
+    setCheckingUpdates(true);
+    try {
+      const result = await api.checkContentUpdates(selectedId);
+      setUpdates(result);
+      if (result.length === 0) {
+        addToast({ type: 'info', title: 'All up to date', message: 'No updates available.' });
+      }
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Update check failed', message: e?.toString() || '' });
+    } finally {
+      setCheckingUpdates(false);
+    }
+  };
+
+  const updateItem = async (update: UpdateInfo) => {
+    if (!selectedId) return;
+    setUpdatingItems((prev) => new Set(prev).add(update.filename));
+    try {
+      const versions = await api.getModVersions(update.slug);
+      if (versions.length === 0) throw new Error('No versions found');
+      const latest = versions[0];
+      const primaryFile = latest.files.find(
+        (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
+      ) || latest.files[0];
+
+      // Remove old file
+      try { await api.removeInstalledMod(selectedId, update.filename); } catch {}
+
+      // Download new version
+      await api.installContent(
+        primaryFile.url, primaryFile.filename, selectedId,
+        update.content_type, primaryFile.hashes.sha1 || undefined,
+        update.slug, latest.id,
+      );
+
+      addToast({ type: 'success', title: 'Updated', message: `${update.slug} → ${latest.version_number}` });
+
+      // Refresh
+      setUpdates((prev) => prev.filter((u) => u.filename !== update.filename));
+      loadContent();
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Update failed', message: e?.toString() || '' });
+    } finally {
+      setUpdatingItems((prev) => {
+        const next = new Set(prev);
+        next.delete(update.filename);
+        return next;
+      });
+    }
+  };
+
+  const updateAll = async () => {
+    for (const update of updates) {
+      await updateItem(update);
+    }
+  };
 
   const handleRemoveMod = async () => {
     if (!removeTarget || !selectedId) return;
@@ -121,6 +183,73 @@ export default function LibraryPage() {
             <div className={styles.summaryCard__value}>{counts.worlds}</div>
             <div className={styles.summaryCard__label}>WORLDS</div>
           </div>
+        </div>
+      )}
+
+      {/* Updates section */}
+      {selectedId && (
+        <div className={styles.updatesSection}>
+          <div className={styles.updatesSection__header}>
+            <div>
+              <span className={styles.updatesSection__title}>UPDATES</span>
+              {updates.length > 0 && (
+                <span className={styles.updatesSection__count}>{updates.length} available</span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={checkingUpdates}
+                onClick={checkForUpdates}
+              >
+                {checkingUpdates ? 'Checking...' : 'Check for updates'}
+              </Button>
+              {updates.length > 0 && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={updateAll}
+                  disabled={updatingItems.size > 0}
+                >
+                  {updatingItems.size > 0 ? 'Updating...' : 'Update All'}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {updates.length > 0 ? (
+            <div>
+              {updates.map((update) => (
+                <div key={update.filename} className={styles.updateItem}>
+                  <div className={styles.updateItem__name}>
+                    {update.slug} ({update.filename})
+                  </div>
+                  <div className={styles.updateItem__versions}>
+                    {update.installed_version && (
+                      <span className={styles.updateItem__oldVer}>{update.installed_version}</span>
+                    )}
+                    <span className={styles.updateItem__arrow}>→</span>
+                    <span className={styles.updateItem__newVer}>{update.latest_version}</span>
+                  </div>
+                  <Button
+                    variant="secondary-highlight"
+                    size="sm"
+                    disabled={updatingItems.has(update.filename)}
+                    onClick={() => updateItem(update)}
+                  >
+                    {updatingItems.has(update.filename) ? '...' : 'Update'}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            !checkingUpdates && updates.length === 0 && (
+              <div className={styles.updatesSection__empty}>
+                Click "Check for updates" to scan installed content for newer versions.
+              </div>
+            )
+          )}
         </div>
       )}
 
@@ -226,7 +355,12 @@ export default function LibraryPage() {
                 <div className={styles.empty__title}>World management</div>
                 <div className={styles.empty__desc}>Use the instance folder to manage worlds directly.</div>
                 {selectedInstance && (
-                  <Button variant="secondary" size="sm" onClick={() => api.openFolder(`${selectedInstance.id}/.minecraft/saves`)}>
+                  <Button variant="secondary" size="sm" onClick={async () => {
+                    try {
+                      const gameDir = await api.getGameDir();
+                      await api.openFolder(`${gameDir}/instances/${selectedInstance.id}/.minecraft/saves`);
+                    } catch {}
+                  }}>
                     Open saves folder
                   </Button>
                 )}

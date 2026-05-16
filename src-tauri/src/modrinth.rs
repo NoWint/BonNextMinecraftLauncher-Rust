@@ -629,16 +629,21 @@ pub async fn get_recently_updated(
     }).collect())
 }
 
-/// Download a mod file to the instance's mods directory.
-pub async fn download_mod_file(
+/// Download a content file to the instance's correct directory based on type.
+pub async fn download_content_file(
     file_url: &str,
     filename: &str,
     instance_id: &str,
+    content_type: &str,
     sha1_hash: Option<&str>,
 ) -> Result<String, LauncherError> {
-    let mods_dir = crate::platform::paths::get_instance_mods_dir(instance_id);
-    std::fs::create_dir_all(&mods_dir)?;
-    let target_path = mods_dir.join(filename);
+    let target_dir = match content_type {
+        "resourcepack" => crate::platform::paths::get_instance_resourcepacks_dir(instance_id),
+        "shader" => crate::platform::paths::get_instance_shaderpacks_dir(instance_id),
+        _ => crate::platform::paths::get_instance_mods_dir(instance_id),
+    };
+    std::fs::create_dir_all(&target_dir)?;
+    let target_path = target_dir.join(filename);
 
     let client = http_client::build_download_client();
     let response = client.get(file_url).send().await?.error_for_status()?;
@@ -652,13 +657,23 @@ pub async fn download_mod_file(
         let actual = hex::encode(hasher.finalize());
         if !actual.eq_ignore_ascii_case(expected_sha1) {
             return Err(LauncherError::Sha1Mismatch(format!(
-                "Mod file {} expected SHA1 {} but got {}",
+                "File {} expected SHA1 {} but got {}",
                 filename, expected_sha1, actual
             )));
         }
     }
 
     std::fs::write(&target_path, &bytes)?;
-    tracing::info!("Mod downloaded: {} -> {}", filename, target_path.display());
+    tracing::info!("Content downloaded: {} -> {}", filename, target_path.display());
     Ok(target_path.to_string_lossy().to_string())
+}
+
+/// Download a mod file to the instance's mods directory.
+pub async fn download_mod_file(
+    file_url: &str,
+    filename: &str,
+    instance_id: &str,
+    sha1_hash: Option<&str>,
+) -> Result<String, LauncherError> {
+    download_content_file(file_url, filename, instance_id, "mod", sha1_hash).await
 }

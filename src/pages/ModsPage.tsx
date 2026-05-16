@@ -10,6 +10,20 @@ import {
 import { CardSkeleton } from '../components/ui/Skeleton';
 import styles from './ModsPage.module.css';
 
+function getQueryParam(key: string): string | null {
+  const hash = window.location.hash;
+  const qIndex = hash.indexOf('?');
+  if (qIndex === -1) return null;
+  const params = new URLSearchParams(hash.slice(qIndex));
+  return params.get(key);
+}
+
+function updateHashType(type: string) {
+  const hash = window.location.hash;
+  const base = hash.split('?')[0];
+  window.location.hash = `${base}?type=${type}`;
+}
+
 const CONTENT_TYPES = [
   { id: 'mod', label: 'MODS' },
   { id: 'modpack', label: 'MODPACKS' },
@@ -44,7 +58,8 @@ export default function ModsPage() {
   const { state: instState } = useInstances();
   const { addToast } = useToast();
 
-  const [contentType, setContentType] = useState('mod');
+  const initialType = getQueryParam('type') || 'mod';
+  const [contentType, setContentType] = useState(initialType);
   const [viewMode, setViewMode] = useState<'list' | 'gallery'>('list');
   const [sort, setSort] = useState('relevance');
   const [mods, setMods] = useState<ModResult[]>([]);
@@ -122,7 +137,11 @@ export default function ModsPage() {
         (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
       ) || latest.files[0];
 
-      await api.installMod(primaryFile.url, primaryFile.filename, activeInstance.id, primaryFile.hashes.sha1 || undefined);
+      await api.installContent(
+        primaryFile.url, primaryFile.filename, activeInstance.id,
+        contentType, primaryFile.hashes.sha1 || undefined,
+        mod.slug, latest.id,
+      );
       addToast({ type: 'success', title: 'Installed', message: `${mod.title} ${latest.version_number}` });
     } catch (e: any) {
       addToast({ type: 'error', title: 'Install failed', message: e?.toString() || '' });
@@ -146,7 +165,7 @@ export default function ModsPage() {
       <Tabs
         tabs={CONTENT_TYPES}
         activeId={contentType}
-        onChange={setContentType}
+        onChange={(id) => { setContentType(id); updateHashType(id); }}
       />
 
       {/* Search & filters */}

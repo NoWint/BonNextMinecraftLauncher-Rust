@@ -1,6 +1,7 @@
 mod auth;
 mod cache;
 mod config;
+mod content;
 mod crash_parser;
 mod download;
 mod error;
@@ -583,6 +584,29 @@ async fn install_mod(
     modrinth::download_mod_file(&file_url, &filename, &instance_id, sha1.as_deref()).await
 }
 
+#[tauri::command]
+async fn install_content(
+    file_url: String,
+    filename: String,
+    instance_id: String,
+    content_type: Option<String>,
+    sha1: Option<String>,
+    slug: Option<String>,
+    version_id: Option<String>,
+) -> Result<String, LauncherError> {
+    let ct = content_type.as_deref().unwrap_or("mod");
+    let result = modrinth::download_content_file(&file_url, &filename, &instance_id, ct, sha1.as_deref()).await?;
+
+    // Record install metadata for update checking
+    if let Some(ref s) = slug {
+        if let Err(e) = content::record_install(&instance_id, &filename, s, version_id.as_deref(), ct) {
+            tracing::warn!("Failed to record install metadata: {}", e);
+        }
+    }
+
+    Ok(result)
+}
+
 // ---------------------------------------------------------------
 // Marketplace commands (extended Modrinth API)
 // ---------------------------------------------------------------
@@ -821,8 +845,14 @@ async fn remove_installed_mod(instance_id: String, filename: String) -> Result<(
     }
 
     std::fs::remove_file(&path)?;
+    let _ = content::remove_record(&instance_id, &filename);
     tracing::info!("Removed mod: {} from instance {}", filename, instance_id);
     Ok(())
+}
+
+#[tauri::command]
+async fn check_content_updates(instance_id: String) -> Result<Vec<content::UpdateInfo>, LauncherError> {
+    content::check_updates(&instance_id).await
 }
 
 #[tauri::command]
@@ -987,11 +1017,12 @@ pub fn run() {
             parse_crash_report,
             get_loader_versions, install_loader,
             search_mods, get_popular_mods, get_mod_details,
-            get_mod_versions, install_mod,
+            get_mod_versions, install_mod, install_content,
             search_content, get_project_details, get_trending_content,
             get_recently_updated,
             list_instance_mods, list_instance_resourcepacks,
             list_instance_shaders, remove_installed_mod, get_content_counts,
+            check_content_updates,
             quick_start, select_fastest_mirror,
             get_system_info, auto_tune_memory_cmd,
         ])

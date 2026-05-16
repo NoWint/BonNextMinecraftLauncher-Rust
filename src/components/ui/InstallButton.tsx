@@ -9,6 +9,7 @@ interface InstallButtonProps {
   instanceId: string;
   gameVersion?: string;
   loader?: string;
+  contentType?: string;
   onInstalled?: () => void;
   size?: 'sm' | 'md' | 'lg';
 }
@@ -19,6 +20,7 @@ export function InstallButton({
   instanceId,
   gameVersion,
   loader,
+  contentType,
   onInstalled,
   size = 'sm',
 }: InstallButtonProps) {
@@ -54,11 +56,14 @@ export function InstallButton({
         (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
       ) || latest.files[0];
 
-      await api.installMod(
+      await api.installContent(
         primaryFile.url,
         primaryFile.filename,
         instanceId,
+        contentType || 'mod',
         primaryFile.hashes.sha1 || undefined,
+        contentSlug,
+        latest.id,
       );
 
       addToast({

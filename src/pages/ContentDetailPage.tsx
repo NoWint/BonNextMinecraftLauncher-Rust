@@ -189,6 +189,7 @@ export default function ContentDetailPage() {
             contentSlug={project.slug}
             contentTitle={project.title}
             instanceId={selectedInstance}
+            contentType={parsed.type}
             size="md"
           />
         </div>
@@ -316,6 +317,7 @@ export default function ContentDetailPage() {
                         instanceId={selectedInstance}
                         gameVersion={ver.game_versions[0]}
                         loader={ver.loaders[0]}
+                        contentType={parsed.type}
                         size="sm"
                       />
                     )}
