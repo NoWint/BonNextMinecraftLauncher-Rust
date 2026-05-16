@@ -22,3 +22,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Tauri / Rust build artifacts
+src-tauri/target/
+src-tauri/icons/
+
+# Build artifacts
+tsconfig.tsbuildinfo
+
+# Session files (not project code)
+.claude/
+.trae/
+.superpowers/
