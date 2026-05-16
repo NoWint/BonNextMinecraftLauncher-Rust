@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { type ModResult } from '../../api';
 import { Badge } from './Status';
 import { Button } from './Button';
@@ -32,7 +33,7 @@ function formatDownloads(n: number): string {
   return String(n);
 }
 
-export function ContentCard({
+export const ContentCard = memo(function ContentCard({
   content,
   variant = 'list',
   onInstall,
@@ -119,7 +120,7 @@ export function ContentCard({
       </div>
     </div>
   );
-}
+});
 
 export function contentFromModResult(mod: ModResult): ContentCardData {
   return {

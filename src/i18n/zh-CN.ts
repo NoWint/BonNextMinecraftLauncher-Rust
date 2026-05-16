@@ -204,6 +204,45 @@ const zhCN: Record<string, string> = {
   'common.unit.gb': 'GB',
   'common.unit.ram': 'RAM',
   'common.vanilla': 'Vanilla',
+  'common.fabric': 'Fabric',
+  'common.forge': 'Forge',
+  'common.quilt': 'Quilt',
+  'common.neoforge': 'NeoForge',
+  'common.ready': '就绪',
+  'common.checking': '检查中...',
+  'common.needsDownload': '需要下载',
+  'common.neverPlayed': '从未游玩',
+  'common.slug': '标识',
+  'common.author': '作者',
+  'common.updated': '更新于',
+  'common.installed': '已安装',
+  'common.remove': '移除',
+  'common.install': '安装',
+  'common.openFolder': '打开文件夹',
+  'common.duplicate': '克隆',
+  'common.browse': '浏览',
+  'common.noMods': '还没有安装模组，前往模组市场探索吧',
+  'common.noneVanilla': '无 (Vanilla)',
+
+  'store.title': '内容商店',
+  'store.dataPacks': '数据包',
+  'store.resourcePacks': '资源包',
+  'store.shaders': '光影',
+  'store.modpacks': '整合包',
+
+  'instances.sortPlaytime': '最长游玩',
+  'instances.sortName': '名称排序',
+  'instances.sortRecent': '最近游玩',
+
+  'instanceDetail.minMemory': '最小内存',
+
+  'collections.title': '我的收藏',
+  'collections.empty': '还没有收藏，从内容商店添加一些吧',
+
+  'library.title': '内容库',
+  'library.installedMods': '已安装模组',
+  'library.installedPacks': '已安装资源包',
+  'library.installedShaders': '已安装光影',
 };
 
 export default zhCN;
