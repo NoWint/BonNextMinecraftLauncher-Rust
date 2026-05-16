@@ -155,10 +155,31 @@
   font-size: 0.55em;
   color: var(--color-text-muted);
   margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-wrap: wrap;
+}
+
+.cardMetaSep {
+  margin: 0 4px;
+  color: #444;
+}
+
+.readyStatus {
+  color: var(--color-success);
+}
+
+.needsDownloadStatus {
+  color: var(--color-accent);
+}
+
+.unknownStatus {
+  color: var(--color-text-dim);
 }
 
 .cardActions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }

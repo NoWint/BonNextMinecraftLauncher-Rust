@@ -6,3 +6,4 @@ export { Tabs } from './Tabs';
 export { Breadcrumb } from './Breadcrumb';
 export { Pagination } from './Pagination';
 export { ToastContainer } from './Toast';
+export { Tooltip } from './Tooltip';

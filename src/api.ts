@@ -203,6 +203,9 @@ export const api = {
   selectFastestMirror: () => invoke<string>('select_fastest_mirror'),
   getSystemInfo: () => invoke<SystemInfo>('get_system_info'),
   autoTuneMemory: () => invoke<number>('auto_tune_memory_cmd'),
+  checkInstanceReady: (instanceId: string) => invoke<boolean>('check_instance_ready', { instanceId }),
+  duplicateInstance: (instanceId: string, newName: string) => invoke<GameInstance>('duplicate_instance', { id: instanceId, newName }),
+  exportInstance: (instanceId: string, outputPath: string) => invoke<void>('export_instance', { id: instanceId, outputPath }),
 };
 
 export interface SystemInfo {

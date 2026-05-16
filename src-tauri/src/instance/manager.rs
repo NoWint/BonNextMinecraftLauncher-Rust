@@ -109,3 +109,113 @@ pub fn get_instance(id: &str) -> Result<Option<GameInstance>, LauncherError> {
     let instances = list_instances()?;
     Ok(instances.into_iter().find(|i| i.id == id))
 }
+
+/// Update the playtime for an instance by adding the given seconds.
+pub fn update_playtime(instance_id: &str, seconds: u64) -> Result<(), LauncherError> {
+    let mut instances = list_instances()?;
+    if let Some(inst) = instances.iter_mut().find(|i| i.id == instance_id) {
+        inst.playtime_seconds = inst.playtime_seconds.saturating_add(seconds);
+        let now = chrono::Local::now().to_rfc3339();
+        inst.last_played = Some(now);
+        save_instances(&instances)?;
+    }
+    Ok(())
+}
+
+/// Check if an instance's version JAR exists on disk (ready to launch).
+pub fn check_instance_ready(id: &str) -> Result<bool, LauncherError> {
+    let instance = get_instance(id)?.ok_or_else(|| {
+        LauncherError::Other(format!("Instance not found: {}", id))
+    })?;
+    let jar_path = paths::get_versions_dir()
+        .join(&instance.version_id)
+        .join(format!("{}.jar", instance.version_id));
+    Ok(jar_path.exists())
+}
+
+/// Duplicate an instance with a new name.
+pub fn duplicate_instance(id: &str, new_name: &str) -> Result<GameInstance, LauncherError> {
+    let instances = list_instances()?;
+    let original = instances.iter().find(|i| i.id == id).ok_or_else(|| {
+        LauncherError::Other(format!("Instance not found: {}", id))
+    })?;
+    let new_id = format!("{}_{}", original.version_id, chrono::Utc::now().timestamp_millis());
+    let now = chrono::Local::now().to_rfc3339();
+    let duplicated = GameInstance {
+        id: new_id,
+        name: new_name.to_string(),
+        version_id: original.version_id.clone(),
+        version_url: original.version_url.clone(),
+        loader_type: original.loader_type.clone(),
+        loader_version: original.loader_version.clone(),
+        description: original.description.clone(),
+        max_memory: original.max_memory,
+        min_memory: original.min_memory,
+        java_path: original.java_path.clone(),
+        jvm_args: original.jvm_args.clone(),
+        created_at: now,
+        last_played: None,
+        playtime_seconds: 0,
+    };
+    let mut instances = instances;
+    instances.push(duplicated.clone());
+    save_instances(&instances)?;
+    paths::ensure_instance_dirs(&duplicated.id)?;
+    Ok(duplicated)
+}
+
+/// Export an instance directory as a ZIP file.
+pub fn export_instance(id: &str, output_path: &std::path::Path) -> Result<(), LauncherError> {
+    let instance = get_instance(id)?.ok_or_else(|| {
+        LauncherError::Other(format!("Instance not found: {}", id))
+    })?;
+    let instance_dir = instance.dir();
+    if !instance_dir.exists() {
+        return Err(LauncherError::Other(format!(
+            "Instance directory does not exist: {}",
+            instance_dir.display()
+        )));
+    }
+
+    let file = std::fs::File::create(output_path)
+        .map_err(|e| LauncherError::Other(format!("Cannot create export file: {}", e)))?;
+    let mut zip = zip::ZipWriter::new(file);
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .unix_permissions(0o644);
+
+    fn add_dir_to_zip(
+        zip: &mut zip::ZipWriter<std::fs::File>,
+        base: &std::path::Path,
+        dir: &std::path::Path,
+        options: zip::write::SimpleFileOptions,
+    ) -> Result<(), LauncherError> {
+        for entry in std::fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            let relative = path.strip_prefix(base)
+                .map_err(|e| LauncherError::Other(e.to_string()))?;
+            let name = relative.to_string_lossy().replace('\\', "/");
+
+            if path.is_dir() {
+                zip.add_directory(&name, options)
+                    .map_err(|e| LauncherError::Other(format!("ZIP add dir error: {}", e)))?;
+                add_dir_to_zip(zip, base, &path, options)?;
+            } else {
+                zip.start_file(&name, options)
+                    .map_err(|e| LauncherError::Other(format!("ZIP start file error: {}", e)))?;
+                let mut src = std::fs::File::open(&path)
+                    .map_err(|e| LauncherError::Other(format!("Cannot open: {}: {}", path.display(), e)))?;
+                std::io::copy(&mut src, zip)
+                    .map_err(|e| LauncherError::Other(format!("ZIP write error: {}", e)))?;
+            }
+        }
+        Ok(())
+    }
+
+    add_dir_to_zip(&mut zip, instance_dir.parent().unwrap_or(&instance_dir), &instance_dir, options)?;
+    zip.finish().map_err(|e| LauncherError::Other(format!("ZIP finish error: {}", e)))?;
+
+    tracing::info!("Instance '{}' exported to {}", id, output_path.display());
+    Ok(())
+}

@@ -37,6 +37,9 @@ chrono = "0.4"
 opener = "0.7"
 urlencoding = "2"
 sysinfo = "0.33"
+flate2 = "1"
+tar = "0.4"
+tempfile = "3"
 
 [dev-dependencies]
-tempfile = "3"
+indoc = "2"

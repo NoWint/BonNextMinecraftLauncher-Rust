@@ -1,0 +1,102 @@
+/* ========================================
+   Theme: Dark (default)
+   ======================================== */
+.theme-dark {
+  --bg-primary: #0D0D0D;
+  --bg-secondary: #141414;
+  --bg-card: #1A1A1A;
+  --text-primary: #FFFFFF;
+  --text-secondary: #AAAAAA;
+  --text-muted: #666666;
+  --accent: #FFE600;
+  --border: #1A1A1A;
+  --border-hover: #2A2A2A;
+  --danger: #FF4444;
+  --success: #00FF88;
+
+  /* Derive old token names from new for backward compatibility */
+  --color-bg: var(--bg-primary);
+  --color-panel: var(--bg-secondary);
+  --color-panel-alt: var(--bg-card);
+  --color-sidebar: #0F0F0F;
+  --color-border: var(--border);
+  --color-border-mid: #1F1F1F;
+  --color-border-light: var(--border-hover);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-error: var(--danger);
+  --color-text: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-tertiary: #888888;
+  --color-text-dim: #555555;
+  --color-text-faint: #444444;
+}
+
+/* ========================================
+   Theme: Light
+   ======================================== */
+.theme-light {
+  --bg-primary: #F5F5F5;
+  --bg-secondary: #EAEAEA;
+  --bg-card: #FFFFFF;
+  --text-primary: #1A1A1A;
+  --text-secondary: #555555;
+  --text-muted: #888888;
+  --accent: #CCA700;
+  --border: #D0D0D0;
+  --border-hover: #A0A0A0;
+  --danger: #CC2222;
+  --success: #00AA55;
+
+  --color-bg: var(--bg-primary);
+  --color-panel: var(--bg-secondary);
+  --color-panel-alt: var(--bg-card);
+  --color-sidebar: #E8E8E8;
+  --color-border: var(--border);
+  --color-border-mid: #D5D5D5;
+  --color-border-light: var(--border-hover);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-error: var(--danger);
+  --color-text: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-tertiary: #999999;
+  --color-text-dim: #BBBBBB;
+  --color-text-faint: #CCCCCC;
+}
+
+/* ========================================
+   Theme: OLED (pure black)
+   ======================================== */
+.theme-oled {
+  --bg-primary: #000000;
+  --bg-secondary: #0A0A0A;
+  --bg-card: #0F0F0F;
+  --text-primary: #FFFFFF;
+  --text-secondary: #888888;
+  --text-muted: #555555;
+  --accent: #FFE600;
+  --border: #1A1A1A;
+  --border-hover: #333333;
+  --danger: #FF4444;
+  --success: #00FF88;
+
+  --color-bg: var(--bg-primary);
+  --color-panel: var(--bg-secondary);
+  --color-panel-alt: var(--bg-card);
+  --color-sidebar: #050505;
+  --color-border: var(--border);
+  --color-border-mid: #121212;
+  --color-border-light: var(--border-hover);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-error: var(--danger);
+  --color-text: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-tertiary: #777777;
+  --color-text-dim: #444444;
+  --color-text-faint: #333333;
+}
