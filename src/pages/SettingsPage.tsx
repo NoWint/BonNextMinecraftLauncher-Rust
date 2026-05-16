@@ -1,210 +1,263 @@
-import { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
-import "./SettingsPage.css";
+import { useState, useEffect } from 'react';
+import { api, type AppConfig } from '../api';
+import { useAuth } from '../stores/authStore';
+import { useConfig } from '../stores/configStore';
+import { StatusDot, Badge, Button, TextInput, Select, Checkbox, Slider } from '../components/ui';
+import { open } from '@tauri-apps/plugin-dialog';
+import styles from './SettingsPage.module.css';
 
-interface UserConfig {
-  java_path: string;
-  max_memory_mb: number;
-  extra_jvm_args: string[];
-  window_width: number;
-  window_height: number;
-  launch_behavior: string;
-  game_dir: string | null;
-}
+const RESOLUTION_OPTIONS = [
+  { value: '854x480', label: '854 × 480' },
+  { value: '1280x720', label: '1280 × 720' },
+  { value: '1920x1080', label: '1920 × 1080' },
+  { value: '2560x1440', label: '2560 × 1440' },
+  { value: '3840x2160', label: '3840 × 2160' },
+];
 
-interface Props {
-  onBack: () => void;
-  onSave: (config: UserConfig) => void;
-}
-
-function SettingsPage({ onBack, onSave }: Props) {
-  const [config, setConfig] = useState<UserConfig>({
-    java_path: "java",
-    max_memory_mb: 4096,
-    extra_jvm_args: [],
-    window_width: 854,
-    window_height: 480,
-    launch_behavior: "Keep",
-    game_dir: null,
-  });
-  const [saved, setSaved] = useState(false);
-  const [defaultDir, setDefaultDir] = useState("");
-
-  useEffect(() => {
-    invoke<UserConfig>("get_config")
-      .then((cfg) => setConfig(cfg))
-      .catch(console.error);
-    invoke<string>("get_default_game_dir")
-      .then(setDefaultDir)
-      .catch(console.error);
-  }, []);
-
-  const handleSave = async () => {
-    try {
-      await invoke("save_config", { config });
-      onSave(config);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch (e) {
-      console.error("Failed to save config:", e);
-    }
-  };
-
-  const handleAutoDetect = async () => {
-    try {
-      const path = await invoke<string>("auto_detect_java");
-      setConfig({ ...config, java_path: path });
-    } catch {
-      // Java not found, ignore
-    }
-  };
-
-  const handleSelectDir = async () => {
-    const selected = await open({
-      directory: true,
-      multiple: false,
-      title: "选择游戏目录",
-    });
-    if (selected) {
-      setConfig({ ...config, game_dir: selected });
-    }
-  };
-
-  const handleResetDir = () => {
-    setConfig({ ...config, game_dir: null });
-  };
-
-  const displayDir = config.game_dir || defaultDir || "默认路径";
-
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="settings-page">
-      <header className="settings-header">
-        <button className="back-btn" onClick={onBack}>
-          ← 返回
-        </button>
-        <h2 className="settings-title">设置</h2>
-      </header>
-
-      <div className="settings-form">
-        <div className="setting-group">
-          <label>游戏目录</label>
-          <div className="dir-display">
-            <span className="dir-path" title={displayDir}>
-              {displayDir}
-            </span>
-            {config.game_dir && (
-              <span className="dir-custom-badge">自定义</span>
-            )}
-          </div>
-          <div className="dir-input-row">
-            <button className="detect-btn" onClick={handleSelectDir}>
-              选择目录
-            </button>
-            {config.game_dir && (
-              <button className="detect-btn reset-dir-btn" onClick={handleResetDir}>
-                恢复默认
-              </button>
-            )}
-          </div>
-          <p className="dir-hint">
-            游戏文件（versions、libraries、assets）将存储在此目录
-          </p>
-        </div>
-
-        <div className="setting-group">
-          <label>Java 路径</label>
-          <div className="java-input-row">
-            <input
-              type="text"
-              value={config.java_path}
-              onChange={(e) =>
-                setConfig({ ...config, java_path: e.target.value })
-              }
-              placeholder="java 或完整路径"
-            />
-            <button className="detect-btn" onClick={handleAutoDetect}>
-              自动检测
-            </button>
-          </div>
-        </div>
-
-        <div className="setting-group">
-          <label>最大内存: {config.max_memory_mb} MB</label>
-          <input
-            type="range"
-            min={1024}
-            max={16384}
-            step={512}
-            value={config.max_memory_mb}
-            onChange={(e) =>
-              setConfig({ ...config, max_memory_mb: Number(e.target.value) })
-            }
-          />
-          <div className="range-labels">
-            <span>1 GB</span>
-            <span>16 GB</span>
-          </div>
-        </div>
-
-        <div className="setting-group">
-          <label>窗口分辨率</label>
-          <div className="resolution-inputs">
-            <input
-              type="number"
-              value={config.window_width}
-              onChange={(e) =>
-                setConfig({ ...config, window_width: Number(e.target.value) })
-              }
-            />
-            <span>×</span>
-            <input
-              type="number"
-              value={config.window_height}
-              onChange={(e) =>
-                setConfig({ ...config, window_height: Number(e.target.value) })
-              }
-            />
-          </div>
-        </div>
-
-        <div className="setting-group">
-          <label>启动后行为</label>
-          <select
-            value={config.launch_behavior}
-            onChange={(e) =>
-              setConfig({ ...config, launch_behavior: e.target.value })
-            }
-          >
-            <option value="Keep">保持启动器</option>
-            <option value="Close">关闭启动器</option>
-            <option value="Minimize">最小化到托盘</option>
-          </select>
-        </div>
-
-        <div className="setting-group">
-          <label>JVM 额外参数</label>
-          <textarea
-            value={config.extra_jvm_args.join("\n")}
-            onChange={(e) =>
-              setConfig({
-                ...config,
-                extra_jvm_args: e.target.value
-                  .split("\n")
-                  .filter((s) => s.trim()),
-              })
-            }
-            placeholder="每行一个参数"
-            rows={4}
-          />
-        </div>
-
-        <button className="save-btn" onClick={handleSave}>
-          {saved ? "已保存 ✓" : "保存设置"}
-        </button>
+    <div className={styles.sectionCard}>
+      <div className={styles.sectionCard__header}>
+        <div className={styles.sectionCard__bar} />
+        <span className={styles.sectionCard__title}>{title}</span>
       </div>
+      {children}
     </div>
   );
 }
 
-export default SettingsPage;
+function SettingRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className={styles.settingRow}>
+      <span className={styles.settingRow__label}>{label}</span>
+      {children}
+    </div>
+  );
+}
+
+export default function SettingsPage() {
+  const { state: authState, logout, switchAccount } = useAuth();
+  const { state: cfgState, saveConfig } = useConfig();
+  const auth = authState.currentUser;
+  const config = cfgState.config;
+  const [localConfig, setLocalConfig] = useState<AppConfig | null>(config);
+  const [javaVersion, setJavaVersion] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (config) setLocalConfig(config);
+    api.findJava().then((p) => api.checkJavaVersion(p)).then(setJavaVersion).catch(() => {});
+  }, [config]);
+
+  const handleSave = async () => {
+    if (!localConfig) return;
+    setSaving(true);
+    setError('');
+    try {
+      await saveConfig(localConfig);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e: any) {
+      setError(e?.toString() || 'Save failed');
+    }
+    setSaving(false);
+  };
+
+  const handleBrowseJava = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'Java', extensions: ['exe', 'bin', ''] }],
+      });
+      if (selected && typeof selected === 'string') {
+        setLocalConfig((prev) => prev ? { ...prev, java_path: selected } : prev);
+      }
+    } catch { /* dialog cancelled */ }
+  };
+
+  const handleBrowseGameDir = async () => {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+      });
+      if (selected && typeof selected === 'string') {
+        setLocalConfig((prev) => prev ? { ...prev, game_dir: selected } : prev);
+      }
+    } catch { /* dialog cancelled */ }
+  };
+
+  if (!localConfig || !auth) return (
+    <div style={{ color: '#555', fontSize: '0.7em', padding: 40, textAlign: 'center' }}>Loading...</div>
+  );
+
+  const memoryGB = Math.round(localConfig.max_memory / 1024);
+
+  return (
+    <div className={`page-enter ${styles.page}`}>
+
+      {/* Account section */}
+      <SectionCard title="账户">
+        <div className={styles.accountRow}>
+          <StatusDot status="ready" />
+          <span className={styles.accountName}>{auth.username}</span>
+          <Badge variant="default">
+            {auth.access_token?.startsWith('offline_') ? 'OFFLINE' : 'MICROSOFT'}
+          </Badge>
+          <div style={{ marginLeft: 'auto' }}>
+            <Button variant="secondary" size="sm" onClick={() => { logout(); window.location.reload(); }}>
+              登出
+            </Button>
+          </div>
+        </div>
+
+        {authState.accounts.length > 1 && (
+          <div className={styles.switchAccounts}>
+            <div className={styles.switchAccounts__label}>切换账户</div>
+            <div className={styles.switchAccounts__list}>
+              {authState.accounts.map((acct) => (
+                <Button
+                  key={acct.id}
+                  variant={acct.id === authState.activeAccountId ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => switchAccount(acct.id)}
+                >
+                  {acct.username}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+      </SectionCard>
+
+      {/* Java runtime */}
+      <SectionCard title="Java 运行时">
+        <SettingRow label="Java 版本">
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1 }}>
+            <div style={{ minWidth: 200 }}>
+              <Select
+                value={localConfig.java_path || ''}
+                onChange={(e) => setLocalConfig({ ...localConfig, java_path: e.target.value || null })}
+                options={[
+                  { value: '', label: javaVersion ? `Java ${javaVersion} (自动检测)` : '自动检测' },
+                  ...(localConfig.java_path ? [{ value: localConfig.java_path, label: localConfig.java_path }] : []),
+                ]}
+              />
+            </div>
+            <Button variant="secondary" size="sm" onClick={handleBrowseJava}>浏览</Button>
+          </div>
+        </SettingRow>
+
+        <SettingRow label="JVM 参数">
+          <div style={{ flex: 1 }}>
+            <TextInput
+              value={localConfig.jvm_args || ''}
+              onChange={(e) => setLocalConfig({ ...localConfig, jvm_args: e.target.value || null })}
+              placeholder="-Xmx4G -XX:+UseG1GC -XX:+ParallelRefProcEnabled"
+            />
+          </div>
+        </SettingRow>
+      </SectionCard>
+
+      {/* Memory & Performance */}
+      <SectionCard title="内存与性能">
+        <SettingRow label="分配内存">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6em', color: '#FFF' }}>
+              {memoryGB} GB
+            </span>
+            <div style={{ flex: 1 }}>
+              <Slider
+                value={memoryGB}
+                min={1}
+                max={16}
+                onChange={(val) => setLocalConfig({ ...localConfig, max_memory: val * 1024 })}
+              />
+            </div>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.5em', color: '#555' }}>
+              {memoryGB} GB
+            </span>
+          </div>
+        </SettingRow>
+
+        <SettingRow label="游戏分辨率">
+          <div style={{ minWidth: 180 }}>
+            <Select
+              value={`${localConfig.window_width}x${localConfig.window_height}`}
+              onChange={(e) => {
+                const [w, h] = e.target.value.split('x').map(Number);
+                setLocalConfig({ ...localConfig, window_width: w, window_height: h });
+              }}
+              options={RESOLUTION_OPTIONS}
+            />
+          </div>
+        </SettingRow>
+      </SectionCard>
+
+      {/* Launch behavior */}
+      <SectionCard title="启动行为">
+        <div className={styles.checkboxGroup}>
+          <label className={styles.checkboxLabel}>
+            <Checkbox
+              on={localConfig.keep_launcher_open}
+              onChange={() => setLocalConfig({ ...localConfig, keep_launcher_open: !localConfig.keep_launcher_open })}
+            />
+            <span className={styles.checkboxLabel__text}>启动后保持启动器打开</span>
+          </label>
+          <label className={styles.checkboxLabel}>
+            <Checkbox
+              on={!localConfig.keep_launcher_open}
+              onChange={() => setLocalConfig({ ...localConfig, keep_launcher_open: !localConfig.keep_launcher_open })}
+            />
+            <span className={!localConfig.keep_launcher_open ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']}>
+              启动后自动关闭启动器
+            </span>
+          </label>
+          <label className={styles.checkboxLabel}>
+            <Checkbox
+              on={localConfig.show_log_on_crash}
+              onChange={() => setLocalConfig({ ...localConfig, show_log_on_crash: !localConfig.show_log_on_crash })}
+            />
+            <span className={styles.checkboxLabel__text}>游戏崩溃时显示日志</span>
+          </label>
+          <label className={styles.checkboxLabel}>
+            <Checkbox
+              on={localConfig.auto_update_java}
+              onChange={() => setLocalConfig({ ...localConfig, auto_update_java: !localConfig.auto_update_java })}
+            />
+            <span className={localConfig.auto_update_java ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']}>
+              自动更新 Java 版本
+            </span>
+          </label>
+        </div>
+      </SectionCard>
+
+      {/* Data directory */}
+      <SectionCard title="数据目录">
+        <SettingRow label="实例路径">
+          <div style={{ display: 'flex', gap: 8, flex: 1 }}>
+            <div style={{ flex: 1 }}>
+              <TextInput
+                value={localConfig.game_dir || ''}
+                onChange={(e) => setLocalConfig({ ...localConfig, game_dir: e.target.value || null })}
+                placeholder="~/BonNext/instances/"
+              />
+            </div>
+            <Button variant="secondary" size="sm" onClick={handleBrowseGameDir}>浏览</Button>
+          </div>
+        </SettingRow>
+      </SectionCard>
+
+      {error && <div className={styles.errorBox}>{error}</div>}
+
+      <div className={styles.actions}>
+        <Button variant="secondary" onClick={() => setLocalConfig(config)}>重置</Button>
+        <Button variant="primary" size="md" disabled={saving} onClick={handleSave}>
+          {saving ? 'SAVING...' : saved ? '✓ SAVED' : '保存设置'}
+        </Button>
+      </div>
+    </div>
+  );
+}

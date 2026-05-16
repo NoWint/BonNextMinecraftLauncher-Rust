@@ -1,0 +1,38 @@
+.skeleton {
+  background: linear-gradient(90deg, #1A1A1A 25%, #222 50%, #1A1A1A 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+  border-radius: 2px;
+}
+
+.skeleton--text {
+  height: 12px;
+  margin-bottom: 8px;
+}
+
+.skeleton--title {
+  height: 18px;
+  width: 60%;
+  margin-bottom: 12px;
+}
+
+.skeleton--card {
+  height: 80px;
+  margin-bottom: 8px;
+}
+
+.skeleton--icon {
+  width: 40px;
+  height: 40px;
+}
+
+.skeleton--avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 0;
+}
+
+@keyframes skeletonShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}

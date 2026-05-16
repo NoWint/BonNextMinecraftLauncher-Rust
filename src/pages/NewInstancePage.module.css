@@ -1,0 +1,15 @@
+.form {
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fieldLabel {
+  margin-bottom: 4px;
+}
+
+.error {
+  color: var(--color-error);
+  font-size: 0.6em;
+}

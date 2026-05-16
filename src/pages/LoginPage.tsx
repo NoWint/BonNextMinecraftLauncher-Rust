@@ -1,103 +1,164 @@
-import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import "./LoginPage.css";
+import { useState, useEffect } from 'react';
+import { api, type DeviceCodeResponse } from '../api';
+import { useAuth } from '../stores/authStore';
+import { SubLabel } from '../components/layout';
+import { StatusDot, ProgressBar, Button, TextInput } from '../components/ui';
+import styles from './LoginPage.module.css';
 
-interface Props {
-  onLoginSuccess: (username: string, uuid: string) => void;
-}
-
-interface AuthPayload {
-  username: string;
-  uuid: string;
-}
-
-function LoginPage({ onLoginSuccess }: Props) {
+export default function LoginPage() {
+  const { state, offlineLogin } = useAuth();
+  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [offlineName, setOfflineName] = useState("");
-  const [showOffline, setShowOffline] = useState(false);
-
-  const handleMicrosoftLogin = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const result = await invoke<AuthPayload>("microsoft_login");
-      onLoginSuccess(result.username, result.uuid);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [error, setError] = useState('');
+  const [msLoading, setMsLoading] = useState(false);
+  const [deviceCode, setDeviceCode] = useState<DeviceCodeResponse | null>(null);
+  const [msError, setMsError] = useState('');
 
   const handleOfflineLogin = async () => {
-    if (!offlineName.trim()) return;
+    if (!username.trim()) return;
     setLoading(true);
-    setError("");
+    setError('');
     try {
-      const result = await invoke<AuthPayload>("offline_login", {
-        username: offlineName.trim(),
-      });
-      onLoginSuccess(result.username, result.uuid);
-    } catch (e) {
-      setError(String(e));
+      await offlineLogin(username.trim());
+    } catch (e: any) {
+      setError(e?.toString() || 'Login failed');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleMicrosoftLogin = async () => {
+    setMsLoading(true);
+    setMsError('');
+    try {
+      const code = await api.startMicrosoftAuth();
+      setDeviceCode(code);
+    } catch (e: any) {
+      setMsError(e?.toString() || 'Failed to start Microsoft login');
+      setMsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!deviceCode) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const result = await api.pollMicrosoftAuth(deviceCode.device_code);
+        if (!cancelled) {
+          await api.setActiveAccount(result.uuid);
+          window.location.reload();
+        }
+      } catch (e: any) {
+        const msg = e?.toString() || '';
+        if (msg.includes('timed out') || msg.includes('expired') || msg.includes('denied') || msg.includes('cancelled')) {
+          if (!cancelled) {
+            setMsError(msg);
+            setMsLoading(false);
+            setDeviceCode(null);
+          }
+          return;
+        }
+        if (!cancelled) setTimeout(poll, 5000);
+      }
+    };
+    poll();
+    return () => { cancelled = true; };
+  }, [deviceCode]);
+
+  const busy = state.loading || loading || msLoading;
+
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <h1 className="login-title">BonNext</h1>
-        <p className="login-subtitle">Minecraft 启动器</p>
+    <div className={styles.page}>
+      <div className={styles.decorTopRight} />
+      <div className={styles.decorBottomLeft} />
 
-        {!showOffline ? (
-          <>
-            <button
-              className="login-btn login-btn--ms"
-              onClick={handleMicrosoftLogin}
-              disabled={loading}
-            >
-              {loading ? "登录中..." : "Microsoft 账号登录"}
-            </button>
-            <button
-              className="login-link"
-              onClick={() => setShowOffline(true)}
-            >
-              或跳过登录，使用离线模式
-            </button>
-          </>
-        ) : (
-          <div className="offline-form">
-            <input
-              className="offline-input"
-              type="text"
-              placeholder="输入玩家名"
-              value={offlineName}
-              onChange={(e) => setOfflineName(e.target.value)}
-              maxLength={16}
-            />
-            <button
-              className="login-btn"
+      <div className={styles.content}>
+        {/* Logo */}
+        <div className={styles.logoRow}>
+          <div className={styles.logoHex} />
+          <span className={styles.logoText}>BONNEXT</span>
+          <span className={styles.logoVersion}>v0.2</span>
+        </div>
+
+        <div className={styles.tagline}>MINECRAFT LAUNCHER · NEO-TOKYO EDITION</div>
+
+        {/* Microsoft login */}
+        <div className={styles.msSection}>
+          {!deviceCode ? (
+            <>
+              <Button
+                variant="primary" size="lg"
+                disabled={msLoading}
+                onClick={handleMicrosoftLogin}
+                style={{ width: '100%', justifyContent: 'center', fontSize: '0.9em', padding: '14px 48px' }}
+              >
+                {msLoading ? 'CONNECTING...' : '🔑 MICROSOFT 登录'}
+              </Button>
+              {msError && <div className={styles.msError}>{msError}</div>}
+            </>
+          ) : (
+            <div className={styles.deviceCodeBox}>
+              <SubLabel>MICROSOFT VERIFICATION</SubLabel>
+              <div className={styles.deviceCodeValue}>{deviceCode.user_code}</div>
+              <div className={styles.deviceCodeMsg}>{deviceCode.message}</div>
+              <div className={styles.deviceCodeHint}>
+                打开 <span className={styles.deviceCodeHintAccent}>{deviceCode.verification_uri}</span>{' '}
+                并输入上方代码
+              </div>
+              <div className={styles.deviceCodeProgress}>
+                <ProgressBar progress={50} showLabel={false} />
+              </div>
+              <div className={styles.deviceCodeCancel}>
+                <Button
+                  variant="secondary" size="sm"
+                  onClick={() => { setDeviceCode(null); setMsLoading(false); setMsError(''); }}
+                >
+                  CANCEL
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Divider */}
+        <div className={styles.divider}>
+          <div className={styles.dividerLine} />
+          <span className={styles.dividerText}>或</span>
+          <div className={styles.dividerLine} />
+        </div>
+
+        {/* Offline login */}
+        <div className={styles.offlineSection}>
+          <div className={styles.offlineRow}>
+            <div className={styles.offlineInput}>
+              <TextInput
+                placeholder="玩家名称"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleOfflineLogin()}
+              />
+            </div>
+            <Button
+              variant="secondary-highlight" size="md"
+              disabled={busy || !username.trim()}
               onClick={handleOfflineLogin}
-              disabled={loading || !offlineName.trim()}
+              style={{ fontSize: '0.65em', padding: '10px 20px' }}
             >
-              {loading ? "登录中..." : "离线模式进入"}
-            </button>
-            <button
-              className="login-link"
-              onClick={() => setShowOffline(false)}
-            >
-              返回
-            </button>
+              {loading ? 'CONNECTING...' : '离线启动'}
+            </Button>
           </div>
-        )}
+          {error && <div className={styles.offlineError}>{error}</div>}
+        </div>
 
-        {error && <p className="login-error">{error}</p>}
+        {/* Status */}
+        <div className={styles.statusRow}>
+          <StatusDot status={busy ? 'processing' : 'inactive'} />
+          <span className={styles.statusText}>
+            SIGNAL · {loading ? 'AUTHENTICATING' : msLoading ? 'WAITING' : 'AWAITING AUTH'}
+          </span>
+        </div>
       </div>
     </div>
   );
 }
-
-export default LoginPage;

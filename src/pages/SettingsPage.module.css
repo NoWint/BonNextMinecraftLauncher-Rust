@@ -1,0 +1,118 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: 1.4em;
+  color: #FFF;
+  letter-spacing: 3px;
+}
+
+.sectionCard {
+  background: #141414;
+  border: 1px solid #1C1C1C;
+  padding: 20px;
+}
+
+.sectionCard__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.sectionCard__bar {
+  width: 3px;
+  height: 14px;
+  background: #FFE600;
+}
+
+.sectionCard__title {
+  font-family: var(--font-heading);
+  font-size: 0.9em;
+  color: #FFF;
+  letter-spacing: 3px;
+}
+
+.settingRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.settingRow__label {
+  font-size: 0.6em;
+  color: #888;
+  width: 100px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.checkboxGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkboxLabel__text {
+  font-size: 0.65em;
+  color: #FFF;
+}
+
+.checkboxLabel__text--muted {
+  color: #555;
+}
+
+.accountRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.accountName {
+  font-size: 0.7em;
+  color: #FFF;
+  font-weight: 600;
+}
+
+.switchAccounts {
+  margin-top: 12px;
+}
+
+.switchAccounts__label {
+  font-size: 0.45em;
+  color: #666;
+  margin-bottom: 6px;
+  letter-spacing: 2px;
+}
+
+.switchAccounts__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.errorBox {
+  color: #FF4444;
+  font-size: 0.6em;
+  border: 1px solid #FF4444;
+  padding: 8px 12px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

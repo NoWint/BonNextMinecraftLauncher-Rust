@@ -1,106 +1,417 @@
-mod version;
-mod installer;
-mod launcher;
-mod platform;
 mod auth;
 mod config;
+mod download;
 mod error;
+mod http_client;
+mod instance;
+mod launch;
+mod loader;
+mod modrinth;
+mod platform;
+mod version;
 
+use config::AppConfig;
+use download::queue::{DownloadProgress, DownloadQueue};
 use error::LauncherError;
+use instance::manager::GameInstance;
+use launch::args::{InstanceSettings, LaunchContext};
+use launch::process::LaunchProcess;
+use launch::state::LaunchState;
 use platform::paths;
-use version::models::*;
+use std::sync::{Arc, Mutex};
 use tauri::Emitter;
+use version::manifest::VersionEntry;
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![
-            get_versions,
-            start_game,
-            get_launch_state,
-            check_saved_session,
-            offline_login,
-            logout,
-            get_config,
-            save_config,
-            auto_detect_java,
-            download_jre,
-            get_default_game_dir,
-            reset_launch_state,
-        ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+struct AppState {
+    launch_state: Arc<Mutex<LaunchState>>,
 }
 
 #[tauri::command]
 async fn get_versions() -> Result<Vec<VersionEntry>, LauncherError> {
-    version::fetch_versions_sorted().await
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-struct AuthResultPayload {
-    username: String,
-    uuid: String,
+    version::manifest::fetch_versions_sorted().await
 }
 
 #[tauri::command]
-async fn check_saved_session() -> Result<Option<AuthResultPayload>, LauncherError> {
-    let session_path = paths::get_default_game_dir().join("session.json");
-    match auth::session::load_session(&session_path)? {
-        Some(session) => Ok(Some(AuthResultPayload {
-            username: session.username,
-            uuid: session.uuid,
-        })),
-        None => Ok(None),
-    }
+async fn get_launch_state(state: tauri::State<'_, AppState>) -> Result<LaunchState, LauncherError> {
+    let current = state.launch_state.lock().unwrap();
+    Ok(current.clone())
 }
 
 #[tauri::command]
-async fn offline_login(username: String) -> Result<AuthResultPayload, LauncherError> {
-    let uuid = uuid::Uuid::new_v4().to_string();
-    let session = auth::session::SavedSession {
-        access_token: "0".to_string(),
-        refresh_token: String::new(),
-        username: username.clone(),
-        uuid: uuid.clone(),
-        expires_at: 0,
-    };
-    let session_path = paths::get_default_game_dir().join("session.json");
-    paths::ensure_dirs().ok();
-    auth::session::save_session(&session_path, &session)?;
-    Ok(AuthResultPayload { username, uuid })
-}
-
-#[tauri::command]
-async fn logout() -> Result<(), LauncherError> {
-    let session_path = paths::get_default_game_dir().join("session.json");
-    auth::session::delete_session(&session_path)?;
+async fn reset_launch_state(state: tauri::State<'_, AppState>) -> Result<(), LauncherError> {
+    let mut current = state.launch_state.lock().unwrap();
+    *current = LaunchState::Idle;
     Ok(())
 }
 
 #[tauri::command]
-async fn get_config() -> Result<config::UserConfig, LauncherError> {
-    let mut cfg = config::load_config()?;
-    platform::java::auto_detect_and_set(&mut cfg);
-    config::save_config(&cfg)?;
-    Ok(cfg)
+async fn get_config() -> Result<AppConfig, LauncherError> {
+    config::load_config()
 }
 
 #[tauri::command]
-async fn save_config(config: config::UserConfig) -> Result<(), LauncherError> {
+async fn save_config(config: AppConfig) -> Result<(), LauncherError> {
     config::save_config(&config)
 }
 
 #[tauri::command]
-async fn auto_detect_java() -> Result<String, LauncherError> {
-    platform::java::find_java().ok_or(LauncherError::JavaNotFound)
+async fn find_java() -> Result<String, LauncherError> {
+    let java_path = platform::java::find_java()?;
+    Ok(java_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
-async fn download_jre() -> Result<String, LauncherError> {
-    platform::java::download_jre().await
+async fn check_java_version(java_path: String) -> Result<Option<u32>, LauncherError> {
+    let path = std::path::PathBuf::from(&java_path);
+    let version = platform::java::check_java_version(&path);
+    Ok(version)
+}
+
+#[tauri::command]
+async fn offline_login(username: String) -> Result<serde_json::Value, LauncherError> {
+    let result = auth::offline::offline_login(&username)?;
+    // Persist the account
+    let mut store = auth::token_store::AccountStore::load()?;
+    let now = chrono::Utc::now().to_rfc3339();
+    let account = auth::token_store::StoredAccount {
+        id: result.uuid.clone(),
+        username: result.username.clone(),
+        uuid: result.uuid.clone(),
+        access_token: result.access_token.clone(),
+        refresh_token: None,
+        account_type: "offline".to_string(),
+        last_used: now,
+        expires_at: None,
+        avatar_url: None,
+    };
+    store.upsert_account(account)?;
+    store.set_active(&result.uuid)?;
+    Ok(serde_json::to_value(result)?)
+}
+
+#[tauri::command]
+async fn start_microsoft_auth() -> Result<serde_json::Value, LauncherError> {
+    let result = auth::microsoft::start_device_auth().await?;
+    Ok(serde_json::to_value(result)?)
+}
+
+#[tauri::command]
+async fn poll_microsoft_auth(device_code: String) -> Result<serde_json::Value, LauncherError> {
+    let result = auth::microsoft::poll_device_auth(&device_code).await?;
+    // Persist the Microsoft account
+    let mut store = auth::token_store::AccountStore::load()?;
+    let now = chrono::Utc::now().to_rfc3339();
+    let account = auth::token_store::StoredAccount {
+        id: result.uuid.clone(),
+        username: result.username.clone(),
+        uuid: result.uuid.clone(),
+        access_token: result.access_token.clone(),
+        refresh_token: Some(result.refresh_token.clone()),
+        account_type: "microsoft".to_string(),
+        last_used: now,
+        expires_at: Some((chrono::Utc::now() + chrono::Duration::try_minutes(50).unwrap()).to_rfc3339()),
+        avatar_url: None,
+    };
+    store.upsert_account(account)?;
+    store.set_active(&result.uuid)?;
+    Ok(serde_json::to_value(result)?)
+}
+
+#[tauri::command]
+async fn list_accounts() -> Result<Vec<auth::token_store::StoredAccount>, LauncherError> {
+    let store = auth::token_store::AccountStore::load()?;
+    Ok(store.accounts)
+}
+
+#[tauri::command]
+async fn get_active_account() -> Result<Option<auth::token_store::StoredAccount>, LauncherError> {
+    let store = auth::token_store::AccountStore::load()?;
+    Ok(store.get_active().cloned())
+}
+
+#[tauri::command]
+async fn set_active_account(id: String) -> Result<(), LauncherError> {
+    let mut store = auth::token_store::AccountStore::load()?;
+    store.set_active(&id)
+}
+
+#[tauri::command]
+async fn remove_account(id: String) -> Result<(), LauncherError> {
+    let mut store = auth::token_store::AccountStore::load()?;
+    store.remove_account(&id)
+}
+
+#[tauri::command]
+async fn refresh_auth_token() -> Result<Option<String>, LauncherError> {
+    auth::token_store::ensure_fresh_token().await
+}
+
+#[tauri::command]
+async fn download_version(
+    app: tauri::AppHandle,
+    version_id: String,
+    version_url: String,
+) -> Result<(), LauncherError> {
+    download_version_inner(&version_id, &version_url, app).await
+}
+
+#[tauri::command]
+async fn launch_game(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    version_id: String,
+    version_url: String,
+    username: String,
+    uuid: String,
+    access_token: String,
+    max_memory: Option<u32>,
+    min_memory: Option<u32>,
+    java_path: Option<String>,
+    jvm_args: Option<String>,
+) -> Result<(), LauncherError> {
+    // Attempt token refresh for Microsoft accounts before launch
+    let access_token = match auth::token_store::ensure_fresh_token().await {
+        Ok(Some(fresh)) => fresh,
+        Ok(None) => access_token,
+        Err(e) => {
+            tracing::warn!("Token refresh failed, using existing: {}", e);
+            access_token
+        }
+    };
+
+    let user_type = auth::token_store::AccountStore::load()
+        .ok()
+        .and_then(|s| s.get_active().cloned())
+        .map(|a| if a.account_type == "microsoft" { "msa".to_string() } else { "mojang".to_string() })
+        .unwrap_or_else(|| "mojang".to_string());
+
+    let result = launch_game_inner(
+        app,
+        state.launch_state.clone(),
+        version_id, version_url,
+        username, uuid, access_token,
+        user_type,
+        max_memory, min_memory, java_path, jvm_args,
+    ).await;
+
+    if let Err(ref e) = result {
+        tracing::error!("Launch failed: {}", e);
+        let mut current = state.launch_state.lock().unwrap();
+        *current = LaunchState::Error;
+    }
+
+    result
+}
+
+async fn launch_game_inner(
+    _app: tauri::AppHandle,
+    launch_state: Arc<Mutex<LaunchState>>,
+    version_id: String,
+    version_url: String,
+    username: String,
+    uuid: String,
+    access_token: String,
+    user_type: String,
+    max_memory: Option<u32>,
+    min_memory: Option<u32>,
+    java_path: Option<String>,
+    jvm_args: Option<String>,
+) -> Result<(), LauncherError> {
+    {
+        let mut current = launch_state.lock().unwrap();
+        if current.is_busy() {
+            return Err(LauncherError::LaunchFailed(format!(
+                "Game is already in state: {:?}", *current
+            )));
+        }
+        *current = LaunchState::Checking;
+    }
+
+    let client_jar_path = paths::get_versions_dir()
+        .join(&version_id)
+        .join(format!("{}.jar", version_id));
+
+    if !client_jar_path.exists() {
+        {
+            let mut current = launch_state.lock().unwrap();
+            *current = LaunchState::Downloading;
+        }
+        tracing::info!("Client JAR not found, downloading version {} first", version_id);
+        download_version_inner(&version_id, &version_url, _app.clone()).await?;
+    }
+
+    let details = version::resolver::resolve_version_with_parents(&version_id, &version_url).await?;
+    let resolved = version::resolver::ResolvedVersion::from_details(&details);
+
+    tracing::info!(
+        "Resolved: id={}, mainClass={}, libs={}, natives={}, java_ver={}",
+        resolved.id, resolved.main_class,
+        resolved.libraries.len(), resolved.native_libraries.len(),
+        resolved.java_version.major_version,
+    );
+
+    let instance_settings = InstanceSettings { max_memory, min_memory, java_path, jvm_args, user_type: Some(user_type) };
+    let ctx = LaunchContext::build(resolved, username, uuid, access_token, Some(instance_settings))?;
+    let launcher = LaunchProcess::new(launch_state);
+    launcher.launch(ctx).await
+}
+
+async fn download_version_inner(
+    version_id: &str,
+    version_url: &str,
+    app: tauri::AppHandle,
+) -> Result<(), LauncherError> {
+    let details = version::resolver::resolve_version_with_parents(version_id, version_url).await?;
+    version::resolver::save_local_version(version_id, &details)?;
+    let resolved = version::resolver::ResolvedVersion::from_details(&details);
+
+    let total_downloads = 1 + resolved.libraries.len() + resolved.native_libraries.len() + 1
+        + if resolved.logging_config.is_some() { 1 } else { 0 };
+    let app_clone = app.clone();
+    let progress = Arc::new(Mutex::new(DownloadAggregateProgress {
+        completed: 0, total: total_downloads as u64,
+        bytes_downloaded: 0, total_bytes: 0,
+        current_url: String::new(), phase: "core".to_string(),
+    }));
+
+    let progress_for_cb = progress.clone();
+    let app_for_cb = app.clone();
+    let callback = move |p: DownloadProgress| {
+        let mut agg = progress_for_cb.lock().unwrap();
+        agg.bytes_downloaded = agg.bytes_downloaded.saturating_add(p.downloaded);
+        agg.current_url = p.url.clone();
+        if p.finished { agg.completed += 1; }
+        let _ = app_for_cb.emit("download-progress", AggProgressSnapshot {
+            completed: agg.completed, total: agg.total,
+            bytes_downloaded: agg.bytes_downloaded,
+            current_url: agg.current_url.clone(),
+            phase: agg.phase.clone(),
+            finished: agg.completed >= agg.total,
+        });
+    };
+
+    let mut tasks = download::queue::build_version_download_tasks(
+        version_id, &resolved.client_jar.url, &resolved.client_jar.sha1, resolved.client_jar.size,
+    );
+    tasks.extend(download::queue::build_library_download_tasks(&resolved.libraries));
+    tasks.extend(download::queue::build_library_download_tasks(&resolved.native_libraries));
+    if let Some(ref logging) = resolved.logging_config {
+        let url = logging.argument.strip_prefix("-Dlog4j.configurationFile=").unwrap_or("");
+        if !url.is_empty() {
+            tasks.push(download::queue::build_logging_config_task(&resolved.id, url));
+        }
+    }
+    tasks.push(download::queue::build_asset_index_task(&resolved.asset_index));
+
+    let queue = DownloadQueue::new().with_callback(callback);
+    let results = queue.download_all(tasks).await?;
+    let total = results.len();
+    let succeeded = results.iter().filter(|r| r.is_ok()).count();
+    let errors: Vec<_> = results.into_iter().filter_map(|r| r.err()).collect();
+    if !errors.is_empty() {
+        tracing::error!("{}/{} core downloads failed", errors.len(), total);
+        if succeeded == 0 {
+            return Err(LauncherError::DownloadFailed(format!("All {}/{} downloads failed", errors.len(), total)));
+        }
+    }
+
+    let asset_object_tasks = download::queue::build_asset_object_tasks(&resolved.asset_index.id).await?;
+    if !asset_object_tasks.is_empty() {
+        let total_assets = asset_object_tasks.len();
+        let app_for_assets = app_clone.clone();
+        let progress_assets = Arc::new(Mutex::new(DownloadAggregateProgress {
+            completed: 0, total: total_assets as u64,
+            bytes_downloaded: 0, total_bytes: 0,
+            current_url: String::new(), phase: "assets".to_string(),
+        }));
+        let progress_assets_cb = progress_assets.clone();
+        let asset_callback = move |p: DownloadProgress| {
+            let mut agg = progress_assets_cb.lock().unwrap();
+            agg.bytes_downloaded = agg.bytes_downloaded.saturating_add(p.downloaded);
+            agg.current_url = p.url.clone();
+            if p.finished { agg.completed += 1; }
+            let _ = app_for_assets.emit("download-progress", AggProgressSnapshot {
+                completed: agg.completed, total: agg.total,
+                bytes_downloaded: agg.bytes_downloaded,
+                current_url: agg.current_url.clone(),
+                phase: agg.phase.clone(),
+                finished: agg.completed >= agg.total,
+            });
+        };
+
+        let asset_queue = DownloadQueue::new().with_callback(asset_callback);
+        let results = asset_queue.download_all(asset_object_tasks).await?;
+        let errors: Vec<_> = results.into_iter().filter_map(|r| r.err()).collect();
+        if !errors.is_empty() {
+            tracing::error!("{} asset downloads failed", errors.len());
+        }
+    }
+
+    extract_natives_async_for_version(&resolved).await?;
+
+    let _ = app_clone.emit("download-progress", AggProgressSnapshot {
+        completed: 1, total: 1, bytes_downloaded: 0,
+        current_url: String::new(), phase: "done".to_string(),
+        finished: true,
+    });
+
+    Ok(())
+}
+
+async fn extract_natives_async_for_version(
+    resolved: &version::resolver::ResolvedVersion,
+) -> Result<(), LauncherError> {
+    let version_dir = paths::get_versions_dir().join(&resolved.id);
+    let natives_dir = version_dir.join("natives");
+    std::fs::create_dir_all(&natives_dir)?;
+
+    let libraries_dir = paths::get_libraries_dir();
+    for lib in &resolved.native_libraries {
+        let lib_path = libraries_dir.join(&lib.path);
+        if lib_path.exists() {
+            let nd = natives_dir.clone();
+            tokio::task::spawn_blocking(move || extract_natives(&lib_path, &nd))
+                .await
+                .map_err(|e| LauncherError::Other(e.to_string()))??;
+        } else {
+            tracing::warn!("Native library not found: {}", lib_path.display());
+        }
+    }
+    Ok(())
+}
+
+fn extract_natives(jar_path: &std::path::Path, natives_dir: &std::path::Path) -> Result<(), LauncherError> {
+    let file = std::fs::File::open(jar_path)?;
+    let mut archive = zip::ZipArchive::new(file)?;
+    std::fs::create_dir_all(natives_dir)?;
+
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i)?;
+        let name = entry.name().to_string();
+        if name.starts_with("META-INF") { continue; }
+
+        let is_platform_native = if cfg!(target_os = "windows") {
+            name.ends_with(".dll")
+        } else if cfg!(target_os = "macos") {
+            name.ends_with(".dylib") || name.ends_with(".jnilib")
+        } else {
+            name.ends_with(".so")
+        };
+
+        if is_platform_native {
+            if let Some(file_name) = std::path::Path::new(&name).file_name() {
+                let out_path = natives_dir.join(file_name);
+                let mut out = std::fs::File::create(&out_path)?;
+                std::io::copy(&mut entry, &mut out)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_game_dir() -> Result<String, LauncherError> {
+    Ok(paths::get_game_dir().to_string_lossy().to_string())
 }
 
 #[tauri::command]
@@ -108,157 +419,176 @@ async fn get_default_game_dir() -> Result<String, LauncherError> {
     Ok(paths::get_default_game_dir().to_string_lossy().to_string())
 }
 
-use std::sync::Mutex;
-
-static LAUNCH_STATE: Mutex<Option<LaunchState>> = Mutex::new(None);
-
-#[derive(Debug, Clone, serde::Serialize)]
-#[serde(tag = "state")]
-enum LaunchState {
-    Idle,
-    Checking,
-    Downloading { progress: f64, speed: f64 },
-    Validating,
-    Launching,
-    Running { pid: u32 },
-    Exited { code: i32 },
-    Crashed { report: String },
-    Error { message: String },
+#[tauri::command]
+async fn list_instances() -> Result<Vec<GameInstance>, LauncherError> {
+    instance::manager::list_instances()
 }
 
 #[tauri::command]
-async fn get_launch_state() -> Result<Option<LaunchState>, LauncherError> {
-    let state = LAUNCH_STATE.lock().map_err(|e| LauncherError::Other(e.to_string()))?;
-    Ok(state.clone())
+async fn create_instance(instance: GameInstance) -> Result<(), LauncherError> {
+    instance::manager::create_instance(&instance)
 }
 
 #[tauri::command]
-async fn reset_launch_state() -> Result<(), LauncherError> {
-    let mut state = LAUNCH_STATE.lock().map_err(|e| LauncherError::Other(e.to_string()))?;
-    *state = None;
+async fn delete_instance(id: String) -> Result<(), LauncherError> {
+    instance::manager::delete_instance(&id)
+}
+
+#[tauri::command]
+async fn update_instance(instance: GameInstance) -> Result<(), LauncherError> {
+    instance::manager::update_instance(&instance)
+}
+
+#[tauri::command]
+async fn get_instance(id: String) -> Result<Option<GameInstance>, LauncherError> {
+    instance::manager::get_instance(&id)
+}
+
+#[tauri::command]
+async fn open_folder(path: String) -> Result<(), LauncherError> {
+    let p = std::path::PathBuf::from(&path);
+    if p.exists() {
+        opener::open(&p).map_err(|e| LauncherError::Other(e.to_string()))?;
+    }
     Ok(())
 }
 
 #[tauri::command]
-async fn start_game(
-    app: tauri::AppHandle,
+async fn get_loader_versions(loader_type: String) -> Result<Vec<String>, LauncherError> {
+    let lt = loader::LoaderType::from_str(&loader_type)
+        .ok_or_else(|| LauncherError::Other(format!("Unknown loader: {}", loader_type)))?;
+    loader::fetch_loader_versions(&lt).await
+}
+
+#[tauri::command]
+async fn install_loader(
+    _app: tauri::AppHandle,
+    loader_type: String,
     version_id: String,
-    java_path: String,
-    max_memory_mb: u32,
-    username: String,
-    uuid: String,
-) -> Result<(), LauncherError> {
-    {
-        let state = LAUNCH_STATE.lock().map_err(|e| LauncherError::Other(e.to_string()))?;
-        if matches!(*state, Some(LaunchState::Running { .. })) {
-            return Err(LauncherError::LaunchFailed("Game already running".to_string()));
-        }
+    version_url: String,
+    loader_version: String,
+    instance_id: String,
+) -> Result<loader::LoaderInstallResult, LauncherError> {
+    let lt = loader::LoaderType::from_str(&loader_type)
+        .ok_or_else(|| LauncherError::Other(format!("Unknown loader: {}", loader_type)))?;
+    let details = version::resolver::resolve_version_with_parents(&version_id, &version_url).await?;
+    let result = loader::install_loader(&lt, &details, &loader_version, &instance_id).await?;
+
+    if !result.extra_libraries.is_empty() {
+        let tasks = download::queue::build_library_download_tasks(&result.extra_libraries);
+        let queue = DownloadQueue::new();
+        queue.download_all(tasks).await?;
+    }
+    Ok(result)
+}
+
+// ---------------------------------------------------------------
+// Modrinth commands
+// ---------------------------------------------------------------
+
+#[tauri::command]
+async fn search_mods(
+    query: String,
+    game_version: Option<String>,
+    loader: Option<String>,
+    limit: Option<u64>,
+    offset: Option<u64>,
+) -> Result<(Vec<modrinth::ModResult>, u64), LauncherError> {
+    modrinth::search_mods(
+        &query,
+        game_version.as_deref(),
+        loader.as_deref(),
+        limit.unwrap_or(20),
+        offset.unwrap_or(0),
+    ).await
+}
+
+#[tauri::command]
+async fn get_popular_mods(
+    game_version: Option<String>,
+    limit: Option<u64>,
+) -> Result<Vec<modrinth::ModResult>, LauncherError> {
+    modrinth::get_popular_mods(
+        game_version.as_deref(),
+        limit.unwrap_or(20),
+    ).await
+}
+
+#[tauri::command]
+async fn get_mod_details(slug: String) -> Result<modrinth::ModResult, LauncherError> {
+    modrinth::get_mod(&slug).await
+}
+
+#[tauri::command]
+async fn get_mod_versions(
+    slug: String,
+    game_version: Option<String>,
+    loader: Option<String>,
+) -> Result<Vec<modrinth::ModVersion>, LauncherError> {
+    modrinth::get_mod_versions(
+        &slug,
+        game_version.as_deref(),
+        loader.as_deref(),
+    ).await
+}
+
+#[tauri::command]
+async fn install_mod(
+    file_url: String,
+    filename: String,
+    instance_id: String,
+    sha1: Option<String>,
+) -> Result<String, LauncherError> {
+    modrinth::download_mod_file(&file_url, &filename, &instance_id, sha1.as_deref()).await
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct AggProgressSnapshot {
+    completed: u64,
+    total: u64,
+    bytes_downloaded: u64,
+    current_url: String,
+    phase: String,
+    finished: bool,
+}
+
+struct DownloadAggregateProgress {
+    completed: u64,
+    total: u64,
+    bytes_downloaded: u64,
+    total_bytes: u64,
+    current_url: String,
+    phase: String,
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    platform::logger::init_logger();
+    tracing::info!("BonNext launcher starting");
+
+    if let Err(e) = paths::ensure_dirs() {
+        tracing::error!("Failed to create directories: {}", e);
     }
 
-    let set_state = |s: LaunchState| {
-        if let Ok(mut state) = LAUNCH_STATE.lock() {
-            *state = Some(s.clone());
-        }
-        let _ = app.emit("launch-state", &s);
-    };
-
-    set_state(LaunchState::Checking);
-
-    let game_dir = paths::get_game_dir();
-    paths::ensure_dirs()?;
-
-    let java = if java_path.is_empty() || java_path == "java" {
-        platform::java::find_java().ok_or(LauncherError::JavaNotFound)?
-    } else {
-        java_path
-    };
-    platform::java::validate_java(&java)?;
-
-    tracing::info!("Resolving version chain for: {}", version_id);
-    let version = version::resolve_version_chain(&version_id, &game_dir).await?;
-
-    set_state(LaunchState::Downloading { progress: 0.0, speed: 0.0 });
-
-    tracing::info!("Downloading libraries...");
-    installer::download_libraries(&version, &game_dir).await?;
-
-    tracing::info!("Downloading client JAR...");
-    installer::download_client_jar(&version, &game_dir).await?;
-
-    tracing::info!("Downloading assets...");
-    installer::download_assets(&version, &game_dir).await?;
-
-    set_state(LaunchState::Validating);
-
-    let instance_dir = game_dir.join("versions").join(&version.id);
-    std::fs::create_dir_all(&instance_dir)?;
-
-    tracing::info!("Extracting natives...");
-    let natives_dir = installer::extract_natives(&version, &game_dir, &instance_dir)?;
-
-    tracing::info!("Building classpath...");
-    let classpath = installer::build_classpath(&version, &game_dir);
-
-    let cfg = config::load_config().unwrap_or_default();
-
-    tracing::info!("Building launch plan...");
-    let plan = launcher::build_launch_plan(
-        &version,
-        &game_dir,
-        &instance_dir,
-        &java,
-        max_memory_mb,
-        &cfg.extra_jvm_args,
-        &username,
-        &uuid,
-        "0",
-        classpath,
-        &natives_dir,
-        cfg.window_width,
-        cfg.window_height,
-    )?;
-
-    set_state(LaunchState::Launching);
-
-    tracing::info!("Spawning Minecraft process...");
-    let mut child = launcher::launch(&plan)?;
-
-    let pid = child.id();
-    set_state(LaunchState::Running { pid });
-
-    let app_clone = app.clone();
-    std::thread::spawn(move || {
-        let status = child.wait();
-        match status {
-            Ok(exit_status) => {
-                let code = exit_status.code().unwrap_or(-1);
-                let state = if code == 0 {
-                    LaunchState::Exited { code }
-                } else {
-                    let mut stderr_text = String::new();
-                    if let Some(stderr) = child.stderr.take() {
-                        let _ = std::io::Read::read_to_string(&mut std::io::BufReader::new(stderr), &mut stderr_text);
-                    }
-                    LaunchState::Crashed {
-                        report: format!("Exit code: {}\n{}", code, stderr_text),
-                    }
-                };
-                if let Ok(mut s) = LAUNCH_STATE.lock() {
-                    *s = Some(state.clone());
-                }
-                let _ = app_clone.emit("launch-state", &state);
-            }
-            Err(e) => {
-                let state = LaunchState::Error {
-                    message: e.to_string(),
-                };
-                if let Ok(mut s) = LAUNCH_STATE.lock() {
-                    *s = Some(state.clone());
-                }
-                let _ = app_clone.emit("launch-state", &state);
-            }
-        }
-    });
-
-    Ok(())
+    tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .manage(AppState { launch_state: Arc::new(Mutex::new(LaunchState::Idle)) })
+        .invoke_handler(tauri::generate_handler![
+            get_versions, get_launch_state, reset_launch_state,
+            get_config, save_config,
+            find_java, check_java_version,
+            offline_login, start_microsoft_auth, poll_microsoft_auth,
+            list_accounts, get_active_account, set_active_account,
+            remove_account, refresh_auth_token,
+            download_version, launch_game,
+            get_game_dir, get_default_game_dir,
+            list_instances, create_instance, delete_instance,
+            update_instance, get_instance, open_folder,
+            get_loader_versions, install_loader,
+            search_mods, get_popular_mods, get_mod_details,
+            get_mod_versions, install_mod,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }

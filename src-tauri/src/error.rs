@@ -38,6 +38,9 @@ pub enum LauncherError {
     #[error("Not enough disk space: need {required}MB, have {available}MB")]
     DiskSpace { required: u64, available: u64 },
 
+    #[error("Invalid configuration: {0}")]
+    InvalidConfig(String),
+
     #[error("ZIP error: {0}")]
     Zip(#[from] zip::result::ZipError),
 
