@@ -111,6 +111,7 @@ impl VersionDetails {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Default)]
 pub struct Arguments {
     #[serde(default)]
     pub game: Vec<serde_json::Value>,
@@ -118,11 +119,6 @@ pub struct Arguments {
     pub jvm: Vec<serde_json::Value>,
 }
 
-impl Default for Arguments {
-    fn default() -> Self {
-        Arguments { game: vec![], jvm: vec![] }
-    }
-}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AssetIndex {

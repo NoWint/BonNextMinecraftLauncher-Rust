@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::config;
 use std::sync::RwLock;
 
@@ -147,19 +148,22 @@ impl SourceManager {
             .unwrap_or(0)
     }
 
-    pub fn active_source_name() -> String {
+    #[allow(dead_code)]
+pub fn active_source_name() -> String {
         let mgr = source_manager().read().unwrap();
         mgr.sources[mgr.active_index].name().to_string()
     }
 
-    pub fn set_active(name: &str) {
+    #[allow(dead_code)]
+pub fn set_active(name: &str) {
         let mut mgr = source_manager().write().unwrap();
         if let Some(idx) = mgr.sources.iter().position(|s| s.name() == name) {
             mgr.active_index = idx;
         }
     }
 
-    pub fn version_manifest_url() -> String {
+    #[allow(dead_code)]
+pub fn version_manifest_url() -> String {
         let mgr = source_manager().read().unwrap();
         mgr.sources[mgr.active_index].version_manifest_url().to_string()
     }
@@ -170,7 +174,8 @@ impl SourceManager {
     }
 
     /// Try all sources for a URL, returning all possible URL variants
-    pub fn transform_with_fallback(original: &str) -> Vec<(String, String)> {
+    #[allow(dead_code)]
+pub fn transform_with_fallback(original: &str) -> Vec<(String, String)> {
         let mgr = source_manager().read().unwrap();
         let mut results = Vec::new();
         results.push((
@@ -190,6 +195,7 @@ impl SourceManager {
 }
 
 // Legacy-compatible functions (used by other modules)
+#[allow(dead_code)]
 pub fn current_source_name() -> String {
     config::get_download_source_name()
 }
@@ -203,6 +209,7 @@ pub fn transform_url(original: &str) -> String {
 
 /// Version manifest is always fetched from Mojang official.
 /// Mirrors can return broken/redirected version detail URLs.
+#[allow(dead_code)]
 pub fn version_manifest_url() -> String {
     OfficialSource.version_manifest_url().to_string()
 }

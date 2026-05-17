@@ -22,6 +22,7 @@ pub struct GameInstance {
     pub playtime_seconds: u64,
 }
 
+#[allow(dead_code)]
 impl GameInstance {
     pub fn new(name: &str, version_id: &str, version_url: &str) -> Self {
         let id = format!("{}_{}", version_id, name.replace(' ', "_"));

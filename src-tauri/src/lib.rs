@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments)]
 mod auth;
 mod cache;
 mod collections;
@@ -40,7 +41,7 @@ async fn get_versions() -> Result<Vec<VersionEntry>, LauncherError> {
 #[tauri::command]
 async fn get_launch_state(state: tauri::State<'_, AppState>) -> Result<LaunchState, LauncherError> {
     let current = state.launch_state.lock().unwrap();
-    Ok(current.clone())
+    Ok(*current)
 }
 
 #[tauri::command]
@@ -980,7 +981,7 @@ async fn quick_start(
         .ok_or_else(|| LauncherError::VersionNotFound("No release found".into()))?;
 
     let username = "Player";
-    let auth = auth::offline::offline_login(&username)?;
+    let auth = auth::offline::offline_login(username)?;
 
     let mem = auto_tune_memory();
     tracing::info!("Quick start: {} ({}MB RAM)", latest_release.id, mem);
@@ -1055,6 +1056,7 @@ struct DownloadAggregateProgress {
     completed: u64,
     total: u64,
     bytes_downloaded: u64,
+    #[allow(dead_code)]
     total_bytes: u64,
     current_url: String,
     phase: String,

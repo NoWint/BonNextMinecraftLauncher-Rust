@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! User content collections (wishlist/saved items).
 //! Persisted as JSON in the game directory.
 
@@ -7,6 +8,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct CollectionItem {
     pub slug: String,
     pub title: String,

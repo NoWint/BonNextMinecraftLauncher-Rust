@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::error::LauncherError;
 use crate::instance;
 use crate::launch::args::{self, LaunchContext};
@@ -13,7 +14,8 @@ pub struct LaunchProcess {
 }
 
 impl LaunchProcess {
-    pub fn new(state: Arc<Mutex<LaunchState>>) -> Self {
+    #[allow(dead_code)]
+pub fn new(state: Arc<Mutex<LaunchState>>) -> Self {
         LaunchProcess { state, app_handle: None, instance_id: None }
     }
 
@@ -21,7 +23,8 @@ impl LaunchProcess {
         LaunchProcess { state, app_handle: Some(app), instance_id: None }
     }
 
-    pub fn with_instance_id(mut self, id: String) -> Self {
+    #[allow(dead_code)]
+pub fn with_instance_id(mut self, id: String) -> Self {
         self.instance_id = Some(id);
         self
     }

@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+#[allow(dead_code)]
 pub enum LauncherError {
     #[error("HTTP request failed: {0}")]
     Http(#[from] reqwest::Error),

@@ -107,7 +107,7 @@ pub async fn install(
     });
 
     let extra_jvm_args = Vec::new();
-    let extra_game_args = if let Some(ref args) = forge_version_json["arguments"]["game"].as_array() {
+    let extra_game_args = if let Some(args) = forge_version_json["arguments"]["game"].as_array() {
         args.iter()
             .filter_map(|a| a.as_str().map(String::from))
             .collect()

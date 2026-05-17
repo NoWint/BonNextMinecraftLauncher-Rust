@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Modrinth API integration for mod browsing and downloading.
 //! Uses the public Modrinth v2 API: https://docs.modrinth.com/
 
@@ -12,6 +13,7 @@ const MODRINTH_API_BASE: &str = "https://api.modrinth.com/v2";
 // ---------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ModResult {
     pub slug: String,
     pub title: String,
@@ -29,6 +31,7 @@ pub struct ModResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ModProjectFull {
     pub slug: String,
     pub title: String,
@@ -53,6 +56,7 @@ pub struct ModProjectFull {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ModGalleryImage {
     pub url: String,
     pub featured: bool,
@@ -69,6 +73,7 @@ pub struct ModLicense {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ModVersion {
     pub id: String,
     pub name: String,
@@ -81,6 +86,7 @@ pub struct ModVersion {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ModFile {
     pub url: String,
     pub filename: String,
@@ -95,6 +101,7 @@ pub struct ModHashes {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ModDependency {
     pub project_id: Option<String>,
     pub dependency_type: String,

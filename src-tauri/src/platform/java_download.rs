@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::error::LauncherError;
 use crate::platform::paths;
 use std::path::{Path, PathBuf};
@@ -94,7 +95,7 @@ async fn resolve_adoptium_url(java_version: u32) -> Result<String, LauncherError
         .get(&api_url)
         .send()
         .await
-        .map_err(|e| LauncherError::Http(e))?;
+        .map_err(LauncherError::Http)?;
 
     if !response.status().is_success() {
         return Err(LauncherError::Other(format!(
@@ -107,7 +108,7 @@ async fn resolve_adoptium_url(java_version: u32) -> Result<String, LauncherError
     let json: serde_json::Value = response
         .json()
         .await
-        .map_err(|e| LauncherError::Http(e))?;
+        .map_err(LauncherError::Http)?;
 
     let binaries = json
         .as_array()
@@ -234,8 +235,8 @@ fn find_java_after_extract(target_dir: &Path) -> Result<PathBuf, LauncherError> 
     // On macOS, look for Contents/Home/bin/java inside extracted JDK directory
     #[cfg(target_os = "macos")]
     {
-        for entry in std::fs::read_dir(target_dir).map_err(|e| LauncherError::Io(e))? {
-            let entry = entry.map_err(|e| LauncherError::Io(e))?;
+        for entry in std::fs::read_dir(target_dir).map_err(LauncherError::Io)? {
+            let entry = entry.map_err(LauncherError::Io)?;
             let path = entry.path();
             if path.is_dir() {
                 let home_java = path
@@ -251,7 +252,7 @@ fn find_java_after_extract(target_dir: &Path) -> Result<PathBuf, LauncherError> 
     }
 
     // Search recursively for a bin/java executable (up to 3 levels deep)
-    let found = find_java_recursive(target_dir, 3).map_err(|e| LauncherError::Io(e))?;
+    let found = find_java_recursive(target_dir, 3).map_err(LauncherError::Io)?;
     Ok(found)
 }
 
@@ -295,17 +296,17 @@ async fn download_file(url: &str, dest: &Path) -> Result<(), LauncherError> {
         .get(url)
         .send()
         .await
-        .map_err(|e| LauncherError::Http(e))?;
+        .map_err(LauncherError::Http)?;
 
     let response = response
         .error_for_status()
-        .map_err(|e| LauncherError::Http(e))?;
+        .map_err(LauncherError::Http)?;
 
     let total_size = response.content_length().unwrap_or(0);
 
     let mut file = tokio::fs::File::create(dest)
         .await
-        .map_err(|e| LauncherError::Io(e))?;
+        .map_err(LauncherError::Io)?;
 
     let mut stream = response.bytes_stream();
     let mut downloaded: u64 = 0;
@@ -313,10 +314,10 @@ async fn download_file(url: &str, dest: &Path) -> Result<(), LauncherError> {
 
     use futures_util::StreamExt;
     while let Some(chunk_result) = stream.next().await {
-        let chunk = chunk_result.map_err(|e| LauncherError::Http(e))?;
+        let chunk = chunk_result.map_err(LauncherError::Http)?;
         tokio::io::AsyncWriteExt::write_all(&mut file, &chunk)
             .await
-            .map_err(|e| LauncherError::Io(e))?;
+            .map_err(LauncherError::Io)?;
         downloaded += chunk.len() as u64;
 
         // Log progress every 10MB
@@ -338,7 +339,7 @@ async fn download_file(url: &str, dest: &Path) -> Result<(), LauncherError> {
 
     tokio::io::AsyncWriteExt::flush(&mut file)
         .await
-        .map_err(|e| LauncherError::Io(e))?;
+        .map_err(LauncherError::Io)?;
 
     tracing::info!(
         "Java download complete: {:.1}MB",
