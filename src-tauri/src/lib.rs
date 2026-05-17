@@ -1066,7 +1066,7 @@ struct DownloadAggregateProgress {
 fn compute_agg_speed_eta(bytes: u64, start: std::time::Instant) -> (u64, u64) {
     let secs = start.elapsed().as_secs().max(1);
     let speed = bytes / secs;
-    let eta = if speed > 0 { (bytes / speed).saturating_sub(secs) } else { 0 };
+    let eta = bytes.checked_div(speed).map(|d| d.saturating_sub(secs)).unwrap_or(0);
     (speed, eta)
 }
 

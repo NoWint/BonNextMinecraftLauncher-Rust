@@ -126,15 +126,11 @@ pub fn evaluate_rules(rules: &[Rule], ctx: &RuleContext) -> bool {
         let condition_match = os_match && features_match;
 
         match rule.action.as_str() {
-            "allow" => {
-                if condition_match {
-                    allowed = true;
-                }
+            "allow" if condition_match => {
+                allowed = true;
             }
-            "disallow" => {
-                if condition_match {
-                    allowed = false;
-                }
+            "disallow" if condition_match => {
+                allowed = false;
             }
             _ => {}
         }

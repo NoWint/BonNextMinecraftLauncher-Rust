@@ -19,11 +19,7 @@ fn compute_speed_eta(downloaded: u64, total: u64, elapsed: std::time::Duration) 
     }
     let bytes_per_second = (downloaded as f64 / elapsed.as_secs_f64()) as u64;
     let remaining = total.saturating_sub(downloaded);
-    let eta_seconds = if bytes_per_second > 0 {
-        remaining / bytes_per_second
-    } else {
-        0
-    };
+    let eta_seconds = remaining.checked_div(bytes_per_second).unwrap_or(0);
     (bytes_per_second, eta_seconds)
 }
 
