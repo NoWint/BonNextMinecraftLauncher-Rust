@@ -155,6 +155,7 @@ fn find_macos_java() -> Option<PathBuf> {
     None
 }
 
+#[allow(clippy::ptr_arg)]
 pub fn check_java_version(java_path: &PathBuf) -> Option<u32> {
     let output = std::process::Command::new(java_path.as_os_str())
         .arg("-version")

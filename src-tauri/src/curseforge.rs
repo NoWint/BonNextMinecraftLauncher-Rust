@@ -1,9 +1,10 @@
+#![allow(dead_code)]
 //! CurseForge API v1 integration.
 //! Docs: https://docs.curseforge.com/
 
 use crate::error::LauncherError;
 use crate::http_client;
-use crate::modrinth::{ModFile, ModHashes, ModResult, ModVersion};
+use crate::modrinth::{ModFile, ModHashes, ModResult};
 use serde::Deserialize;
 
 const CF_API_BASE: &str = "https://api.curseforge.com/v1";

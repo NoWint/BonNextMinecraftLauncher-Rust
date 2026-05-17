@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Content metadata tracking for installed mods, resource packs, and shaders.
 //! Stores install records as JSON so we can check for updates later.
 
