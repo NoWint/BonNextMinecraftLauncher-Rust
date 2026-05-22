@@ -5,6 +5,7 @@ import { useInstances } from '../stores/instanceStore';
 import { useToast } from '../stores/toastStore';
 import { useI18n } from '../i18n';
 import { Badge, Modal, TextInput, Button } from '../components/ui';
+import { open } from '@tauri-apps/plugin-dialog';
 import styles from './InstancesPage.module.css';
 
 function getLoaderIcon(loader: string | null): string {
@@ -63,6 +64,7 @@ export default function InstancesPage() {
   const [error, setError] = useState('');
   const [duplicating, setDuplicating] = useState<GameInstance | null>(null);
   const [dupName, setDupName] = useState('');
+  const [importing, setImporting] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; inst: GameInstance } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -113,6 +115,26 @@ export default function InstancesPage() {
       setDuplicating(null); setDupName('');
     }
   }, [duplicating, dupName, reloadInstances, addToast]);
+
+  const handleImport = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'Modpack', extensions: ['mrpack', 'zip'] }],
+      });
+      if (!selected || typeof selected !== 'string') return;
+      setImporting(true);
+      addToast({ type: 'info', title: 'Importing modpack...', message: 'Parsing and downloading mods' });
+      const inst = await api.importModpack(selected);
+      await reloadInstances();
+      setImporting(false);
+      addToast({ type: 'success', title: 'Imported', message: `"${inst.name}" is ready to play` });
+      window.location.hash = `#/instances/${inst.id}`;
+    } catch (e: any) {
+      setImporting(false);
+      addToast({ type: 'error', title: 'Import failed', message: e?.toString() || '' });
+    }
+  };
 
   const handleContextMenu = (e: React.MouseEvent, inst: GameInstance) => {
     e.preventDefault();
@@ -205,6 +227,9 @@ export default function InstancesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          <Button variant="secondary" size="sm" onClick={handleImport} disabled={importing}>
+            {importing ? 'Importing...' : '📥 Import'}
+          </Button>
           <Button variant="primary" size="sm" onClick={() => window.location.hash = '#/instances/new'}>
             + New
           </Button>

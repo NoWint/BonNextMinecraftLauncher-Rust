@@ -3,6 +3,8 @@ use std::path::PathBuf;
 
 use crate::error::LauncherError;
 use crate::platform::paths;
+use crate::download::queue::{DownloadQueue, DownloadTask};
+use crate::http_client;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameInstance {
@@ -219,4 +221,134 @@ pub fn export_instance(id: &str, output_path: &std::path::Path) -> Result<(), La
 
     tracing::info!("Instance '{}' exported to {}", id, output_path.display());
     Ok(())
+}
+
+// ---- .mrpack Import ----
+
+#[derive(Debug, Deserialize)]
+struct MrPackIndexFile {
+    path: String,
+    #[serde(default)]
+    downloads: Vec<String>,
+    #[serde(default)]
+    sha1: String,
+    #[serde(rename = "fileSize")]
+    file_size: u64,
+    #[serde(default)]
+    env: Option<MrPackEnv>,
+}
+
+#[derive(Debug, Deserialize)]
+struct MrPackEnv {
+    client: Option<String>,
+    server: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct MrPackIndex {
+    name: String,
+    #[serde(rename = "versionId")]
+    version_id: Option<String>,
+    summary: Option<String>,
+    files: Vec<MrPackIndexFile>,
+}
+
+/// Import a .mrpack modpack. Returns the created GameInstance.
+pub async fn import_modpack(path: &str) -> Result<GameInstance, LauncherError> {
+    let zip_path = std::path::Path::new(path);
+    if !zip_path.exists() {
+        return Err(LauncherError::Other(format!("File not found: {}", path)));
+    }
+
+    let file = std::fs::File::open(zip_path)?;
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|e| LauncherError::Other(format!("Invalid .mrpack ZIP: {}", e)))?;
+
+    // Parse modrinth.index.json
+    let mut index_json = String::new();
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i)?;
+        if entry.name() == "modrinth.index.json" {
+            std::io::Read::read_to_string(&mut entry, &mut index_json)?;
+            break;
+        }
+    }
+
+    if index_json.is_empty() {
+        return Err(LauncherError::Other("modrinth.index.json not found in .mrpack".into()));
+    }
+
+    let index: MrPackIndex = serde_json::from_str(&index_json)
+        .map_err(|e| LauncherError::Other(format!("Invalid modrinth.index.json: {}", e)))?;
+
+    let version_id = index.version_id.clone().unwrap_or_else(|| "1.21".to_string());
+    let manifest = crate::version::manifest::fetch_versions_sorted().await?;
+    let version_entry = manifest.iter().find(|v| v.id == version_id)
+        .ok_or_else(|| LauncherError::Other(format!("Version {} not found in manifest", version_id)))?;
+    let version_url = version_entry.url.clone();
+
+    let inst_id = format!("mrpack_{}_{}", version_id, chrono::Utc::now().timestamp_millis());
+    let now = chrono::Local::now().to_rfc3339();
+    let instance = GameInstance {
+        id: inst_id.clone(),
+        name: index.name.clone(),
+        version_id: version_id.clone(),
+        version_url,
+        loader_type: None,
+        loader_version: None,
+        description: index.summary.unwrap_or_default(),
+        max_memory: 4096,
+        min_memory: 512,
+        java_path: None,
+        jvm_args: None,
+        created_at: now.clone(),
+        last_played: None,
+        playtime_seconds: 0,
+    };
+
+    create_instance(&instance)?;
+
+    // Download mod files
+    let mods_dir = paths::get_instance_mods_dir(&inst_id);
+    std::fs::create_dir_all(&mods_dir)?;
+
+    let mut download_tasks: Vec<DownloadTask> = Vec::new();
+    for f in &index.files {
+        if let Some(url) = f.downloads.first() {
+            let dest = mods_dir.join(&f.path);
+            if let Some(parent) = dest.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            download_tasks.push(DownloadTask::new(url.clone(), dest, f.sha1.clone(), f.file_size));
+        }
+    }
+
+    if !download_tasks.is_empty() {
+        let queue = DownloadQueue::new();
+        let results = queue.download_all(download_tasks).await?;
+        let succeeded = results.iter().filter(|r| r.is_ok()).count();
+        let failed = results.len() - succeeded;
+        if failed > 0 {
+            tracing::warn!("{}/{} modpack mod downloads failed", failed, results.len());
+        }
+    }
+
+    // Extract overrides
+    for i in 0..archive.len() {
+        let entry = archive.by_index(i)?;
+        let name = entry.name().to_string();
+        if name.starts_with("overrides/") && !name.ends_with('/') {
+            let relative = name.strip_prefix("overrides/").unwrap_or(&name);
+            let dest = paths::get_instance_minecraft_dir(&inst_id).join(relative);
+            if let Some(parent) = dest.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            let mut entry = entry; // re-borrow
+            let mut out = std::fs::File::create(&dest)?;
+            std::io::copy(&mut entry, &mut out)?;
+        }
+    }
+
+    tracing::info!("Modpack '{}' imported as instance '{}'", index.name, inst_id);
+    Ok(instance)
 }

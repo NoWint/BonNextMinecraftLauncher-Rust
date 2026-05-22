@@ -149,6 +149,7 @@ const enUS: Record<string, string> = {
   'instanceDetail.launchCount': 'launches',
   'instanceDetail.exportInstance': 'Export Instance',
   'instanceDetail.comingSoon': 'Coming soon',
+  'contentDetail.noScreenshots': 'No screenshots available',
 
   'versions.title': 'Versions',
   'versions.download': 'Download',

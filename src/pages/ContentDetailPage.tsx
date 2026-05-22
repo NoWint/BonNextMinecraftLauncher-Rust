@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api, type ModProjectFull, type ModVersion } from '../api';
 import { useInstances } from '../stores/instanceStore';
+import { useI18n } from '../i18n';
 import { Breadcrumb, Button, Badge, StatBadge, StatusDot, Tabs, Select } from '../components/ui';
 import { InstallButton } from '../components/ui/InstallButton';
 import { CollectionButton } from '../components/ui/CollectionButton';
@@ -62,6 +63,10 @@ export default function ContentDetailPage() {
   const [filterVersion, setFilterVersion] = useState('');
   const [filterLoader, setFilterLoader] = useState('');
   const [activeTab, setActiveTab] = useState('versions');
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const { t } = useI18n();
 
   const instances = instState.instances;
 
@@ -102,6 +107,18 @@ export default function ContentDetailPage() {
     load();
     return () => { cancelled = true; };
   }, [parsed?.slug, parsed?.type]);
+
+  // Keyboard: lightbox navigation
+  useEffect(() => {
+    if (!lightboxOpen || !project) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setLightboxOpen(false); return; }
+      if (e.key === 'ArrowLeft') setGalleryIndex((i) => (i > 0 ? i - 1 : project.gallery.length - 1));
+      if (e.key === 'ArrowRight') setGalleryIndex((i) => (i < project.gallery.length - 1 ? i + 1 : 0));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightboxOpen, project]);
 
   const filteredVersions = useMemo(() => {
     return allVersions.filter((v) => {
@@ -219,22 +236,63 @@ export default function ContentDetailPage() {
       </div>
 
       {/* Gallery */}
-      {project.gallery.length > 0 && (
-        <div>
-          <SectionHeader title="GALLERY" />
-          <div className={styles.gallery}>
-            {project.gallery.map((img, i) => (
+      <div>
+        <SectionHeader title="GALLERY" />
+        {project.gallery.length > 0 ? (
+          <div className={styles.gallerySection}>
+            {/* Main image */}
+            <div className={styles.gallery__main}>
               <img
-                key={i}
-                className={styles.gallery__img}
-                src={img.url}
-                alt={img.title || `Screenshot ${i + 1}`}
-                loading="lazy"
+                className={styles.gallery__mainImg}
+                src={project.gallery[galleryIndex].url}
+                alt={project.gallery[galleryIndex].title || `Screenshot ${galleryIndex + 1}`}
+                onClick={() => setLightboxOpen(true)}
               />
-            ))}
+
+              {project.gallery.length > 1 && (
+                <>
+                  <button
+                    className={`${styles.gallery__nav} ${styles['gallery__nav--prev']}`}
+                    onClick={() => setGalleryIndex((i) => i > 0 ? i - 1 : project.gallery.length - 1)}
+                    aria-label="Previous image"
+                  >
+                    {'\u{2039}'}
+                  </button>
+                  <button
+                    className={`${styles.gallery__nav} ${styles['gallery__nav--next']}`}
+                    onClick={() => setGalleryIndex((i) => i < project.gallery.length - 1 ? i + 1 : 0)}
+                    aria-label="Next image"
+                  >
+                    {'\u{203A}'}
+                  </button>
+                  <div className={styles.gallery__counter}>
+                    {galleryIndex + 1} / {project.gallery.length}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Thumbnail strip */}
+            {project.gallery.length > 1 && (
+              <div className={styles.gallery__thumbs}>
+                {project.gallery.map((img, i) => (
+                  <img
+                    key={i}
+                    className={`${styles.gallery__thumb} ${i === galleryIndex ? styles['gallery__thumb--active'] : ''}`}
+                    src={img.url}
+                    alt={img.title || `Thumbnail ${i + 1}`}
+                    onClick={() => setGalleryIndex(i)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className={styles.gallery__empty}>
+            {t('contentDetail.noScreenshots')}
+          </div>
+        )}
+      </div>
 
       {/* External links */}
       {(project.source_url || project.wiki_url || project.discord_url || project.issues_url) && (
@@ -389,6 +447,42 @@ export default function ContentDetailPage() {
         `Created ${new Date(project.date_created).toLocaleDateString()}`,
         `${project.project_type} · Modrinth`,
       ]} />
+
+      {/* Lightbox */}
+      {lightboxOpen && project.gallery.length > 0 && (
+        <div className={styles.lightbox} onClick={() => setLightboxOpen(false)}>
+          <button className={styles.lightbox__close} onClick={() => setLightboxOpen(false)}>
+            {'\u{2715}'}
+          </button>
+
+          {project.gallery.length > 1 && (
+            <>
+              <button
+                className={`${styles.lightbox__nav} ${styles['lightbox__nav--prev']}`}
+                onClick={(e) => { e.stopPropagation(); setGalleryIndex((i) => i > 0 ? i - 1 : project.gallery.length - 1); }}
+              >
+                {'\u{2039}'}
+              </button>
+              <button
+                className={`${styles.lightbox__nav} ${styles['lightbox__nav--next']}`}
+                onClick={(e) => { e.stopPropagation(); setGalleryIndex((i) => i < project.gallery.length - 1 ? i + 1 : 0); }}
+              >
+                {'\u{203A}'}
+              </button>
+              <div className={styles.lightbox__counter}>
+                {galleryIndex + 1} / {project.gallery.length}
+              </div>
+            </>
+          )}
+
+          <img
+            className={styles.lightbox__img}
+            src={project.gallery[galleryIndex].url}
+            alt={project.gallery[galleryIndex].title || `Screenshot ${galleryIndex + 1}`}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

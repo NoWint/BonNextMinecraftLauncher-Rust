@@ -149,6 +149,7 @@ const zhCN: Record<string, string> = {
   'instanceDetail.launchCount': '次启动',
   'instanceDetail.exportInstance': '导出实例',
   'instanceDetail.comingSoon': '功能即将推出',
+  'contentDetail.noScreenshots': '暂无截图',
 
   'versions.title': '版本列表',
   'versions.download': '下载',
