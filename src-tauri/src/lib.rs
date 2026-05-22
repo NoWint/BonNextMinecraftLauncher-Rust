@@ -496,6 +496,11 @@ async fn import_modpack(path: String) -> Result<GameInstance, LauncherError> {
 }
 
 #[tauri::command]
+async fn export_mrpack(id: String, output_path: String) -> Result<(), LauncherError> {
+    instance::manager::export_mrpack(&id, std::path::Path::new(&output_path)).await
+}
+
+#[tauri::command]
 async fn parse_crash_report(report_path: String) -> Result<CrashInfo, LauncherError> {
     crash_parser::parse_crash_report(&report_path)
 }
@@ -1113,7 +1118,7 @@ pub fn run() {
             get_game_dir, get_default_game_dir,
             list_instances, create_instance, delete_instance,
             update_instance, get_instance, duplicate_instance,
-            export_instance, import_modpack, check_instance_ready, open_folder,
+            export_instance, import_modpack, export_mrpack, check_instance_ready, open_folder,
             parse_crash_report,
             get_loader_versions, install_loader,
             search_mods, get_popular_mods, get_mod_details,

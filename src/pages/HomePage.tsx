@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { api, type DownloadProgressEvent, type LaunchState, type GameInstance, type SystemInfo } from '../api';
+import { api, type DownloadProgressEvent, type LaunchState, type GameInstance, type SystemInfo, type JreDownloadProgress } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useInstances } from '../stores/instanceStore';
 import { useToast } from '../stores/toastStore';
@@ -288,7 +288,7 @@ export default function HomePage() {
   const instances = instState.instances;
   const launchState = usePollLaunchState();
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgressEvent | null>(null);
-  const [jreDownload, setJreDownload] = useState<DownloadProgressEvent | null>(null);
+  const [jreDownload, setJreDownload] = useState<JreDownloadProgress | null>(null);
   const [javaVersion, setJavaVersion] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [newsIndex, setNewsIndex] = useState(0);
@@ -329,7 +329,7 @@ export default function HomePage() {
   useEffect(() => {
     const unlisten = api.onJreDownloadProgress((p) => {
       setJreDownload(p);
-      if (p.bytes_downloaded >= p.total && p.total > 0) {
+      if (p.downloaded >= p.total && p.total > 0) {
         setTimeout(() => setJreDownload(null), 3000);
       }
     });
@@ -459,7 +459,7 @@ export default function HomePage() {
       )}
 
       {/* JRE download overlay */}
-      {jreDownload && jreDownload.bytes_downloaded < jreDownload.total && (
+      {jreDownload && jreDownload.downloaded < jreDownload.total && (
         <div className={styles.downloadOverlay}>
           <div className={styles.downloadPanel}>
             <Heading level="md">DOWNLOADING JAVA RUNTIME</Heading>
@@ -468,14 +468,14 @@ export default function HomePage() {
             </div>
             <div style={{ marginTop: 16 }}>
               <ProgressBar
-                progress={jreDownload.total > 0 ? Math.round((jreDownload.bytes_downloaded / jreDownload.total) * 100) : 0}
+                progress={jreDownload.total > 0 ? Math.round((jreDownload.downloaded / jreDownload.total) * 100) : 0}
                 done={false}
               />
             </div>
             <div className={styles.downloadStats}>
               <span className={styles.downloadStatItem}>
                 <span style={{ fontFamily: 'var(--font-mono)', color: '#FFE600' }}>
-                  {(jreDownload.bytes_downloaded / 1_048_576).toFixed(1)} MB / {(jreDownload.total / 1_048_576).toFixed(1)} MB
+                  {(jreDownload.downloaded / 1_048_576).toFixed(1)} MB / {(jreDownload.total / 1_048_576).toFixed(1)} MB
                 </span>
               </span>
             </div>

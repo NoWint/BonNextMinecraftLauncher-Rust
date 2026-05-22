@@ -211,11 +211,11 @@ export const api = {
     });
   },
 
-  onJreDownloadProgress: (callback: (progress: JreDownloadProgress) => void) => {
-    return listen<JreDownloadProgress>('jre-download-progress', (event) => {
-      callback(event.payload);
-    });
+  onJreDownloadProgress: (callback: (p: JreDownloadProgress) => void) => {
+    return listen<JreDownloadProgress>('jre-download-progress', (event) => callback(event.payload));
   },
+
+  checkJreAvailable: (majorVersion: number) => invoke<boolean>('check_jre_available', { majorVersion }),
 
   getVersions: () => invoke<VersionEntry[]>('get_versions'),
   getLaunchState: () => invoke<LaunchState>('get_launch_state'),
@@ -364,13 +364,11 @@ export const api = {
   getSystemInfo: () => invoke<SystemInfo>('get_system_info'),
   autoTuneMemory: () => invoke<number>('auto_tune_memory_cmd'),
   checkInstanceReady: (instanceId: string) => invoke<boolean>('check_instance_ready', { instanceId }),
-  onJreDownloadProgress: (callback: (p: JreDownloadProgress) => void) => { return listen<JreDownloadProgress>("jre-download-progress", (e) => callback(e.payload)); },
-  checkJreAvailable: (majorVersion: number) => invoke<boolean>('check_jre_available', { majorVersion }),
   duplicateInstance: (instanceId: string, newName: string) => invoke<GameInstance>('duplicate_instance', { id: instanceId, newName }),
   exportInstance: (instanceId: string, outputPath: string) => invoke<void>('export_instance', { id: instanceId, outputPath }),
   importModpack: (path: string) => invoke<GameInstance>('import_modpack', { path }),
+  exportMrpack: (instanceId: string, outputPath: string) => invoke<void>('export_mrpack', { id: instanceId, outputPath }),
 };
-
 export interface SystemInfo {
   total_ram_mb: number;
   used_ram_mb: number;
