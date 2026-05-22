@@ -150,6 +150,10 @@ const enUS: Record<string, string> = {
   'instanceDetail.exportInstance': 'Export Instance',
   'instanceDetail.comingSoon': 'Coming soon',
   'contentDetail.noScreenshots': 'No screenshots available',
+  'contentDetail.compatible': 'Compatible',
+  'contentDetail.loaderMismatch': 'Loader mismatch',
+  'contentDetail.versionMismatch': 'Version mismatch',
+  'contentDetail.noInstanceHint': 'Select an instance to see compatibility',
 
   'versions.title': 'Versions',
   'versions.download': 'Download',
@@ -246,6 +250,10 @@ const enUS: Record<string, string> = {
   'library.installedMods': 'Installed Mods',
   'library.installedPacks': 'Installed Packs',
   'library.installedShaders': 'Installed Shaders',
+  'library.updateAll': 'Update All',
+  'library.updating': 'Updating {current}/{total}',
+  'library.updateSummary': 'Update Summary',
+  'library.individualUpdate': 'Update',
 };
 
 export default enUS;

@@ -216,6 +216,58 @@
   padding: 8px;
 }
 
+/* Update progress status indicators */
+.updateIndex {
+  width: 20px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-text-dim);
+  flex-shrink: 0;
+}
+
+.updateStatusIcon {
+  width: 20px;
+  text-align: center;
+  font-size: 0.7em;
+  flex-shrink: 0;
+}
+
+.status_pending {
+  color: var(--color-text-muted);
+}
+
+.status_downloading {
+  color: var(--color-accent);
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
+.status_complete {
+  color: #4ade80;
+}
+
+.status_failed {
+  color: #ef4444;
+}
+
+.updatingLabel {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-accent);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.updateItem__filename {
+  font-size: 0.85em;
+  color: var(--color-text-muted);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 /* Loading */
 .loadingGrid {
   display: flex;

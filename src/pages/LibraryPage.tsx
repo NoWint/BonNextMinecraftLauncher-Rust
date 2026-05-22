@@ -2,10 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { api, type ContentCounts, type InstalledModInfo, type UpdateInfo } from '../api';
 import { useInstances } from '../stores/instanceStore';
 import { useToast } from '../stores/toastStore';
+import { useI18n } from '../i18n';
 import { SectionHeader, Ticker } from '../components/layout';
 import { Button, Modal, Tabs, Select } from '../components/ui';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import styles from './LibraryPage.module.css';
+
+type UpdateStatus = 'pending' | 'downloading' | 'complete' | 'failed';
 
 const TABS = [
   { id: 'mods', label: 'MODS' },
@@ -23,6 +26,7 @@ function formatSize(bytes: number): string {
 export default function LibraryPage() {
   const { state: instState } = useInstances();
   const { addToast } = useToast();
+  const { t } = useI18n();
 
   const [selectedId, setSelectedId] = useState('');
   const [activeTab, setActiveTab] = useState('mods');
@@ -35,6 +39,8 @@ export default function LibraryPage() {
   const [updates, setUpdates] = useState<UpdateInfo[]>([]);
   const [checkingUpdates, setCheckingUpdates] = useState(false);
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
+  const [updateProgress, setUpdateProgress] = useState<Record<string, UpdateStatus>>({});
+  const [updatingAll, setUpdatingAll] = useState(false);
 
   const instances = instState.instances;
   const selectedInstance = instances.find((i) => i.id === selectedId);
@@ -124,8 +130,52 @@ export default function LibraryPage() {
   };
 
   const updateAll = async () => {
-    for (const update of updates) {
-      await updateItem(update);
+    if (!selectedId || updates.length === 0) return;
+    setUpdatingAll(true);
+    const initial: Record<string, UpdateStatus> = {};
+    updates.forEach((u) => { initial[u.filename] = 'pending'; });
+    setUpdateProgress(initial);
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < updates.length; i++) {
+      const update = updates[i];
+      setUpdateProgress((prev) => ({ ...prev, [update.filename]: 'downloading' }));
+
+      try {
+        const versions = await api.getModVersions(update.slug);
+        if (versions.length === 0) throw new Error('No versions found');
+        const latest = versions[0];
+        const primaryFile = latest.files.find(
+          (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
+        ) || latest.files[0];
+
+        try { await api.removeInstalledMod(selectedId, update.filename); } catch (e) { /* ok if already removed */ }
+
+        await api.installContent(
+          primaryFile.url, primaryFile.filename, selectedId,
+          update.content_type, primaryFile.hashes.sha1 || undefined,
+          update.slug, latest.id,
+        );
+
+        setUpdateProgress((prev) => ({ ...prev, [update.filename]: 'complete' }));
+        successCount++;
+      } catch (e: any) {
+        setUpdateProgress((prev) => ({ ...prev, [update.filename]: 'failed' }));
+        failCount++;
+        console.error(`Failed to update ${update.slug}:`, e);
+      }
+    }
+
+    setUpdates([]);
+    loadContent();
+    setUpdatingAll(false);
+
+    if (failCount === 0) {
+      addToast({ type: 'success', title: t('library.updateSummary'), message: `All ${successCount} items updated.` });
+    } else {
+      addToast({ type: 'warning', title: t('library.updateSummary'), message: `${successCount} succeeded, ${failCount} failed.` });
     }
   };
 
@@ -205,46 +255,73 @@ export default function LibraryPage() {
               >
                 {checkingUpdates ? 'Checking...' : 'Check for updates'}
               </Button>
-              {updates.length > 0 && (
+              {updates.length > 0 && !updatingAll && (
                 <Button
                   variant="primary"
                   size="sm"
                   onClick={updateAll}
-                  disabled={updatingItems.size > 0}
                 >
-                  {updatingItems.size > 0 ? 'Updating...' : 'Update All'}
+                  {t('library.updateAll')} ({updates.length})
                 </Button>
+              )}
+              {updatingAll && (
+                <span className={styles.updatingLabel}>
+                  {t('library.updating', {
+                    current: String(Object.values(updateProgress).filter(s => s === 'complete' || s === 'failed').length + 1),
+                    total: String(updates.length),
+                    name: updates[0]?.slug || '',
+                  })}
+                </span>
               )}
             </div>
           </div>
 
           {updates.length > 0 ? (
             <div>
-              {updates.map((update) => (
-                <div key={update.filename} className={styles.updateItem}>
-                  <div className={styles.updateItem__name}>
-                    {update.slug} ({update.filename})
-                  </div>
-                  <div className={styles.updateItem__versions}>
-                    {update.installed_version && (
-                      <span className={styles.updateItem__oldVer}>{update.installed_version}</span>
+              {updates.map((update, index) => {
+                const status = updateProgress[update.filename];
+                const isUpdating = updatingAll && status;
+                return (
+                  <div key={update.filename} className={styles.updateItem}>
+                    {isUpdating ? (
+                      <span className={`${styles.updateStatusIcon} ${styles[`status_${status}`]}`}>
+                        {status === 'pending' && '\u{25CB}'}
+                        {status === 'downloading' && '\u{25D4}'}
+                        {status === 'complete' && '\u{2713}'}
+                        {status === 'failed' && '\u{2717}'}
+                      </span>
+                    ) : (
+                      <span className={styles.updateIndex}>{index + 1}</span>
                     )}
-                    <span className={styles.updateItem__arrow}>→</span>
-                    <span className={styles.updateItem__newVer}>{update.latest_version}</span>
+                    <div className={styles.updateItem__name}>
+                      {update.slug}
+                      <span className={styles.updateItem__filename}> ({update.filename})</span>
+                    </div>
+                    <div className={styles.updateItem__versions}>
+                      {update.installed_version && (
+                        <span className={styles.updateItem__oldVer}>{update.installed_version}</span>
+                      )}
+                      <span className={styles.updateItem__arrow}>→</span>
+                      <span className={styles.updateItem__newVer}>{update.latest_version}</span>
+                    </div>
+                    {!updatingAll && !updatingItems.has(update.filename) && (
+                      <Button
+                        variant="secondary-highlight"
+                        size="sm"
+                        onClick={() => updateItem(update)}
+                      >
+                        {t('library.individualUpdate')}
+                      </Button>
+                    )}
+                    {updatingItems.has(update.filename) && (
+                      <span className={styles.updatingLabel}>Updating...</span>
+                    )}
                   </div>
-                  <Button
-                    variant="secondary-highlight"
-                    size="sm"
-                    disabled={updatingItems.has(update.filename)}
-                    onClick={() => updateItem(update)}
-                  >
-                    {updatingItems.has(update.filename) ? '...' : 'Update'}
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
-            !checkingUpdates && updates.length === 0 && (
+            !checkingUpdates && updates.length === 0 && !updatingAll && (
               <div className={styles.updatesSection__empty}>
                 Click "Check for updates" to scan installed content for newer versions.
               </div>
