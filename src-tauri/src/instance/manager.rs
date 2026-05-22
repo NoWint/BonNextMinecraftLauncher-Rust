@@ -1,3 +1,4 @@
+use std::io::Write;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -351,4 +352,151 @@ pub async fn import_modpack(path: &str) -> Result<GameInstance, LauncherError> {
 
     tracing::info!("Modpack '{}' imported as instance '{}'", index.name, inst_id);
     Ok(instance)
+}
+
+// ---- .mrpack Export ----
+
+#[derive(Debug, Serialize)]
+struct MrPackExportIndex {
+    #[serde(rename = "formatVersion")]
+    format_version: u32,
+    name: String,
+    #[serde(rename = "versionId")]
+    version_id: String,
+    #[serde(default)]
+    summary: String,
+    files: Vec<MrPackExportFile>,
+    dependencies: std::collections::HashMap<String, String>,
+}
+
+#[derive(Debug, Serialize)]
+struct MrPackExportFile {
+    path: String,
+    downloads: Vec<String>,
+    sha1: String,
+    #[serde(rename = "fileSize")]
+    file_size: u64,
+}
+
+/// Export an instance as .mrpack modpack format.
+pub async fn export_mrpack(id: &str, output_path: &std::path::Path) -> Result<(), LauncherError> {
+    let instance = get_instance(id)?.ok_or_else(|| {
+        LauncherError::Other(format!("Instance not found: {}", id))
+    })?;
+
+    // Read installed content to build mod list
+    let content_path = paths::get_instance_minecraft_dir(id).join("installed_content.json");
+    let mut mod_files: Vec<MrPackExportFile> = Vec::new();
+    if content_path.exists() {
+        let data = std::fs::read_to_string(&content_path)?;
+        if let Ok(content_map) = serde_json::from_str::<std::collections::HashMap<String, crate::content::InstallRecord>>(&data) {
+            let mods_dir = paths::get_instance_mods_dir(id);
+            for (filename, entry) in &content_map {
+                if entry.content_type != "mod" { continue; }
+                let mod_path = mods_dir.join(filename);
+                if mod_path.exists() {
+                    let file_size = std::fs::metadata(&mod_path).map(|m| m.len()).unwrap_or(0);
+                    let sha1 = if let Ok(bytes) = std::fs::read(&mod_path) {
+                        use sha1::{Sha1, Digest};
+                        let hash = Sha1::digest(&bytes);
+                        hex::encode(hash)
+                    } else {
+                        String::new()
+                    };
+                    let download_url = format!("https://cdn.modrinth.com/data/{}/versions/{}/{}",
+                        entry.slug, entry.version_id.as_deref().unwrap_or(""), filename);
+                    mod_files.push(MrPackExportFile {
+                        path: format!("mods/{}", filename),
+                        downloads: vec![download_url],
+                        sha1,
+                        file_size,
+                    });
+                }
+            }
+        }
+    }
+
+    let manifest = MrPackExportIndex {
+        format_version: 1,
+        name: instance.name.clone(),
+        version_id: instance.version_id.clone(),
+        summary: instance.description.clone(),
+        files: mod_files,
+        dependencies: {
+            let mut deps = std::collections::HashMap::new();
+            deps.insert("minecraft".to_string(), instance.version_id.clone());
+            if let Some(ref lt) = instance.loader_type {
+                deps.insert(lt.clone(), instance.loader_version.clone().unwrap_or_default());
+            }
+            deps
+        },
+    };
+
+    let file = std::fs::File::create(output_path)
+        .map_err(|e| LauncherError::Other(format!("Cannot create mrpack: {}", e)))?;
+    let mut zip = zip::ZipWriter::new(file);
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .unix_permissions(0o644);
+
+    // Write manifest
+    zip.start_file("modrinth.index.json", options)
+        .map_err(|e| LauncherError::Other(format!("ZIP write error: {}", e)))?;
+    let manifest_json = serde_json::to_string_pretty(&manifest)?;
+    zip.write_all(manifest_json.as_bytes())
+        .map_err(|e| LauncherError::Other(format!("ZIP write error: {}", e)))?;
+
+    // Write overrides/ from instance .minecraft (config, options.txt, etc.)
+    let minecraft_dir = paths::get_instance_minecraft_dir(id);
+    if minecraft_dir.exists() {
+        for entry in std::fs::read_dir(&minecraft_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            // Skip mods, versions, libraries, crash-reports — these are large and not config
+            if matches!(name.as_str(), "mods" | "versions" | "libraries" | "crash-reports" | "logs" | "natives") {
+                continue;
+            }
+            if path.is_file() {
+                zip.start_file(format!("overrides/{}", name), options)
+                    .map_err(|e| LauncherError::Other(format!("ZIP write error: {}", e)))?;
+                let mut src = std::fs::File::open(&path)?;
+                std::io::copy(&mut src, &mut zip)
+                    .map_err(|e| LauncherError::Other(format!("ZIP write error: {}", e)))?;
+            } else if path.is_dir() {
+                add_dir_to_mrpack(&mut zip, &minecraft_dir, &path, options)?;
+            }
+        }
+    }
+
+    zip.finish().map_err(|e| LauncherError::Other(format!("ZIP finish error: {}", e)))?;
+    tracing::info!("Instance '{}' exported as .mrpack to {}", id, output_path.display());
+    Ok(())
+}
+
+fn add_dir_to_mrpack(
+    mut zip: &mut zip::ZipWriter<std::fs::File>,
+    base: &std::path::Path,
+    dir: &std::path::Path,
+    options: zip::write::SimpleFileOptions,
+) -> Result<(), LauncherError> {
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        let relative = path.strip_prefix(base)
+            .map_err(|e| LauncherError::Other(e.to_string()))?;
+        let name = format!("overrides/{}", relative.to_string_lossy().replace('\\', "/"));
+        if path.is_dir() {
+            zip.add_directory(&name, options)
+                .map_err(|e| LauncherError::Other(format!("ZIP error: {}", e)))?;
+            add_dir_to_mrpack(&mut *zip, base, &path, options)?;
+        } else {
+            zip.start_file(&name, options)
+                .map_err(|e| LauncherError::Other(format!("ZIP error: {}", e)))?;
+            let mut src = std::fs::File::open(&path)?;
+            std::io::copy(&mut src, &mut *zip)
+                .map_err(|e| LauncherError::Other(format!("ZIP error: {}", e)))?;
+        }
+    }
+    Ok(())
 }

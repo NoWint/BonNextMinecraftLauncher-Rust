@@ -150,6 +150,10 @@ const zhCN: Record<string, string> = {
   'instanceDetail.exportInstance': '导出实例',
   'instanceDetail.comingSoon': '功能即将推出',
   'contentDetail.noScreenshots': '暂无截图',
+  'contentDetail.compatible': '可兼容',
+  'contentDetail.loaderMismatch': '加载器不匹配',
+  'contentDetail.versionMismatch': '版本不匹配',
+  'contentDetail.noInstanceHint': '选择一个实例以查看兼容性',
 
   'versions.title': '版本列表',
   'versions.download': '下载',
@@ -246,6 +250,10 @@ const zhCN: Record<string, string> = {
   'library.installedMods': '已安装模组',
   'library.installedPacks': '已安装资源包',
   'library.installedShaders': '已安装光影',
+  'library.updateAll': '全部更新',
+  'library.updating': '更新中 {current}/{total}',
+  'library.updateSummary': '更新摘要',
+  'library.individualUpdate': '更新',
 };
 
 export default zhCN;

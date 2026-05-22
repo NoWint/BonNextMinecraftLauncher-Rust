@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { api, type ModProjectFull, type ModVersion } from '../api';
 import { useInstances } from '../stores/instanceStore';
 import { useI18n } from '../i18n';
-import { Breadcrumb, Button, Badge, StatBadge, StatusDot, Tabs, Select } from '../components/ui';
+import { Breadcrumb, Button, Badge, StatBadge, StatusDot, Tabs } from '../components/ui';
 import { InstallButton } from '../components/ui/InstallButton';
 import { CollectionButton } from '../components/ui/CollectionButton';
 import { InstanceSelect } from '../components/ui/InstanceSelect';
@@ -43,14 +43,6 @@ function formatNum(n: number): string {
   return String(n);
 }
 
-const GAME_VERSIONS = [
-  '', '1.21.5', '1.21.4', '1.21.3', '1.21.2', '1.21.1', '1.21',
-  '1.20.6', '1.20.4', '1.20.2', '1.20.1', '1.20',
-  '1.19.4', '1.19.2', '1.19', '1.18.2', '1.18', '1.17.1', '1.16.5',
-];
-
-const LOADERS = ['', 'fabric', 'forge', 'neoforge', 'quilt'];
-
 export default function ContentDetailPage() {
   const parsed = parseHash();
   const { state: instState } = useInstances();
@@ -60,11 +52,11 @@ export default function ContentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedInstance, setSelectedInstance] = useState('');
-  const [filterVersion, setFilterVersion] = useState('');
-  const [filterLoader, setFilterLoader] = useState('');
   const [activeTab, setActiveTab] = useState('versions');
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [selectedVersionId, setSelectedVersionId] = useState('');
+  const [versionDropdownOpen, setVersionDropdownOpen] = useState(false);
 
   const { t } = useI18n();
 
@@ -120,15 +112,44 @@ export default function ContentDetailPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [lightboxOpen, project]);
 
-  const filteredVersions = useMemo(() => {
-    return allVersions.filter((v) => {
-      if (filterVersion && !v.game_versions.includes(filterVersion)) return false;
-      if (filterLoader && !v.loaders.includes(filterLoader)) return false;
-      return true;
-    });
-  }, [allVersions, filterVersion, filterLoader]);
+  const activeInstance = useMemo(() =>
+    instances.find((i) => i.id === selectedInstance),
+    [instances, selectedInstance]
+  );
 
-  const selectedVersion = filteredVersions.length > 0 ? filteredVersions[0] : null;
+  // Compute compatibility for each version vs active instance
+  const versionCompat = useMemo(() => {
+    if (!activeInstance) return {} as Record<string, 'green' | 'yellow' | 'grey'>;
+    const instVer = activeInstance.version_id;
+    const instLoader = activeInstance.loader_type;
+    const result: Record<string, 'green' | 'yellow' | 'grey'> = {};
+    for (const v of allVersions) {
+      const verMatch = v.game_versions.includes(instVer);
+      const loaderMatch = !instLoader || v.loaders.includes(instLoader);
+      if (verMatch && loaderMatch) result[v.id] = 'green';
+      else if (verMatch) result[v.id] = 'yellow';
+      else result[v.id] = 'grey';
+    }
+    return result;
+  }, [allVersions, activeInstance]);
+
+  // Get the currently selected version object
+  const selectedVersion = allVersions.find((v) => v.id === selectedVersionId) || null;
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!versionDropdownOpen) return;
+    const close = () => setVersionDropdownOpen(false);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [versionDropdownOpen]);
+
+  // Auto-select first compatible (green) version, else first
+  useEffect(() => {
+    if (allVersions.length === 0 || selectedVersionId) return;
+    const firstGreen = allVersions.find((v) => versionCompat[v.id] === 'green');
+    setSelectedVersionId(firstGreen ? firstGreen.id : allVersions[0].id);
+  }, [allVersions, versionCompat, selectedVersionId]);
 
   if (!parsed) {
     return (
@@ -332,72 +353,116 @@ export default function ContentDetailPage() {
 
       {activeTab === 'versions' && (
         <div>
-          <div className={styles.versionsFilters}>
-            <Select
-              value={filterVersion}
-              onChange={(e) => setFilterVersion(e.target.value)}
-              options={[
-                { value: '', label: 'All versions' },
-                ...GAME_VERSIONS.filter(Boolean).map((v) => ({ value: v, label: v })),
-              ]}
-            />
-            <Select
-              value={filterLoader}
-              onChange={(e) => setFilterLoader(e.target.value)}
-              options={[
-                { value: '', label: 'All loaders' },
-                ...LOADERS.filter(Boolean).map((l) => ({ value: l, label: l.charAt(0).toUpperCase() + l.slice(1) })),
-              ]}
-            />
+          {/* Version selector dropdown */}
+          <div className={styles.versionSelect}>
+            <button
+              className={styles.versionSelect__trigger}
+              onClick={() => setVersionDropdownOpen(!versionDropdownOpen)}
+              type="button"
+            >
+              {selectedVersion && (
+                <div className={`${styles.versionSelect__compat} ${styles[`versionSelect__compat--${versionCompat[selectedVersion.id] || 'grey'}`]}`} />
+              )}
+              <span className={styles.versionSelect__label}>
+                {selectedVersion
+                  ? `${selectedVersion.version_number} — ${selectedVersion.game_versions.slice(0, 2).join(', ')}`
+                  : 'Select version...'}
+              </span>
+              <span className={styles.versionSelect__arrow}>{versionDropdownOpen ? '▲' : '▼'}</span>
+            </button>
+
+            <div className={`${styles.versionSelect__dropdown} ${versionDropdownOpen ? styles['versionSelect__dropdown--open'] : ''}`}>
+              {allVersions.length === 0 ? (
+                <div className={styles.versionSelect__empty}>No versions available</div>
+              ) : (
+                allVersions.map((ver) => {
+                  const compat = versionCompat[ver.id] || 'grey';
+                  return (
+                    <div
+                      key={ver.id}
+                      className={`${styles.versionSelect__option} ${ver.id === selectedVersionId ? styles['versionSelect__option--active'] : ''}`}
+                      onClick={() => { setSelectedVersionId(ver.id); setVersionDropdownOpen(false); }}
+                    >
+                      <div className={`${styles.versionSelect__compat} ${styles[`versionSelect__compat--${compat}`]}`} />
+                      <span>{ver.version_number}</span>
+                      <div className={styles.versionSelect__optionBadges}>
+                        {ver.game_versions.slice(0, 3).map((v) => (
+                          <Badge key={v} variant="accent">{v}</Badge>
+                        ))}
+                        {ver.loaders.slice(0, 2).map((l) => (
+                          <Badge key={l} variant="muted">{l}</Badge>
+                        ))}
+                      </div>
+                      <div className={styles.versionSelect__optionDate}>
+                        {new Date(ver.date_published).toLocaleDateString()}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
 
-          <div style={{ marginTop: 8 }}>
-            {filteredVersions.length === 0 ? (
-              <div className={styles.notFound} style={{ height: 100 }}>
-                No versions match the selected filters
-              </div>
-            ) : (
-              filteredVersions.map((ver) => {
-                const primaryFile = ver.files.find(
-                  (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
-                ) || ver.files[0];
+          {/* Compatibility hint */}
+          {!activeInstance && (
+            <div className={styles.versionSelect__hint}>
+              <div className={`${styles.versionSelect__compat} ${styles['versionSelect__compat--grey']}`} />
+              <span>{t('contentDetail.noInstanceHint')}</span>
+            </div>
+          )}
+          {activeInstance && (
+            <div className={styles.versionSelect__hint}>
+              <div className={`${styles.versionSelect__compat} ${styles['versionSelect__compat--green']}`} />
+              <span>{t('contentDetail.compatible')}</span>
+              <div className={`${styles.versionSelect__compat} ${styles['versionSelect__compat--yellow']}`} style={{ marginLeft: 8 }} />
+              <span>{t('contentDetail.loaderMismatch')}</span>
+              <div className={`${styles.versionSelect__compat} ${styles['versionSelect__compat--grey']}`} style={{ marginLeft: 8 }} />
+              <span>{t('contentDetail.versionMismatch')}</span>
+            </div>
+          )}
 
-                return (
-                  <div key={ver.id} className={styles.versionRow}>
-                    <div className={styles.versionRow__num}>{ver.version_number}</div>
-                    <div className={styles.versionRow__tags}>
-                      {ver.game_versions.slice(0, 4).map((v) => (
-                        <Badge key={v} variant="accent">{v}</Badge>
-                      ))}
-                      {ver.game_versions.length > 4 && (
-                        <Badge variant="muted">+{ver.game_versions.length - 4}</Badge>
+          {/* Selected version detail */}
+          {selectedVersion && (
+            <div style={{ marginTop: 10 }}>
+              <div className={styles.versionRow}>
+                <div className={styles.versionRow__num}>{selectedVersion.version_number}</div>
+                <div className={styles.versionRow__tags}>
+                  {selectedVersion.game_versions.map((v) => (
+                    <Badge key={v} variant="accent">{v}</Badge>
+                  ))}
+                  {selectedVersion.loaders.map((l) => (
+                    <Badge key={l} variant="muted">{l}</Badge>
+                  ))}
+                </div>
+                {(() => {
+                  const primaryFile = selectedVersion.files.find(
+                    (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
+                  ) || selectedVersion.files[0];
+                  return (
+                    <>
+                      {primaryFile && (
+                        <div className={styles.versionRow__size}>{formatSize(primaryFile.size)}</div>
                       )}
-                      {ver.loaders.map((l) => (
-                        <Badge key={l} variant="muted">{l}</Badge>
-                      ))}
-                    </div>
-                    {primaryFile && (
-                      <div className={styles.versionRow__size}>{formatSize(primaryFile.size)}</div>
-                    )}
-                    <div className={styles.versionRow__date}>
-                      {new Date(ver.date_published).toLocaleDateString()}
-                    </div>
-                    {primaryFile && selectedInstance && (
-                      <InstallButton
-                        contentSlug={project.slug}
-                        contentTitle={`${project.title} ${ver.version_number}`}
-                        instanceId={selectedInstance}
-                        gameVersion={ver.game_versions[0]}
-                        loader={ver.loaders[0]}
-                        contentType={parsed.type}
-                        size="sm"
-                      />
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
+                      <div className={styles.versionRow__date}>
+                        {new Date(selectedVersion.date_published).toLocaleDateString()}
+                      </div>
+                      {primaryFile && selectedInstance && (
+                        <InstallButton
+                          contentSlug={project.slug}
+                          contentTitle={`${project.title} ${selectedVersion.version_number}`}
+                          instanceId={selectedInstance}
+                          gameVersion={selectedVersion.game_versions[0]}
+                          loader={selectedVersion.loaders[0]}
+                          contentType={parsed.type}
+                          size="sm"
+                        />
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

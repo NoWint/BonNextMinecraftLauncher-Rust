@@ -124,10 +124,10 @@ export default function InstanceDetailPage() {
     setExporting(true);
     try {
       const gameDir = await api.getGameDir();
-      const defaultName = `${instance.name.replace(/[^a-zA-Z0-9_-]/g, '_')}_${instance.version_id}.zip`;
-      const outputPath = `${gameDir}/${defaultName}`;
-      await api.exportInstance(instance.id, outputPath);
-      addToast({ type: 'success', title: 'Exported', message: `Saved to ${defaultName}` });
+      const safeName = instance.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const outputPath = `${gameDir}/${safeName}_${instance.version_id}.mrpack`;
+      await api.exportMrpack(instance.id, outputPath);
+      addToast({ type: 'success', title: 'Exported', message: `${safeName}.mrpack saved` });
     } catch (e: any) {
       addToast({ type: 'error', title: 'Export failed', message: e?.toString() || 'Failed to export' });
     } finally {
@@ -193,8 +193,11 @@ export default function InstanceDetailPage() {
           <Tooltip content={t('common.launch')}>
             <Button variant="primary" size="md" onClick={handleLaunch}>▶ {t('instanceDetail.launch')}</Button>
           </Tooltip>
-          <Tooltip content={t('instances.export')}>
-            <Button variant="secondary" size="sm" onClick={handleDuplicate}>📋 {t('instanceDetail.exportInstance')}</Button>
+          <Tooltip content="Export as .mrpack modpack">
+            <Button variant="secondary" size="sm" onClick={handleExport} disabled={exporting}>📤 {exporting ? 'Exporting...' : 'Export'}</Button>
+          </Tooltip>
+          <Tooltip content="Duplicate this instance">
+            <Button variant="secondary" size="sm" onClick={handleDuplicate}>📋 Duplicate</Button>
           </Tooltip>
           <Tooltip content={t('instanceDetail.delete')}>
             <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>{t('instanceDetail.delete')}</Button>
