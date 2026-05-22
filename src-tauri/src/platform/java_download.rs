@@ -1,7 +1,74 @@
 #![allow(dead_code)]
 use crate::error::LauncherError;
 use crate::platform::paths;
+use serde::Serialize;
 use std::path::{Path, PathBuf};
+
+/// A JRE release entry from the Adoptium API.
+#[derive(Debug, Clone, Serialize)]
+pub struct JreRelease {
+    pub major_version: u32,
+    pub os: String,
+    pub arch: String,
+    pub image_type: String,
+    pub download_url: String,
+    pub size_mb: f64,
+}
+
+/// Check if a compatible JRE is already downloaded for the given major version.
+pub fn find_downloaded_jre(major_version: u32) -> Option<PathBuf> {
+    let target_dir = paths::get_game_dir()
+        .join("java")
+        .join(major_version.to_string());
+    let java_exe = java_executable_path(&target_dir);
+    if java_exe.exists() {
+        tracing::info!("Found downloaded JRE {}: {}", major_version, java_exe.display());
+        Some(java_exe)
+    } else {
+        None
+    }
+}
+
+/// Get available JRE versions from Adoptium for current OS/arch.
+pub async fn fetch_available_jres(major_version: u32) -> Result<Vec<JreRelease>, LauncherError> {
+    let api_url = format!(
+        "https://api.adoptium.net/v3/assets/latest/{}/hotspot",
+        major_version
+    );
+    let client = crate::http_client::build_client();
+    let json: Vec<serde_json::Value> = client
+        .get(&api_url)
+        .send().await?.error_for_status()?
+        .json().await?;
+
+    let target_os = current_os_name();
+    let target_arch = current_arch_name();
+    let mut releases = Vec::new();
+
+    for entry in &json {
+        let binary = entry.get("binary").and_then(|b| b.as_object());
+        let package = entry.get("binary").and_then(|b| b.get("package")).and_then(|p| p.as_object());
+        if let (Some(binary), Some(package)) = (binary, package) {
+            let os = binary.get("os").and_then(|v| v.as_str()).unwrap_or("");
+            let arch = binary.get("architecture").and_then(|v| v.as_str()).unwrap_or("");
+            let image_type = binary.get("image_type").and_then(|v| v.as_str()).unwrap_or("");
+            let size = package.get("size").and_then(|v| v.as_u64()).unwrap_or(0) as f64 / 1_048_576.0;
+            let url = package.get("link").and_then(|v| v.as_str()).unwrap_or("");
+
+            if os == target_os && arch == target_arch && !url.is_empty() {
+                releases.push(JreRelease {
+                    major_version,
+                    os: os.to_string(),
+                    arch: arch.to_string(),
+                    image_type: image_type.to_string(),
+                    download_url: url.to_string(),
+                    size_mb: size,
+                });
+            }
+        }
+    }
+    Ok(releases)
+}
 
 /// Download and extract an Adoptium JDK for the current platform.
 ///
@@ -9,8 +76,17 @@ use std::path::{Path, PathBuf};
 /// OS and architecture, downloads it, and extracts it to
 /// `{game_dir}/java/{version}/`.
 ///
+/// The `on_progress` callback receives (downloaded_bytes, total_bytes).
 /// Returns the path to the java executable.
 pub async fn download_java(java_version: u32) -> Result<String, LauncherError> {
+    download_java_with_progress(java_version, |_, _| {}).await
+}
+
+/// Same as download_java but with a progress callback.
+pub async fn download_java_with_progress(
+    java_version: u32,
+    on_progress: impl Fn(u64, u64) + Send + 'static,
+) -> Result<String, LauncherError> {
     let target_dir = paths::get_game_dir()
         .join("java")
         .join(java_version.to_string());
@@ -46,7 +122,7 @@ pub async fn download_java(java_version: u32) -> Result<String, LauncherError> {
         .unwrap_or("jdk.archive");
     let archive_path = temp_dir.path().join(archive_name);
 
-    download_file(&download_url, &archive_path).await?;
+    download_file(&download_url, &archive_path, &on_progress).await?;
 
     tracing::info!("Extracting Java {} to {}", java_version, target_dir.display());
 
@@ -288,8 +364,12 @@ fn find_java_recursive(dir: &Path, max_depth: u32) -> Result<PathBuf, std::io::E
     ))
 }
 
-/// Download a file from a URL to a local path, with progress logging.
-async fn download_file(url: &str, dest: &Path) -> Result<(), LauncherError> {
+/// Download a file from a URL to a local path, with progress callback.
+async fn download_file(
+    url: &str,
+    dest: &Path,
+    on_progress: &(impl Fn(u64, u64) + Send + 'static),
+) -> Result<(), LauncherError> {
     let client = crate::http_client::build_download_client();
 
     let response = client
@@ -319,6 +399,9 @@ async fn download_file(url: &str, dest: &Path) -> Result<(), LauncherError> {
             .await
             .map_err(LauncherError::Io)?;
         downloaded += chunk.len() as u64;
+
+        // Report progress via callback
+        on_progress(downloaded, total_size);
 
         // Log progress every 10MB
         if downloaded % (10 * 1024 * 1024) < 1024 * 1024 {

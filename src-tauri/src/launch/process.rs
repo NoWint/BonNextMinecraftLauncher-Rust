@@ -4,6 +4,7 @@ use crate::instance;
 use crate::launch::args::{self, LaunchContext};
 use crate::launch::state::LaunchState;
 use std::io::Read;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tauri::Emitter;
 
@@ -39,12 +40,48 @@ pub fn with_instance_id(mut self, id: String) -> Self {
         Ok(())
     }
 
-    pub async fn launch(&self, ctx: LaunchContext) -> Result<(), LauncherError> {
+    pub async fn launch(&self, mut ctx: LaunchContext) -> Result<(), LauncherError> {
         self.set_state(LaunchState::Checking)?;
 
         let missing = self.check_files(&ctx);
         if !missing.is_empty() {
             tracing::warn!("Missing {} files: {:?}", missing.len(), missing.iter().take(5).collect::<Vec<_>>());
+        }
+
+        // Auto-download JRE if system Java is missing or too old
+        let required_java = ctx.version.java_version.major_version;
+        let current_java_ver = platform::java::check_java_version(&ctx.java_path);
+        let need_jre = current_java_ver.map_or(true, |v| v < required_java);
+
+        if need_jre {
+            tracing::info!(
+                "Java {} required, current: {:?}. Checking for downloaded JRE...",
+                required_java, current_java_ver
+            );
+
+            // First check if we already downloaded a compatible JRE
+            if let Some(cached_java) = platform::java_download::find_downloaded_jre(required_java) {
+                tracing::info!("Using cached JRE: {}", cached_java.display());
+                ctx.java_path = cached_java;
+            } else {
+                // Download JRE with progress
+                tracing::info!("Downloading Adoptium JRE {} ...", required_java);
+                let app = self.app_handle.clone();
+                let java_path = platform::java_download::download_java_with_progress(
+                    required_java,
+                    move |downloaded, total| {
+                        if let Some(ref app) = app {
+                            let _ = app.emit("jre-download-progress", serde_json::json!({
+                                "downloaded": downloaded,
+                                "total": total,
+                                "version": required_java,
+                            }));
+                        }
+                    },
+                ).await?;
+                ctx.java_path = PathBuf::from(java_path);
+            }
+            tracing::info!("Using Java: {}", ctx.java_path.display());
         }
 
         self.set_state(LaunchState::Launching)?;

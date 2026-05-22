@@ -75,6 +75,19 @@ async fn check_java_version(java_path: String) -> Result<Option<u32>, LauncherEr
 }
 
 #[tauri::command]
+async fn check_jre_available(major_version: u32) -> Result<bool, LauncherError> {
+    // Check if a compatible JRE is already downloaded
+    if platform::java_download::find_downloaded_jre(major_version).is_some() {
+        return Ok(true);
+    }
+    // Also check if we can reach Adoptium API
+    match platform::java_download::fetch_available_jres(major_version).await {
+        Ok(releases) => Ok(!releases.is_empty()),
+        Err(_) => Ok(false),
+    }
+}
+
+#[tauri::command]
 async fn offline_login(username: String) -> Result<serde_json::Value, LauncherError> {
     let result = auth::offline::offline_login(&username)?;
     // Persist the account
@@ -475,6 +488,11 @@ async fn duplicate_instance(id: String, new_name: String) -> Result<GameInstance
 #[tauri::command]
 async fn export_instance(id: String, output_path: String) -> Result<(), LauncherError> {
     instance::manager::export_instance(&id, std::path::Path::new(&output_path))
+}
+
+#[tauri::command]
+async fn import_modpack(path: String) -> Result<GameInstance, LauncherError> {
+    instance::manager::import_modpack(&path).await
 }
 
 #[tauri::command]
@@ -1087,7 +1105,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_versions, get_launch_state, reset_launch_state,
             get_config, save_config,
-            find_java, check_java_version,
+            find_java, check_java_version, check_jre_available,
             offline_login, start_microsoft_auth, poll_microsoft_auth,
             list_accounts, get_active_account, set_active_account,
             remove_account, refresh_auth_token,
@@ -1095,7 +1113,7 @@ pub fn run() {
             get_game_dir, get_default_game_dir,
             list_instances, create_instance, delete_instance,
             update_instance, get_instance, duplicate_instance,
-            export_instance, check_instance_ready, open_folder,
+            export_instance, import_modpack, check_instance_ready, open_folder,
             parse_crash_report,
             get_loader_versions, install_loader,
             search_mods, get_popular_mods, get_mod_details,
