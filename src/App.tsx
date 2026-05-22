@@ -43,8 +43,8 @@ type Page =
 
 function getPageFromHash(): Page {
   const hash = window.location.hash.replace('#/', '').split('?')[0];
-  if (hash.startsWith('instances/') && hash.split('/')[1]) return 'instance_detail';
   if (hash === 'instances/new') return 'new_instance';
+  if (hash.startsWith('instances/') && hash.split('/')[1]) return 'instance_detail';
   if (hash === 'instances') return 'instances';
   if (hash.startsWith('store/') && hash.split('/').length >= 3) return 'content_detail';
   if (hash === 'store') return 'store';

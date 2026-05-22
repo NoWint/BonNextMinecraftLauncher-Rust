@@ -1,6 +1,9 @@
 use crate::error::LauncherError;
 use std::path::PathBuf;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 pub fn find_java() -> Result<PathBuf, LauncherError> {
     if let Some(custom) = find_custom_java() {
         return Ok(custom);
@@ -67,10 +70,16 @@ fn find_in_path() -> Option<PathBuf> {
         "java"
     };
 
-    let output = std::process::Command::new("which")
-        .arg(java_name)
-        .output()
-        .ok()?;
+    #[cfg(target_os = "windows")]
+    let (cmd, args) = ("where", vec![java_name]);
+    #[cfg(not(target_os = "windows"))]
+    let (cmd, args) = ("which", vec![java_name]);
+
+    let mut command = std::process::Command::new(cmd);
+    command.args(&args);
+    #[cfg(target_os = "windows")]
+    command.creation_flags(0x08000000);
+    let output = command.output().ok()?;
 
     if !output.status.success() {
         return None;
@@ -90,16 +99,17 @@ fn find_in_path() -> Option<PathBuf> {
 }
 
 fn find_windows_registry() -> Option<PathBuf> {
-    let output = std::process::Command::new("reg")
-        .args([
-            "query",
-            r"HKLM\SOFTWARE\JavaSoft\Java Runtime Environment",
-            "/s",
-            "/v",
-            "JavaHome",
-        ])
-        .output()
-        .ok()?;
+    let mut command = std::process::Command::new("reg");
+    command.args([
+        "query",
+        r"HKLM\SOFTWARE\JavaSoft\Java Runtime Environment",
+        "/s",
+        "/v",
+        "JavaHome",
+    ]);
+    #[cfg(target_os = "windows")]
+    command.creation_flags(0x08000000);
+    let output = command.output().ok()?;
 
     if !output.status.success() {
         return None;
@@ -157,10 +167,11 @@ fn find_macos_java() -> Option<PathBuf> {
 
 #[allow(clippy::ptr_arg)]
 pub fn check_java_version(java_path: &PathBuf) -> Option<u32> {
-    let output = std::process::Command::new(java_path.as_os_str())
-        .arg("-version")
-        .output()
-        .ok()?;
+    let mut command = std::process::Command::new(java_path.as_os_str());
+    command.arg("-version");
+    #[cfg(target_os = "windows")]
+    command.creation_flags(0x08000000);
+    let output = command.output().ok()?;
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     parse_java_version(&stderr)
