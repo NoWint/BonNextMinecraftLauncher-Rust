@@ -18,13 +18,13 @@
   outline: none;
   background: var(--color-panel-alt);
   border: 1px solid var(--color-border-light);
-  color: #555;
+  color: var(--color-text-muted);
   clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
   transition: all var(--transition-fast);
 
   &:hover:not(.page--active) {
-    color: #AAA;
-    border-color: #444;
+    color: var(--color-text-secondary);
+    border-color: var(--color-text-dim);
   }
 
   &:focus-visible {

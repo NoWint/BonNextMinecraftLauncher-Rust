@@ -15,8 +15,8 @@
   align-items: flex-start;
   gap: 10px;
   padding: 12px 16px;
-  background: #1A1A1A;
-  border: 1px solid #2A2A2A;
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border-light);
   clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
   pointer-events: all;
   animation: toastIn 0.3s var(--ease-out-expo) forwards;
@@ -38,7 +38,7 @@
 }
 
 .toast--warning {
-  border-left: 2px solid #FFA500;
+  border-left: 2px solid var(--color-accent);
 }
 
 .toast--exiting {
@@ -59,7 +59,7 @@
 .title {
   font-size: 0.65em;
   font-weight: 700;
-  color: #FFF;
+  color: var(--color-text);
   letter-spacing: 0.5px;
 }
 
@@ -75,7 +75,7 @@
   flex-shrink: 0;
   background: none;
   border: none;
-  color: #555;
+  color: var(--color-text-muted);
   cursor: pointer;
   font-size: 0.7em;
   padding: 0;
@@ -84,7 +84,7 @@
 }
 
 .close:hover {
-  color: #AAA;
+  color: var(--color-text-secondary);
 }
 
 @keyframes toastIn {

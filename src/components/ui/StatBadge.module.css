@@ -13,7 +13,7 @@
 
 .badge--accent {
   color: var(--color-accent);
-  background: rgba(255, 230, 0, 0.08);
+  background: var(--color-accent-06);
 }
 
 .badge__icon {

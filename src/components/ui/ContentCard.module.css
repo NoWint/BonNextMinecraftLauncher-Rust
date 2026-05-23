@@ -19,8 +19,8 @@
 .card--list {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
+  gap: 16px;
+  padding: 14px 18px;
 }
 
 .card--list .card__icon {
@@ -32,6 +32,18 @@
 .card--list .card__body {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+}
+
+.card--list .card__titleRow {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.card--list .card__title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card--list .card__desc {
@@ -42,6 +54,7 @@
 
 .card--list .card__actions {
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 /* Gallery variant */
@@ -52,11 +65,11 @@
 
 .card--gallery .card__icon {
   width: 100%;
-  height: 140px;
+  height: 130px;
 }
 
 .card--gallery .card__body {
-  padding: 10px 12px 12px;
+  padding: 16px 18px 18px;
 }
 
 .card--gallery .card__desc {
@@ -104,13 +117,13 @@
 .card__author {
   font-size: 0.65em;
   color: var(--color-text-dim);
-  margin-top: 3px;
+  margin-top: 5px;
 }
 
 .card__desc {
   font-size: 0.65em;
   color: var(--color-text-secondary);
-  margin-top: 5px;
+  margin-top: 6px;
   line-height: 1.5;
 }
 
@@ -118,7 +131,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 8px;
+  margin-top: 10px;
   flex-wrap: wrap;
 }
 

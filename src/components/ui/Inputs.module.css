@@ -68,7 +68,7 @@
     .toggle__thumb {
       left: 3px;
       right: auto;
-      background: #555;
+      background: var(--color-text-muted);
     }
   }
 

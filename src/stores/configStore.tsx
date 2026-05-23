@@ -4,18 +4,22 @@ import { api, type AppConfig } from '../api';
 interface ConfigState {
   config: AppConfig | null;
   loading: boolean;
+  error: string;
 }
 
 type ConfigAction =
   | { type: 'SET_CONFIG'; config: AppConfig }
-  | { type: 'SET_LOADING'; loading: boolean };
+  | { type: 'SET_LOADING'; loading: boolean }
+  | { type: 'SET_ERROR'; error: string };
 
 function configReducer(state: ConfigState, action: ConfigAction): ConfigState {
   switch (action.type) {
     case 'SET_CONFIG':
-      return { ...state, config: action.config, loading: false };
+      return { ...state, config: action.config, loading: false, error: '' };
     case 'SET_LOADING':
       return { ...state, loading: action.loading };
+    case 'SET_ERROR':
+      return { ...state, error: action.error, loading: false };
     default:
       return state;
   }
@@ -28,21 +32,32 @@ const ConfigContext = createContext<{
 } | null>(null);
 
 export function ConfigProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(configReducer, { config: null, loading: true });
+  const [state, dispatch] = useReducer(configReducer, { config: null, loading: true, error: '' });
 
   const reloadConfig = useCallback(async () => {
     try {
       const c = await api.getConfig();
       dispatch({ type: 'SET_CONFIG', config: c });
-    } catch { dispatch({ type: 'SET_LOADING', loading: false }); }
+    } catch (e) {
+      dispatch({ type: 'SET_LOADING', loading: false });
+      dispatch({ type: 'SET_ERROR', error: e instanceof Error ? e.message : 'Failed to load config' });
+    }
   }, []);
 
   useEffect(() => { reloadConfig(); }, [reloadConfig]);
 
   const saveConfig = useCallback(async (config: AppConfig) => {
-    await api.saveConfig(config);
+    const previousConfig = state.config;
     dispatch({ type: 'SET_CONFIG', config });
-  }, []);
+    try {
+      await api.saveConfig(config);
+    } catch (e) {
+      if (previousConfig) {
+        dispatch({ type: 'SET_CONFIG', config: previousConfig });
+      }
+      dispatch({ type: 'SET_ERROR', error: e instanceof Error ? e.message : 'Failed to save config' });
+    }
+  }, [state.config]);
 
   return (
     <ConfigContext.Provider value={{ state, saveConfig, reloadConfig }}>

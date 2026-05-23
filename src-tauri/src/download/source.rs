@@ -174,8 +174,7 @@ pub fn version_manifest_url() -> String {
     }
 
     /// Try all sources for a URL, returning all possible URL variants
-    #[allow(dead_code)]
-pub fn transform_with_fallback(original: &str) -> Vec<(String, String)> {
+    pub fn transform_with_fallback(original: &str) -> Vec<(String, String)> {
         let mgr = source_manager().read().unwrap();
         let mut results = Vec::new();
         results.push((

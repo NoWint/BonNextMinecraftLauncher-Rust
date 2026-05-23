@@ -4,6 +4,9 @@ use std::path::PathBuf;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
 pub fn find_java() -> Result<PathBuf, LauncherError> {
     if let Some(custom) = find_custom_java() {
         return Ok(custom);
@@ -13,7 +16,15 @@ pub fn find_java() -> Result<PathBuf, LauncherError> {
         return Ok(java_home);
     }
 
-    if cfg!(target_os = "macos") {
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(java) = find_linux_java() {
+            return Ok(java);
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
         if let Some(java) = find_macos_java() {
             return Ok(java);
         }
@@ -23,7 +34,8 @@ pub fn find_java() -> Result<PathBuf, LauncherError> {
         return Ok(path_java);
     }
 
-    if cfg!(target_os = "windows") {
+    #[cfg(target_os = "windows")]
+    {
         if let Some(java) = find_windows_registry() {
             return Ok(java);
         }
@@ -38,7 +50,12 @@ fn find_custom_java() -> Option<PathBuf> {
     if java_path.is_empty() {
         return None;
     }
-    let path = PathBuf::from(&java_path);
+    let cleaned = java_path
+        .trim_matches('"')
+        .trim_matches('\'')
+        .trim_end_matches(std::path::is_separator)
+        .to_string();
+    let path = PathBuf::from(&cleaned);
     if path.exists() {
         Some(path)
     } else {
@@ -47,12 +64,22 @@ fn find_custom_java() -> Option<PathBuf> {
 }
 
 fn find_java_home() -> Option<PathBuf> {
-    let java_home = std::env::var("JAVA_HOME").ok()?;
+    let raw = std::env::var("JAVA_HOME").ok()?;
+    let java_home = raw
+        .trim_matches('"')
+        .trim_matches('\'')
+        .trim_end_matches(std::path::is_separator)
+        .to_string();
     if java_home.is_empty() {
         return None;
     }
     let java = if cfg!(target_os = "windows") {
-        PathBuf::from(&java_home).join("bin").join("javaw.exe")
+        let javaw = PathBuf::from(&java_home).join("bin").join("javaw.exe");
+        if javaw.exists() {
+            javaw
+        } else {
+            PathBuf::from(&java_home).join("bin").join("java.exe")
+        }
     } else {
         PathBuf::from(&java_home).join("bin").join("java")
     };
@@ -71,33 +98,35 @@ fn find_in_path() -> Option<PathBuf> {
     };
 
     #[cfg(target_os = "windows")]
-    let (cmd, args) = ("where", vec![java_name]);
+    {
+        let path_var = std::env::var("PATH").ok()?;
+        for dir in path_var.split(';') {
+            let candidate = PathBuf::from(dir).join(java_name);
+            if candidate.exists() {
+                return Some(candidate);
+            }
+            let fallback = PathBuf::from(dir).join("java.exe");
+            if fallback.exists() {
+                return Some(fallback);
+            }
+        }
+        None
+    }
+
     #[cfg(not(target_os = "windows"))]
-    let (cmd, args) = ("which", vec![java_name]);
-
-    let mut command = std::process::Command::new(cmd);
-    command.args(&args);
-    #[cfg(target_os = "windows")]
-    command.creation_flags(0x08000000);
-    let output = command.output().ok()?;
-
-    if !output.status.success() {
-        return None;
-    }
-
-    let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if path_str.is_empty() {
-        return None;
-    }
-
-    let path = PathBuf::from(&path_str);
-    if path.exists() {
-        Some(path)
-    } else {
+    {
+        let path_var = std::env::var("PATH").ok()?;
+        for dir in path_var.split(':') {
+            let candidate = PathBuf::from(dir).join(java_name);
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
         None
     }
 }
 
+#[cfg(target_os = "windows")]
 fn find_windows_registry() -> Option<PathBuf> {
     let mut command = std::process::Command::new("reg");
     command.args([
@@ -107,8 +136,7 @@ fn find_windows_registry() -> Option<PathBuf> {
         "/v",
         "JavaHome",
     ]);
-    #[cfg(target_os = "windows")]
-    command.creation_flags(0x08000000);
+    command.creation_flags(CREATE_NO_WINDOW);
     let output = command.output().ok()?;
 
     if !output.status.success() {
@@ -120,9 +148,13 @@ fn find_windows_registry() -> Option<PathBuf> {
         if let Some(idx) = line.find("JavaHome") {
             if let Some(val) = line[idx..].split("REG_SZ").nth(1) {
                 let java_home = val.trim();
-                let java = PathBuf::from(java_home).join("bin").join("javaw.exe");
-                if java.exists() {
-                    return Some(java);
+                let javaw = PathBuf::from(java_home).join("bin").join("javaw.exe");
+                if javaw.exists() {
+                    return Some(javaw);
+                }
+                let java_exe = PathBuf::from(java_home).join("bin").join("java.exe");
+                if java_exe.exists() {
+                    return Some(java_exe);
                 }
             }
         }
@@ -131,8 +163,39 @@ fn find_windows_registry() -> Option<PathBuf> {
     None
 }
 
+#[cfg(target_os = "linux")]
+fn find_linux_java() -> Option<PathBuf> {
+    let search_paths: &[&str] = &[
+        "/usr/lib/jvm/default/bin/java",
+        "/usr/lib/jvm/default-jdk/bin/java",
+        "/usr/lib/jvm/java-21-openjdk-amd64/bin/java",
+        "/usr/lib/jvm/java-17-openjdk-amd64/bin/java",
+        "/usr/lib/jvm/java-21-openjdk-arm64/bin/java",
+        "/usr/lib/jvm/java-17-openjdk-arm64/bin/java",
+        "/usr/lib/jvm/java-11-openjdk-amd64/bin/java",
+        "/usr/lib/jvm/java-8-openjdk-amd64/bin/java",
+        "/usr/local/lib/jvm/bin/java",
+    ];
+    for path_str in search_paths {
+        let p = PathBuf::from(path_str);
+        if p.exists() {
+            return Some(p);
+        }
+    }
+    if let Ok(entries) = std::fs::read_dir("/usr/lib/jvm") {
+        for entry in entries.flatten() {
+            let java = entry.path().join("bin").join("java");
+            if java.exists() {
+                return Some(java);
+            }
+        }
+    }
+    None
+}
+
+#[cfg(target_os = "macos")]
 fn find_macos_java() -> Option<PathBuf> {
-    for major in [21, 17, 21, 18, 19, 20, 22, 23, 24, 25] {
+    for major in [21, 17, 11, 8, 18, 19, 20, 22, 23, 24, 25] {
         let output = std::process::Command::new("/usr/libexec/java_home")
             .arg("-v")
             .arg(major.to_string())
@@ -170,7 +233,7 @@ pub fn check_java_version(java_path: &PathBuf) -> Option<u32> {
     let mut command = std::process::Command::new(java_path.as_os_str());
     command.arg("-version");
     #[cfg(target_os = "windows")]
-    command.creation_flags(0x08000000);
+    command.creation_flags(CREATE_NO_WINDOW);
     let output = command.output().ok()?;
 
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -190,4 +253,44 @@ fn parse_java_version(version_output: &str) -> Option<u32> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_java_version_modern() {
+        assert_eq!(parse_java_version("openjdk version \"21.0.1\" 2023-10-17"), Some(21));
+        assert_eq!(parse_java_version("openjdk version \"17.0.9\" 2023-10-17"), Some(17));
+    }
+
+    #[test]
+    fn test_parse_java_version_legacy() {
+        assert_eq!(parse_java_version("java version \"1.8.0_392\""), Some(8));
+        assert_eq!(parse_java_version("java version \"1.11.0_20\""), Some(11));
+    }
+
+    #[test]
+    fn test_parse_java_version_invalid() {
+        assert_eq!(parse_java_version("not a version string"), None);
+        assert_eq!(parse_java_version(""), None);
+    }
+
+    #[test]
+    fn test_java_home_cleaning() {
+        let cases = vec![
+            ("\"C:\\Program Files\\Java\\jdk-21\"", "C:\\Program Files\\Java\\jdk-21"),
+            ("'/usr/lib/jvm/java-21'", "/usr/lib/jvm/java-21"),
+            ("/usr/lib/jvm/java-21/", "/usr/lib/jvm/java-21"),
+        ];
+        for (input, expected) in cases {
+            let cleaned = input
+                .trim_matches('"')
+                .trim_matches('\'')
+                .trim_end_matches(std::path::is_separator)
+                .to_string();
+            assert_eq!(cleaned, expected, "Failed for input: {:?}", input);
+        }
+    }
 }

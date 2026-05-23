@@ -101,61 +101,65 @@ impl DownloadQueue {
             return Ok(());
         }
 
-        let transformed_url = source::transform_url(&task.url);
-
+        let fallback_urls = source::SourceManager::transform_with_fallback(&task.url);
         let mut last_error: Option<String> = None;
 
-        for attempt in 0..=MAX_RETRIES {
-            if attempt > 0 {
-                let delay = RETRY_BASE_DELAY_MS * 2u64.pow(attempt - 1);
-                tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
-                tracing::warn!(
-                    "Retrying download (attempt {}/{}): {}",
-                    attempt,
-                    MAX_RETRIES,
-                    transformed_url
-                );
-            }
-
-            match self.do_download(&transformed_url, &task.target_path, task.size).await {
-                Ok(downloaded) => {
-                    if !task.sha1.is_empty() {
-                        if let Err(e) = verifier::verify_file_sha1(&task.target_path, &task.sha1) {
-                            tracing::error!("SHA1 verification failed: {}", e);
-                            let _ = std::fs::remove_file(&task.target_path);
-                            last_error = Some(e.to_string());
-                            continue;
-                        }
-                    }
-
-                    self.emit_progress(DownloadProgress {
-                        url: task.url.clone(),
-                        downloaded,
-                        total: task.size,
-                        finished: true,
-                        error: None,
-                        bytes_per_second: 0,
-                        eta_seconds: 0,
-                    });
-                    return Ok(());
-                }
-                Err(e) => {
-                    last_error = Some(e.to_string());
-                    tracing::error!(
-                        "Download failed (attempt {}/{}): {} - {}",
-                        attempt + 1,
-                        MAX_RETRIES + 1,
-                        transformed_url,
-                        e
+        for (source_name, transformed_url) in &fallback_urls {
+            for attempt in 0..=MAX_RETRIES {
+                if attempt > 0 {
+                    let delay = RETRY_BASE_DELAY_MS * 2u64.pow(attempt - 1);
+                    tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
+                    tracing::warn!(
+                        "Retrying download (attempt {}/{}): {}",
+                        attempt,
+                        MAX_RETRIES,
+                        transformed_url
                     );
                 }
+
+                match self.do_download(transformed_url, &task.target_path, task.size).await {
+                    Ok(downloaded) => {
+                        if !task.sha1.is_empty() {
+                            if let Err(e) = verifier::verify_file_sha1(&task.target_path, &task.sha1) {
+                                tracing::error!("SHA1 verification failed: {}", e);
+                                let _ = std::fs::remove_file(&task.target_path);
+                                last_error = Some(e.to_string());
+                                continue;
+                            }
+                        }
+
+                        self.emit_progress(DownloadProgress {
+                            url: task.url.clone(),
+                            downloaded,
+                            total: task.size,
+                            finished: true,
+                            error: None,
+                            bytes_per_second: 0,
+                            eta_seconds: 0,
+                        });
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        last_error = Some(e.to_string());
+                        tracing::error!(
+                            "Download failed via {} (attempt {}/{}): {} - {}",
+                            source_name,
+                            attempt + 1,
+                            MAX_RETRIES + 1,
+                            transformed_url,
+                            e
+                        );
+                    }
+                }
             }
+
+            tracing::warn!("Source {} exhausted, trying next source...", source_name);
         }
 
         let _ = std::fs::remove_file(&task.target_path);
 
         Err(LauncherError::DownloadFailed(
-            last_error.unwrap_or_else(|| "unknown error".to_string()),
+            last_error.unwrap_or_else(|| "all sources failed".to_string()),
         ))
     }
 

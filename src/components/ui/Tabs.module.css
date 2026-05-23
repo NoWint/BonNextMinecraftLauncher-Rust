@@ -8,7 +8,7 @@
   padding: 8px 18px;
   font-size: 0.65em;
   font-weight: 600;
-  color: #555;
+  color: var(--color-text-muted);
   cursor: pointer;
   border: none;
   background: none;
@@ -19,7 +19,7 @@
   outline: none;
 
   &:hover {
-    color: #888;
+    color: var(--color-text-tertiary);
   }
 
   &:focus-visible {

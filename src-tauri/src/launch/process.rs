@@ -5,7 +5,8 @@ use crate::launch::args::{self, LaunchContext};
 use crate::launch::state::LaunchState;
 use std::io::Read;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 use tauri::Emitter;
 
 pub struct LaunchProcess {
@@ -24,14 +25,13 @@ pub fn new(state: Arc<Mutex<LaunchState>>) -> Self {
         LaunchProcess { state, app_handle: Some(app), instance_id: None }
     }
 
-    #[allow(dead_code)]
-pub fn with_instance_id(mut self, id: String) -> Self {
+    pub fn with_instance_id(mut self, id: String) -> Self {
         self.instance_id = Some(id);
         self
     }
 
     pub fn set_state(&self, new_state: LaunchState) -> Result<(), LauncherError> {
-        let mut current = self.state.lock().unwrap();
+        let mut current = self.state.lock();
         if !current.can_transition_to(new_state) {
             tracing::warn!("Non-standard state transition: {:?} -> {:?}", *current, new_state);
         }
@@ -179,7 +179,7 @@ pub fn with_instance_id(mut self, id: String) -> Self {
             let elapsed = launch_instant.elapsed().as_secs();
             match output {
                 Ok(status) => {
-                    let mut state = state_clone.lock().unwrap();
+                    let mut state = state_clone.lock();
                     if status.success() {
                         tracing::info!("Game exited normally after {}s", elapsed);
                         *state = LaunchState::Exited;
@@ -188,7 +188,6 @@ pub fn with_instance_id(mut self, id: String) -> Self {
                         tracing::error!("Game crashed with exit code: {} after {}s", code, elapsed);
                         *state = LaunchState::Crashed;
                     }
-                    // Record playtime on exit or crash
                     drop(state);
                     if let Some(ref iid) = instance_id_for_exit {
                         if elapsed > 0 {
@@ -200,7 +199,7 @@ pub fn with_instance_id(mut self, id: String) -> Self {
                 }
                 Err(e) => {
                     tracing::error!("Failed to wait for game process: {}", e);
-                    let mut state = state_clone.lock().unwrap();
+                    let mut state = state_clone.lock();
                     *state = LaunchState::Error;
                 }
             }

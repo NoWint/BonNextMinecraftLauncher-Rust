@@ -15,14 +15,20 @@ html, body, #root {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-body);
-  font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
 }
 
 ::selection {
-  background: rgba(255, 230, 0, 0.3);
-  color: #FFF;
+  background: var(--selection-bg);
+  color: var(--selection-color);
 }
 
 ::-webkit-scrollbar {
@@ -34,12 +40,12 @@ html, body, #root {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border-light);
+  background: var(--scrollbar-thumb-color);
   border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-muted);
+  background: var(--scrollbar-thumb-hover);
 }
 
 .noise-overlay {
@@ -78,6 +84,11 @@ html, body, #root {
   to   { background-position: 0 10px; }
 }
 
+.theme-light .noise-overlay,
+.theme-light .scanline-overlay {
+  display: none;
+}
+
 .app-layout {
   display: flex;
   height: 100%;
@@ -107,7 +118,7 @@ html, body, #root {
 
 .decorative-rect {
   position: absolute;
-  border: 1px solid rgba(255, 230, 0, 0.03);
+  border: 1px solid var(--color-accent-15);
   pointer-events: none;
   z-index: 0;
 }
@@ -125,7 +136,7 @@ html, body, #root {
   left: 120px;
   width: 200px;
   height: 200px;
-  border-color: rgba(255, 255, 255, 0.02);
+  border-color: var(--color-accent-15);
   transform: rotate(-8deg);
 }
 

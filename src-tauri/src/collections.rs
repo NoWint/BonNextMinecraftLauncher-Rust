@@ -1,11 +1,13 @@
 #![allow(dead_code)]
-//! User content collections (wishlist/saved items).
-//! Persisted as JSON in the game directory.
-
 use crate::error::LauncherError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use parking_lot::Mutex;
+
+lazy_static::lazy_static! {
+    static ref COLLECTION_LOCK: Mutex<()> = Mutex::new(());
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
@@ -21,7 +23,7 @@ pub struct CollectionItem {
     pub added_at: String,
 }
 
-type CollectionMap = HashMap<String, CollectionItem>; // key = slug
+type CollectionMap = HashMap<String, CollectionItem>;
 
 fn get_collections_path() -> PathBuf {
     crate::platform::paths::get_game_dir().join("collections.json")
@@ -56,6 +58,7 @@ pub fn add_item(
     downloads: u64,
     categories: Vec<String>,
 ) -> Result<(), LauncherError> {
+    let _lock = COLLECTION_LOCK.lock();
     let mut map = load()?;
     map.insert(
         slug.to_string(),
@@ -75,6 +78,7 @@ pub fn add_item(
 }
 
 pub fn remove_item(slug: &str) -> Result<(), LauncherError> {
+    let _lock = COLLECTION_LOCK.lock();
     let mut map = load()?;
     map.remove(slug);
     save(&map)

@@ -7,7 +7,7 @@
 .crumb {
   font-size: 0.6em;
   font-weight: 600;
-  color: #555;
+  color: var(--color-text-muted);
   cursor: pointer;
   border: none;
   background: none;
@@ -16,7 +16,7 @@
   transition: color var(--transition-fast);
 
   &:hover {
-    color: #AAA;
+    color: var(--color-text-secondary);
   }
 
   &:focus-visible {
@@ -37,6 +37,6 @@
 
 .separator {
   font-size: 0.45em;
-  color: #333;
+  color: var(--color-text-dim);
   user-select: none;
 }

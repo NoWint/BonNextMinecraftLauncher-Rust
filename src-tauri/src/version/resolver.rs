@@ -263,15 +263,28 @@ impl ResolvedVersion {
                                 _ if cfg!(target_os = "windows") =>
                                     lib.natives.get("windows")
                                         .or_else(|| lib.natives.get("natives-windows"))
+                                        .or_else(|| {
+                                            if cfg!(target_arch = "aarch64") { lib.natives.get("natives-windows-arm64") } else { None }
+                                        })
                                         .cloned()
                                         .unwrap_or_else(|| "natives-windows".to_string()),
                                 _ if cfg!(target_os = "macos") =>
                                     lib.natives.get("osx")
                                         .or_else(|| lib.natives.get("macos"))
+                                        .or_else(|| {
+                                            if cfg!(target_arch = "aarch64") { lib.natives.get("natives-macos-arm64") } else { None }
+                                        })
                                         .cloned()
                                         .unwrap_or_else(|| "natives-macos".to_string()),
                                 _ =>
                                     lib.natives.get("linux")
+                                        .or_else(|| lib.natives.get("natives-linux"))
+                                        .or_else(|| {
+                                            if cfg!(target_arch = "aarch64") { lib.natives.get("natives-linux-arm64") } else { None }
+                                        })
+                                        .or_else(|| {
+                                            if cfg!(target_arch = "arm") { lib.natives.get("natives-linux-arm32") } else { None }
+                                        })
                                         .cloned()
                                         .unwrap_or_else(|| "natives-linux".to_string()),
                             };

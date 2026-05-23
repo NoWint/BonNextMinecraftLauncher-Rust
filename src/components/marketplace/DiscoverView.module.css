@@ -1,12 +1,18 @@
-.page {
+.view {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  height: 100%;
   overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
-/* Featured banner */
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .banner {
   position: relative;
   height: 220px;
@@ -109,20 +115,6 @@
   background: var(--color-accent);
 }
 
-/* Category grid */
-.categories {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
-@media (max-width: 800px) {
-  .categories {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* Scrollable rows */
 .row {
   display: flex;
   flex-direction: column;
@@ -146,11 +138,4 @@
   min-width: 280px;
   max-width: 320px;
   flex-shrink: 0;
-}
-
-/* Loading */
-.loadingGrid {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }

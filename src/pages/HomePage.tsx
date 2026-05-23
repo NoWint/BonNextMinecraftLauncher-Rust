@@ -133,28 +133,32 @@ function InstanceCard({
 
 function PlayArea({
   instance,
+  instances,
   isBusy,
   launchState,
   javaVersion,
   sysInfo,
   onLaunch,
   onReset,
+  onSelectInstance,
   t,
 }: {
   instance: GameInstance | null;
+  instances: GameInstance[];
   isBusy: boolean;
   launchState: LaunchState;
   javaVersion: number | null;
   sysInfo: SystemInfo | null;
   onLaunch: () => void;
   onReset: () => void;
+  onSelectInstance: (inst: GameInstance) => void;
   t: (key: string) => string;
 }) {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [showCountdown, setShowCountdown] = useState(false);
+  const [showInstanceSwitcher, setShowInstanceSwitcher] = useState(false);
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Clean up countdown timer
   useEffect(() => {
     return () => {
       if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
@@ -179,7 +183,7 @@ function PlayArea({
       return;
     }
     if (!isBusy && instance) {
-      // Start countdown animation, then launch
+      setShowInstanceSwitcher(false);
       setShowCountdown(true);
       setCountdown(3);
       let tick = 3;
@@ -198,6 +202,11 @@ function PlayArea({
     }
   };
 
+  const handleInstanceSwitch = (inst: GameInstance) => {
+    onSelectInstance(inst);
+    setShowInstanceSwitcher(false);
+  };
+
   return (
     <div className={styles.playArea}>
       <div
@@ -209,7 +218,6 @@ function PlayArea({
         <div className={styles.playArea__inner} />
         <div className={styles.playArea__decorLine} />
 
-        {/* Countdown ring animation */}
         {showCountdown && (
           <div className={styles.countdownRing}>
             <div className={styles.countdownRingInner} />
@@ -236,7 +244,21 @@ function PlayArea({
 
           {instance ? (
             <div className={styles.playArea__instanceInfo}>
-              <div className={styles.playArea__version}>{instance.version_id}</div>
+              <div className={styles.playArea__instanceRow}>
+                <div className={styles.playArea__version}>{instance.version_id}</div>
+                {instances.length > 1 && !isBusy && !showCountdown && (
+                  <button
+                    className={styles.playArea__switchBtn}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowInstanceSwitcher((v) => !v);
+                    }}
+                    title="Switch instance"
+                  >
+                    ▾
+                  </button>
+                )}
+              </div>
               <div className={styles.playArea__details}>
                 {instance.loader_type ? `${getLoaderLabel(instance.loader_type)} . ` : ''}{Math.round(instance.max_memory / 1024)}GB
               </div>
@@ -252,6 +274,22 @@ function PlayArea({
             </span>
           </div>
         </div>
+
+        {showInstanceSwitcher && instances.length > 1 && (
+          <div className={styles.instanceSwitcher} onClick={(e) => e.stopPropagation()}>
+            {instances.map((inst) => (
+              <button
+                key={inst.id}
+                className={`${styles.instanceSwitcher__item} ${inst.id === instance?.id ? styles['instanceSwitcher__item--active'] : ''}`}
+                onClick={() => handleInstanceSwitch(inst)}
+              >
+                <span className={styles.instanceSwitcher__icon}>{getLoaderIcon(inst.loader_type)}</span>
+                <span className={styles.instanceSwitcher__name}>{inst.name}</span>
+                <span className={styles.instanceSwitcher__version}>{inst.version_id}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className={styles.quickStats}>
@@ -297,6 +335,7 @@ export default function HomePage() {
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
   const [showConsole, setShowConsole] = useState(false);
+  const [instanceCoverImage, setInstanceCoverImage] = useState<string | null>(null);
   const activeInstance = instances.find((i) => i.id === selectedInstanceId)
     || (instances.length > 0 ? instances[0] : null);
   const isBusy = launchState !== 'idle' && launchState !== 'exited' && launchState !== 'crashed' && launchState !== 'error';
@@ -341,6 +380,14 @@ export default function HomePage() {
     api.getSystemInfo().then(setSysInfo).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (activeInstance) {
+      api.getInstanceCoverImage(activeInstance.id).then(setInstanceCoverImage).catch(() => setInstanceCoverImage(null));
+    } else {
+      setInstanceCoverImage(null);
+    }
+  }, [activeInstance]);
+
   // Rotate news items
   useEffect(() => {
     const timer = setInterval(() => setNewsIndex((i) => (i + 1) % NEWS_ITEMS.length), 5000);
@@ -349,7 +396,8 @@ export default function HomePage() {
 
   // Rotate banner carousel
   useEffect(() => {
-    const timer = setInterval(() => setBannerIndex((i) => (i + 1) % BANNER_SLIDES.length), 6000);
+    const total = BANNER_SLIDES.length + 1;
+    const timer = setInterval(() => setBannerIndex((i) => (i + 1) % total), 6000);
     return () => clearInterval(timer);
   }, []);
 
@@ -361,6 +409,7 @@ export default function HomePage() {
         auth?.username || 'Player', auth?.uuid || '',
         auth?.access_token || '', instance.max_memory, instance.min_memory,
         instance.java_path || undefined, instance.jvm_args || undefined,
+        instance.id,
       );
       addToast({ type: 'success', title: 'Game launched', message: `${instance.name} is starting...` });
     } catch (e: any) {
@@ -408,6 +457,39 @@ export default function HomePage() {
       {/* Banner carousel */}
       <div className={styles.bannerCarousel}>
         <div className={styles.bannerTrack} style={{ transform: `translateX(-${bannerIndex * 100}%)` }}>
+          {/* First slide: instance cover */}
+          <div className={`${styles.bannerSlide} ${styles['bannerSlide--instance']}`}>
+            <div className={styles.bannerAccent} />
+            <div className={styles.bannerSlide__leftContent}>
+              <div className={styles.bannerLabel}>
+                {activeInstance ? (activeInstance.loader_type ? getLoaderLabel(activeInstance.loader_type).toUpperCase() : 'VANILLA') : 'READY'}
+              </div>
+              <div className={styles.bannerTitle}>
+                {activeInstance ? activeInstance.name : t('home.welcomeNew')}
+              </div>
+              <div className={styles.bannerDesc}>
+                {activeInstance
+                  ? `${activeInstance.version_id}${activeInstance.loader_version ? ` · ${activeInstance.loader_version}` : ''} · ${Math.round(activeInstance.max_memory / 1024)}GB · ${formatPlaytime(activeInstance.playtime_seconds)}`
+                  : t('home.welcomeNewDesc')
+                }
+              </div>
+            </div>
+            <div className={styles.bannerSlide__rightCover}>
+              {instanceCoverImage ? (
+                <img
+                  src={instanceCoverImage}
+                  alt="World preview"
+                  className={styles.bannerSlide__coverImg}
+                />
+              ) : (
+                <div className={styles.bannerSlide__coverPlaceholder}>
+                  <span className={styles.bannerSlide__coverIcon}>◈</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Other slides */}
           {BANNER_SLIDES.map((slide, i) => (
             <div key={i} className={`${styles.bannerSlide} ${styles[`bannerSlide--${slide.theme}`]}`}>
               <div className={styles.bannerAccent} />
@@ -420,12 +502,12 @@ export default function HomePage() {
           ))}
         </div>
         <div className={styles.bannerDots}>
-          {BANNER_SLIDES.map((_, i) => (
+          {[null, ...BANNER_SLIDES].map((_, i) => (
             <button key={i} className={`${styles.bannerDot} ${i === bannerIndex ? styles['bannerDot--active'] : ''}`} onClick={() => setBannerIndex(i)} />
           ))}
         </div>
-        <button className={`${styles.bannerArrow} ${styles['bannerArrow--left']}`} onClick={() => setBannerIndex((i) => (i - 1 + BANNER_SLIDES.length) % BANNER_SLIDES.length)}>◀</button>
-        <button className={`${styles.bannerArrow} ${styles['bannerArrow--right']}`} onClick={() => setBannerIndex((i) => (i + 1) % BANNER_SLIDES.length)}>▶</button>
+        <button className={`${styles.bannerArrow} ${styles['bannerArrow--left']}`} onClick={() => setBannerIndex((i) => (i - 1 + (BANNER_SLIDES.length + 1)) % (BANNER_SLIDES.length + 1))}>◀</button>
+        <button className={`${styles.bannerArrow} ${styles['bannerArrow--right']}`} onClick={() => setBannerIndex((i) => (i + 1) % (BANNER_SLIDES.length + 1))}>▶</button>
       </div>
 
       {/* Download overlay */}
@@ -609,12 +691,14 @@ export default function HomePage() {
           <div style={{ flex: 0.7, display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>
             <PlayArea
               instance={activeInstance}
+              instances={instances}
               isBusy={isBusy}
               launchState={launchState}
               javaVersion={javaVersion}
               sysInfo={sysInfo}
               onLaunch={() => activeInstance && handleLaunch(activeInstance)}
               onReset={() => api.resetLaunchState()}
+              onSelectInstance={(inst) => setSelectedInstanceId(inst.id)}
               t={t}
             />
 

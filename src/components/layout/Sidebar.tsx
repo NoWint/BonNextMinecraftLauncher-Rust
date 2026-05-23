@@ -35,7 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className={`${styles.sidebar__logo} float-subtle`}>
         <div className={`${styles.sidebar__logoIcon} neon-flicker`} />
         <span className={styles.sidebar__logoText}>BONNEXT</span>
-        <span className={styles.sidebar__logoVersion}>v0.1</span>
+        <span className={styles.sidebar__logoVersion}>{t('app.version')}</span>
       </div>
 
       <div className={styles.sidebar__signal}>

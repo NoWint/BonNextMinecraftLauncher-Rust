@@ -34,3 +34,19 @@ tsconfig.tsbuildinfo
 .claude/
 .trae/
 .superpowers/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+accounts.json
+secrets.*
+
+# OS files
+Thumbs.db
+Desktop.ini

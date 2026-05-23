@@ -1,20 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
-import { api, type ModResult } from '../api';
-import { SectionHeader, Ticker } from '../components/layout';
-import { Button, ContentCard, contentFromModResult, CategoryCard, CollectionButton } from '../components/ui';
-import { CardSkeleton } from '../components/ui/Skeleton';
-import styles from './StorePage.module.css';
+import { api, type ModResult } from '../../api';
+import { SectionHeader } from '../layout';
+import { Button, ContentCard, contentFromModResult, CollectionButton } from '../ui';
+import { CardSkeleton } from '../ui/Skeleton';
+import type { ContentType, DataSource } from './types';
+import styles from './DiscoverView.module.css';
 
-const CATEGORIES = [
-  { id: 'mod', label: 'MODS', icon: '\u{1F9F5}', description: 'Gameplay mods, libraries, and utilities' },
-  { id: 'modpack', label: 'MODPACKS', icon: '\u{1F4E6}', description: 'Curated mod collections and quests' },
-  { id: 'resourcepack', label: 'RESOURCE PACKS', icon: '\u{1F3A8}', description: 'Textures, fonts, and visual overhauls' },
-  { id: 'shader', label: 'SHADERS', icon: '\u{2728}', description: 'Lighting, shadows, and post-processing' },
-  { id: 'datapack', label: 'DATA PACKS', icon: '\u{1F4BF}', description: 'Vanilla-friendly gameplay tweaks' },
-  { id: 'plugin', label: 'PLUGINS', icon: '\u{2699}', description: 'Server-side plugins and tools' },
-];
+interface DiscoverViewProps {
+  contentType: ContentType;
+  source: DataSource;
+  onNavigate: (slug: string) => void;
+}
 
-export default function StorePage() {
+export default function DiscoverView({ contentType, source, onNavigate }: DiscoverViewProps) {
   const [featured, setFeatured] = useState<ModResult[]>([]);
   const [trending, setTrending] = useState<ModResult[]>([]);
   const [recent, setRecent] = useState<ModResult[]>([]);
@@ -26,18 +24,28 @@ export default function StorePage() {
     let cancelled = false;
 
     const load = async () => {
+      setLoading(true);
       try {
-        const [t, r] = await Promise.all([
-          api.getTrendingContent('mod', undefined, 10),
-          api.getRecentlyUpdated(undefined, 10),
-        ]);
-        if (!cancelled) {
-          setTrending(t);
-          setFeatured(t.slice(0, 5)); // Use top 5 as featured banner items
-          setRecent(r);
+        if (source === 'curseforge') {
+          const cfData = await api.getCfFeatured();
+          if (!cancelled) {
+            setFeatured(cfData.slice(0, 5));
+            setTrending(cfData.slice(0, 10));
+            setRecent([]);
+          }
+        } else {
+          const [t, r] = await Promise.all([
+            api.getTrendingContent(contentType, undefined, 10),
+            api.getRecentlyUpdated(contentType, 10),
+          ]);
+          if (!cancelled) {
+            setTrending(t);
+            setFeatured(t.slice(0, 5));
+            setRecent(r);
+          }
         }
       } catch (e) {
-        console.error('Failed to load store data:', e);
+        console.error('Failed to load discover data:', e);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -45,9 +53,8 @@ export default function StorePage() {
 
     load();
     return () => { cancelled = true; };
-  }, []);
+  }, [contentType, source]);
 
-  // Auto-rotate banner
   useEffect(() => {
     if (featured.length <= 1) return;
     intervalRef.current = setInterval(() => {
@@ -58,33 +65,18 @@ export default function StorePage() {
     };
   }, [featured.length]);
 
-  const handleCategoryClick = (id: string) => {
-    window.location.hash = `#/mods?type=${id}`;
-  };
-
-  const handleBannerClick = (slug: string) => {
-    window.location.hash = `#/store/mod/${slug}`;
-  };
-
   if (loading) {
     return (
-      <div className={styles.page}>
-        <SectionHeader title="MARKETPLACE" subtitle="Discover Minecraft content" />
-        <div className={styles.loadingGrid}>
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
-        </div>
+      <div className={styles.loading}>
+        <CardSkeleton />
+        <CardSkeleton />
+        <CardSkeleton />
       </div>
     );
   }
 
   return (
-    <div className={`page-enter ${styles.page}`}>
-      <SectionHeader title="MARKETPLACE" subtitle="Discover and install Minecraft content" />
-
-      {/* Featured Banner */}
+    <div className={styles.view}>
       {featured.length > 0 && (
         <div className={styles.banner}>
           {featured.map((item, i) => (
@@ -107,20 +99,19 @@ export default function StorePage() {
                     title={item.title}
                     author={item.author}
                     iconUrl={item.icon_url}
-                    contentType="mod"
+                    contentType={contentType}
                     description={item.description}
                     downloads={item.downloads}
                     categories={item.categories}
                     size="md"
                   />
-                  <Button variant="primary" size="md" onClick={() => handleBannerClick(item.slug)}>
+                  <Button variant="primary" size="md" onClick={() => onNavigate(item.slug)}>
                     View
                   </Button>
                 </div>
               </div>
             </div>
           ))}
-
           <div className={styles.banner__dots}>
             {featured.map((_, i) => (
               <div
@@ -133,31 +124,10 @@ export default function StorePage() {
         </div>
       )}
 
-      {/* Category Grid */}
-      <div>
-        <SectionHeader title="BROWSE BY CATEGORY" />
-        <div className={styles.categories}>
-          {CATEGORIES.map((cat) => (
-            <CategoryCard
-              key={cat.id}
-              id={cat.id}
-              label={cat.label}
-              icon={cat.icon}
-              description={cat.description}
-              onClick={handleCategoryClick}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Trending This Week */}
       {trending.length > 0 && (
         <div className={styles.row}>
           <div className={styles.row__header}>
             <SectionHeader title="TRENDING THIS WEEK" />
-            <Button variant="secondary" size="sm" onClick={() => (window.location.hash = '#/mods')}>
-              View All
-            </Button>
           </div>
           <div className={styles.row__scroll}>
             {trending.map((mod) => (
@@ -165,14 +135,13 @@ export default function StorePage() {
                 key={mod.slug}
                 content={contentFromModResult(mod)}
                 variant="gallery"
-                onNavigate={(slug) => { window.location.hash = `#/store/mod/${slug}`; }}
+                onNavigate={onNavigate}
               />
             ))}
           </div>
         </div>
       )}
 
-      {/* Recently Updated */}
       {recent.length > 0 && (
         <div className={styles.row}>
           <div className={styles.row__header}>
@@ -184,18 +153,12 @@ export default function StorePage() {
                 key={mod.slug}
                 content={contentFromModResult(mod)}
                 variant="gallery"
-                onNavigate={(slug) => { window.location.hash = `#/store/mod/${slug}`; }}
+                onNavigate={onNavigate}
               />
             ))}
           </div>
         </div>
       )}
-
-      <Ticker messages={[
-        'All content via Modrinth · Open source modding platform',
-        'Install with one click · Automatic dependency handling',
-        'New content added daily · Stay tuned for updates',
-      ]} />
     </div>
   );
 }

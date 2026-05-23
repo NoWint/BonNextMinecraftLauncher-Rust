@@ -28,6 +28,7 @@ hex = "0.4"
 thiserror = "2"
 directories = "6"
 futures-util = "0.3"
+futures = "0.3"
 uuid = { version = "1", features = ["v4", "v5"] }
 url = "2"
 parking_lot = "0.12"
@@ -40,6 +41,8 @@ sysinfo = "0.33"
 flate2 = "1"
 tar = "0.4"
 tempfile = "3"
+lazy_static = "1"
+base64 = "0.22"
 
 [dev-dependencies]
 indoc = "2"

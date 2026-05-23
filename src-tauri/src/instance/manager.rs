@@ -5,7 +5,6 @@ use std::path::PathBuf;
 use crate::error::LauncherError;
 use crate::platform::paths;
 use crate::download::queue::{DownloadQueue, DownloadTask};
-use crate::http_client;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameInstance {
@@ -97,6 +96,12 @@ pub fn delete_instance(id: &str) -> Result<(), LauncherError> {
     let mut instances = list_instances()?;
     instances.retain(|i| i.id != id);
     save_instances(&instances)?;
+    let instance_dir = paths::get_instance_dir(id);
+    if instance_dir.exists() {
+        if let Err(e) = std::fs::remove_dir_all(&instance_dir) {
+            tracing::warn!("Failed to remove instance directory {}: {}", instance_dir.display(), e);
+        }
+    }
     Ok(())
 }
 
@@ -184,9 +189,10 @@ pub fn export_instance(id: &str, output_path: &std::path::Path) -> Result<(), La
     let file = std::fs::File::create(output_path)
         .map_err(|e| LauncherError::Other(format!("Cannot create export file: {}", e)))?;
     let mut zip = zip::ZipWriter::new(file);
-    let options = zip::write::SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated)
-        .unix_permissions(0o644);
+    let mut options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+    #[cfg(unix)]
+    { options = options.unix_permissions(0o644); }
 
     fn add_dir_to_zip(
         zip: &mut zip::ZipWriter<std::fs::File>,
@@ -340,11 +346,15 @@ pub async fn import_modpack(path: &str) -> Result<GameInstance, LauncherError> {
         let name = entry.name().to_string();
         if name.starts_with("overrides/") && !name.ends_with('/') {
             let relative = name.strip_prefix("overrides/").unwrap_or(&name);
-            let dest = paths::get_instance_minecraft_dir(&inst_id).join(relative);
+            let safe_relative: std::path::PathBuf = std::path::Path::new(relative)
+                .components()
+                .filter(|c| !matches!(c, std::path::Component::ParentDir | std::path::Component::RootDir))
+                .collect();
+            let dest = paths::get_instance_minecraft_dir(&inst_id).join(&safe_relative);
             if let Some(parent) = dest.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            let mut entry = entry; // re-borrow
+            let mut entry = entry;
             let mut out = std::fs::File::create(&dest)?;
             std::io::copy(&mut entry, &mut out)?;
         }
@@ -352,6 +362,168 @@ pub async fn import_modpack(path: &str) -> Result<GameInstance, LauncherError> {
 
     tracing::info!("Modpack '{}' imported as instance '{}'", index.name, inst_id);
     Ok(instance)
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum ModpackFormat {
+    MrPack,
+    CurseForge,
+    Unknown,
+}
+
+#[derive(Debug, Deserialize)]
+struct CfManifest {
+    #[serde(rename = "minecraft")]
+    minecraft: CfMinecraft,
+    #[serde(rename = "manifestType")]
+    manifest_type: Option<String>,
+    #[serde(rename = "name")]
+    name: Option<String>,
+    #[serde(default)]
+    files: Vec<CfManifestFile>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CfMinecraft {
+    #[serde(rename = "version")]
+    version: String,
+    #[serde(rename = "modLoaders")]
+    mod_loaders: Vec<CfModLoader>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CfModLoader {
+    id: String,
+    primary: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CfManifestFile {
+    #[serde(rename = "projectID")]
+    project_id: u64,
+    #[serde(rename = "fileID")]
+    file_id: u64,
+    required: Option<bool>,
+}
+
+pub fn detect_modpack_format(path: &str) -> Result<ModpackFormat, LauncherError> {
+    let zip_path = std::path::Path::new(path);
+    if !zip_path.exists() {
+        return Err(LauncherError::Other(format!("File not found: {}", path)));
+    }
+
+    let file = std::fs::File::open(zip_path)?;
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|e| LauncherError::Other(format!("Invalid ZIP: {}", e)))?;
+
+    for i in 0..archive.len() {
+        let entry = archive.by_index(i)?;
+        let name = entry.name().to_string();
+        if name == "modrinth.index.json" {
+            return Ok(ModpackFormat::MrPack);
+        }
+        if name == "manifest.json" {
+            return Ok(ModpackFormat::CurseForge);
+        }
+    }
+
+    Ok(ModpackFormat::Unknown)
+}
+
+pub async fn import_curseforge_modpack(path: &str) -> Result<GameInstance, LauncherError> {
+    let zip_path = std::path::Path::new(path);
+    let file = std::fs::File::open(zip_path)?;
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|e| LauncherError::Other(format!("Invalid ZIP: {}", e)))?;
+
+    let mut manifest_json = String::new();
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i)?;
+        if entry.name() == "manifest.json" {
+            std::io::Read::read_to_string(&mut entry, &mut manifest_json)?;
+            break;
+        }
+    }
+
+    if manifest_json.is_empty() {
+        return Err(LauncherError::Other("manifest.json not found in CurseForge modpack".into()));
+    }
+
+    let manifest: CfManifest = serde_json::from_str(&manifest_json)
+        .map_err(|e| LauncherError::Other(format!("Invalid manifest.json: {}", e)))?;
+
+    let version_id = manifest.minecraft.version.clone();
+    let manifest2 = crate::version::manifest::fetch_versions_sorted().await?;
+    let version_entry = manifest2.iter().find(|v| v.id == version_id)
+        .ok_or_else(|| LauncherError::Other(format!("Version {} not found in manifest", version_id)))?;
+    let version_url = version_entry.url.clone();
+
+    let (loader_type, loader_version) = manifest.minecraft.mod_loaders.first()
+        .map(|ml| {
+            let parts: Vec<&str> = ml.id.split('-').collect();
+            let lt = parts.first().unwrap_or(&"forge").to_string();
+            let lv = parts.get(1).map(|s| s.to_string());
+            (Some(lt), lv)
+        })
+        .unwrap_or((None, None));
+
+    let name = manifest.name.unwrap_or_else(|| "CurseForge Modpack".to_string());
+    let inst_id = format!("cf_{}_{}", version_id, chrono::Utc::now().timestamp_millis());
+    let now = chrono::Local::now().to_rfc3339();
+    let instance = GameInstance {
+        id: inst_id.clone(),
+        name,
+        version_id: version_id.clone(),
+        version_url,
+        loader_type,
+        loader_version,
+        description: format!("Imported from CurseForge modpack ({} files)", manifest.files.len()),
+        max_memory: 4096,
+        min_memory: 512,
+        java_path: None,
+        jvm_args: None,
+        created_at: now,
+        last_played: None,
+        playtime_seconds: 0,
+    };
+
+    create_instance(&instance)?;
+
+    let mc_dir = paths::get_instance_minecraft_dir(&inst_id);
+    std::fs::create_dir_all(mc_dir.join("mods"))?;
+
+    for i in 0..archive.len() {
+        let entry = archive.by_index(i)?;
+        let name = entry.name().to_string();
+        if name.starts_with("overrides/") && !name.ends_with('/') {
+            let relative = name.strip_prefix("overrides/").unwrap_or(&name);
+            let safe_relative: std::path::PathBuf = std::path::Path::new(relative)
+                .components()
+                .filter(|c| !matches!(c, std::path::Component::ParentDir | std::path::Component::RootDir))
+                .collect();
+            let dest = mc_dir.join(&safe_relative);
+            if let Some(parent) = dest.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            let mut entry = entry;
+            let mut out = std::fs::File::create(&dest)?;
+            std::io::copy(&mut entry, &mut out)?;
+        }
+    }
+
+    tracing::info!("CurseForge modpack imported as instance '{}'", inst_id);
+    Ok(instance)
+}
+
+pub async fn import_modpack_auto(path: &str) -> Result<GameInstance, LauncherError> {
+    let format = detect_modpack_format(path)?;
+    match format {
+        ModpackFormat::MrPack => import_modpack(path).await,
+        ModpackFormat::CurseForge => import_curseforge_modpack(path).await,
+        ModpackFormat::Unknown => Err(LauncherError::Other(
+            "Unknown modpack format. Supported: .mrpack (Modrinth), CurseForge ZIP".into()
+        )),
+    }
 }
 
 // ---- .mrpack Export ----
@@ -435,9 +607,10 @@ pub async fn export_mrpack(id: &str, output_path: &std::path::Path) -> Result<()
     let file = std::fs::File::create(output_path)
         .map_err(|e| LauncherError::Other(format!("Cannot create mrpack: {}", e)))?;
     let mut zip = zip::ZipWriter::new(file);
-    let options = zip::write::SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated)
-        .unix_permissions(0o644);
+    let mut options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+    #[cfg(unix)]
+    { options = options.unix_permissions(0o644); }
 
     // Write manifest
     zip.start_file("modrinth.index.json", options)
@@ -475,7 +648,7 @@ pub async fn export_mrpack(id: &str, output_path: &std::path::Path) -> Result<()
 }
 
 fn add_dir_to_mrpack(
-    mut zip: &mut zip::ZipWriter<std::fs::File>,
+    zip: &mut zip::ZipWriter<std::fs::File>,
     base: &std::path::Path,
     dir: &std::path::Path,
     options: zip::write::SimpleFileOptions,

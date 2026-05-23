@@ -29,7 +29,7 @@
 
 .hero:hover .hero__playBtn {
   transform: scale(1.05);
-  box-shadow: 0 0 24px rgba(255, 230, 0, 0.3);
+  box-shadow: 0 0 24px var(--color-accent-30);
 }
 
 .hero__bg {
@@ -95,9 +95,9 @@
   width: 6px; height: 6px;
   clip-path: polygon(0 0, calc(100% - 2px) 0, 100% 2px, 100% 100%, 0 100%);
 }
-.hero__metaDot--ready { background: #4CAF50; }
-.hero__metaDot--download { background: #FF9800; }
-.hero__metaDot--unknown { background: #444; }
+.hero__metaDot--ready { background: var(--color-success); }
+.hero__metaDot--download { background: var(--color-accent); }
+.hero__metaDot--unknown { background: var(--color-text-dim); }
 
 .hero__actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
 
@@ -191,9 +191,9 @@
   font-size: 4em; overflow: hidden;
 }
 
-.coverCard__cover--fabric { background: linear-gradient(135deg, #1a1a0a 0%, #0a0a00 100%); }
-.coverCard__cover--forge { background: linear-gradient(135deg, #1a1008 0%, #0a0600 100%); }
-.coverCard__cover--vanilla { background: linear-gradient(135deg, #0a1a0a 0%, #000a00 100%); }
+.coverCard__cover--fabric { background: linear-gradient(135deg, var(--color-panel-alt) 0%, var(--color-panel-alt) 100%); }
+.coverCard__cover--forge { background: linear-gradient(135deg, var(--color-panel-alt) 0%, var(--color-panel-alt) 100%); }
+.coverCard__cover--vanilla { background: linear-gradient(135deg, var(--color-panel-alt) 0%, var(--color-panel-alt) 100%); }
 
 .coverCard__coverPattern {
   position: absolute; inset: 0; opacity: 0.04; pointer-events: none;
@@ -222,9 +222,9 @@
   width: 8px; height: 8px; z-index: 2;
   clip-path: polygon(0 0, calc(100% - 2px) 0, 100% 2px, 100% 100%, 0 100%);
 }
-.coverCard__statusDot--ready { background: #4CAF50; box-shadow: 0 0 6px rgba(76,175,80,0.4); }
-.coverCard__statusDot--download { background: #FF9800; box-shadow: 0 0 6px rgba(255,152,0,0.4); }
-.coverCard__statusDot--unknown { background: #444; }
+.coverCard__statusDot--ready { background: var(--color-success); box-shadow: 0 0 6px rgba(76,175,80,0.4); }
+.coverCard__statusDot--download { background: var(--color-accent); box-shadow: 0 0 6px var(--color-overlay-30); }
+.coverCard__statusDot--unknown { background: var(--color-text-dim); }
 
 .coverCard__body { padding: 14px 16px 16px; }
 

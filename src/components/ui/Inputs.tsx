@@ -59,14 +59,13 @@ interface SliderProps {
   value: number;
   min: number;
   max: number;
+  step?: number;
   onChange: (value: number) => void;
   className?: string;
-  /** Show gradient fill colors (green→yellow→red) */
   gradient?: boolean;
 }
 
 function getSliderColor(pct: number): string {
-  // Green at 0%, yellow at 50%, red at 100%
   if (pct <= 50) {
     const t = pct / 50;
     const r = Math.round(0 + t * 255);
@@ -79,20 +78,44 @@ function getSliderColor(pct: number): string {
   }
 }
 
-export const Slider: React.FC<SliderProps> = ({ value, min, max, onChange, className = '', gradient }) => {
+export const Slider: React.FC<SliderProps> = ({ value, min, max, step = 1, onChange, className = '', gradient }) => {
+  const trackRef = React.useRef<HTMLDivElement>(null);
+  const dragging = React.useRef(false);
   const pct = ((value - min) / (max - min)) * 100;
   const fillColor = gradient ? getSliderColor(pct) : undefined;
 
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const pct = x / rect.width;
-    const val = Math.round(min + pct * (max - min));
-    onChange(Math.max(min, Math.min(max, val)));
+  const snapToStep = (raw: number): number => {
+    const snapped = Math.round((raw - min) / step) * step + min;
+    return Math.max(min, Math.min(max, parseFloat(snapped.toFixed(10))));
+  };
+
+  const calcValue = (clientX: number) => {
+    if (!trackRef.current) return;
+    const rect = trackRef.current.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const ratio = Math.max(0, Math.min(1, x / rect.width));
+    onChange(snapToStep(min + ratio * (max - min)));
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    dragging.current = true;
+    calcValue(e.clientX);
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (dragging.current) calcValue(ev.clientX);
+    };
+    const onMouseUp = () => {
+      dragging.current = false;
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
   };
 
   return (
-    <div className={`${styles.slider} ${className}`} onClick={handleClick}>
+    <div ref={trackRef} className={`${styles.slider} ${className}`} onMouseDown={handleMouseDown}>
       <div
         className={styles.slider__fill}
         style={{ width: `${pct}%`, background: fillColor }}

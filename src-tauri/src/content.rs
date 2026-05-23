@@ -1,7 +1,4 @@
 #![allow(dead_code)]
-//! Content metadata tracking for installed mods, resource packs, and shaders.
-//! Stores install records as JSON so we can check for updates later.
-
 use crate::error::LauncherError;
 use crate::modrinth;
 use serde::{Deserialize, Serialize};
@@ -14,16 +11,21 @@ pub struct InstallRecord {
     pub version_id: Option<String>,
     pub content_type: String,
     pub installed_at: String,
+    #[serde(default = "default_source")]
+    pub source: String,
 }
 
-type MetadataMap = HashMap<String, InstallRecord>; // key = filename
+fn default_source() -> String {
+    "modrinth".to_string()
+}
+
+type MetadataMap = HashMap<String, InstallRecord>;
 
 fn get_metadata_path(instance_id: &str) -> PathBuf {
     crate::platform::paths::get_instance_minecraft_dir(instance_id)
         .join("installed_content.json")
 }
 
-/// Load the metadata map for an instance.
 pub fn load_metadata(instance_id: &str) -> Result<MetadataMap, LauncherError> {
     let path = get_metadata_path(instance_id);
     if !path.exists() {
@@ -34,7 +36,6 @@ pub fn load_metadata(instance_id: &str) -> Result<MetadataMap, LauncherError> {
     Ok(map)
 }
 
-/// Save a metadata map for an instance.
 fn save_metadata(instance_id: &str, map: &MetadataMap) -> Result<(), LauncherError> {
     let path = get_metadata_path(instance_id);
     if let Some(parent) = path.parent() {
@@ -45,13 +46,13 @@ fn save_metadata(instance_id: &str, map: &MetadataMap) -> Result<(), LauncherErr
     Ok(())
 }
 
-/// Record a content install so we can check for updates later.
 pub fn record_install(
     instance_id: &str,
     filename: &str,
     slug: &str,
     version_id: Option<&str>,
     content_type: &str,
+    source: &str,
 ) -> Result<(), LauncherError> {
     let mut map = load_metadata(instance_id)?;
     map.insert(
@@ -61,12 +62,12 @@ pub fn record_install(
             version_id: version_id.map(|s| s.to_string()),
             content_type: content_type.to_string(),
             installed_at: chrono::Utc::now().to_rfc3339(),
+            source: source.to_string(),
         },
     );
     save_metadata(instance_id, &map)
 }
 
-/// Remove a record when content is uninstalled.
 pub fn remove_record(instance_id: &str, filename: &str) -> Result<(), LauncherError> {
     let mut map = load_metadata(instance_id)?;
     map.remove(filename);
@@ -82,39 +83,56 @@ pub struct UpdateInfo {
     pub content_type: String,
 }
 
-/// Check for updates to installed content.
-/// For each installed item with a known slug, fetch the latest version from Modrinth
-/// and compare with the installed version.
 pub async fn check_updates(instance_id: &str) -> Result<Vec<UpdateInfo>, LauncherError> {
     let metadata = load_metadata(instance_id)?;
     if metadata.is_empty() {
         return Ok(Vec::new());
     }
 
-    let mut updates = Vec::new();
+    let futures: Vec<_> = metadata.iter().map(|(filename, record)| {
+        let filename = filename.clone();
+        let slug = record.slug.clone();
+        let version_id = record.version_id.clone();
+        let content_type = record.content_type.clone();
+        let source = record.source.clone();
+        async move {
+            let result = if source == "curseforge" {
+                if let Ok(mod_id) = slug.parse::<u64>() {
+                    crate::curseforge::get_mod_versions(mod_id).await
+                } else {
+                    modrinth::get_mod_versions(&slug, None, None).await
+                }
+            } else {
+                modrinth::get_mod_versions(&slug, None, None).await
+            };
+            (filename, slug, version_id, content_type, result)
+        }
+    }).collect();
 
-    for (filename, record) in &metadata {
-        // Fetch latest version for this project
-        match modrinth::get_mod_versions(&record.slug, None, None).await {
+    let results = futures::future::join_all(futures).await;
+
+    let mut updates = Vec::new();
+    for (filename, slug, installed_version, content_type, result) in results {
+        match result {
             Ok(versions) => {
                 if let Some(latest) = versions.first() {
-                    let is_update = match &record.version_id {
+                    let is_update = match &installed_version {
                         Some(installed_id) => installed_id != &latest.id,
-                        None => true, // no version tracked, assume update available
+                        None => true,
                     };
                     if is_update {
                         updates.push(UpdateInfo {
-                            filename: filename.clone(),
-                            slug: record.slug.clone(),
-                            installed_version: record.version_id.clone(),
+                            filename,
+                            slug,
+                            installed_version,
                             latest_version: latest.version_number.clone(),
-                            content_type: record.content_type.clone(),
+                            content_type,
                         });
                     }
                 }
             }
             Err(e) => {
-                tracing::warn!("Failed to check updates for {}: {}", record.slug, e);
+                tracing::warn!("Failed to check updates for {}: {}", slug, e);
             }
         }
     }
