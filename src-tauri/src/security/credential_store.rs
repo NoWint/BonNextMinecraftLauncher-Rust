@@ -68,15 +68,9 @@ pub fn migrate_plain_to_encrypted() -> Result<(), LauncherError> {
 pub fn load() -> Result<AccountStore, LauncherError> {
     let enc = enc_path();
     if enc.exists() {
-        match super::crypto::decrypt_json::<AccountStore>(
-            &super::crypto::EncryptedData {
-                version: String::new(),
-                salt: String::new(),
-                nonce: String::new(),
-                ciphertext: String::new(),
-            },
-            &enc,
-        ) {
+        let content = std::fs::read_to_string(&enc)?;
+        let encrypted_data: super::crypto::EncryptedData = serde_json::from_str(&content)?;
+        match super::crypto::decrypt_json::<AccountStore>(&encrypted_data, &enc) {
             Ok(store) => return Ok(store),
             Err(_) => {}
         }
