@@ -576,7 +576,7 @@ fn set_bin_executable_permissions(base_dir: &Path) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_dir() {
-                    if path.file_name().map_or(false, |n| n == "bin") {
+                    if path.file_name().is_some_and(|n| n == "bin") {
                         if let Ok(bin_entries) = std::fs::read_dir(&path) {
                             for bin_entry in bin_entries.flatten() {
                                 let bin_path = bin_entry.path();

@@ -233,6 +233,7 @@ pub fn export_instance(id: &str, output_path: &std::path::Path) -> Result<(), La
 // ---- .mrpack Import ----
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct MrPackIndexFile {
     path: String,
     #[serde(default)]
@@ -246,6 +247,7 @@ struct MrPackIndexFile {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct MrPackEnv {
     client: Option<String>,
     server: Option<String>,
@@ -372,6 +374,7 @@ pub enum ModpackFormat {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct CfManifest {
     #[serde(rename = "minecraft")]
     minecraft: CfMinecraft,
@@ -392,12 +395,14 @@ struct CfMinecraft {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct CfModLoader {
     id: String,
     primary: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct CfManifestFile {
     #[serde(rename = "projectID")]
     project_id: u64,
