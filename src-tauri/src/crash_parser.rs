@@ -42,6 +42,28 @@ const ERROR_MAPPINGS: &[ErrorMapping] = &[
         error_type: "java_version",
         auto_fix: Some("update_java"),
     },
+    // Specific OOM patterns must come before the generic one
+    ErrorMapping {
+        pattern: "java.lang.OutOfMemoryError: Java heap space",
+        suggestion: "Java堆内存不足，建议增加最大内存分配",
+        severity: "high",
+        error_type: "memory",
+        auto_fix: Some("increase_memory"),
+    },
+    ErrorMapping {
+        pattern: "java.lang.OutOfMemoryError: GC overhead limit exceeded",
+        suggestion: "GC开销超限，内存严重不足，建议大幅增加内存分配",
+        severity: "high",
+        error_type: "memory",
+        auto_fix: Some("increase_memory"),
+    },
+    ErrorMapping {
+        pattern: "java.lang.OutOfMemoryError: Metaspace",
+        suggestion: "Metaspace内存不足，建议增加Metaspace大小或减少模组数量",
+        severity: "high",
+        error_type: "memory",
+        auto_fix: Some("increase_metaspace"),
+    },
     ErrorMapping {
         pattern: "OutOfMemoryError",
         suggestion: "内存不足，增加分配内存",
@@ -209,27 +231,6 @@ const ERROR_MAPPINGS: &[ErrorMapping] = &[
         severity: "high",
         error_type: "jvm_crash",
         auto_fix: None,
-    },
-    ErrorMapping {
-        pattern: "java.lang.OutOfMemoryError: Java heap space",
-        suggestion: "Java堆内存不足，建议增加最大内存分配",
-        severity: "high",
-        error_type: "memory",
-        auto_fix: Some("increase_memory"),
-    },
-    ErrorMapping {
-        pattern: "java.lang.OutOfMemoryError: GC overhead limit exceeded",
-        suggestion: "GC开销超限，内存严重不足，建议大幅增加内存分配",
-        severity: "high",
-        error_type: "memory",
-        auto_fix: Some("increase_memory"),
-    },
-    ErrorMapping {
-        pattern: "java.lang.OutOfMemoryError: Metaspace",
-        suggestion: "Metaspace内存不足，建议增加Metaspace大小或减少模组数量",
-        severity: "high",
-        error_type: "memory",
-        auto_fix: Some("increase_metaspace"),
     },
     ErrorMapping {
         pattern: "Failed to start the minecraft runtime",

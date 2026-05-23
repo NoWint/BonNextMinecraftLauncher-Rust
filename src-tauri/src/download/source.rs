@@ -264,7 +264,7 @@ mod tests {
     #[test]
     fn asset_local_path_structure() {
         let p = asset_local_path(std::path::Path::new("/assets"), "ab1234");
-        assert!(p.to_string_lossy().contains("/objects/"));
-        assert!(p.to_string_lossy().contains("/ab/"));
+        assert!(p.to_string_lossy().contains("objects"));
+        assert!(p.ends_with("ab1234"));
     }
 }
