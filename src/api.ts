@@ -36,6 +36,74 @@ export interface AppConfig {
   keep_launcher_open: boolean;
   show_log_on_crash: boolean;
   auto_update_java: boolean;
+  java_download_source: string;
+  force_memory: boolean;
+  force_java_path: boolean;
+  security: SecurityConfig;
+}
+
+export interface SecurityConfig {
+  credential_encryption: boolean;
+  strict_verification: boolean;
+  enforce_https: boolean;
+  jvm_args_mode: string;
+  sandbox_mode: string;
+  proxy_enabled: boolean;
+  proxy_url: string | null;
+  proxy_username: string | null;
+  proxy_password: string | null;
+  audit_log_enabled: boolean;
+  secure_launch_check: boolean;
+}
+
+export interface AuditEntry {
+  timestamp: string;
+  level: string;
+  category: string;
+  message: string;
+  metadata: unknown | null;
+}
+
+export interface LoginHistoryEntry {
+  timestamp: string;
+  auth_type: string;
+  success: boolean;
+  username: string;
+}
+
+export interface KeyStatus {
+  name: string;
+  configured: boolean;
+  source: string;
+}
+
+export interface SandboxAvailability {
+  platform: string;
+  available: boolean;
+  tool: string | null;
+  supported_modes: string[];
+}
+
+export interface FilePermissionResult {
+  path: string;
+  secure: boolean;
+}
+
+export interface FilePermissionFixResult {
+  path: string;
+  fixed: boolean;
+}
+
+export interface JreSourceInfo {
+  id: string;
+  label: string;
+  available: boolean;
+}
+
+export interface JavaInfo {
+  path: string;
+  version: number | null;
+  vendor: string | null;
 }
 
 export interface GameInstance {
@@ -219,6 +287,28 @@ export type LaunchState =
   | 'crashed'
   | 'error';
 
+const ipcCache = new Map<string, { data: unknown; expires: number }>();
+const IPC_CACHE_TTL = 60_000;
+
+function cachedInvoke<T>(key: string, fn: () => Promise<T>, ttl = IPC_CACHE_TTL): Promise<T> {
+  const cached = ipcCache.get(key);
+  if (cached && Date.now() < cached.expires) {
+    return Promise.resolve(cached.data as T);
+  }
+  return fn().then(data => {
+    ipcCache.set(key, { data, expires: Date.now() + ttl });
+    return data;
+  });
+}
+
+export function invalidateCache(keys?: string[]) {
+  if (keys) {
+    keys.forEach(k => ipcCache.delete(k));
+  } else {
+    ipcCache.clear();
+  }
+}
+
 export const api = {
   onDownloadProgress: (callback: (progress: DownloadProgressEvent) => void) => {
     return listen<DownloadProgressEvent>('download-progress', (event) => {
@@ -231,13 +321,15 @@ export const api = {
   },
 
   checkJreAvailable: (majorVersion: number) => invoke<boolean>('check_jre_available', { majorVersion }),
+  getJreSources: () => invoke<JreSourceInfo[]>('get_jre_sources'),
 
-  getVersions: () => invoke<VersionEntry[]>('get_versions'),
+  getVersions: () => cachedInvoke('versions', () => invoke<VersionEntry[]>('get_versions'), 300_000),
   getLaunchState: () => invoke<LaunchState>('get_launch_state'),
   resetLaunchState: () => invoke<void>('reset_launch_state'),
-  getConfig: () => invoke<AppConfig>('get_config'),
+  getConfig: () => cachedInvoke('config', () => invoke<AppConfig>('get_config'), 30_000),
   saveConfig: (config: AppConfig) => invoke<void>('save_config', { config }),
   findJava: () => invoke<string>('find_java'),
+  findAllJava: () => invoke<JavaInfo[]>('find_all_java'),
   checkJavaVersion: (javaPath: string) => invoke<number | null>('check_java_version', { javaPath }),
   offlineLogin: (username: string) => invoke<OfflineAuthResult>('offline_login', { username }),
   startMicrosoftAuth: () => invoke<DeviceCodeResponse>('start_microsoft_auth'),
@@ -247,7 +339,7 @@ export const api = {
     invoke<void>('launch_game', { versionId, versionUrl, username, uuid, accessToken, maxMemory, minMemory, javaPath, jvmArgs, instanceId }),
   getGameDir: () => invoke<string>('get_game_dir'),
   getDefaultGameDir: () => invoke<string>('get_default_game_dir'),
-  listInstances: () => invoke<GameInstance[]>('list_instances'),
+  listInstances: () => cachedInvoke('instances', () => invoke<GameInstance[]>('list_instances'), 30_000),
   createInstance: (instance: GameInstance) => invoke<void>('create_instance', { instance }),
   deleteInstance: (id: string) => invoke<void>('delete_instance', { id }),
   updateInstance: (instance: GameInstance) => invoke<void>('update_instance', { instance }),
@@ -255,8 +347,8 @@ export const api = {
   openFolder: (path: string) => invoke<void>('open_folder', { path }),
 
   // Account management
-  listAccounts: () => invoke<StoredAccount[]>('list_accounts'),
-  getActiveAccount: () => invoke<StoredAccount | null>('get_active_account'),
+  listAccounts: () => cachedInvoke('accounts', () => invoke<StoredAccount[]>('list_accounts'), 60_000),
+  getActiveAccount: () => cachedInvoke('active_account', () => invoke<StoredAccount | null>('get_active_account'), 30_000),
   setActiveAccount: (id: string) => invoke<void>('set_active_account', { id }),
   removeAccount: (id: string) => invoke<void>('remove_account', { id }),
   refreshAuthToken: () => invoke<string | null>('refresh_auth_token'),
@@ -362,7 +454,7 @@ export const api = {
     invoke<boolean>('is_in_collection', { slug }),
 
   listCollection: () =>
-    invoke<CollectionItem[]>('list_collection'),
+    cachedInvoke('collection', () => invoke<CollectionItem[]>('list_collection'), 60_000),
 
   // CurseForge
   searchCfMods: (
@@ -395,10 +487,10 @@ export const api = {
   // Quick start & UX
   quickStart: () => invoke<void>('quick_start'),
   selectFastestMirror: () => invoke<string>('select_fastest_mirror'),
-  getSystemInfo: () => invoke<SystemInfo>('get_system_info'),
+  getSystemInfo: () => cachedInvoke('system_info', () => invoke<SystemInfo>('get_system_info'), 120_000),
   autoTuneMemory: () => invoke<number>('auto_tune_memory_cmd'),
   smartTuneMemory: (instanceId: string) => invoke<number>('smart_tune_memory_cmd', { instanceId }),
-  getPlaytimeStats: () => invoke<PlaytimeStats>('get_playtime_stats'),
+  getPlaytimeStats: () => cachedInvoke('playtime_stats', () => invoke<PlaytimeStats>('get_playtime_stats'), 60_000),
   recordPlaytime: (instanceId: string, seconds: number) => invoke<void>('record_playtime', { instanceId, seconds }),
   checkInstanceReady: (instanceId: string) => invoke<boolean>('check_instance_ready', { instanceId }),
   getInstanceCoverImage: (instanceId: string) => invoke<string | null>('get_instance_cover_image', { instanceId }),
@@ -427,10 +519,15 @@ export const api = {
   importInstanceConfig: (configCode: string) => invoke<GameInstance>('import_instance_config', { configCode }),
 
   // Hardware profile
-  getHardwareProfile: () => invoke<HardwareProfile>('get_hardware_profile'),
+  getHardwareProfile: () => cachedInvoke('hardware_profile', () => invoke<HardwareProfile>('get_hardware_profile'), 120_000),
 
   // Disk usage
-  getDiskUsage: () => invoke<DiskUsage>('get_disk_usage'),
+  getDiskUsage: () => cachedInvoke('disk_usage', () => invoke<DiskUsage>('get_disk_usage'), 120_000),
+
+  // File management
+  listInstalledVersions: () => invoke<Array<{ version_id: string; size_bytes: number; version_type: string; path: string }>>('list_installed_versions'),
+  deleteVersion: (versionId: string) => invoke<void>('delete_version_cmd', { versionId }),
+  getDirSize: (path: string) => invoke<number>('get_dir_size_cmd', { path }),
 
   // Recommendations
   getRecommendations: (instanceId: string) => invoke<Array<{ slug: string; name: string; reason: string; category: string }>>('get_recommendations', { instanceId }),
@@ -481,7 +578,7 @@ export const api = {
   // LAN Discovery
   startLanDiscovery: () => invoke<void>('start_lan_discovery'),
   stopLanDiscovery: () => invoke<void>('stop_lan_discovery'),
-  getLanWorlds: () => invoke<Array<{ host: string; port: number; motd: string; version: string; players_online: number; players_max: number }>>('get_lan_worlds'),
+  getLanWorlds: () => invoke<Array<{ host: string; port: number; motd: string; world_type: string | null; players_online: number | null; players_max: number | null }>>('get_lan_worlds'),
 
   // P2P
   scanP2PPeers: () => invoke<Array<{ name: string; address: string; available_bytes: number }>>('scan_p2p_peers'),
@@ -500,6 +597,25 @@ export const api = {
 
   // NLP Search
   nlpSearchContent: (query: string) => invoke<Array<{ slug: string; name: string; relevance: number; interpretation: string }>>('nlp_search_content', { query }),
+
+  // Minecraft News
+  getMinecraftNews: () => invoke<MinecraftNewsEntry[]>('get_minecraft_news'),
+  getMinecraftArticle: (url: string) => invoke<MinecraftArticle>('get_minecraft_article', { url }),
+
+  getSecurityConfig: () => invoke<SecurityConfig>('get_security_config'),
+  saveSecurityConfig: (security: SecurityConfig) => invoke<void>('save_security_config', { security }),
+  getSecurityScore: () => invoke<number>('get_security_score'),
+  getAuditLog: (category?: string, limit?: number, offset?: number) => invoke<AuditEntry[]>('get_audit_log', { category, limit, offset }),
+  getLoginHistory: () => invoke<LoginHistoryEntry[]>('get_login_history'),
+  migrateCredentials: () => invoke<void>('migrate_credentials'),
+  getEncryptionStatus: () => invoke<{ encrypted: boolean; plain: boolean }>('get_encryption_status'),
+  saveApiKey: (name: string, value: string) => invoke<void>('save_api_key', { name, value }),
+  deleteApiKey: (name: string) => invoke<void>('delete_api_key', { name }),
+  getApiKeyStatus: (name: string) => invoke<KeyStatus>('get_api_key_status', { name }),
+  checkFilePermissions: () => invoke<FilePermissionResult[]>('check_file_permissions'),
+  fixFilePermissions: () => invoke<FilePermissionFixResult[]>('fix_file_permissions'),
+  validateJvmArgs: (args: string) => invoke<{ valid: boolean; args?: string[]; error?: string; warnings?: string[] }>('validate_jvm_args', { args }),
+  getSandboxAvailability: () => invoke<SandboxAvailability>('get_sandbox_availability'),
 };
 export interface SystemInfo {
   total_ram_mb: number;
@@ -588,6 +704,39 @@ export interface HardwareProfile {
   gpu_name: string;
   performance_score: number;
   performance_level: string;
+}
+
+export interface MinecraftNewsEntry {
+  title: string;
+  category: string;
+  date: string;
+  text: string;
+  read_more_link: string;
+  id: string;
+  image_url: string | null;
+  tag: string | null;
+  news_type: string[] | null;
+}
+
+export interface ArticleImage {
+  url: string;
+  caption: string | null;
+}
+
+export interface ArticleSection {
+  heading: string | null;
+  paragraphs: string[];
+  images: ArticleImage[];
+  list_items: string[];
+}
+
+export interface MinecraftArticle {
+  title: string;
+  subtitle: string | null;
+  author: string | null;
+  date: string | null;
+  header_image: string | null;
+  sections: ArticleSection[];
 }
 
 export interface DiskUsage {
