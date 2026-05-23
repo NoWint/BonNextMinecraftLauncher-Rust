@@ -12,7 +12,7 @@ const pageVariants = {
     x: 0,
     transition: {
       duration: 0.25,
-      ease: [0.16, 1, 0.3, 1],
+      ease: [0.16, 1, 0.3, 1] as [number, number, number, number],
     },
   },
   exit: {
@@ -20,7 +20,7 @@ const pageVariants = {
     x: -20,
     transition: {
       duration: 0.2,
-      ease: [0.16, 1, 0.3, 1],
+      ease: [0.16, 1, 0.3, 1] as [number, number, number, number],
     },
   },
 };
