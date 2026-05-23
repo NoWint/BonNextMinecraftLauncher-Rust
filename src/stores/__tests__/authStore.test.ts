@@ -23,6 +23,10 @@ const mockAccounts: StoredAccount[] = [
     uuid: '11111111-1111-1111-1111-111111111111',
     access_token: 'token-1',
     refresh_token: null,
+    account_type: 'offline',
+    last_used: '2024-01-01',
+    expires_at: null,
+    avatar_url: null,
   },
   {
     id: 'acc-2',
@@ -30,6 +34,10 @@ const mockAccounts: StoredAccount[] = [
     uuid: '22222222-2222-2222-2222-222222222222',
     access_token: 'token-2',
     refresh_token: 'refresh-2',
+    account_type: 'microsoft',
+    last_used: '2024-01-02',
+    expires_at: '2024-12-31',
+    avatar_url: null,
   },
 ];
 
