@@ -40,7 +40,7 @@
 .topBarIcon {
   width: 56px;
   height: 56px;
-  background: #252525;
+  background: var(--color-panel-alt);
   clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
   display: flex;
   align-items: center;
@@ -81,7 +81,7 @@
 .topBarMetaSep {
   width: 1px;
   height: 8px;
-  background: #333;
+  background: var(--color-text-dim);
 }
 
 .topBarRam {
@@ -124,7 +124,7 @@
 
 .infoCard {
   background: var(--color-panel);
-  border: 1px solid #1C1C1C;
+  border: 1px solid var(--color-panel-alt);
   padding: 16px;
 }
 
@@ -160,7 +160,7 @@
 
 .statCard {
   background: var(--color-panel);
-  border: 1px solid #1C1C1C;
+  border: 1px solid var(--color-panel-alt);
   padding: 16px;
   text-align: center;
 }
@@ -204,7 +204,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px dashed #333;
+  border: 1px dashed var(--color-text-dim);
   color: var(--color-text-dim);
   font-size: 0.7em;
 }

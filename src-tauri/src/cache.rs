@@ -1,11 +1,9 @@
-//! In-memory TTL cache for Modrinth API responses.
-//! Reduces redundant API calls and avoids rate limiting.
-
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-const DEFAULT_TTL: Duration = Duration::from_secs(300); // 5 minutes
+const DEFAULT_TTL: Duration = Duration::from_secs(300);
+const MAX_CACHE_SIZE: usize = 200;
 
 struct CacheEntry<T> {
     data: T,
@@ -19,6 +17,15 @@ impl<T> CacheEntry<T> {
 
     fn is_valid(&self) -> bool {
         Instant::now() < self.expires_at
+    }
+}
+
+fn evict_expired<T>(map: &mut HashMap<String, CacheEntry<T>>) {
+    map.retain(|_, entry| entry.is_valid());
+    if map.len() > MAX_CACHE_SIZE {
+        let mut entries: Vec<_> = map.drain().collect();
+        entries.sort_by_key(|(_, e)| e.expires_at);
+        *map = entries.into_iter().take(MAX_CACHE_SIZE).collect();
     }
 }
 
@@ -37,27 +44,27 @@ impl ApiCache {
         }
     }
 
-    /// Store a serialized value in a cache map.
     fn put_raw(map: &Mutex<HashMap<String, CacheEntry<String>>>, key: String, json: String, ttl: Duration) {
         if let Ok(mut guard) = map.lock() {
             guard.insert(key, CacheEntry::new(json, ttl));
+            if guard.len() > MAX_CACHE_SIZE {
+                evict_expired(&mut guard);
+            }
         }
     }
 
-    /// Get a value from a cache map, deserializing if still valid.
     fn get_raw<T: serde::de::DeserializeOwned>(
         map: &Mutex<HashMap<String, CacheEntry<String>>>,
         key: &str,
     ) -> Option<T> {
-        let guard = map.lock().ok()?;
+        let mut guard = map.lock().ok()?;
         let entry = guard.get(key)?;
         if !entry.is_valid() {
+            guard.remove(key);
             return None;
         }
         serde_json::from_str(&entry.data).ok()
     }
-
-    // -- Public helpers for each cache domain --
 
     pub fn cache_search_results(
         &self,

@@ -3,11 +3,10 @@ const zhCN: Record<string, string> = {
   'app.version': 'v0.2',
 
   'nav.home': '主页',
-  'nav.store': '内容商店',
+  'nav.marketplace': '市场',
   'nav.instances': '实例管理',
   'nav.versions': '版本列表',
   'nav.settings': '设置',
-  'nav.mods': '模组市场',
   'nav.collections': '我的收藏',
   'nav.library': '内容库',
 
@@ -149,6 +148,8 @@ const zhCN: Record<string, string> = {
   'instanceDetail.launchCount': '次启动',
   'instanceDetail.exportInstance': '导出实例',
   'instanceDetail.comingSoon': '功能即将推出',
+  'instanceDetail.noSaves': '没有找到存档。开始游戏来创建世界！',
+  'instanceDetail.noLogs': '没有日志文件。运行游戏后会生成日志。',
   'contentDetail.noScreenshots': '暂无截图',
   'contentDetail.compatible': '可兼容',
   'contentDetail.loaderMismatch': '加载器不匹配',
@@ -191,6 +192,7 @@ const zhCN: Record<string, string> = {
   'settings.themeDark': '深色',
   'settings.themeLight': '浅色',
   'settings.themeOled': 'OLED',
+  'settings.uiScale': '界面缩放',
 
   'theme.dark': '深色',
   'theme.light': '浅色',
@@ -245,6 +247,7 @@ const zhCN: Record<string, string> = {
   'collections.empty': '还没有收藏，从内容商店添加一些吧',
   'collections.emptyDesc': '点击任意内容上的心形图标将其保存到收藏。',
   'collections.tryDifferent': '尝试选择其他分类。',
+  'collections.browseMarketplace': '浏览内容商店',
 
   'library.title': '内容库',
   'library.installedMods': '已安装模组',

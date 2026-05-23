@@ -2,6 +2,7 @@
 use crate::error::LauncherError;
 use crate::platform::paths;
 use serde::Serialize;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 /// A JRE release entry from the Adoptium API.
@@ -139,14 +140,33 @@ pub async fn download_java_with_progress(
         )));
     }
 
-    // Make the java executable... executable on Unix
+    // Make java executable on Unix
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        if let Ok(metadata) = std::fs::metadata(&final_java_path) {
-            let mut perms = metadata.permissions();
-            perms.set_mode(0o755);
-            let _ = std::fs::set_permissions(&final_java_path, perms);
+        if let Some(bin_dir) = final_java_path.parent() {
+            if let Ok(entries) = std::fs::read_dir(bin_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_file() {
+                        let file_name = path.file_name()
+                            .map(|n| n.to_string_lossy().to_string())
+                            .unwrap_or_default();
+                        let is_executable_candidate = !file_name.contains('.')
+                            || file_name.ends_with(".sh")
+                            || file_name == "jspawnhelper";
+                        if is_executable_candidate {
+                            if let Ok(metadata) = std::fs::metadata(&path) {
+                                let mut perms = metadata.permissions();
+                                perms.set_mode(0o755);
+                                if let Err(e) = std::fs::set_permissions(&path, perms) {
+                                    tracing::warn!("Failed to set executable permission on {}: {}", path.display(), e);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -284,6 +304,8 @@ fn current_arch_name() -> &'static str {
         "x64"
     } else if cfg!(target_arch = "aarch64") {
         "aarch64"
+    } else if cfg!(target_arch = "x86") {
+        "x86"
     } else if cfg!(target_arch = "arm") {
         "arm"
     } else {
@@ -293,7 +315,12 @@ fn current_arch_name() -> &'static str {
 
 fn java_executable_path(target_dir: &Path) -> PathBuf {
     if cfg!(target_os = "windows") {
-        target_dir.join("bin").join("java.exe")
+        let javaw = target_dir.join("bin").join("javaw.exe");
+        if javaw.exists() {
+            javaw
+        } else {
+            target_dir.join("bin").join("java.exe")
+        }
     } else {
         target_dir.join("bin").join("java")
     }
@@ -436,25 +463,46 @@ async fn download_file(
 fn extract_archive(archive_path: &Path, dest: &Path) -> Result<(), LauncherError> {
     std::fs::create_dir_all(dest)?;
 
-    let file_name = archive_path
+    match detect_archive_format(archive_path) {
+        ArchiveFormat::Zip => extract_zip(archive_path, dest),
+        ArchiveFormat::TarGz => extract_tar_gz(archive_path, dest),
+    }
+}
+
+enum ArchiveFormat {
+    Zip,
+    TarGz,
+}
+
+fn detect_archive_format(path: &Path) -> ArchiveFormat {
+    let file_name = path
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("");
 
     if file_name.ends_with(".zip") {
-        extract_zip(archive_path, dest)
-    } else if file_name.ends_with(".tar.gz") || file_name.ends_with(".tgz") {
-        extract_tar_gz(archive_path, dest)
+        return ArchiveFormat::Zip;
+    }
+    if file_name.ends_with(".tar.gz") || file_name.ends_with(".tgz") {
+        return ArchiveFormat::TarGz;
+    }
+
+    if let Ok(mut f) = std::fs::File::open(path) {
+        let mut magic = [0u8; 4];
+        if f.read_exact(&mut magic).is_ok() {
+            if magic[0] == 0x50 && magic[1] == 0x4B && magic[2] == 0x03 && magic[3] == 0x04 {
+                return ArchiveFormat::Zip;
+            }
+            if magic[0] == 0x1F && magic[1] == 0x8B {
+                return ArchiveFormat::TarGz;
+            }
+        }
+    }
+
+    if cfg!(target_os = "windows") {
+        ArchiveFormat::Zip
     } else {
-        // Adoptium provides .tar.gz for macOS/Linux and .zip for Windows
-        #[cfg(target_os = "windows")]
-        {
-            extract_zip(archive_path, dest)
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            extract_tar_gz(archive_path, dest)
-        }
+        ArchiveFormat::TarGz
     }
 }
 
@@ -476,6 +524,11 @@ fn extract_zip(archive_path: &Path, dest: &Path) -> Result<(), LauncherError> {
             let mut out_file = std::fs::File::create(&entry_path)?;
             std::io::copy(&mut entry, &mut out_file)?;
         }
+    }
+
+    #[cfg(unix)]
+    {
+        set_bin_executable_permissions(dest);
     }
 
     Ok(())
@@ -507,7 +560,44 @@ fn extract_tar_gz(archive_path: &Path, dest: &Path) -> Result<(), LauncherError>
         }
     }
 
+    #[cfg(unix)]
+    {
+        set_bin_executable_permissions(dest);
+    }
+
     Ok(())
+}
+
+#[cfg(unix)]
+fn set_bin_executable_permissions(base_dir: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    fn set_perms_recursive(dir: &Path) {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    if path.file_name().map_or(false, |n| n == "bin") {
+                        if let Ok(bin_entries) = std::fs::read_dir(&path) {
+                            for bin_entry in bin_entries.flatten() {
+                                let bin_path = bin_entry.path();
+                                if bin_path.is_file() {
+                                    if let Ok(metadata) = std::fs::metadata(&bin_path) {
+                                        let mut perms = metadata.permissions();
+                                        perms.set_mode(0o755);
+                                        if let Err(e) = std::fs::set_permissions(&bin_path, perms) {
+                                            tracing::warn!("Failed to set permission on {}: {}", bin_path.display(), e);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    set_perms_recursive(&path);
+                }
+            }
+        }
+    }
+    set_perms_recursive(base_dir);
 }
 
 /// Strip any parent directory (`..`) components and leading slashes from an
@@ -542,6 +632,22 @@ mod tests {
     }
 
     #[test]
+    fn test_sanitize_entry_path_strips_leading_slash() {
+        let base = Path::new("/tmp/jdk");
+        let result = sanitize_entry_path(base, "/etc/passwd").unwrap();
+        assert!(result.starts_with("/tmp/jdk"));
+        assert!(!result.to_string_lossy().contains(".."));
+    }
+
+    #[test]
+    fn test_sanitize_entry_path_mixed_traversal() {
+        let base = Path::new("/tmp/jdk");
+        let result = sanitize_entry_path(base, "foo/../../bar/baz").unwrap();
+        assert!(result.starts_with("/tmp/jdk"));
+        assert!(!result.to_string_lossy().contains(".."));
+    }
+
+    #[test]
     fn test_current_os_name_returns_valid() {
         let os = current_os_name();
         assert!(!os.is_empty());
@@ -552,5 +658,52 @@ mod tests {
     fn test_current_arch_name_returns_valid() {
         let arch = current_arch_name();
         assert!(!arch.is_empty());
+        assert!(arch == "x64" || arch == "x86" || arch == "aarch64" || arch == "arm");
+    }
+
+    #[test]
+    fn test_detect_archive_format_zip_magic() {
+        let dir = tempfile::tempdir().unwrap();
+        let zip_path = dir.path().join("test_unknown_archive");
+        {
+            use std::io::Write;
+            let mut f = std::fs::File::create(&zip_path).unwrap();
+            f.write_all(&[0x50, 0x4B, 0x03, 0x04, 0x00, 0x00, 0x00, 0x00]).unwrap();
+        }
+        assert!(matches!(detect_archive_format(&zip_path), ArchiveFormat::Zip));
+    }
+
+    #[test]
+    fn test_detect_archive_format_gzip_magic() {
+        let dir = tempfile::tempdir().unwrap();
+        let gz_path = dir.path().join("test_unknown_archive");
+        {
+            use std::io::Write;
+            let mut f = std::fs::File::create(&gz_path).unwrap();
+            f.write_all(&[0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00]).unwrap();
+        }
+        assert!(matches!(detect_archive_format(&gz_path), ArchiveFormat::TarGz));
+    }
+
+    #[test]
+    fn test_detect_archive_format_by_extension() {
+        let dir = tempfile::tempdir().unwrap();
+        let zip_path = dir.path().join("jdk.zip");
+        let tgz_path = dir.path().join("jdk.tar.gz");
+        std::fs::File::create(&zip_path).unwrap();
+        std::fs::File::create(&tgz_path).unwrap();
+        assert!(matches!(detect_archive_format(&zip_path), ArchiveFormat::Zip));
+        assert!(matches!(detect_archive_format(&tgz_path), ArchiveFormat::TarGz));
+    }
+
+    #[test]
+    fn test_java_executable_path() {
+        let dir = Path::new("/tmp/jdk-21");
+        let result = java_executable_path(dir);
+        if cfg!(target_os = "windows") {
+            assert!(result.to_string_lossy().contains("java.exe") || result.to_string_lossy().contains("javaw.exe"));
+        } else {
+            assert!(result.to_string_lossy().ends_with("bin/java"));
+        }
     }
 }

@@ -23,7 +23,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle, rgba(255,255,255,0.15) 10%, transparent 10%);
+    background: radial-gradient(circle, var(--color-overlay-30) 10%, transparent 10%);
     background-position: center;
     background-repeat: no-repeat;
     opacity: 0;
@@ -51,8 +51,8 @@
 }
 
 .button--primary {
-  background: var(--color-accent);
-  color: var(--color-bg);
+  background: var(--color-accent-action);
+  color: var(--color-accent-action-text);
   font-family: var(--font-heading);
   font-weight: 800;
 
@@ -90,15 +90,15 @@
 
 .button--secondary {
   background: transparent;
-  border: 1px solid #333;
-  color: #999;
+  border: 1px solid var(--color-text-dim);
+  color: var(--color-text-tertiary);
   padding: 10px 24px;
   font-size: 0.7em;
   clip-path: var(--clip-medium);
 
   &:hover:not(:disabled) {
-    border-color: #555;
-    color: #CCC;
+    border-color: var(--color-text-muted);
+    color: var(--color-text-dim);
     transform: translateY(-1px);
   }
 
@@ -116,12 +116,12 @@
   clip-path: var(--clip-medium);
 
   &:hover:not(:disabled) {
-    background: rgba(255, 230, 0, 0.06);
+    background: var(--color-accent-06);
     transform: translateY(-1px);
   }
 
   &:active:not(:disabled) {
-    background: rgba(255, 230, 0, 0.12);
+    background: var(--color-accent-10);
     transform: translateY(0);
   }
 }
@@ -131,14 +131,14 @@
   height: 36px;
   background: var(--color-panel-alt);
   border: 1px solid var(--color-border-mid);
-  color: #888;
+  color: var(--color-text-tertiary);
   font-size: 0.8em;
   clip-path: var(--clip-icon);
   padding: 0;
 
   &:hover:not(:disabled) {
     border-color: var(--color-border-light);
-    color: #BBB;
+    color: var(--color-text-dim);
     transform: translateY(-1px);
   }
 }
@@ -152,12 +152,12 @@
   clip-path: var(--clip-medium);
 
   &:hover:not(:disabled) {
-    background: rgba(255, 68, 68, 0.08);
+    background: var(--color-overlay-30);
     transform: translateY(-1px);
   }
 
   &:active:not(:disabled) {
-    background: rgba(255, 68, 68, 0.15);
+    background: var(--color-overlay-30);
     transform: translateY(0);
   }
 }

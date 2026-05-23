@@ -9,7 +9,6 @@ import { ThemeProvider } from './stores/themeStore';
 import { I18nProvider, useI18n } from './i18n';
 import { Sidebar } from './components/layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { ParticleBackground } from './components/ParticleBackground';
 import { CommandPalette } from './components/CommandPalette';
 import { SearchPalette } from './components/ui/SearchPalette';
 import { DownloadPanel } from './components/ui/DownloadPanel';
@@ -21,8 +20,7 @@ import InstancesPage from './pages/InstancesPage';
 import InstanceDetailPage from './pages/InstanceDetailPage';
 import NewInstancePage from './pages/NewInstancePage';
 import VersionsPage from './pages/VersionsPage';
-import ModsPage from './pages/ModsPage';
-import StorePage from './pages/StorePage';
+import MarketplacePage from './pages/MarketplacePage';
 import ContentDetailPage from './pages/ContentDetailPage';
 import LibraryPage from './pages/LibraryPage';
 import CollectionsPage from './pages/CollectionsPage';
@@ -34,8 +32,7 @@ type Page =
   | 'instance_detail'
   | 'new_instance'
   | 'versions'
-  | 'mods'
-  | 'store'
+  | 'marketplace'
   | 'content_detail'
   | 'collections'
   | 'library'
@@ -47,9 +44,8 @@ function getPageFromHash(): Page {
   if (hash.startsWith('instances/') && hash.split('/')[1]) return 'instance_detail';
   if (hash === 'instances') return 'instances';
   if (hash.startsWith('store/') && hash.split('/').length >= 3) return 'content_detail';
-  if (hash === 'store') return 'store';
+  if (hash === 'store' || hash === 'mods') return 'marketplace';
   if (hash === 'versions') return 'versions';
-  if (hash === 'mods') return 'mods';
   if (hash === 'collections') return 'collections';
   if (hash === 'library') return 'library';
   if (hash === 'settings') return 'settings';
@@ -74,16 +70,16 @@ function AppShell() {
       new_instance: 'instances/new',
       instance_detail: 'instances',
       content_detail: 'store',
+      marketplace: 'store',
     };
     window.location.hash = `#/${map[id] || id}`;
   };
 
   const NAV_ITEMS = [
     { id: 'home', label: t('nav.home'), shortcut: 'H' },
-    { id: 'store', label: t('nav.store'), shortcut: 'S' },
+    { id: 'marketplace', label: t('nav.marketplace') || 'Marketplace', shortcut: 'S' },
     { id: 'collections', label: t('nav.collections'), shortcut: 'C' },
     { id: 'instances', label: t('nav.instances'), shortcut: 'I' },
-    { id: 'mods', label: t('nav.mods'), shortcut: 'M' },
     { id: 'library', label: t('nav.library'), shortcut: 'L' },
     { id: 'versions', label: t('nav.versions'), shortcut: 'V' },
     { id: 'settings', label: t('nav.settings'), shortcut: ',' },
@@ -100,6 +96,7 @@ function AppShell() {
           authState.currentUser.username, authState.currentUser.uuid,
           authState.currentUser.access_token, inst.max_memory, inst.min_memory,
           inst.java_path || undefined, inst.jvm_args || undefined,
+          inst.id,
         );
       } catch (e) {
         console.error('Quick launch failed:', e);
@@ -125,8 +122,13 @@ function AppShell() {
 
   const activeNav =
     page === 'new_instance' || page === 'instance_detail' ? 'instances' :
-    page === 'content_detail' ? 'store' :
+    page === 'content_detail' || page === 'marketplace' ? 'marketplace' :
     page;
+
+  const totalPlaytimeHours = instState.instances.reduce(
+    (sum, inst) => sum + (inst.playtime_seconds || 0),
+    0
+  ) / 3600;
 
   return (
     <>
@@ -139,7 +141,7 @@ function AppShell() {
           onNavigate={navigate}
           username={authState.currentUser.username}
           accountType={authState.currentUser.access_token?.startsWith('offline_') ? 'OFFLINE' : 'MICROSOFT'}
-          playtimeHours={0}
+          playtimeHours={totalPlaytimeHours}
         />
         <main className="app-main">
           <div className="decorative-rect decorative-rect--top-right" />
@@ -151,8 +153,7 @@ function AppShell() {
             {page === 'instance_detail' && <InstanceDetailPage />}
             {page === 'new_instance' && <NewInstancePage />}
             {page === 'versions' && <VersionsPage />}
-            {page === 'mods' && <ModsPage />}
-            {page === 'store' && <StorePage />}
+            {page === 'marketplace' && <MarketplacePage />}
             {page === 'content_detail' && <ContentDetailPage />}
             {page === 'library' && <LibraryPage />}
             {page === 'collections' && <CollectionsPage />}
@@ -182,7 +183,6 @@ export default function App() {
               <ToastProvider>
                 <DownloadProvider>
                 <ContextMenuProvider>
-                  <ParticleBackground />
                   <CommandPalette />
                   <AppShell />
                   <DownloadPanel />

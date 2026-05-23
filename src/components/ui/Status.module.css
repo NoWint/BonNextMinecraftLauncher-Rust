@@ -20,7 +20,7 @@
   }
 
   &.statusDot--inactive {
-    background: #555;
+    background: var(--color-text-muted);
   }
 }
 
@@ -35,27 +35,27 @@
 
   &.badge--accent {
     color: var(--color-accent);
-    background: #252525;
+    background: var(--color-panel-alt);
   }
 
   &.badge--default {
-    color: #888;
+    color: var(--color-text-tertiary);
     background: var(--color-panel-alt);
   }
 
   &.badge--muted {
-    color: #555;
+    color: var(--color-text-muted);
     background: var(--color-panel-alt);
   }
 
   &.badge--success {
     color: var(--color-success);
-    background: rgba(0, 255, 136, 0.08);
+    background: var(--color-overlay-30);
   }
 
   &.badge--error {
     color: var(--color-error);
-    background: rgba(255, 68, 68, 0.08);
+    background: var(--color-overlay-30);
   }
 }
 
@@ -83,7 +83,7 @@
     top: 0;
     width: 20%;
     height: 100%;
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--color-overlay-30);
   }
 }
 

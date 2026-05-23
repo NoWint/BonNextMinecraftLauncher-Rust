@@ -36,11 +36,19 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
   }
 }
 
+interface DeviceCodeResponse {
+  device_code: string;
+  user_code: string;
+  verification_uri: string;
+  expires_in: number;
+  interval: number;
+}
+
 const AuthContext = createContext<{
   state: AuthState;
   offlineLogin: (username: string) => Promise<void>;
-  microsoftLogin: () => Promise<any>;
-  logout: () => void;
+  microsoftLogin: () => Promise<DeviceCodeResponse | undefined>;
+  logout: () => Promise<void>;
   switchAccount: (id: string) => Promise<void>;
   refreshAccounts: () => Promise<void>;
 } | null>(null);
@@ -70,7 +78,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           },
         });
       }
-    } catch { /* ignore */ }
+    } catch (e) {
+      console.warn('Failed to refresh accounts:', e instanceof Error ? e.message : String(e));
+    }
   }, []);
 
   useEffect(() => {
@@ -83,35 +93,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await api.offlineLogin(username);
       dispatch({ type: 'LOGIN', user: result });
       await refreshAccounts();
-    } catch (e: any) {
-      dispatch({ type: 'SET_ERROR', error: e?.toString() || 'Login failed' });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Login failed';
+      dispatch({ type: 'SET_ERROR', error: msg });
     }
   }, [refreshAccounts]);
 
-  const microsoftLogin = useCallback(async () => {
+  const microsoftLogin = useCallback(async (): Promise<DeviceCodeResponse | undefined> => {
     dispatch({ type: 'SET_LOADING', loading: true });
     try {
-      const code = await api.startMicrosoftAuth();
-      // Poll is handled by the LoginPage component
+      const code = await api.startMicrosoftAuth() as DeviceCodeResponse;
       dispatch({ type: 'SET_LOADING', loading: false });
       return code;
-    } catch (e: any) {
-      dispatch({ type: 'SET_ERROR', error: e?.toString() || 'MS login failed' });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'MS login failed';
+      dispatch({ type: 'SET_ERROR', error: msg });
       dispatch({ type: 'SET_LOADING', loading: false });
+      return undefined;
     }
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const activeId = state.activeAccountId;
+    if (activeId) {
+      try {
+        await api.removeAccount(activeId);
+      } catch (e) {
+        console.warn('Failed to remove account on server:', e instanceof Error ? e.message : String(e));
+      }
+    }
     dispatch({ type: 'LOGOUT' });
-  }, []);
+  }, [state.activeAccountId]);
 
   const switchAccount = useCallback(async (id: string) => {
     try {
       await api.setActiveAccount(id);
       dispatch({ type: 'SET_ACTIVE', id });
       await refreshAccounts();
-    } catch (e: any) {
-      dispatch({ type: 'SET_ERROR', error: e?.toString() || 'Switch failed' });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Switch failed';
+      dispatch({ type: 'SET_ERROR', error: msg });
     }
   }, [refreshAccounts]);
 

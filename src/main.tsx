@@ -16,9 +16,12 @@ try {
     </React.StrictMode>,
   );
 } catch (e) {
+  const msg = e instanceof Error ? e.message : String(e);
+  const stack = e instanceof Error ? e.stack || '' : '';
+  const escaped = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   root.innerHTML = `<div style="color:#FF4444;padding:40px;font-family:monospace;background:#0D0D0D;height:100vh">
     <h2>BonNext Failed to Start</h2>
-    <pre>${e instanceof Error ? e.message + '\n\n' + e.stack : String(e)}</pre>
+    <pre>${escaped(msg)}\n\n${escaped(stack)}</pre>
   </div>`;
   console.error(e);
 }

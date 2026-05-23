@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { api, type AppConfig } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useConfig } from '../stores/configStore';
-import { useTheme, type Theme } from '../stores/themeStore';
+import { useTheme, type Theme, UI_SCALE_MIN, UI_SCALE_MAX } from '../stores/themeStore';
 import { useI18n } from '../i18n';
 import { StatusDot, Badge, Button, TextInput, Select, Checkbox, Slider } from '../components/ui';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -40,7 +40,7 @@ function SettingRow({ label, children }: { label: string; children: React.ReactN
 export default function SettingsPage() {
   const { state: authState, logout, switchAccount } = useAuth();
   const { state: cfgState, saveConfig } = useConfig();
-  const { theme, setTheme } = useTheme();
+  const { theme, switchThemeWithAnimation, uiScale, setUiScale } = useTheme();
   const { t } = useI18n();
   const auth = authState.currentUser;
   const config = cfgState.config;
@@ -267,11 +267,30 @@ export default function SettingsPage() {
                 key={val}
                 variant={theme === val ? 'primary' : 'secondary'}
                 size="sm"
-                onClick={() => setTheme(val)}
+                onClick={() => switchThemeWithAnimation(val)}
               >
                 {label}
               </Button>
             ))}
+          </div>
+        </SettingRow>
+        <SettingRow label={t('settings.uiScale')}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6em', color: '#FFF', minWidth: 40 }}>
+              {Math.round(uiScale * 100)}%
+            </span>
+            <div style={{ flex: 1 }}>
+              <Slider gradient
+                value={uiScale}
+                min={UI_SCALE_MIN}
+                max={UI_SCALE_MAX}
+                step={0.05}
+                onChange={setUiScale}
+              />
+            </div>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.5em', color: '#555' }}>
+              {Math.round(UI_SCALE_MIN * 100)}%–{Math.round(UI_SCALE_MAX * 100)}%
+            </span>
           </div>
         </SettingRow>
       </SectionCard>

@@ -11,6 +11,7 @@ interface InstallButtonProps {
   gameVersion?: string;
   loader?: string;
   contentType?: string;
+  source?: 'modrinth' | 'curseforge';
   onInstalled?: () => void;
   size?: 'sm' | 'md' | 'lg';
 }
@@ -26,12 +27,17 @@ async function downloadSingle(
   sha1: string | undefined,
   addTask: (t: any) => void,
   updateTask: (id: string, status: any, err?: string) => void,
+  source: string,
 ) {
   const taskId = `${slug}-${Date.now()}`;
   addTask({ id: taskId, title, filename, status: 'pending', startedAt: Date.now() });
   updateTask(taskId, 'downloading');
 
-  await api.installContent(fileUrl, filename, instanceId, contentType, sha1, slug, versionId);
+  if (source === 'curseforge') {
+    await api.downloadCfMod(fileUrl, filename, instanceId, contentType, sha1, slug, versionId);
+  } else {
+    await api.installContent(fileUrl, filename, instanceId, contentType, sha1, slug, versionId, source);
+  }
 
   updateTask(taskId, 'complete');
 }
@@ -43,6 +49,7 @@ export function InstallButton({
   gameVersion,
   loader,
   contentType,
+  source = 'modrinth',
   onInstalled,
   size = 'sm',
 }: InstallButtonProps) {
@@ -60,7 +67,9 @@ export function InstallButton({
     const ct = contentType || 'mod';
 
     try {
-      const versions = await api.getModVersions(contentSlug, gameVersion, loader || undefined);
+      const versions = source === 'curseforge'
+        ? await api.getCfModVersions(parseInt(contentSlug, 10))
+        : await api.getModVersions(contentSlug, gameVersion, loader || undefined);
       if (versions.length === 0) {
         addToast({ type: 'error', title: 'No compatible version', message: `${contentTitle} has no version for your config.` });
         setInstalling(false);
@@ -111,6 +120,7 @@ export function InstallButton({
               dep.file.hashes.sha1 || undefined,
               addTask,
               updateTask,
+              source,
             );
             depCount++;
           } catch (e: any) {
@@ -120,7 +130,7 @@ export function InstallButton({
       }
 
       // Install main item
-      await downloadSingle(contentSlug, contentTitle, primaryFile.url, primaryFile.filename, instanceId, ct, latest.id, primaryFile.hashes.sha1 || undefined, addTask, updateTask);
+      await downloadSingle(contentSlug, contentTitle, primaryFile.url, primaryFile.filename, instanceId, ct, latest.id, primaryFile.hashes.sha1 || undefined, addTask, updateTask, source);
 
       const msg = depCount > 0
         ? `${contentTitle} ${latest.version_number} + ${depCount} dependencies`

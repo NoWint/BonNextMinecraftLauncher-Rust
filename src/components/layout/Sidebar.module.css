@@ -43,7 +43,7 @@
 
 .sidebar__signal {
   margin: 0 16px 16px;
-  background: #111;
+  background: var(--color-sidebar);
   border: 1px solid var(--color-border);
   padding: 6px 10px;
   display: flex;
@@ -61,7 +61,7 @@
 .sidebar__signalText {
   font-family: var(--font-mono);
   font-size: 0.42em;
-  color: #666;
+  color: var(--color-text-muted);
   letter-spacing: 1px;
 }
 
@@ -76,7 +76,7 @@
   padding: 10px 12px;
   font-size: 0.72em;
   font-weight: 600;
-  color: #555;
+  color: var(--color-text-muted);
   letter-spacing: 1px;
   cursor: pointer;
   transition: color 0.15s var(--ease-out-expo),
@@ -93,8 +93,8 @@
   justify-content: space-between;
 
   &:hover {
-    color: #888;
-    box-shadow: inset 2px 0 0 rgba(255, 230, 0, 0.15);
+    color: var(--color-text-tertiary);
+    box-shadow: inset 2px 0 0 var(--color-accent-15);
   }
 
   &:focus-visible {
@@ -106,7 +106,7 @@
 .sidebar__navShortcut {
   font-family: var(--font-mono);
   font-size: 0.55em;
-  color: #444;
+  color: var(--color-text-dim);
   opacity: 0;
   transform: translateX(-4px);
   transition: opacity 0.2s, transform 0.2s var(--ease-out-expo);
@@ -155,7 +155,7 @@
 
 .sidebar__playtimeLabel {
   font-size: 0.45em;
-  color: #444;
+  color: var(--color-text-dim);
   letter-spacing: 2px;
   margin-bottom: 4px;
 }
@@ -169,7 +169,7 @@
 
 .sidebar__playtimeUnit {
   font-size: 0.5em;
-  color: #555;
+  color: var(--color-text-muted);
   margin-left: 4px;
 }
 
@@ -200,7 +200,7 @@
 .sidebar__userName {
   font-size: 0.62em;
   font-weight: 600;
-  color: #AAA;
+  color: var(--color-text-secondary);
 }
 
 .sidebar__userType {

@@ -1,6 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
 
 :root {
+  --ui-scale: 1;
+  font-size: calc(var(--ui-scale) * 16px);
+
   --color-bg: #0D0D0D;
   --color-panel: #141414;
   --color-panel-alt: #1A1A1A;
@@ -17,6 +20,24 @@
   --color-text-muted: #666;
   --color-text-dim: #555;
   --color-text-faint: #444;
+
+  --color-accent-action: var(--color-accent);
+  --color-accent-action-text: #1A1A1A;
+  --color-accent-06: rgba(255, 230, 0, 0.06);
+  --color-accent-10: rgba(255, 230, 0, 0.1);
+  --color-accent-15: rgba(255, 230, 0, 0.15);
+  --color-accent-20: rgba(255, 230, 0, 0.2);
+  --color-accent-30: rgba(255, 230, 0, 0.3);
+  --color-overlay-30: rgba(0, 0, 0, 0.3);
+  --color-overlay-50: rgba(0, 0, 0, 0.5);
+  --color-overlay-60: rgba(0, 0, 0, 0.6);
+  --color-overlay-80: rgba(0, 0, 0, 0.8);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.2);
+  --selection-bg: rgba(255, 230, 0, 0.3);
+  --selection-color: #FFFFFF;
+  --scrollbar-thumb-color: var(--color-border-light);
+  --scrollbar-thumb-hover: var(--color-text-muted);
 
   --font-heading: 'Bebas Neue', sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;

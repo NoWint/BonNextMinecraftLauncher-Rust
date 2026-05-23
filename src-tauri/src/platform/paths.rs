@@ -1,3 +1,4 @@
+use crate::error::LauncherError;
 use directories::BaseDirs;
 use std::path::PathBuf;
 
@@ -126,7 +127,10 @@ pub fn get_instance_shaderpacks_dir(instance_id: &str) -> PathBuf {
 
 pub fn get_config_dir() -> PathBuf {
     if let Some(base_dirs) = BaseDirs::new() {
-        base_dirs.data_dir().join("bonnext")
+        #[cfg(target_os = "linux")]
+        { base_dirs.config_dir().join("bonnext") }
+        #[cfg(not(target_os = "linux"))]
+        { base_dirs.data_dir().join("bonnext") }
     } else {
         PathBuf::from(".bonnext")
     }
@@ -185,11 +189,91 @@ pub fn hard_link_or_copy(src: &std::path::Path, dst: &std::path::Path) -> std::i
         std::fs::create_dir_all(parent)?;
     }
     match std::fs::hard_link(src, dst) {
-        Ok(()) => Ok(()),
-        Err(_) => {
-            // Hard link failed (cross-device?), fall back to copy
+        Ok(()) => {
+            tracing::debug!("Hard linked {} -> {}", src.display(), dst.display());
+            Ok(())
+        }
+        Err(e) => {
+            tracing::debug!(
+                "Hard link failed ({}), falling back to copy: {} -> {}",
+                e, src.display(), dst.display()
+            );
             std::fs::copy(src, dst)?;
             Ok(())
         }
+    }
+}
+
+pub fn path_to_string(path: &std::path::Path) -> Result<String, LauncherError> {
+    path.to_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| LauncherError::Other(format!(
+            "Path contains non-UTF-8 characters and cannot be used: {}",
+            path.display()
+        )))
+}
+
+pub fn classpath_separator() -> &'static str {
+    if cfg!(target_os = "windows") { ";" } else { ":" }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_classpath_separator() {
+        let sep = classpath_separator();
+        if cfg!(target_os = "windows") {
+            assert_eq!(sep, ";");
+        } else {
+            assert_eq!(sep, ":");
+        }
+    }
+
+    #[test]
+    fn test_path_to_string_valid() {
+        let path = std::path::Path::new("/usr/lib/jvm/java-21");
+        assert_eq!(path_to_string(path).unwrap(), "/usr/lib/jvm/java-21");
+    }
+
+    #[test]
+    fn test_path_to_string_empty() {
+        let path = std::path::Path::new("");
+        assert_eq!(path_to_string(path).unwrap(), "");
+    }
+
+    #[test]
+    fn test_get_config_dir_is_absolute() {
+        let config_dir = get_config_dir();
+        assert!(config_dir.is_absolute() || config_dir == PathBuf::from(".bonnext"));
+    }
+
+    #[test]
+    fn test_get_default_game_dir_is_absolute() {
+        let game_dir = get_default_game_dir();
+        assert!(game_dir.is_absolute() || game_dir == PathBuf::from(".bonnext"));
+    }
+
+    #[test]
+    fn test_hard_link_or_copy_creates_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let src = dir.path().join("source.txt");
+        let dst = dir.path().join("dest.txt");
+        std::fs::write(&src, b"hello").unwrap();
+        hard_link_or_copy(&src, &dst).unwrap();
+        assert!(dst.exists());
+        assert_eq!(std::fs::read_to_string(&dst).unwrap(), "hello");
+    }
+
+    #[test]
+    fn test_hard_link_or_copy_idempotent() {
+        let dir = tempfile::tempdir().unwrap();
+        let src = dir.path().join("source.txt");
+        let dst = dir.path().join("dest.txt");
+        std::fs::write(&src, b"hello").unwrap();
+        hard_link_or_copy(&src, &dst).unwrap();
+        hard_link_or_copy(&src, &dst).unwrap();
+        assert_eq!(std::fs::read_to_string(&dst).unwrap(), "hello");
     }
 }

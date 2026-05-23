@@ -37,7 +37,7 @@ export class ErrorBoundary extends React.Component<
             className={styles.homeBtn}
             onClick={() => {
               this.setState({ hasError: false, error: null });
-              window.location.hash = '#/home';
+              window.location.hash = '#/';
             }}
           >
             RETURN HOME

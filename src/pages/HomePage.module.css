@@ -35,7 +35,7 @@
 .topBar__statSep {
   width: 1px;
   height: 10px;
-  background: #333;
+  background: var(--color-text-dim);
 }
 
 .topBar__right {
@@ -66,7 +66,7 @@
 .topBar__sysText {
   font-family: var(--font-mono);
   font-size: 0.42em;
-  color: #555;
+  color: var(--color-text-muted);
 }
 
 /* Main grid */
@@ -119,7 +119,7 @@
 
 .card--default {
   background: var(--color-panel);
-  border: 1px solid #1C1C1C;
+  border: 1px solid var(--color-panel-alt);
 }
 
 .card__accent {
@@ -140,7 +140,7 @@
 .card__icon {
   width: 42px;
   height: 42px;
-  background: #252525;
+  background: var(--color-panel-alt);
   clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
   display: flex;
   align-items: center;
@@ -153,7 +153,7 @@
 }
 
 .card__icon--default {
-  color: #555;
+  color: var(--color-text-muted);
 }
 
 .card__info {
@@ -176,12 +176,12 @@
 }
 
 .card__name--default {
-  color: #AAA;
+  color: var(--color-text-secondary);
 }
 
 .card__meta {
   font-size: 0.55em;
-  color: #666;
+  color: var(--color-text-muted);
   margin-top: 3px;
 }
 
@@ -197,7 +197,7 @@
 
 .card__ramLabel {
   font-size: 0.4em;
-  color: #555;
+  color: var(--color-text-muted);
 }
 
 /* Loading state */
@@ -221,13 +221,13 @@
 
 .loadingText {
   font-size: 0.6em;
-  color: #888;
+  color: var(--color-text-tertiary);
 }
 
 .loadingSub {
   font-family: var(--font-mono);
   font-size: 0.5em;
-  color: #555;
+  color: var(--color-text-muted);
 }
 
 /* Empty state */
@@ -237,7 +237,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 1px dashed #333;
+  border: 1px dashed var(--color-text-dim);
   padding: 40px;
   text-align: center;
   gap: 12px;
@@ -258,7 +258,7 @@
 
 .emptyState__desc {
   font-size: 0.55em;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 /* Right: PLAY area */
@@ -272,7 +272,7 @@
 
 .playArea__panel {
   flex: 1;
-  background: #111;
+  background: var(--color-sidebar);
   border: 1px solid var(--color-border-light);
   display: flex;
   flex-direction: column;
@@ -287,7 +287,7 @@
   cursor: pointer;
 
   &:hover {
-    border-color: rgba(255, 230, 0, 0.15);
+    border-color: var(--color-accent-15);
   }
 
   &:active {
@@ -306,7 +306,7 @@
   left: 16px;
   right: 16px;
   bottom: 16px;
-  border: 1px solid rgba(255, 230, 0, 0.04);
+  border: 1px solid var(--color-accent-06);
   transform: rotate(-2deg);
   pointer-events: none;
 }
@@ -317,7 +317,7 @@
   top: 30px;
   bottom: 30px;
   width: 1px;
-  background: rgba(255, 230, 0, 0.05);
+  background: var(--color-accent-06);
   pointer-events: none;
 }
 
@@ -372,14 +372,14 @@
 
 .playArea__details {
   font-size: 0.45em;
-  color: #555;
+  color: var(--color-text-muted);
   margin-top: 2px;
 }
 
 .playArea__noInstance {
   margin-top: 18px;
   font-size: 0.6em;
-  color: #555;
+  color: var(--color-text-muted);
 }
 
 .playArea__sysRow {
@@ -393,7 +393,7 @@
 .playArea__sysText {
   font-family: var(--font-mono);
   font-size: 0.5em;
-  color: #555;
+  color: var(--color-text-muted);
 }
 
 /* Quick stats */
@@ -405,7 +405,7 @@
 .statCard {
   flex: 1;
   background: var(--color-panel);
-  border: 1px solid #1C1C1C;
+  border: 1px solid var(--color-panel-alt);
   padding: 12px 8px;
   text-align: center;
 }
@@ -418,7 +418,7 @@
 
 .statCard__label {
   font-size: 0.42em;
-  color: #555;
+  color: var(--color-text-muted);
   margin-top: 2px;
   letter-spacing: 1px;
 }
@@ -430,7 +430,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: var(--color-overlay-80);
   z-index: 50;
   display: flex;
   align-items: center;
@@ -448,7 +448,7 @@
 .downloadFile {
   font-family: var(--font-mono);
   font-size: 0.55em;
-  color: #888;
+  color: var(--color-text-tertiary);
 }
 
 .downloadStats {
@@ -459,7 +459,7 @@
 
 .downloadStatItem {
   font-size: 0.55em;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .downloadSpeed {
@@ -470,7 +470,7 @@
 
 .downloadSpeedItem {
   font-size: 0.5em;
-  color: #555;
+  color: var(--color-text-muted);
 }
 
 /* Error toast */
@@ -505,8 +505,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #1C1C1C;
-  background: #0D0D0D;
+  border: 1px solid var(--color-panel-alt);
+  background: var(--color-bg);
   overflow: hidden;
 }
 .emptyHero__glimmer {
@@ -531,13 +531,13 @@
 .emptyHero__title {
   font-family: var(--font-heading);
   font-size: 2em;
-  color: #FFF;
+  color: var(--color-text);
   letter-spacing: 4px;
   margin: 0 0 12px 0;
 }
 .emptyHero__desc {
   font-size: 0.7em;
-  color: #888;
+  color: var(--color-text-tertiary);
   margin: 0 0 32px 0;
 }
 .emptyHero__actions {
@@ -548,7 +548,7 @@
 }
 .emptyHero__hint {
   font-size: 0.5em;
-  color: #444;
+  color: var(--color-text-dim);
   margin: 0;
 }
 
@@ -562,19 +562,19 @@
 /* Card meta items */
 .card__metaItem {
   font-size: 0.55em;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .card__metaSep {
   margin: 0 4px;
-  color: #444;
+  color: var(--color-text-dim);
   font-size: 0.5em;
 }
 
 /* PlayArea panel countdown state */
 .playArea__panel--countdown {
   cursor: default;
-  border-color: rgba(255, 230, 0, 0.3);
+  border-color: var(--color-accent-30);
 }
 
 /* Countdown ring animation */
@@ -593,7 +593,7 @@
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  border: 2px solid rgba(255, 230, 0, 0.3);
+  border: 2px solid var(--color-accent-30);
   animation: countdown-pulse 1s ease-in-out infinite;
 }
 
@@ -601,20 +601,20 @@
   0% {
     transform: scale(0.85);
     opacity: 0.6;
-    border-color: rgba(255, 230, 0, 0.2);
-    box-shadow: 0 0 0 0 rgba(255, 230, 0, 0.1);
+    border-color: var(--color-accent-20);
+    box-shadow: 0 0 0 0 var(--color-accent-10);
   }
   50% {
     transform: scale(1.15);
     opacity: 1;
-    border-color: rgba(255, 230, 0, 0.6);
-    box-shadow: 0 0 30px 8px rgba(255, 230, 0, 0.12);
+    border-color: var(--color-accent-30);
+    box-shadow: 0 0 30px 8px var(--color-accent-10);
   }
   100% {
     transform: scale(0.85);
     opacity: 0.6;
-    border-color: rgba(255, 230, 0, 0.2);
-    box-shadow: 0 0 0 0 rgba(255, 230, 0, 0.1);
+    border-color: var(--color-accent-20);
+    box-shadow: 0 0 0 0 var(--color-accent-10);
   }
 }
 
@@ -631,7 +631,7 @@
 .countdownLabel {
   font-family: var(--font-mono);
   font-size: 0.5em;
-  color: #888;
+  color: var(--color-text-tertiary);
   letter-spacing: 4px;
 }
 
@@ -659,7 +659,7 @@
   width: 100%;
   height: 220px;
   overflow: hidden;
-  border: 1px solid #1C1C1C;
+  border: 1px solid var(--color-panel-alt);
   flex-shrink: 0;
   margin-bottom: 4px;
 }
@@ -719,7 +719,7 @@
 
 .bannerLabel {
   font-size: 0.45em;
-  color: #FFE600;
+  color: var(--color-accent);
   letter-spacing: 4px;
   margin-bottom: 8px;
   text-transform: uppercase;
@@ -728,7 +728,7 @@
 .bannerTitle {
   font-family: var(--font-heading);
   font-size: 1.6em;
-  color: #FFF;
+  color: var(--color-text);
   letter-spacing: 3px;
   line-height: 1.15;
   margin-bottom: 8px;
@@ -736,7 +736,7 @@
 
 .bannerDesc {
   font-size: 0.55em;
-  color: #888;
+  color: var(--color-text-tertiary);
   line-height: 1.5;
   max-width: 400px;
 }
@@ -767,15 +767,15 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #333;
+  background: var(--color-text-dim);
   border: none;
   cursor: pointer;
   padding: 0;
   transition: all 200ms;
 }
-.bannerDot:hover { background: #555; }
+.bannerDot:hover { background: var(--color-text-muted); }
 .bannerDot--active {
-  background: #FFE600;
+  background: var(--color-accent);
   width: 20px;
   border-radius: 3px;
 }
@@ -787,7 +787,7 @@
   transform: translateY(-50%);
   background: rgba(0,0,0,0.4);
   border: 1px solid rgba(255,255,255,0.08);
-  color: #FFF;
+  color: var(--color-text);
   width: 34px;
   height: 34px;
   display: flex;
@@ -803,4 +803,158 @@
 .bannerArrow:hover { background: rgba(255,230,0,0.2); border-color: rgba(255,230,0,0.3); }
 .bannerArrow--left { left: 12px; }
 .bannerArrow--right { right: 12px; }
+
+/* ============================================================
+   Banner Slide — Instance Cover (first page)
+   ============================================================ */
+
+.bannerSlide--instance {
+  background: linear-gradient(135deg, #0a0f0a 0%, #0a1a0a 30%, #0a0a1a 70%, #1a0a0a 100%);
+}
+
+.bannerSlide--instance::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 70% 30%, rgba(255,230,0,0.06) 0%, transparent 60%),
+    repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(255,255,255,0.008) 20px, rgba(255,255,255,0.008) 22px);
+  pointer-events: none;
+}
+
+.bannerSlide__leftContent {
+  position: relative;
+  z-index: 1;
+  max-width: 45%;
+  flex-shrink: 0;
+}
+
+.bannerSlide__rightCover {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 55%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 0;
+  z-index: 0;
+  mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.15) 15%, rgba(0,0,0,0.5) 30%, rgba(0,0,0,0.85) 50%, black 70%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.15) 15%, rgba(0,0,0,0.5) 30%, rgba(0,0,0,0.85) 50%, black 70%);
+  overflow: hidden;
+}
+
+.bannerSlide__coverImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  filter: brightness(0.85) saturate(1.1);
+}
+
+.bannerSlide__coverPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(255,230,0,0.03) 0%, rgba(255,230,0,0.01) 100%);
+}
+
+.bannerSlide__coverIcon {
+  font-size: 3em;
+  color: rgba(255,230,0,0.08);
+}
+
+/* ============================================================
+   PlayArea Instance Switcher
+   ============================================================ */
+
+.playArea__instanceRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.playArea__switchBtn {
+  background: transparent;
+  border: 1px solid var(--color-border-mid);
+  color: var(--color-accent);
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.7em;
+  padding: 0;
+  transition: all 150ms;
+  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+}
+
+.playArea__switchBtn:hover {
+  background: var(--color-accent-10);
+  border-color: var(--color-accent-30);
+}
+
+.instanceSwitcher {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-panel);
+  border: 1px solid var(--color-border-light);
+  min-width: 240px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+.instanceSwitcher__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-panel-alt);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background 120ms;
+  text-align: left;
+}
+
+.instanceSwitcher__item:hover {
+  background: var(--color-panel-alt);
+}
+
+.instanceSwitcher__item--active {
+  color: var(--color-accent);
+  background: var(--color-panel-alt);
+}
+
+.instanceSwitcher__icon {
+  font-size: 1em;
+  flex-shrink: 0;
+}
+
+.instanceSwitcher__name {
+  flex: 1;
+  font-size: 0.7em;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.instanceSwitcher__version {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
 

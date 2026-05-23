@@ -135,6 +135,46 @@ struct ModrinthSearchHit {
     latest_version: Option<String>,
 }
 
+impl From<ModrinthSearchHit> for ModResult {
+    fn from(h: ModrinthSearchHit) -> Self {
+        ModResult {
+            slug: h.slug,
+            title: h.title,
+            description: h.description,
+            author: h.author,
+            categories: h.categories,
+            downloads: h.downloads,
+            follows: h.follows,
+            icon_url: h.icon_url,
+            client_side: h.client_side,
+            server_side: h.server_side,
+            latest_version: h.latest_version,
+            date_created: h.date_created,
+            date_modified: h.date_modified,
+        }
+    }
+}
+
+impl From<ModrinthProject> for ModResult {
+    fn from(p: ModrinthProject) -> Self {
+        ModResult {
+            slug: p.slug,
+            title: p.title,
+            description: p.description,
+            author: p.author,
+            categories: p.categories,
+            downloads: p.downloads,
+            follows: p.follows,
+            icon_url: p.icon_url,
+            client_side: p.client_side,
+            server_side: p.server_side,
+            latest_version: None,
+            date_created: p.date_created,
+            date_modified: p.date_modified,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct ModrinthProject {
     slug: String,
@@ -259,25 +299,7 @@ pub async fn search_mods(
         .json()
         .await?;
 
-    let results = resp
-        .hits
-        .into_iter()
-        .map(|h| ModResult {
-            slug: h.slug,
-            title: h.title,
-            description: h.description,
-            author: h.author,
-            categories: h.categories,
-            downloads: h.downloads,
-            follows: h.follows,
-            icon_url: h.icon_url,
-            client_side: h.client_side,
-            server_side: h.server_side,
-            latest_version: h.latest_version,
-            date_created: h.date_created,
-            date_modified: h.date_modified,
-        })
-        .collect();
+    let results: Vec<ModResult> = resp.hits.into_iter().map(Into::into).collect();
 
     Ok((results, resp.total_hits))
 }
@@ -295,21 +317,7 @@ pub async fn get_mod(slug: &str) -> Result<ModResult, LauncherError> {
         .json()
         .await?;
 
-    Ok(ModResult {
-        slug: resp.slug,
-        title: resp.title,
-        description: resp.description,
-        author: resp.author,
-        categories: resp.categories,
-        downloads: resp.downloads,
-        follows: resp.follows,
-        icon_url: resp.icon_url,
-        client_side: resp.client_side,
-        server_side: resp.server_side,
-        latest_version: None, // Project endpoint doesn't include this
-        date_created: resp.date_created,
-        date_modified: resp.date_modified,
-    })
+    Ok(resp.into())
 }
 
 /// Get versions of a mod, filtered by game version and loader.
@@ -392,25 +400,7 @@ pub async fn get_popular_mods(
         .json()
         .await?;
 
-    Ok(resp
-        .hits
-        .into_iter()
-        .map(|h| ModResult {
-            slug: h.slug,
-            title: h.title,
-            description: h.description,
-            author: h.author,
-            categories: h.categories,
-            downloads: h.downloads,
-            follows: h.follows,
-            icon_url: h.icon_url,
-            client_side: h.client_side,
-            server_side: h.server_side,
-            latest_version: h.latest_version,
-            date_created: h.date_created,
-            date_modified: h.date_modified,
-        })
-        .collect())
+    Ok(resp.hits.into_iter().map(Into::into).collect())
 }
 
 /// Search with combined facets for market-style browsing.
@@ -468,25 +458,7 @@ pub async fn search_with_facets(
         .json()
         .await?;
 
-    let results = resp
-        .hits
-        .into_iter()
-        .map(|h| ModResult {
-            slug: h.slug,
-            title: h.title,
-            description: h.description,
-            author: h.author,
-            categories: h.categories,
-            downloads: h.downloads,
-            follows: h.follows,
-            icon_url: h.icon_url,
-            client_side: h.client_side,
-            server_side: h.server_side,
-            latest_version: h.latest_version,
-            date_created: h.date_created,
-            date_modified: h.date_modified,
-        })
-        .collect();
+    let results: Vec<ModResult> = resp.hits.into_iter().map(Into::into).collect();
 
     Ok((results, resp.total_hits))
 }
@@ -604,21 +576,7 @@ pub async fn get_popular_by_type(
         .json()
         .await?;
 
-    Ok(resp.hits.into_iter().map(|h| ModResult {
-        slug: h.slug,
-        title: h.title,
-        description: h.description,
-        author: h.author,
-        categories: h.categories,
-        downloads: h.downloads,
-        follows: h.follows,
-        icon_url: h.icon_url,
-        client_side: h.client_side,
-        server_side: h.server_side,
-        latest_version: h.latest_version,
-        date_created: h.date_created,
-        date_modified: h.date_modified,
-    }).collect())
+    Ok(resp.hits.into_iter().map(Into::into).collect())
 }
 
 /// Get recently updated content, optionally filtered by project type.
@@ -653,21 +611,7 @@ pub async fn get_recently_updated(
         .json()
         .await?;
 
-    Ok(resp.hits.into_iter().map(|h| ModResult {
-        slug: h.slug,
-        title: h.title,
-        description: h.description,
-        author: h.author,
-        categories: h.categories,
-        downloads: h.downloads,
-        follows: h.follows,
-        icon_url: h.icon_url,
-        client_side: h.client_side,
-        server_side: h.server_side,
-        latest_version: h.latest_version,
-        date_created: h.date_created,
-        date_modified: h.date_modified,
-    }).collect())
+    Ok(resp.hits.into_iter().map(Into::into).collect())
 }
 
 /// Download a content file to the instance's correct directory based on type.

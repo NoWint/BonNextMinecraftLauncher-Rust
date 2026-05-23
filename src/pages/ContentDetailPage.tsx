@@ -10,12 +10,16 @@ import { SectionHeader, Ticker } from '../components/layout';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import styles from './ContentDetailPage.module.css';
 
-function parseHash(): { type: string; slug: string } | null {
+function parseHash(): { type: string; slug: string; source: string } | null {
   const hash = window.location.hash.replace('#/', '');
   if (!hash.startsWith('store/')) return null;
   const parts = hash.split('/');
   if (parts.length >= 3) {
-    return { type: parts[1], slug: parts[2].split('?')[0] };
+    const slugAndQuery = parts[2].split('?');
+    const slug = slugAndQuery[0];
+    const query = slugAndQuery[1] || '';
+    const source = query.includes('source=curseforge') ? 'curseforge' : 'modrinth';
+    return { type: parts[1], slug, source };
   }
   return null;
 }
@@ -41,6 +45,18 @@ function formatNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
+}
+
+function sanitizeHtml(html: string): string {
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
+    .replace(/<embed\b[^>]*>/gi, '')
+    .replace(/<link\b[^>]*>/gi, '')
+    .replace(/<meta\b[^>]*>/gi, '')
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/javascript\s*:/gi, '');
 }
 
 export default function ContentDetailPage() {
@@ -81,10 +97,22 @@ export default function ContentDetailPage() {
       setLoading(true);
       setError('');
       try {
-        const [proj, vers] = await Promise.all([
-          api.getProjectDetails(parsed.slug),
-          api.getModVersions(parsed.slug),
-        ]);
+        let proj: ModProjectFull;
+        let vers: ModVersion[];
+
+        if (parsed.source === 'curseforge') {
+          const modId = parseInt(parsed.slug, 10);
+          [proj, vers] = await Promise.all([
+            api.getCfProjectDetails(modId),
+            api.getCfModVersions(modId),
+          ]);
+        } else {
+          [proj, vers] = await Promise.all([
+            api.getProjectDetails(parsed.slug),
+            api.getModVersions(parsed.slug),
+          ]);
+        }
+
         if (!cancelled) {
           setProject(proj);
           setAllVersions(vers);
@@ -98,7 +126,7 @@ export default function ContentDetailPage() {
 
     load();
     return () => { cancelled = true; };
-  }, [parsed?.slug, parsed?.type]);
+  }, [parsed?.slug, parsed?.type, parsed?.source]);
 
   // Keyboard: lightbox navigation
   useEffect(() => {
@@ -242,6 +270,7 @@ export default function ContentDetailPage() {
             contentTitle={project.title}
             instanceId={selectedInstance}
             contentType={parsed.type}
+            source={parsed.source as 'modrinth' | 'curseforge'}
             size="md"
           />
         </div>
@@ -252,7 +281,7 @@ export default function ContentDetailPage() {
         <SectionHeader title="DESCRIPTION" />
         <div
           className={styles.descBody}
-          dangerouslySetInnerHTML={{ __html: project.body }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(project.body) }}
         />
       </div>
 
@@ -454,6 +483,7 @@ export default function ContentDetailPage() {
                           gameVersion={selectedVersion.game_versions[0]}
                           loader={selectedVersion.loaders[0]}
                           contentType={parsed.type}
+                          source={parsed.source as 'modrinth' | 'curseforge'}
                           size="sm"
                         />
                       )}
@@ -510,7 +540,7 @@ export default function ContentDetailPage() {
       <Ticker messages={[
         `Updated ${new Date(project.date_modified).toLocaleDateString()}`,
         `Created ${new Date(project.date_created).toLocaleDateString()}`,
-        `${project.project_type} · Modrinth`,
+        `${project.project_type} · ${parsed.source === 'curseforge' ? 'CurseForge' : 'Modrinth'}`,
       ]} />
 
       {/* Lightbox */}

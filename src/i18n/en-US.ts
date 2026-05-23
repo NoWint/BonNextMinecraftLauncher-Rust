@@ -3,11 +3,10 @@ const enUS: Record<string, string> = {
   'app.version': 'v0.2',
 
   'nav.home': 'Home',
-  'nav.store': 'Marketplace',
+  'nav.marketplace': 'Marketplace',
   'nav.instances': 'Instances',
   'nav.versions': 'Versions',
   'nav.settings': 'Settings',
-  'nav.mods': 'Mod Browser',
   'nav.collections': 'Collections',
   'nav.library': 'Library',
 
@@ -149,6 +148,8 @@ const enUS: Record<string, string> = {
   'instanceDetail.launchCount': 'launches',
   'instanceDetail.exportInstance': 'Export Instance',
   'instanceDetail.comingSoon': 'Coming soon',
+  'instanceDetail.noSaves': 'No saves found. Start playing to create a world!',
+  'instanceDetail.noLogs': 'No log files found. Logs appear after running the game.',
   'contentDetail.noScreenshots': 'No screenshots available',
   'contentDetail.compatible': 'Compatible',
   'contentDetail.loaderMismatch': 'Loader mismatch',
@@ -191,6 +192,7 @@ const enUS: Record<string, string> = {
   'settings.themeDark': 'Dark',
   'settings.themeLight': 'Light',
   'settings.themeOled': 'OLED',
+  'settings.uiScale': 'UI Scale',
 
   'theme.dark': 'Dark',
   'theme.light': 'Light',
@@ -245,6 +247,7 @@ const enUS: Record<string, string> = {
   'collections.empty': 'No collections yet. Add some from the marketplace.',
   'collections.emptyDesc': 'Click the heart icon on any content to save it to your collection.',
   'collections.tryDifferent': 'Try selecting a different category.',
+  'collections.browseMarketplace': 'Browse Marketplace',
 
   'library.title': 'Library',
   'library.installedMods': 'Installed Mods',

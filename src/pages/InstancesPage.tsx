@@ -95,6 +95,7 @@ export default function InstancesPage() {
         auth?.username || 'Player', auth?.uuid || '',
         auth?.access_token || '', inst.max_memory, inst.min_memory,
         inst.java_path || undefined, inst.jvm_args || undefined,
+        inst.id,
       );
       addToast({ type: 'success', title: 'Launching', message: `${inst.name} is starting...` });
     } catch (e: any) {

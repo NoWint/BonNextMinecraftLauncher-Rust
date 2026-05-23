@@ -4,7 +4,7 @@ import { useI18n } from '../i18n';
 import { SectionHeader, Ticker } from '../components/layout';
 import { Button, ContentCard, Tabs } from '../components/ui';
 import { CardSkeleton } from '../components/ui/Skeleton';
-import styles from './ModsPage.module.css';
+import styles from './CollectionsPage.module.css';
 
 export default function CollectionsPage() {
   const { t } = useI18n();
@@ -59,7 +59,7 @@ export default function CollectionsPage() {
           </div>
           {items.length === 0 && (
             <Button variant="primary" size="md" onClick={() => (window.location.hash = '#/store')}>
-              t('common.browse') + ' Marketplace'
+              {t('collections.browseMarketplace')}
             </Button>
           )}
         </div>

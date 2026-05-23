@@ -37,24 +37,24 @@
    Theme: Light
    ======================================== */
 .theme-light {
-  --bg-primary: #F5F5F5;
-  --bg-secondary: #EAEAEA;
+  --bg-primary: #FAFAFA;
+  --bg-secondary: #F0F0F0;
   --bg-card: #FFFFFF;
   --text-primary: #1A1A1A;
   --text-secondary: #555555;
   --text-muted: #888888;
-  --accent: #CCA700;
-  --border: #D0D0D0;
-  --border-hover: #A0A0A0;
+  --accent: #FFE600;
+  --border: #E5E5E5;
+  --border-hover: #B0B0B0;
   --danger: #CC2222;
   --success: #00AA55;
 
   --color-bg: var(--bg-primary);
   --color-panel: var(--bg-secondary);
   --color-panel-alt: var(--bg-card);
-  --color-sidebar: #E8E8E8;
+  --color-sidebar: #F0F0F0;
   --color-border: var(--border);
-  --color-border-mid: #D5D5D5;
+  --color-border-mid: #D0D0D0;
   --color-border-light: var(--border-hover);
   --color-accent: var(--accent);
   --color-success: var(--success);
@@ -65,6 +65,24 @@
   --color-text-tertiary: #999999;
   --color-text-dim: #BBBBBB;
   --color-text-faint: #CCCCCC;
+
+  --color-accent-action: #1A1A1A;
+  --color-accent-action-text: #FFE600;
+  --color-accent-06: rgba(255, 230, 0, 0.08);
+  --color-accent-10: rgba(255, 230, 0, 0.12);
+  --color-accent-15: rgba(255, 230, 0, 0.2);
+  --color-accent-20: rgba(255, 230, 0, 0.25);
+  --color-accent-30: rgba(255, 230, 0, 0.35);
+  --color-overlay-30: rgba(0, 0, 0, 0.15);
+  --color-overlay-50: rgba(0, 0, 0, 0.3);
+  --color-overlay-60: rgba(0, 0, 0, 0.4);
+  --color-overlay-80: rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --selection-bg: rgba(255, 230, 0, 0.25);
+  --selection-color: #1A1A1A;
+  --scrollbar-thumb-color: rgba(0, 0, 0, 0.2);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.35);
 }
 
 /* ========================================

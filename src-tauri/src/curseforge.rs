@@ -4,16 +4,23 @@
 
 use crate::error::LauncherError;
 use crate::http_client;
-use crate::modrinth::{ModFile, ModHashes, ModResult};
+use crate::modrinth::{ModDependency, ModFile, ModGalleryImage, ModHashes, ModProjectFull, ModResult, ModVersion};
 use serde::Deserialize;
 
 const CF_API_BASE: &str = "https://api.curseforge.com/v1";
-// Default API key used by many open-source Minecraft launchers
-const CF_API_KEY: &str = "$2a$10$AwfSqJ0yOoyURJZ3BkJeDOmSUk4B5BSP2A6fK0l0eX5Oq5Y3VwOZa";
+
+fn get_cf_api_key() -> String {
+    if let Ok(key) = std::env::var("BONNEXT_CF_API_KEY") {
+        if !key.is_empty() {
+            return key;
+        }
+    }
+    "$2a$10$AwfSqJ0yOoyURJZ3BkJeDOmSUk4B5BSP2A6fK0l0eX5Oq5Y3VwOZa".to_string()
+}
 
 fn cf_headers() -> reqwest::header::HeaderMap {
     let mut headers = reqwest::header::HeaderMap::new();
-    headers.insert("x-api-key", CF_API_KEY.parse().unwrap());
+    headers.insert("x-api-key", get_cf_api_key().parse().unwrap());
     headers.insert("Accept", "application/json".parse().unwrap());
     headers
 }
@@ -40,23 +47,14 @@ struct CfPagination {
 }
 
 #[derive(Debug, Deserialize)]
-struct CfMod {
-    id: u64,
-    name: String,
-    summary: String,
+struct CfScreenshot {
+    #[serde(rename = "thumbnailUrl")]
+    thumbnail_url: Option<String>,
+    url: String,
     #[serde(default)]
-    authors: Vec<CfAuthor>,
-    categories: Vec<CfCategory>,
-    #[serde(rename = "downloadCount")]
-    download_count: f64,
-    logo: Option<CfAsset>,
-    links: CfLinks,
-    #[serde(rename = "dateCreated")]
-    date_created: String,
-    #[serde(rename = "dateModified")]
-    date_modified: String,
-    #[serde(rename = "latestFiles")]
-    latest_files: Vec<CfFile>,
+    title: Option<String>,
+    #[serde(default)]
+    description: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -91,6 +89,20 @@ struct CfLinks {
 }
 
 #[derive(Debug, Deserialize)]
+struct CfHash {
+    algo: u64, // 1=sha1, 2=md5
+    value: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct CfDependency {
+    #[serde(rename = "modId")]
+    mod_id: u64,
+    #[serde(rename = "relationType")]
+    relation_type: u64, // 3=required, 2=optional, etc.
+}
+
+#[derive(Debug, Deserialize)]
 struct CfFile {
     id: u64,
     #[serde(rename = "displayName")]
@@ -112,17 +124,27 @@ struct CfFile {
 }
 
 #[derive(Debug, Deserialize)]
-struct CfHash {
-    algo: u64, // 1=sha1, 2=md5
-    value: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct CfDependency {
-    #[serde(rename = "modId")]
-    mod_id: u64,
-    #[serde(rename = "relationType")]
-    relation_type: u64, // 3=required, 2=optional, etc.
+struct CfMod {
+    id: u64,
+    name: String,
+    summary: String,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    authors: Vec<CfAuthor>,
+    categories: Vec<CfCategory>,
+    #[serde(rename = "downloadCount")]
+    download_count: f64,
+    logo: Option<CfAsset>,
+    links: CfLinks,
+    #[serde(rename = "dateCreated")]
+    date_created: String,
+    #[serde(rename = "dateModified")]
+    date_modified: String,
+    #[serde(rename = "latestFiles")]
+    latest_files: Vec<CfFile>,
+    #[serde(default)]
+    screenshots: Vec<CfScreenshot>,
 }
 
 /// Map a CF mod to our unified ModResult.
@@ -139,11 +161,49 @@ fn map_mod(cf: CfMod) -> ModResult {
         author,
         categories,
         downloads: cf.download_count as u64,
-        follows: 0, // CF API doesn't expose follows easily
+        follows: 0,
         icon_url: icon,
         client_side: "required".to_string(),
         server_side: "unsupported".to_string(),
         latest_version,
+        date_created: cf.date_created,
+        date_modified: cf.date_modified,
+    }
+}
+
+fn map_mod_full(cf: CfMod) -> ModProjectFull {
+    let author = cf.authors.first().map(|a| a.name.clone()).unwrap_or_default();
+    let icon = cf.logo.map(|l| l.thumbnail_url).unwrap_or_default();
+    let categories: Vec<String> = cf.categories.into_iter().map(|c| c.name).collect();
+    let gallery: Vec<ModGalleryImage> = cf.screenshots.into_iter().map(|s| {
+        ModGalleryImage {
+            url: s.url,
+            featured: false,
+            title: s.title,
+            description: s.description,
+            created: String::new(),
+        }
+    }).collect();
+
+    ModProjectFull {
+        slug: cf.id.to_string(),
+        title: cf.name,
+        description: cf.summary.clone(),
+        body: cf.description.unwrap_or(cf.summary),
+        author,
+        categories,
+        downloads: cf.download_count as u64,
+        follows: 0,
+        icon_url: icon,
+        client_side: "required".to_string(),
+        server_side: "unsupported".to_string(),
+        project_type: "mod".to_string(),
+        gallery,
+        issues_url: cf.links.issues_url,
+        source_url: cf.links.source_url,
+        wiki_url: cf.links.wiki_url,
+        discord_url: None,
+        license: None,
         date_created: cf.date_created,
         date_modified: cf.date_modified,
     }
@@ -157,6 +217,55 @@ fn map_file(f: CfFile) -> ModFile {
         filename: f.file_name,
         size: f.file_length,
         hashes: ModHashes { sha1, sha512: None },
+    }
+}
+
+fn map_file_to_version(f: CfFile) -> ModVersion {
+    let sha1 = f.hashes.iter().find(|h| h.algo == 1).map(|h| h.value.clone());
+    let primary_file = ModFile {
+        url: f.download_url.clone().unwrap_or_default(),
+        filename: f.file_name.clone(),
+        size: f.file_length,
+        hashes: ModHashes { sha1, sha512: None },
+    };
+
+    let game_versions: Vec<String> = f.game_versions.iter()
+        .filter(|v| !v.starts_with("Forge") && !v.starts_with("Fabric") && !v.starts_with("Quilt"))
+        .cloned()
+        .collect();
+
+    let loaders: Vec<String> = f.game_versions.iter()
+        .filter_map(|v| {
+            if v.starts_with("Forge") { Some("forge".to_string()) }
+            else if v.starts_with("Fabric") { Some("fabric".to_string()) }
+            else if v.starts_with("Quilt") { Some("quilt".to_string()) }
+            else { None }
+        })
+        .collect();
+
+    let dependencies: Vec<ModDependency> = f.dependencies.iter().map(|d| {
+        let dep_type = match d.relation_type {
+            3 => "required",
+            2 => "optional",
+            4 => "incompatible",
+            _ => "optional",
+        };
+        ModDependency {
+            project_id: Some(d.mod_id.to_string()),
+            dependency_type: dep_type.to_string(),
+            version_id: None,
+        }
+    }).collect();
+
+    ModVersion {
+        id: f.id.to_string(),
+        name: f.display_name.clone(),
+        version_number: f.file_name.clone(),
+        game_versions,
+        loaders,
+        files: vec![primary_file],
+        dependencies,
+        date_published: f.file_date,
     }
 }
 
@@ -191,7 +300,7 @@ pub async fn search_mods(
         "downloads" => 2u8,
         "name" => 3u8,
         "updated" => 1u8,
-        _ => 1u8, // default: last updated
+        _ => 1u8,
     };
     url.push_str(&format!("&sortField={}&sortOrder=desc&pageSize={}&index={}",
         sort_field, limit.min(50), offset / limit.min(50)));
@@ -226,6 +335,38 @@ pub async fn get_mod(mod_id: u64) -> Result<ModResult, LauncherError> {
         .await?;
 
     Ok(map_mod(resp.data))
+}
+
+pub async fn get_mod_full(mod_id: u64) -> Result<ModProjectFull, LauncherError> {
+    let client = http_client::build_client();
+    let url = format!("{}/mods/{}", CF_API_BASE, mod_id);
+
+    let resp: CfResponse<CfMod> = client
+        .get(&url)
+        .headers(cf_headers())
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    Ok(map_mod_full(resp.data))
+}
+
+pub async fn get_mod_versions(mod_id: u64) -> Result<Vec<ModVersion>, LauncherError> {
+    let client = http_client::build_client();
+    let url = format!("{}/mods/{}/files", CF_API_BASE, mod_id);
+
+    let resp: CfPaginated<Vec<CfFile>> = client
+        .get(&url)
+        .headers(cf_headers())
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    Ok(resp.data.into_iter().map(map_file_to_version).collect())
 }
 
 pub async fn get_featured() -> Result<Vec<ModResult>, LauncherError> {
@@ -266,6 +407,9 @@ pub async fn download_mod_file(
     file_url: &str,
     filename: &str,
     instance_id: &str,
+    content_type: Option<&str>,
+    sha1_hash: Option<&str>,
 ) -> Result<String, LauncherError> {
-    crate::modrinth::download_content_file(file_url, filename, instance_id, "mod", None).await
+    let ct = content_type.unwrap_or("mod");
+    crate::modrinth::download_content_file(file_url, filename, instance_id, ct, sha1_hash).await
 }

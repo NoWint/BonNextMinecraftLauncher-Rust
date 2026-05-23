@@ -2,8 +2,12 @@ use crate::error::LauncherError;
 use crate::platform::paths;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use parking_lot::Mutex;
 
-/// Persisted account information
+lazy_static::lazy_static! {
+    static ref STORE_LOCK: Mutex<()> = Mutex::new(());
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredAccount {
     pub id: String,
@@ -11,13 +15,12 @@ pub struct StoredAccount {
     pub uuid: String,
     pub access_token: String,
     pub refresh_token: Option<String>,
-    pub account_type: String, // "microsoft" or "offline"
+    pub account_type: String,
     pub last_used: String,
     pub expires_at: Option<String>,
     pub avatar_url: Option<String>,
 }
 
-/// In-memory + on-disk account store
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AccountStore {
     pub accounts: Vec<StoredAccount>,
@@ -49,36 +52,38 @@ impl AccountStore {
         Ok(())
     }
 
-    /// Add or update an account
     pub fn upsert_account(&mut self, account: StoredAccount) -> Result<(), LauncherError> {
-        if let Some(existing) = self.accounts.iter_mut().find(|a| a.id == account.id) {
+        let _lock = STORE_LOCK.lock();
+        let mut store = Self::load()?;
+        if let Some(existing) = store.accounts.iter_mut().find(|a| a.id == account.id) {
             *existing = account;
         } else {
-            self.accounts.push(account);
+            store.accounts.push(account);
         }
-        self.save()
+        store.save()
     }
 
-    /// Remove an account by id
     pub fn remove_account(&mut self, id: &str) -> Result<(), LauncherError> {
-        self.accounts.retain(|a| a.id != id);
-        if self.active_account_id.as_deref() == Some(id) {
-            self.active_account_id = self.accounts.first().map(|a| a.id.clone());
+        let _lock = STORE_LOCK.lock();
+        let mut store = Self::load()?;
+        store.accounts.retain(|a| a.id != id);
+        if store.active_account_id.as_deref() == Some(id) {
+            store.active_account_id = store.accounts.first().map(|a| a.id.clone());
         }
-        self.save()
+        store.save()
     }
 
-    /// Set the active account
     pub fn set_active(&mut self, id: &str) -> Result<(), LauncherError> {
-        if self.accounts.iter().any(|a| a.id == id) {
-            self.active_account_id = Some(id.to_string());
-            self.save()
+        let _lock = STORE_LOCK.lock();
+        let mut store = Self::load()?;
+        if store.accounts.iter().any(|a| a.id == id) {
+            store.active_account_id = Some(id.to_string());
+            store.save()
         } else {
             Err(LauncherError::AuthFailed("Account not found".to_string()))
         }
     }
 
-    /// Get the currently active account
     pub fn get_active(&self) -> Option<&StoredAccount> {
         self.active_account_id
             .as_ref()
@@ -86,8 +91,6 @@ impl AccountStore {
     }
 }
 
-/// Refresh a Microsoft access token using the refresh token.
-/// Calls the Microsoft OAuth token endpoint.
 pub async fn refresh_microsoft_token(
     refresh_token: &str,
 ) -> Result<(String, String), LauncherError> {
@@ -118,37 +121,50 @@ pub async fn refresh_microsoft_token(
     Ok((access_token.to_string(), new_refresh_token))
 }
 
-/// Attempt to refresh the active Microsoft account's token if needed.
-/// Returns the refreshed access token if successful.
 pub async fn ensure_fresh_token() -> Result<Option<String>, LauncherError> {
-    let mut store = AccountStore::load()?;
-    let active_id = match store.active_account_id.clone() {
-        Some(id) => id,
+    let refresh_token = {
+        let _lock = STORE_LOCK.lock();
+        let store = AccountStore::load()?;
+        let active_id = match store.active_account_id {
+            Some(ref id) => id.clone(),
+            None => return Ok(None),
+        };
+        match store.accounts.iter().find(|a| a.id == active_id) {
+            Some(acct) if acct.account_type == "microsoft" => {
+                if acct.expires_at.as_ref().map_or(true, |exp| {
+                    chrono::DateTime::parse_from_rfc3339(exp)
+                        .map(|dt| {
+                            let utc_dt: chrono::DateTime<chrono::Utc> = dt.into();
+                            chrono::Utc::now() + chrono::Duration::minutes(10) >= utc_dt
+                        })
+                        .unwrap_or(true)
+                }) {
+                    acct.refresh_token.clone()
+                } else {
+                    return Ok(Some(acct.access_token.clone()));
+                }
+            }
+            _ => return Ok(None),
+        }
+    };
+
+    let rt = match refresh_token {
+        Some(rt) => rt,
         None => return Ok(None),
     };
 
-    let mut account = store.accounts.iter_mut().find(|a| a.id == active_id);
-    match account {
-        Some(ref mut acct) if acct.account_type == "microsoft" => {
-            if let Some(ref rt) = acct.refresh_token.clone() {
-                match refresh_microsoft_token(rt).await {
-                    Ok((new_access, new_refresh)) => {
-                        acct.access_token = new_access.clone();
-                        acct.refresh_token = Some(new_refresh);
-                        let now = chrono::Utc::now();
-                        // Tokens typically last 1 hour; mark expiry in 50 minutes to refresh early
-                        acct.expires_at = Some((now + chrono::Duration::minutes(50)).to_rfc3339());
-                        store.save()?;
-                        return Ok(Some(new_access));
-                    }
-                    Err(e) => {
-                        tracing::warn!("Token refresh failed: {}", e);
-                        return Ok(Some(acct.access_token.clone()));
-                    }
-                }
-            }
-            Ok(Some(acct.access_token.clone()))
-        }
-        _ => Ok(None),
+    let (new_access, new_refresh) = refresh_microsoft_token(&rt).await?;
+
+    let _lock = STORE_LOCK.lock();
+    let mut store = AccountStore::load()?;
+    let active_id = store.active_account_id.clone().unwrap_or_default();
+    if let Some(ref mut acct) = store.accounts.iter_mut().find(|a| a.id == active_id) {
+        acct.access_token = new_access.clone();
+        acct.refresh_token = Some(new_refresh);
+        let now = chrono::Utc::now();
+        acct.expires_at = Some((now + chrono::Duration::minutes(50)).to_rfc3339());
+        store.save()?;
     }
+
+    Ok(Some(new_access))
 }

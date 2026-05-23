@@ -1,0 +1,9 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 100%;
+  overflow-y: auto;
+  overflow-x: visible;
+  padding-right: 6px;
+}

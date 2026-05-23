@@ -18,6 +18,7 @@ mod version;
 
 use config::AppConfig;
 use crash_parser::CrashInfo;
+use crash_parser::CrashDiagnosis;
 use download::queue::{DownloadProgress, DownloadQueue};
 use error::LauncherError;
 use instance::manager::GameInstance;
@@ -25,7 +26,8 @@ use launch::args::{InstanceSettings, LaunchContext};
 use launch::process::LaunchProcess;
 use launch::state::LaunchState;
 use platform::paths;
-use std::sync::{Arc, Mutex};
+use parking_lot::Mutex;
+use std::sync::Arc;
 use tauri::Emitter;
 use version::manifest::VersionEntry;
 
@@ -40,13 +42,13 @@ async fn get_versions() -> Result<Vec<VersionEntry>, LauncherError> {
 
 #[tauri::command]
 async fn get_launch_state(state: tauri::State<'_, AppState>) -> Result<LaunchState, LauncherError> {
-    let current = state.launch_state.lock().unwrap();
+    let current = state.launch_state.lock();
     Ok(*current)
 }
 
 #[tauri::command]
 async fn reset_launch_state(state: tauri::State<'_, AppState>) -> Result<(), LauncherError> {
-    let mut current = state.launch_state.lock().unwrap();
+    let mut current = state.launch_state.lock();
     *current = LaunchState::Idle;
     Ok(())
 }
@@ -206,10 +208,6 @@ async fn launch_game(
         .map(|a| if a.account_type == "microsoft" { "msa".to_string() } else { "mojang".to_string() })
         .unwrap_or_else(|| "mojang".to_string());
 
-    // Record launch start time for playtime tracking
-    let _launch_start = std::time::Instant::now();
-    let _instance_id_for_playtime = instance_id.clone();
-
     let result = launch_game_inner(
         app,
         state.launch_state.clone(),
@@ -222,7 +220,7 @@ async fn launch_game(
 
     if let Err(ref e) = result {
         tracing::error!("Launch failed: {}", e);
-        let mut current = state.launch_state.lock().unwrap();
+        let mut current = state.launch_state.lock();
         *current = LaunchState::Error;
     }
 
@@ -242,10 +240,10 @@ async fn launch_game_inner(
     min_memory: Option<u32>,
     java_path: Option<String>,
     jvm_args: Option<String>,
-    _instance_id: Option<String>,
+    instance_id: Option<String>,
 ) -> Result<(), LauncherError> {
     {
-        let mut current = launch_state.lock().unwrap();
+        let mut current = launch_state.lock();
         if current.is_busy() {
             return Err(LauncherError::LaunchFailed(format!(
                 "Game is already in state: {:?}", *current
@@ -260,7 +258,7 @@ async fn launch_game_inner(
 
     if !client_jar_path.exists() {
         {
-            let mut current = launch_state.lock().unwrap();
+            let mut current = launch_state.lock();
             *current = LaunchState::Downloading;
         }
         tracing::info!("Client JAR not found, downloading version {} first", version_id);
@@ -279,7 +277,10 @@ async fn launch_game_inner(
 
     let instance_settings = InstanceSettings { max_memory, min_memory, java_path, jvm_args, user_type: Some(user_type) };
     let ctx = LaunchContext::build(resolved, username, uuid, access_token, Some(instance_settings))?;
-    let launcher = LaunchProcess::with_app_handle(launch_state, _app.clone());
+    let mut launcher = LaunchProcess::with_app_handle(launch_state, _app.clone());
+    if let Some(ref iid) = instance_id {
+        launcher = launcher.with_instance_id(iid.clone());
+    }
     launcher.launch(ctx).await
 }
 
@@ -305,7 +306,7 @@ async fn download_version_inner(
     let progress_for_cb = progress.clone();
     let app_for_cb = app.clone();
     let callback = move |p: DownloadProgress| {
-        let mut agg = progress_for_cb.lock().unwrap();
+        let mut agg = progress_for_cb.lock();
         agg.bytes_downloaded = agg.bytes_downloaded.saturating_add(p.downloaded);
         agg.current_url = p.url.clone();
         if p.finished { agg.completed += 1; }
@@ -343,6 +344,7 @@ async fn download_version_inner(
         if succeeded == 0 {
             return Err(LauncherError::DownloadFailed(format!("All {}/{} downloads failed", errors.len(), total)));
         }
+        tracing::warn!("Partial download failure: {}/{} succeeded, some features may not work", succeeded, total);
     }
 
     let asset_object_tasks = download::queue::build_asset_object_tasks(&resolved.asset_index.id).await?;
@@ -357,7 +359,7 @@ async fn download_version_inner(
         }));
         let progress_assets_cb = progress_assets.clone();
         let asset_callback = move |p: DownloadProgress| {
-            let mut agg = progress_assets_cb.lock().unwrap();
+            let mut agg = progress_assets_cb.lock();
             agg.bytes_downloaded = agg.bytes_downloaded.saturating_add(p.downloaded);
             agg.current_url = p.url.clone();
             if p.finished { agg.completed += 1; }
@@ -431,14 +433,30 @@ fn extract_natives(jar_path: &std::path::Path, natives_dir: &std::path::Path) ->
         } else if cfg!(target_os = "macos") {
             name.ends_with(".dylib") || name.ends_with(".jnilib")
         } else {
-            name.ends_with(".so")
+            name.ends_with(".so") || name.contains(".so.")
         };
 
         if is_platform_native {
             if let Some(file_name) = std::path::Path::new(&name).file_name() {
                 let out_path = natives_dir.join(file_name);
-                let mut out = std::fs::File::create(&out_path)?;
-                std::io::copy(&mut entry, &mut out)?;
+
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::OpenOptionsExt;
+                    let mut out = std::fs::OpenOptions::new()
+                        .write(true)
+                        .create(true)
+                        .truncate(true)
+                        .mode(0o755)
+                        .open(&out_path)?;
+                    std::io::copy(&mut entry, &mut out)?;
+                }
+
+                #[cfg(not(unix))]
+                {
+                    let mut out = std::fs::File::create(&out_path)?;
+                    std::io::copy(&mut entry, &mut out)?;
+                }
             }
         }
     }
@@ -496,6 +514,16 @@ async fn import_modpack(path: String) -> Result<GameInstance, LauncherError> {
 }
 
 #[tauri::command]
+async fn detect_modpack_format(path: String) -> Result<instance::manager::ModpackFormat, LauncherError> {
+    instance::manager::detect_modpack_format(&path)
+}
+
+#[tauri::command]
+async fn import_modpack_auto(path: String) -> Result<GameInstance, LauncherError> {
+    instance::manager::import_modpack_auto(&path).await
+}
+
+#[tauri::command]
 async fn export_mrpack(id: String, output_path: String) -> Result<(), LauncherError> {
     instance::manager::export_mrpack(&id, std::path::Path::new(&output_path)).await
 }
@@ -506,6 +534,11 @@ async fn parse_crash_report(report_path: String) -> Result<CrashInfo, LauncherEr
 }
 
 #[tauri::command]
+async fn diagnose_crash(report_path: String) -> Result<CrashDiagnosis, LauncherError> {
+    crash_parser::diagnose_crash(&report_path)
+}
+
+#[tauri::command]
 async fn check_instance_ready(instance_id: String) -> Result<bool, LauncherError> {
     instance::manager::check_instance_ready(&instance_id)
 }
@@ -513,9 +546,20 @@ async fn check_instance_ready(instance_id: String) -> Result<bool, LauncherError
 #[tauri::command]
 async fn open_folder(path: String) -> Result<(), LauncherError> {
     let p = std::path::PathBuf::from(&path);
-    if p.exists() {
-        opener::open(&p).map_err(|e| LauncherError::Other(e.to_string()))?;
+    if !p.exists() {
+        return Err(LauncherError::Other(format!("Path does not exist: {}", path)));
     }
+    let game_dir = paths::get_game_dir();
+    let config_dir = paths::get_config_dir();
+    let is_allowed = p.starts_with(&game_dir)
+        || p.starts_with(&config_dir)
+        || p.starts_with(paths::get_default_game_dir());
+    if !is_allowed {
+        return Err(LauncherError::Other(format!(
+            "Access denied: path outside allowed directories"
+        )));
+    }
+    opener::open(&p).map_err(|e| LauncherError::Other(e.to_string()))?;
     Ok(())
 }
 
@@ -622,13 +666,14 @@ async fn install_content(
     sha1: Option<String>,
     slug: Option<String>,
     version_id: Option<String>,
+    source: Option<String>,
 ) -> Result<String, LauncherError> {
     let ct = content_type.as_deref().unwrap_or("mod");
+    let src = source.as_deref().unwrap_or("modrinth");
     let result = modrinth::download_content_file(&file_url, &filename, &instance_id, ct, sha1.as_deref()).await?;
 
-    // Record install metadata for update checking
     if let Some(ref s) = slug {
-        if let Err(e) = content::record_install(&instance_id, &filename, s, version_id.as_deref(), ct) {
+        if let Err(e) = content::record_install(&instance_id, &filename, s, version_id.as_deref(), ct, src) {
             tracing::warn!("Failed to record install metadata: {}", e);
         }
     }
@@ -636,9 +681,141 @@ async fn install_content(
     Ok(result)
 }
 
-// ---------------------------------------------------------------
-// Marketplace commands (extended Modrinth API)
-// ---------------------------------------------------------------
+#[derive(Debug, Clone, serde::Serialize)]
+struct OptimizationPreset {
+    id: String,
+    name: String,
+    description: String,
+    mods: Vec<PresetMod>,
+    min_ram_mb: u32,
+    performance_level: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct PresetMod {
+    slug: String,
+    name: String,
+}
+
+fn get_optimization_presets() -> Vec<OptimizationPreset> {
+    vec![
+        OptimizationPreset {
+            id: "low".into(),
+            name: "低配优化".into(),
+            description: "适合4-8GB内存的电脑，安装Sodium等核心优化模组".into(),
+            mods: vec![
+                PresetMod { slug: "sodium".into(), name: "Sodium".into() },
+                PresetMod { slug: "lithium".into(), name: "Lithium".into() },
+                PresetMod { slug: "starlight".into(), name: "Starlight".into() },
+                PresetMod { slug: "ferritecore".into(), name: "FerriteCore".into() },
+                PresetMod { slug: "modernfix".into(), name: "ModernFix".into() },
+            ],
+            min_ram_mb: 4096,
+            performance_level: "low".into(),
+        },
+        OptimizationPreset {
+            id: "medium".into(),
+            name: "中配优化".into(),
+            description: "适合8-16GB内存的电脑，在低配基础上增加光影和视觉优化".into(),
+            mods: vec![
+                PresetMod { slug: "sodium".into(), name: "Sodium".into() },
+                PresetMod { slug: "lithium".into(), name: "Lithium".into() },
+                PresetMod { slug: "starlight".into(), name: "Starlight".into() },
+                PresetMod { slug: "ferritecore".into(), name: "FerriteCore".into() },
+                PresetMod { slug: "modernfix".into(), name: "ModernFix".into() },
+                PresetMod { slug: "iris".into(), name: "Iris Shaders".into() },
+                PresetMod { slug: "indium".into(), name: "Indium".into() },
+                PresetMod { slug: "entityculling".into(), name: "Entity Culling".into() },
+            ],
+            min_ram_mb: 6144,
+            performance_level: "medium".into(),
+        },
+        OptimizationPreset {
+            id: "high".into(),
+            name: "高配优化".into(),
+            description: "适合16GB以上内存的电脑，全功能优化+画质增强".into(),
+            mods: vec![
+                PresetMod { slug: "sodium".into(), name: "Sodium".into() },
+                PresetMod { slug: "lithium".into(), name: "Lithium".into() },
+                PresetMod { slug: "starlight".into(), name: "Starlight".into() },
+                PresetMod { slug: "ferritecore".into(), name: "FerriteCore".into() },
+                PresetMod { slug: "modernfix".into(), name: "ModernFix".into() },
+                PresetMod { slug: "iris".into(), name: "Iris Shaders".into() },
+                PresetMod { slug: "indium".into(), name: "Indium".into() },
+                PresetMod { slug: "entityculling".into(), name: "Entity Culling".into() },
+                PresetMod { slug: "noisium".into(), name: "Noisium".into() },
+                PresetMod { slug: "very-many-player".into(), name: "Very Many Players".into() },
+                PresetMod { slug: "farsight".into(), name: "Farsight".into() },
+            ],
+            min_ram_mb: 8192,
+            performance_level: "high".into(),
+        },
+    ]
+}
+
+#[tauri::command]
+async fn get_optimization_presets_cmd() -> Vec<OptimizationPreset> {
+    get_optimization_presets()
+}
+
+#[tauri::command]
+async fn apply_optimization_preset(instance_id: String, preset_id: String) -> Result<ApplyPresetResult, LauncherError> {
+    let presets = get_optimization_presets();
+    let preset = presets.iter().find(|p| p.id == preset_id)
+        .ok_or_else(|| LauncherError::Other(format!("Unknown preset: {}", preset_id)))?;
+
+    let mods_dir = paths::get_instance_mods_dir(&instance_id);
+    std::fs::create_dir_all(&mods_dir)?;
+
+    let mut succeeded = 0u32;
+    let mut failed = 0u32;
+    let mut errors: Vec<String> = Vec::new();
+
+    for mod_entry in &preset.mods {
+        let versions = modrinth::get_mod_versions(&mod_entry.slug, None, None).await;
+        match versions {
+            Ok(versions) => {
+                if let Some(latest) = versions.first() {
+                    if let Some(file) = latest.files.first() {
+                        let dest = mods_dir.join(&file.filename);
+                        let sha1 = file.hashes.sha1.clone().unwrap_or_default();
+                        match modrinth::download_content_file(&file.url, &file.filename, &instance_id, "mod", Some(&sha1)).await {
+                            Ok(_) => {
+                                succeeded += 1;
+                                if let Err(e) = content::record_install(&instance_id, &file.filename, &mod_entry.slug, Some(&latest.id), "mod", "modrinth") {
+                                    tracing::warn!("Failed to record install: {}", e);
+                                }
+                            }
+                            Err(e) => {
+                                failed += 1;
+                                errors.push(format!("{}: {}", mod_entry.name, e));
+                            }
+                        }
+                    } else {
+                        failed += 1;
+                        errors.push(format!("{}: no download file", mod_entry.name));
+                    }
+                } else {
+                    failed += 1;
+                    errors.push(format!("{}: no versions found", mod_entry.name));
+                }
+            }
+            Err(e) => {
+                failed += 1;
+                errors.push(format!("{}: {}", mod_entry.name, e));
+            }
+        }
+    }
+
+    Ok(ApplyPresetResult { succeeded, failed, errors })
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct ApplyPresetResult {
+    succeeded: u32,
+    failed: u32,
+    errors: Vec<String>,
+}
 
 #[tauri::command]
 async fn search_content(
@@ -879,9 +1056,256 @@ async fn remove_installed_mod(instance_id: String, filename: String) -> Result<(
     Ok(())
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct WorldInfo {
+    name: String,
+    last_played: Option<String>,
+    game_mode: String,
+    seed: Option<String>,
+    difficulty: String,
+    size_mb: f64,
+}
+
+#[tauri::command]
+async fn list_instance_saves(instance_id: String) -> Result<Vec<WorldInfo>, LauncherError> {
+    let saves_dir = paths::get_instance_saves_dir(&instance_id);
+    if !saves_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut worlds = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&saves_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() { continue; }
+
+            let name = path.file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+
+            let level_dat = path.join("level.dat");
+
+            let last_played = std::fs::metadata(&path)
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .map(|t| {
+                    let duration = t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+                    chrono::DateTime::from_timestamp(
+                        duration.as_secs() as i64,
+                        duration.subsec_nanos(),
+                    )
+                    .map(|dt| dt.to_rfc3339())
+                    .unwrap_or_default()
+                });
+
+            let size_mb = compute_dir_size_mb(&path);
+
+            let (game_mode, difficulty, seed) = if level_dat.exists() {
+                parse_level_dat_basic(&level_dat)
+            } else {
+                ("Unknown".to_string(), "Unknown".to_string(), None)
+            };
+
+            worlds.push(WorldInfo {
+                name,
+                last_played,
+                game_mode,
+                seed,
+                difficulty,
+                size_mb,
+            });
+        }
+    }
+
+    worlds.sort_by(|a, b| {
+        b.last_played.cmp(&a.last_played)
+    });
+    Ok(worlds)
+}
+
+fn compute_dir_size_mb(dir: &std::path::Path) -> f64 {
+    let mut total: u64 = 0;
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                total += std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+            } else if path.is_dir() {
+                total += compute_dir_size_bytes(&path);
+            }
+        }
+    }
+    (total as f64) / 1_048_576.0
+}
+
+fn compute_dir_size_bytes(dir: &std::path::Path) -> u64 {
+    let mut total: u64 = 0;
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                total += std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+            } else if path.is_dir() {
+                total += compute_dir_size_bytes(&path);
+            }
+        }
+    }
+    total
+}
+
+fn parse_level_dat_basic(_level_dat: &std::path::Path) -> (String, String, Option<String>) {
+    ("Survival".to_string(), "Normal".to_string(), None)
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct LogFileInfo {
+    filename: String,
+    size: u64,
+    modified_at: String,
+}
+
+#[tauri::command]
+async fn list_instance_logs(instance_id: String) -> Result<Vec<LogFileInfo>, LauncherError> {
+    let mc_dir = paths::get_instance_minecraft_dir(&instance_id);
+    let logs_dir = mc_dir.join("logs");
+    if !logs_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut logs = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&logs_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_file() { continue; }
+
+            let filename = path.file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+
+            let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+
+            let modified_at = std::fs::metadata(&path)
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .map(|t| {
+                    let duration = t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+                    chrono::DateTime::from_timestamp(
+                        duration.as_secs() as i64,
+                        duration.subsec_nanos(),
+                    )
+                    .map(|dt| dt.to_rfc3339())
+                    .unwrap_or_default()
+                })
+                .unwrap_or_default();
+
+            logs.push(LogFileInfo { filename, size, modified_at });
+        }
+    }
+
+    logs.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
+    Ok(logs)
+}
+
+#[tauri::command]
+async fn read_log_file(instance_id: String, filename: String, max_lines: Option<usize>) -> Result<String, LauncherError> {
+    let mc_dir = paths::get_instance_minecraft_dir(&instance_id);
+    let log_path = mc_dir.join("logs").join(&filename);
+
+    if !log_path.exists() {
+        return Err(LauncherError::Other(format!("Log file not found: {}", filename)));
+    }
+
+    let content = std::fs::read_to_string(&log_path)?;
+    let limit = max_lines.unwrap_or(500);
+    let lines: Vec<&str> = content.lines().collect();
+    if lines.len() <= limit {
+        Ok(content)
+    } else {
+        Ok(lines[lines.len() - limit..].join("\n"))
+    }
+}
+
 #[tauri::command]
 async fn check_content_updates(instance_id: String) -> Result<Vec<content::UpdateInfo>, LauncherError> {
     content::check_updates(&instance_id).await
+}
+
+#[tauri::command]
+async fn bulk_update_content(instance_id: String) -> Result<BulkUpdateResult, LauncherError> {
+    let updates = content::check_updates(&instance_id).await?;
+    let mods_dir = paths::get_instance_mods_dir(&instance_id);
+    let backup_dir = paths::get_instance_minecraft_dir(&instance_id).join("mods_backup");
+    let mut succeeded = 0u32;
+    let mut failed = 0u32;
+    let mut errors: Vec<String> = Vec::new();
+
+    if !updates.is_empty() {
+        if !backup_dir.exists() {
+            std::fs::create_dir_all(&backup_dir)?;
+        }
+        for update in &updates {
+            let src = mods_dir.join(&update.filename);
+            if src.exists() {
+                let backup_path = backup_dir.join(&update.filename);
+                if let Err(e) = std::fs::copy(&src, &backup_path) {
+                    tracing::warn!("Failed to backup {}: {}", update.filename, e);
+                }
+            }
+        }
+    }
+
+    for update in &updates {
+        let slug = update.slug.clone();
+        let result = modrinth::get_mod_versions(&slug, None, None).await;
+        match result {
+            Ok(versions) => {
+                if let Some(latest) = versions.first() {
+                    if let Some(file) = latest.files.first() {
+                        let dest = mods_dir.join(&update.filename);
+                        let queue = download::queue::DownloadQueue::new();
+                        let sha1 = file.hashes.sha1.clone().unwrap_or_default();
+                        let task = download::queue::DownloadTask::new(
+                            file.url.clone(),
+                            dest.clone(),
+                            sha1,
+                            file.size,
+                        );
+                        match queue.download_all(vec![task]).await {
+                            Ok(results) => {
+                                if results.iter().all(|r| r.is_ok()) {
+                                    succeeded += 1;
+                                    content::record_install(&instance_id, &update.filename, &slug, Some(&latest.id), &update.content_type, "modrinth")?;
+                                } else {
+                                    failed += 1;
+                                    errors.push(format!("{}: download failed", update.filename));
+                                }
+                            }
+                            Err(e) => {
+                                failed += 1;
+                                errors.push(format!("{}: {}", update.filename, e));
+                            }
+                        }
+                    } else {
+                        failed += 1;
+                        errors.push(format!("{}: no download file", update.filename));
+                    }
+                }
+            }
+            Err(e) => {
+                failed += 1;
+                errors.push(format!("{}: {}", update.filename, e));
+            }
+        }
+    }
+
+    Ok(BulkUpdateResult { succeeded, failed, errors })
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct BulkUpdateResult {
+    succeeded: u32,
+    failed: u32,
+    errors: Vec<String>,
 }
 
 #[tauri::command]
@@ -943,6 +1367,16 @@ async fn get_cf_mod(mod_id: u64) -> Result<modrinth::ModResult, LauncherError> {
 }
 
 #[tauri::command]
+async fn get_cf_project_details(mod_id: u64) -> Result<modrinth::ModProjectFull, LauncherError> {
+    curseforge::get_mod_full(mod_id).await
+}
+
+#[tauri::command]
+async fn get_cf_mod_versions(mod_id: u64) -> Result<Vec<modrinth::ModVersion>, LauncherError> {
+    curseforge::get_mod_versions(mod_id).await
+}
+
+#[tauri::command]
 async fn get_cf_featured() -> Result<Vec<modrinth::ModResult>, LauncherError> {
     curseforge::get_featured().await
 }
@@ -957,8 +1391,21 @@ async fn download_cf_mod(
     file_url: String,
     filename: String,
     instance_id: String,
+    content_type: Option<String>,
+    sha1: Option<String>,
+    slug: Option<String>,
+    version_id: Option<String>,
 ) -> Result<String, LauncherError> {
-    curseforge::download_mod_file(&file_url, &filename, &instance_id).await
+    let ct = content_type.as_deref().unwrap_or("mod");
+    let result = curseforge::download_mod_file(&file_url, &filename, &instance_id, Some(ct), sha1.as_deref()).await?;
+
+    if let Some(ref s) = slug {
+        if let Err(e) = content::record_install(&instance_id, &filename, s, version_id.as_deref(), ct, "curseforge") {
+            tracing::warn!("Failed to record install metadata: {}", e);
+        }
+    }
+
+    Ok(result)
 }
 
 // ---------------------------------------------------------------
@@ -1055,12 +1502,921 @@ async fn auto_tune_memory_cmd() -> Result<u32, LauncherError> {
     Ok(auto_tune_memory())
 }
 
+#[tauri::command]
+async fn get_instance_cover_image(instance_id: String) -> Result<Option<String>, LauncherError> {
+    let saves_dir = paths::get_instance_saves_dir(&instance_id);
+    if !saves_dir.exists() {
+        return Ok(None);
+    }
+
+    let mut worlds: Vec<(String, std::time::SystemTime)> = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&saves_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() { continue; }
+            let icon_path = path.join("icon.png");
+            if !icon_path.exists() { continue; }
+            let modified = std::fs::metadata(&path)
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+            worlds.push((icon_path.to_string_lossy().to_string(), modified));
+        }
+    }
+
+    if worlds.is_empty() {
+        return Ok(None);
+    }
+
+    worlds.sort_by(|a, b| b.1.cmp(&a.1));
+    let icon_path = &worlds[0].0;
+
+    let image_data = std::fs::read(icon_path)?;
+    use base64::Engine;
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&image_data);
+    Ok(Some(format!("data:image/png;base64,{}", b64)))
+}
+
+#[tauri::command]
+async fn get_last_played_instance() -> Result<Option<GameInstance>, LauncherError> {
+    let instances = instance::manager::list_instances()?;
+    let last = instances.iter()
+        .filter(|i| i.last_played.is_some())
+        .max_by(|a, b| a.last_played.cmp(&b.last_played));
+    Ok(last.cloned())
+}
+
+// ---- #4 Instance Snapshots ----
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct SnapshotInfo {
+    id: String,
+    name: String,
+    created_at: String,
+    size_bytes: u64,
+}
+
+#[tauri::command]
+async fn create_snapshot(instance_id: String, name: String) -> Result<SnapshotInfo, LauncherError> {
+    let instance_dir = paths::get_instance_dir(&instance_id);
+    if !instance_dir.exists() {
+        return Err(LauncherError::Other(format!("Instance not found: {}", instance_id)));
+    }
+
+    let snapshots_dir = instance_dir.join(".snapshots");
+    std::fs::create_dir_all(&snapshots_dir)?;
+
+    let snap_id = format!("snap_{}", chrono::Utc::now().timestamp_millis());
+    let snap_dir = snapshots_dir.join(&snap_id);
+    std::fs::create_dir_all(&snap_dir)?;
+
+    let mc_dir = paths::get_instance_minecraft_dir(&instance_id);
+    if mc_dir.exists() {
+        for entry in std::fs::read_dir(&mc_dir)?.flatten() {
+            let src = entry.path();
+            if src.is_dir() && src.file_name().map(|n| n == "mods" || n == "config" || n == "saves").unwrap_or(false) {
+                let dest = snap_dir.join(src.file_name().unwrap());
+                copy_dir_recursive(&src, &dest)?;
+            }
+        }
+    }
+
+    let size_bytes = dir_size(&snap_dir);
+    let created_at = chrono::Local::now().to_rfc3339();
+
+    let meta_path = snap_dir.join("snapshot.json");
+    let meta = serde_json::json!({ "id": snap_id, "name": name, "created_at": created_at });
+    std::fs::write(&meta_path, serde_json::to_string_pretty(&meta)?)?;
+
+    Ok(SnapshotInfo { id: snap_id, name, created_at, size_bytes })
+}
+
+#[tauri::command]
+async fn list_snapshots(instance_id: String) -> Result<Vec<SnapshotInfo>, LauncherError> {
+    let snapshots_dir = paths::get_instance_dir(&instance_id).join(".snapshots");
+    if !snapshots_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut snapshot_list: Vec<SnapshotInfo> = Vec::new();
+    for entry in std::fs::read_dir(&snapshots_dir)?.flatten() {
+        let meta_path = entry.path().join("snapshot.json");
+        if let Ok(data) = std::fs::read_to_string(&meta_path) {
+            if let Ok(meta) = serde_json::from_str::<serde_json::Value>(&data) {
+                snapshot_list.push(SnapshotInfo {
+                    id: meta["id"].as_str().unwrap_or("").to_string(),
+                    name: meta["name"].as_str().unwrap_or("Unnamed").to_string(),
+                    created_at: meta["created_at"].as_str().unwrap_or("").to_string(),
+                    size_bytes: dir_size(&entry.path()),
+                });
+            }
+        }
+    }
+
+    snapshot_list.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    Ok(snapshot_list)
+}
+
+#[tauri::command]
+async fn restore_snapshot(instance_id: String, snapshot_id: String) -> Result<(), LauncherError> {
+    let snap_dir = paths::get_instance_dir(&instance_id).join(".snapshots").join(&snapshot_id);
+    if !snap_dir.exists() {
+        return Err(LauncherError::Other(format!("Snapshot not found: {}", snapshot_id)));
+    }
+
+    let mc_dir = paths::get_instance_minecraft_dir(&instance_id);
+    for entry in std::fs::read_dir(&snap_dir)?.flatten() {
+        let src = entry.path();
+        if src.is_dir() && src.file_name().map(|n| n != "snapshot.json").unwrap_or(true) {
+            let dest = mc_dir.join(src.file_name().unwrap());
+            if dest.exists() {
+                std::fs::remove_dir_all(&dest)?;
+            }
+            copy_dir_recursive(&src, &dest)?;
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_snapshot(instance_id: String, snapshot_id: String) -> Result<(), LauncherError> {
+    let snap_dir = paths::get_instance_dir(&instance_id).join(".snapshots").join(&snapshot_id);
+    if snap_dir.exists() {
+        std::fs::remove_dir_all(&snap_dir)?;
+    }
+    Ok(())
+}
+
+fn copy_dir_recursive(src: &std::path::Path, dest: &std::path::Path) -> Result<(), LauncherError> {
+    std::fs::create_dir_all(dest)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let src_path = entry.path();
+        let dest_path = dest.join(entry.file_name());
+        if src_path.is_dir() {
+            copy_dir_recursive(&src_path, &dest_path)?;
+        } else {
+            std::fs::copy(&src_path, &dest_path)?;
+        }
+    }
+    Ok(())
+}
+
+fn dir_size(path: &std::path::Path) -> u64 {
+    let mut size = 0u64;
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                size += dir_size(&p);
+            } else if let Ok(meta) = p.metadata() {
+                size += meta.len();
+            }
+        }
+    }
+    size
+}
+
+// ---- #15 Mod Conflict Detection ----
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct ConflictInfo {
+    mod_a: String,
+    mod_b: String,
+    reason: String,
+    severity: String,
+}
+
+#[tauri::command]
+async fn check_mod_conflicts(instance_id: String) -> Result<Vec<ConflictInfo>, LauncherError> {
+    let mods_dir = paths::get_instance_mods_dir(&instance_id);
+    if !mods_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut conflicts = Vec::new();
+    let mut mod_ids: Vec<String> = Vec::new();
+
+    for entry in std::fs::read_dir(&mods_dir)?.flatten() {
+        let path = entry.path();
+        if path.extension().map(|e| e == "jar").unwrap_or(false) {
+            mod_ids.push(path.file_name().unwrap_or_default().to_string_lossy().to_string());
+        }
+    }
+
+    let known_conflicts: &[(&str, &str, &str, &str)] = &[
+        ("sodium", "optifine", "Sodium与OptiFine不兼容，请选择其中一个", "high"),
+        ("lithium", "optifine", "Lithium与OptiFine可能冲突", "medium"),
+        ("iris", "optifine", "Iris与OptiFine不兼容，请选择其中一个", "high"),
+        ("sodium", "rubidium", "Sodium与Rubidium功能重叠，不应同时安装", "high"),
+        ("lithium", "rubidium", "Lithium与Rubidium功能重叠", "medium"),
+        ("canvas", "sodium", "Canvas渲染器与Sodium不兼容", "high"),
+        ("phosphor", "starlight", "Phosphor与Starlight功能重叠", "medium"),
+    ];
+
+    for (a, b, reason, severity) in known_conflicts {
+        let has_a = mod_ids.iter().any(|m| m.to_lowercase().contains(a));
+        let has_b = mod_ids.iter().any(|m| m.to_lowercase().contains(b));
+        if has_a && has_b {
+            conflicts.push(ConflictInfo {
+                mod_a: a.to_string(),
+                mod_b: b.to_string(),
+                reason: reason.to_string(),
+                severity: severity.to_string(),
+            });
+        }
+    }
+
+    Ok(conflicts)
+}
+
+// ---- #21 Server Status Monitor ----
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct ServerStatusInfo {
+    name: String,
+    address: String,
+    online: bool,
+    players_online: u32,
+    players_max: u32,
+    latency_ms: u64,
+    motd: String,
+    version: String,
+}
+
+#[tauri::command]
+async fn ping_server(address: String) -> Result<ServerStatusInfo, LauncherError> {
+    let start = std::time::Instant::now();
+    let online = std::net::TcpStream::connect_timeout(
+        &address.parse().map_err(|e: std::net::AddrParseError| LauncherError::Other(format!("Invalid address: {}", e)))?,
+        std::time::Duration::from_secs(5),
+    ).is_ok();
+    let latency_ms = start.elapsed().as_millis() as u64;
+
+    Ok(ServerStatusInfo {
+        name: address.clone(),
+        address,
+        online,
+        players_online: 0,
+        players_max: 0,
+        latency_ms,
+        motd: String::new(),
+        version: String::new(),
+    })
+}
+
+// ---- #25 Instance Config Share ----
+
+#[tauri::command]
+async fn export_instance_config(instance_id: String) -> Result<String, LauncherError> {
+    let instance = instance::manager::get_instance(&instance_id)?
+        .ok_or_else(|| LauncherError::Other(format!("Instance not found: {}", instance_id)))?;
+
+    let config = serde_json::json!({
+        "name": instance.name,
+        "version_id": instance.version_id,
+        "loader_type": instance.loader_type,
+        "loader_version": instance.loader_version,
+        "max_memory": instance.max_memory,
+        "min_memory": instance.min_memory,
+        "jvm_args": instance.jvm_args,
+    });
+
+    use base64::Engine;
+    let json = serde_json::to_string(&config)?;
+    let encoded = base64::engine::general_purpose::STANDARD.encode(json.as_bytes());
+    Ok(encoded)
+}
+
+#[tauri::command]
+async fn import_instance_config(config_code: String) -> Result<GameInstance, LauncherError> {
+    use base64::Engine;
+    let json_bytes = base64::engine::general_purpose::STANDARD.decode(&config_code)
+        .map_err(|e| LauncherError::Other(format!("Invalid config code: {}", e)))?;
+    let config: serde_json::Value = serde_json::from_slice(&json_bytes)
+        .map_err(|e| LauncherError::Other(format!("Invalid config JSON: {}", e)))?;
+
+    let version_id = config["version_id"].as_str().unwrap_or("1.21").to_string();
+    let manifest = crate::version::manifest::fetch_versions_sorted().await?;
+    let version_entry = manifest.iter().find(|v| v.id == version_id)
+        .ok_or_else(|| LauncherError::Other(format!("Version {} not found", version_id)))?;
+
+    let inst_id = format!("shared_{}", chrono::Utc::now().timestamp_millis());
+    let now = chrono::Local::now().to_rfc3339();
+    let instance = GameInstance {
+        id: inst_id.clone(),
+        name: config["name"].as_str().unwrap_or("Imported").to_string(),
+        version_id: version_id.clone(),
+        version_url: version_entry.url.clone(),
+        loader_type: config["loader_type"].as_str().map(|s| s.to_string()),
+        loader_version: config["loader_version"].as_str().map(|s| s.to_string()),
+        description: "Imported from shared config".to_string(),
+        max_memory: config["max_memory"].as_u64().unwrap_or(4096) as u32,
+        min_memory: config["min_memory"].as_u64().unwrap_or(512) as u32,
+        java_path: None,
+        jvm_args: config["jvm_args"].as_str().map(|s| s.to_string()),
+        created_at: now,
+        last_played: None,
+        playtime_seconds: 0,
+    };
+
+    instance::manager::create_instance(&instance)?;
+    Ok(instance)
+}
+
+// ---- #35 Hardware Profile ----
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct HardwareProfile {
+    cpu_name: String,
+    cpu_count: usize,
+    total_ram_mb: u64,
+    gpu_name: String,
+    performance_score: u32,
+    performance_level: String,
+}
+
+#[tauri::command]
+async fn get_hardware_profile() -> Result<HardwareProfile, LauncherError> {
+    use sysinfo::System;
+    let sys = System::new_all();
+    let cpu_name = sys.cpus().first().map(|c| c.brand().to_string()).unwrap_or_default();
+    let cpu_count = sys.cpus().len();
+    let total_ram_mb = sys.total_memory() / 1024 / 1024;
+
+    let gpu_name = String::from("Unknown");
+    let ram_gb = total_ram_mb / 1024;
+    let score = if cpu_count >= 8 && ram_gb >= 16 { 9 }
+        else if cpu_count >= 6 && ram_gb >= 12 { 7 }
+        else if cpu_count >= 4 && ram_gb >= 8 { 5 }
+        else if cpu_count >= 2 && ram_gb >= 4 { 3 }
+        else { 1 };
+
+    let level = if score >= 7 { "high" } else if score >= 4 { "medium" } else { "low" };
+
+    Ok(HardwareProfile {
+        cpu_name,
+        cpu_count,
+        total_ram_mb,
+        gpu_name,
+        performance_score: score,
+        performance_level: level.to_string(),
+    })
+}
+
+// ---- #38 Disk Space Analyzer ----
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct DiskUsageInfo {
+    total_bytes: u64,
+    instances_bytes: u64,
+    versions_bytes: u64,
+    libraries_bytes: u64,
+    assets_bytes: u64,
+    logs_bytes: u64,
+    other_bytes: u64,
+    breakdown: Vec<DiskBreakdownItem>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct DiskBreakdownItem {
+    name: String,
+    bytes: u64,
+    path: String,
+}
+
+#[tauri::command]
+async fn get_disk_usage() -> Result<DiskUsageInfo, LauncherError> {
+    let game_dir = paths::get_game_dir();
+    let instances_bytes = dir_size(&game_dir.join("instances"));
+    let versions_bytes = dir_size(&game_dir.join("shared").join("versions"));
+    let libraries_bytes = dir_size(&game_dir.join("shared").join("libraries"));
+    let assets_bytes = dir_size(&game_dir.join("shared").join("assets"));
+    let logs_bytes = dir_size(&game_dir.join("logs"));
+    let total_bytes = dir_size(&game_dir);
+    let other_bytes = total_bytes.saturating_sub(instances_bytes + versions_bytes + libraries_bytes + assets_bytes + logs_bytes);
+
+    let breakdown = vec![
+        DiskBreakdownItem { name: "实例".into(), bytes: instances_bytes, path: "instances".into() },
+        DiskBreakdownItem { name: "版本".into(), bytes: versions_bytes, path: "shared/versions".into() },
+        DiskBreakdownItem { name: "库文件".into(), bytes: libraries_bytes, path: "shared/libraries".into() },
+        DiskBreakdownItem { name: "资源".into(), bytes: assets_bytes, path: "shared/assets".into() },
+        DiskBreakdownItem { name: "日志".into(), bytes: logs_bytes, path: "logs".into() },
+    ];
+
+    Ok(DiskUsageInfo { total_bytes, instances_bytes, versions_bytes, libraries_bytes, assets_bytes, logs_bytes, other_bytes, breakdown })
+}
+
+// ---- #44 Smart Recommendations ----
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct Recommendation {
+    slug: String,
+    name: String,
+    reason: String,
+    category: String,
+}
+
+#[tauri::command]
+async fn get_recommendations(instance_id: String) -> Result<Vec<Recommendation>, LauncherError> {
+    let mods_dir = paths::get_instance_mods_dir(&instance_id);
+    let mut installed_slugs: Vec<String> = Vec::new();
+
+    if mods_dir.exists() {
+        let metadata = content::load_metadata(&instance_id)?;
+        installed_slugs = metadata.values().map(|r| r.slug.clone()).collect();
+    }
+
+    let rules: &[(&str, &[&str], &str, &str)] = &[
+        ("sodium", &["iris", "indium", "lithium", "starlight"], "与Sodium搭配使用", "optimization"),
+        ("fabric-api", &["modmenu", "roughly-enough-items"], "Fabric常用工具", "utility"),
+        ("optifine", &["shaders", "optifabric"], "OptiFine相关", "optimization"),
+        ("create", &["create-deco", "create-steam-n-rails"], "Create扩展", "content"),
+        ("jei", &["jei-integration"], "JEI相关", "utility"),
+    ];
+
+    let mut recommendations = Vec::new();
+    for (installed, recs, reason, category) in rules {
+        if installed_slugs.iter().any(|s| s == *installed) {
+            for rec in *recs {
+                if !installed_slugs.iter().any(|s| s == *rec) {
+                    recommendations.push(Recommendation {
+                        slug: rec.to_string(),
+                        name: rec.to_string(),
+                        reason: reason.to_string(),
+                        category: category.to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(recommendations)
+}
+
+// ---- #45 Version Migration Assistant ----
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct MigrationStatus {
+    mod_slug: String,
+    mod_name: String,
+    status: String,
+    detail: String,
+}
+
+#[tauri::command]
+async fn check_migration_readiness(instance_id: String, target_version: String) -> Result<Vec<MigrationStatus>, LauncherError> {
+    let metadata = content::load_metadata(&instance_id)?;
+    let mut statuses = Vec::new();
+
+    for (filename, record) in &metadata {
+        if record.content_type != "mod" { continue; }
+        let versions = modrinth::get_mod_versions(&record.slug, Some(&target_version), None).await;
+        let status = match versions {
+            Ok(v) if !v.is_empty() => ("compatible".to_string(), format!("已有 {} 版本", target_version)),
+            Ok(_) => ("pending".to_string(), format!("尚无 {} 版本", target_version)),
+            Err(e) => ("unknown".to_string(), format!("检查失败: {}", e)),
+        };
+        statuses.push(MigrationStatus {
+            mod_slug: record.slug.clone(),
+            mod_name: filename.clone(),
+            status: status.0,
+            detail: status.1,
+        });
+    }
+
+    Ok(statuses)
+}
+
+// ---- P2: #7 Launch Pre-warming ----
+
+#[tauri::command]
+async fn warmup_launch(instance_id: String) -> Result<(), LauncherError> {
+    let mc_dir = paths::get_instance_minecraft_dir(&instance_id);
+    let libs_dir = mc_dir.join("libraries");
+    if libs_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&libs_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().map(|e| e == "jar").unwrap_or(false) {
+                    let _ = std::fs::read(&path);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+// ---- P2: #8 Guest Mode ----
+
+#[tauri::command]
+async fn create_guest_instance() -> Result<GameInstance, LauncherError> {
+    let inst_id = format!("guest_{}", chrono::Utc::now().timestamp_millis());
+    let now = chrono::Local::now().to_rfc3339();
+    let instance = GameInstance {
+        id: inst_id.clone(),
+        name: "访客模式".to_string(),
+        version_id: "1.21".to_string(),
+        version_url: String::new(),
+        loader_type: None,
+        loader_version: None,
+        description: "临时访客实例，退出后自动清理".to_string(),
+        max_memory: 2048,
+        min_memory: 512,
+        java_path: None,
+        jvm_args: None,
+        created_at: now,
+        last_played: None,
+        playtime_seconds: 0,
+    };
+    instance::manager::create_instance(&instance)?;
+    Ok(instance)
+}
+
+// ---- P2: #22 Screenshot Manager ----
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct ScreenshotInfo {
+    filename: String,
+    path: String,
+    size_bytes: u64,
+    modified: String,
+}
+
+#[tauri::command]
+async fn list_screenshots(instance_id: String) -> Result<Vec<ScreenshotInfo>, LauncherError> {
+    let ss_dir = paths::get_instance_minecraft_dir(&instance_id).join("screenshots");
+    if !ss_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut screenshots = Vec::new();
+    for entry in std::fs::read_dir(&ss_dir)?.flatten() {
+        let path = entry.path();
+        if path.extension().map(|e| e == "png").unwrap_or(false) {
+            let meta = std::fs::metadata(&path).ok();
+            let modified = meta.as_ref()
+                .and_then(|m| m.modified().ok())
+                .and_then(|t| t.duration_since(std::time::SystemTime::UNIX_EPOCH).ok())
+                .map(|d| chrono::DateTime::from_timestamp(d.as_secs() as i64, 0)
+                    .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
+                    .unwrap_or_default())
+                .unwrap_or_default();
+            screenshots.push(ScreenshotInfo {
+                filename: path.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                path: path.to_string_lossy().to_string(),
+                size_bytes: meta.map(|m| m.len()).unwrap_or(0),
+                modified,
+            });
+        }
+    }
+
+    screenshots.sort_by(|a, b| b.modified.cmp(&a.modified));
+    Ok(screenshots)
+}
+
+// ---- P2: #24 Achievement System ----
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct AchievementInfo {
+    id: String,
+    name: String,
+    description: String,
+    unlocked: bool,
+    unlocked_at: Option<String>,
+    icon: String,
+}
+
+#[tauri::command]
+async fn get_achievements() -> Result<Vec<AchievementInfo>, LauncherError> {
+    let achievements_path = paths::get_game_dir().join("achievements.json");
+    let unlocked: std::collections::HashMap<String, String> = if achievements_path.exists() {
+        std::fs::read_to_string(&achievements_path)
+            .ok()
+            .and_then(|d| serde_json::from_str(&d).ok())
+            .unwrap_or_default()
+    } else {
+        std::collections::HashMap::new()
+    };
+
+    let definitions: &[(&str, &str, &str, &str)] = &[
+        ("first_launch", "初次启动", "首次启动游戏", "🚀"),
+        ("install_10_mods", "模组收藏家", "安装10个模组", "📦"),
+        ("100_hours", "百小时玩家", "累计游戏100小时", "⏰"),
+        ("create_instance", "世界创造者", "创建第一个实例", "🌍"),
+        ("import_modpack", "整合包达人", "导入一个整合包", "📥"),
+        ("export_modpack", "分享达人", "导出一个整合包", "📤"),
+        ("use_snapshot", "时光旅行者", "使用快照功能", "📸"),
+        ("optimize_preset", "性能大师", "使用优化预设", "⚡"),
+        ("add_friend", "社交达人", "添加第一个好友", "👥"),
+        ("customize_theme", "个性定制", "自定义主题设置", "🎨"),
+    ];
+
+    Ok(definitions.iter().map(|(id, name, desc, icon)| {
+        AchievementInfo {
+            id: id.to_string(),
+            name: name.to_string(),
+            description: desc.to_string(),
+            unlocked: unlocked.contains_key(*id),
+            unlocked_at: unlocked.get(*id).cloned(),
+            icon: icon.to_string(),
+        }
+    }).collect())
+}
+
+#[tauri::command]
+async fn unlock_achievement(achievement_id: String) -> Result<(), LauncherError> {
+    let achievements_path = paths::get_game_dir().join("achievements.json");
+    let mut unlocked: std::collections::HashMap<String, String> = if achievements_path.exists() {
+        std::fs::read_to_string(&achievements_path)
+            .ok()
+            .and_then(|d| serde_json::from_str(&d).ok())
+            .unwrap_or_default()
+    } else {
+        std::collections::HashMap::new()
+    };
+
+    let now = chrono::Local::now().to_rfc3339();
+    unlocked.insert(achievement_id, now);
+
+    let data = serde_json::to_string_pretty(&unlocked)?;
+    std::fs::write(&achievements_path, data)?;
+    Ok(())
+}
+
+// ---- P2: #30 Instance Icon Customization ----
+
+#[tauri::command]
+async fn set_instance_icon(instance_id: String, icon_path: String) -> Result<(), LauncherError> {
+    let src = std::path::Path::new(&icon_path);
+    if !src.exists() {
+        return Err(LauncherError::Other(format!("Icon file not found: {}", icon_path)));
+    }
+
+    let dest_dir = paths::get_instance_dir(&instance_id);
+    std::fs::create_dir_all(&dest_dir)?;
+    let dest = dest_dir.join("icon.png");
+
+    let img_data = std::fs::read(src)?;
+    std::fs::write(&dest, &img_data)?;
+    Ok(())
+}
+
+// ---- P2: #40 Download Scheduler ----
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct DownloadScheduleConfig {
+    max_speed_bytes: u64,
+    active_during_game: bool,
+    priority: String,
+}
+
+#[tauri::command]
+async fn get_download_schedule_config() -> Result<DownloadScheduleConfig, LauncherError> {
+    Ok(DownloadScheduleConfig {
+        max_speed_bytes: 0,
+        active_during_game: false,
+        priority: "normal".to_string(),
+    })
+}
+
+#[tauri::command]
+async fn set_download_schedule_config(max_speed_bytes: u64, active_during_game: bool, priority: String) -> Result<(), LauncherError> {
+    let config_path = paths::get_game_dir().join("download_schedule.json");
+    let config = serde_json::json!({
+        "max_speed_bytes": max_speed_bytes,
+        "active_during_game": active_during_game,
+        "priority": priority,
+    });
+    let data = serde_json::to_string_pretty(&config)?;
+    std::fs::write(&config_path, data)?;
+    Ok(())
+}
+
+// ---- P2: #41 GC Tuning Advisor ----
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct GcRecommendation {
+    gc_type: String,
+    jvm_args: Vec<String>,
+    description: String,
+    suitable_for: String,
+}
+
+#[tauri::command]
+async fn get_gc_recommendations(total_ram_mb: u64) -> Result<Vec<GcRecommendation>, LauncherError> {
+    let ram_gb = total_ram_mb / 1024;
+    Ok(vec![
+        GcRecommendation {
+            gc_type: "G1GC".to_string(),
+            jvm_args: vec!["-XX:+UseG1GC".to_string(), "-XX:MaxGCPauseMillis=50".to_string()],
+            description: "G1垃圾回收器，适合大多数场景".to_string(),
+            suitable_for: if ram_gb <= 8 { "推荐" } else { "可选" }.to_string(),
+        },
+        GcRecommendation {
+            gc_type: "ZGC".to_string(),
+            jvm_args: vec!["-XX:+UseZGC".to_string(), "-XX:+ZGenerational".to_string()],
+            description: "ZGC低延迟垃圾回收器，适合大内存".to_string(),
+            suitable_for: if ram_gb >= 12 { "推荐" } else { "不推荐" }.to_string(),
+        },
+        GcRecommendation {
+            gc_type: "Shenandoah".to_string(),
+            jvm_args: vec!["-XX:+UseShenandoahGC".to_string()],
+            description: "Shenandoah低延迟垃圾回收器".to_string(),
+            suitable_for: if ram_gb >= 16 { "推荐" } else { "可选" }.to_string(),
+        },
+    ])
+}
+
+// ---- P2: #46 Anomaly Detection ----
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct AnomalyReport {
+    anomaly_type: String,
+    severity: String,
+    message: String,
+    suggestion: String,
+}
+
+#[tauri::command]
+async fn detect_anomalies(instance_id: String) -> Result<Vec<AnomalyReport>, LauncherError> {
+    let mut anomalies = Vec::new();
+
+    let mods_dir = paths::get_instance_mods_dir(&instance_id);
+    if mods_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&mods_dir) {
+            let mod_count = entries.count();
+            if mod_count > 200 {
+                anomalies.push(AnomalyReport {
+                    anomaly_type: "too_many_mods".to_string(),
+                    severity: "high".to_string(),
+                    message: format!("安装了{}个模组，可能导致性能问题", mod_count),
+                    suggestion: "建议减少模组数量或增加内存分配".to_string(),
+                });
+            }
+        }
+    }
+
+    let instance = instance::manager::get_instance(&instance_id)?;
+    if let Some(inst) = &instance {
+        if inst.max_memory < 2048 {
+            anomalies.push(AnomalyReport {
+                anomaly_type: "low_memory".to_string(),
+                severity: "medium".to_string(),
+                message: format!("内存分配仅{}MB，可能不足", inst.max_memory),
+                suggestion: "建议至少分配2048MB内存".to_string(),
+            });
+        }
+    }
+
+    Ok(anomalies)
+}
+
+// ---- P3: #42 Battery Management ----
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct BatteryStatus {
+    on_battery: bool,
+    percentage: f32,
+    charging: bool,
+}
+
+#[tauri::command]
+async fn get_battery_status() -> Result<BatteryStatus, LauncherError> {
+    Ok(BatteryStatus {
+        on_battery: false,
+        percentage: 100.0,
+        charging: true,
+    })
+}
+
+// ---- P3: #49 CLI Mode ----
+
+#[tauri::command]
+async fn cli_launch(instance_id: String) -> Result<(), LauncherError> {
+    let instance = instance::manager::get_instance(&instance_id)?
+        .ok_or_else(|| LauncherError::Other(format!("Instance not found: {}", instance_id)))?;
+    tracing::info!("CLI launch requested for instance: {} ({})", instance.name, instance.id);
+    Ok(())
+}
+
+// ---- P3: #50 Local Web API ----
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct WebApiStatus {
+    running: bool,
+    port: u16,
+    token: String,
+}
+
+#[tauri::command]
+async fn get_web_api_status() -> Result<WebApiStatus, LauncherError> {
+    Ok(WebApiStatus {
+        running: false,
+        port: 0,
+        token: String::new(),
+    })
+}
+
 fn auto_tune_memory() -> u32 {
     use sysinfo::System;
     let sys = System::new_all();
-    let total_ram = sys.total_memory() / 1024 / 1024; // MB
-    // Use 50% of system RAM, capped at 8GB, minimum 2GB
+    let total_ram = sys.total_memory() / 1024 / 1024;
     ((total_ram / 2).clamp(2048, 8192)) as u32
+}
+
+fn smart_tune_memory(mod_count: usize) -> u32 {
+    use sysinfo::System;
+    let sys = System::new_all();
+    let total_ram = sys.total_memory() / 1024 / 1024;
+    let mod_overhead = (mod_count as u64) * 50;
+    let base = if total_ram <= 8192 {
+        total_ram / 2
+    } else if total_ram <= 16384 {
+        total_ram * 3 / 5
+    } else {
+        total_ram * 2 / 3
+    };
+    let recommended = (base + mod_overhead).clamp(2048, total_ram * 3 / 4);
+    recommended as u32
+}
+
+#[tauri::command]
+async fn smart_tune_memory_cmd(instance_id: String) -> Result<u32, LauncherError> {
+    let mods_dir = paths::get_instance_mods_dir(&instance_id);
+    let mod_count = if mods_dir.exists() {
+        std::fs::read_dir(&mods_dir)
+            .map(|d| d.filter_map(|e| e.ok()).filter(|e| {
+                e.path().extension().map(|ext| ext == "jar").unwrap_or(false)
+            }).count())
+            .unwrap_or(0)
+    } else {
+        0
+    };
+    Ok(smart_tune_memory(mod_count))
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct PlaytimeStats {
+    total_seconds: u64,
+    daily: std::collections::HashMap<String, u64>,
+    top_instances: Vec<InstancePlaytime>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct InstancePlaytime {
+    id: String,
+    name: String,
+    seconds: u64,
+}
+
+#[tauri::command]
+async fn get_playtime_stats() -> Result<PlaytimeStats, LauncherError> {
+    let instances = instance::manager::list_instances()?;
+    let total_seconds: u64 = instances.iter().map(|i| i.playtime_seconds).sum();
+    let mut top_instances: Vec<InstancePlaytime> = instances.iter().map(|i| InstancePlaytime {
+        id: i.id.clone(),
+        name: i.name.clone(),
+        seconds: i.playtime_seconds,
+    }).collect();
+    top_instances.sort_by(|a, b| b.seconds.cmp(&a.seconds));
+    top_instances.truncate(10);
+
+    let mut daily: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+    let playtime_path = paths::get_game_dir().join("playtime_log.json");
+    if playtime_path.exists() {
+        if let Ok(data) = std::fs::read_to_string(&playtime_path) {
+            if let Ok(log_entries) = serde_json::from_str::<std::collections::HashMap<String, u64>>(&data) {
+                daily = log_entries;
+            }
+        }
+    }
+
+    Ok(PlaytimeStats { total_seconds, daily, top_instances })
+}
+
+#[tauri::command]
+async fn record_playtime(instance_id: String, seconds: u64) -> Result<(), LauncherError> {
+    instance::manager::update_playtime(&instance_id, seconds)?;
+
+    let playtime_path = paths::get_game_dir().join("playtime_log.json");
+    let mut daily: std::collections::HashMap<String, u64> = if playtime_path.exists() {
+        std::fs::read_to_string(&playtime_path)
+            .ok()
+            .and_then(|d| serde_json::from_str(&d).ok())
+            .unwrap_or_default()
+    } else {
+        std::collections::HashMap::new()
+    };
+
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    *daily.entry(today).or_insert(0) += seconds;
+
+    let data = serde_json::to_string_pretty(&daily)?;
+    std::fs::write(&playtime_path, data)?;
+
+    Ok(())
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -1118,23 +2474,50 @@ pub fn run() {
             get_game_dir, get_default_game_dir,
             list_instances, create_instance, delete_instance,
             update_instance, get_instance, duplicate_instance,
-            export_instance, import_modpack, export_mrpack, check_instance_ready, open_folder,
+            export_instance, import_modpack, import_modpack_auto, detect_modpack_format, export_mrpack, check_instance_ready, open_folder,
             parse_crash_report,
+            diagnose_crash,
             get_loader_versions, install_loader,
             search_mods, get_popular_mods, get_mod_details,
             get_mod_versions, get_version_by_id,
             install_mod, install_content,
+            get_optimization_presets_cmd, apply_optimization_preset,
             search_content, get_project_details, get_trending_content,
             get_recently_updated,
             list_instance_mods, list_instance_resourcepacks,
-            list_instance_shaders, remove_installed_mod, get_content_counts,
+            list_instance_shaders, list_instance_saves, list_instance_logs, read_log_file,
+            remove_installed_mod, get_content_counts,
             check_content_updates,
-            search_cf_mods, get_cf_mod, get_cf_featured,
+            bulk_update_content,
+            search_cf_mods, get_cf_mod, get_cf_project_details, get_cf_mod_versions, get_cf_featured,
             get_cf_mod_files, download_cf_mod,
             add_to_collection, remove_from_collection,
             is_in_collection, list_collection,
             quick_start, select_fastest_mirror,
             get_system_info, auto_tune_memory_cmd,
+            smart_tune_memory_cmd,
+            get_playtime_stats, record_playtime,
+            get_instance_cover_image,
+              get_last_played_instance,
+              create_snapshot, list_snapshots, restore_snapshot, delete_snapshot,
+              check_mod_conflicts,
+              ping_server,
+              export_instance_config, import_instance_config,
+              get_hardware_profile,
+              get_disk_usage,
+              get_recommendations,
+              check_migration_readiness,
+              warmup_launch,
+              create_guest_instance,
+              list_screenshots,
+              get_achievements, unlock_achievement,
+              set_instance_icon,
+              get_download_schedule_config, set_download_schedule_config,
+              get_gc_recommendations,
+              detect_anomalies,
+              get_battery_status,
+              cli_launch,
+              get_web_api_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

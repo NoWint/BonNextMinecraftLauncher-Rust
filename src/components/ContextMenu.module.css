@@ -1,13 +1,13 @@
 .menu {
   position: fixed;
   z-index: 99999;
-  background: #1A1A1A;
-  border: 1px solid #2A2A2A;
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border-light);
   min-width: 160px;
   padding: 4px;
   animation: context-in 0.15s var(--ease-out-expo);
   clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 30px var(--color-overlay-50);
 }
 
 .item {
@@ -18,7 +18,7 @@
   padding: 8px 12px;
   border: none;
   background: none;
-  color: #AAA;
+  color: var(--color-text-secondary);
   font-size: 0.62em;
   font-family: var(--font-body);
   cursor: pointer;
@@ -28,8 +28,8 @@
 }
 
 .item:hover {
-  background: #252525;
-  color: #FFF;
+  background: var(--color-panel-alt);
+  color: var(--color-text);
 }
 
 .item--danger:hover {
@@ -39,12 +39,12 @@
 .shortcut {
   font-family: var(--font-mono);
   font-size: 0.75em;
-  color: #555;
+  color: var(--color-text-muted);
 }
 
 .separator {
   height: 1px;
-  background: #222;
+  background: var(--color-panel-alt);
   margin: 4px 8px;
 }
 

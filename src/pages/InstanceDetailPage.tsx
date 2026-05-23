@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api, type GameInstance, type InstalledModInfo } from '../api';
+import { api, type GameInstance, type InstalledModInfo, type WorldInfo, type LogFileInfo } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useInstances } from '../stores/instanceStore';
 import { useToast } from '../stores/toastStore';
 import { useI18n } from '../i18n';
 import { Badge, Tabs, Modal, Breadcrumb as BreadcrumbComp, TextInput, Tooltip } from '../components/ui';
 import { Button } from '../components/ui';
+import GameConsole from '../components/ui/GameConsole';
 import { relativeTime } from '../utils/time';
 import styles from './InstanceDetailPage.module.css';
 
@@ -50,6 +51,11 @@ export default function InstanceDetailPage() {
   const [duplicateName, setDuplicateName] = useState('');
   const [exporting, setExporting] = useState(false);
   const [installedMods, setInstalledMods] = useState<InstalledModInfo[]>([]);
+  const [worlds, setWorlds] = useState<WorldInfo[]>([]);
+  const [logFiles, setLogFiles] = useState<LogFileInfo[]>([]);
+  const [selectedLog, setSelectedLog] = useState<string | null>(null);
+  const [logContent, setLogContent] = useState<string>('');
+  const [loadingLog, setLoadingLog] = useState(false);
 
   const instanceId = window.location.hash.replace('#/instances/', '').split('?')[0];
 
@@ -72,8 +78,20 @@ export default function InstanceDetailPage() {
     if (instanceId) {
       api.checkInstanceReady(instanceId).then(setIsReady).catch(() => setIsReady(null));
       api.listInstanceMods(instanceId).then(setInstalledMods).catch(() => setInstalledMods([]));
+      api.listInstanceSaves(instanceId).then(setWorlds).catch(() => setWorlds([]));
+      api.listInstanceLogs(instanceId).then(setLogFiles).catch(() => setLogFiles([]));
     }
   }, [instanceId]);
+
+  useEffect(() => {
+    if (selectedLog && instanceId) {
+      setLoadingLog(true);
+      api.readLogFile(instanceId, selectedLog, 500)
+        .then(setLogContent)
+        .catch(() => setLogContent('Failed to load log file'))
+        .finally(() => setLoadingLog(false));
+    }
+  }, [selectedLog, instanceId]);
 
   const handleLaunch = useCallback(async () => {
     if (!instance) return;
@@ -84,6 +102,7 @@ export default function InstanceDetailPage() {
         auth?.username || 'Player', auth?.uuid || '',
         auth?.access_token || '', instance.max_memory, instance.min_memory,
         instance.java_path || undefined, instance.jvm_args || undefined,
+        instance.id,
       );
       addToast({ type: 'success', title: 'Launching', message: `${instance.name} is starting...` });
     } catch (e: any) {
@@ -134,6 +153,17 @@ export default function InstanceDetailPage() {
       setExporting(false);
     }
   };
+
+  const handleUpdateInstance = useCallback(async (updates: Partial<GameInstance>) => {
+    if (!instance) return;
+    try {
+      const updated = { ...instance, ...updates };
+      await api.updateInstance(updated);
+      setInstance(updated);
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Update failed', message: e?.toString() || 'Failed to update instance' });
+    }
+  }, [instance, addToast]);
 
   if (loading) {
     return (
@@ -228,10 +258,79 @@ export default function InstanceDetailPage() {
 
             <div className={styles.infoCard}>
               <div className={styles.infoCardHeader}>{t('instanceDetail.launchConfig').toUpperCase()}</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <InfoRow label={t('instanceDetail.allocatedMemory')} value={`${memoryGB} GB`} mono />
-                <InfoRow label="Min Memory" value={`${Math.round(instance.min_memory / 1024)} GB`} mono />
-                <InfoRow label="JVM Args" value={instance.jvm_args || t('instanceDetail.default')} mono />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className={styles.infoRowLabel}>{t('instanceDetail.allocatedMemory')}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                      type="range"
+                      min={1}
+                      max={16}
+                      step={1}
+                      value={memoryGB}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        handleUpdateInstance({ max_memory: val * 1024 });
+                      }}
+                      style={{ width: 120, accentColor: 'var(--color-accent)' }}
+                    />
+                    <span className={styles.infoRowValueMono}>{memoryGB} GB</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className={styles.infoRowLabel}>Min Memory</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                      type="range"
+                      min={256}
+                      max={4096}
+                      step={256}
+                      value={instance.min_memory}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        handleUpdateInstance({ min_memory: val });
+                      }}
+                      style={{ width: 120, accentColor: 'var(--color-accent)' }}
+                    />
+                    <span className={styles.infoRowValueMono}>{Math.round(instance.min_memory / 1024)} GB</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className={styles.infoRowLabel}>JVM Args</span>
+                  <input
+                    type="text"
+                    value={instance.jvm_args || ''}
+                    placeholder={t('instanceDetail.default')}
+                    onChange={(e) => handleUpdateInstance({ jvm_args: e.target.value })}
+                    style={{
+                      background: '#0A0A0A',
+                      border: '1px solid #1C1C1C',
+                      color: '#FFF',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.55em',
+                      padding: '4px 8px',
+                      width: 200,
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className={styles.infoRowLabel}>Java Path</span>
+                  <input
+                    type="text"
+                    value={instance.java_path || ''}
+                    placeholder={t('instanceDetail.autoDetect')}
+                    onChange={(e) => handleUpdateInstance({ java_path: e.target.value })}
+                    style={{
+                      background: '#0A0A0A',
+                      border: '1px solid #1C1C1C',
+                      color: '#FFF',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.55em',
+                      padding: '4px 8px',
+                      width: 200,
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -307,10 +406,90 @@ export default function InstanceDetailPage() {
         </div>
       )}
       {activeTab === 'saves' && (
-        <div className={styles.placeholderTab}>{t('instanceDetail.comingSoon')}</div>
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          {worlds.length === 0 ? (
+            <div className={styles.placeholderTab}>
+              {t('instanceDetail.noSaves')}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {worlds.map((world) => (
+                <div key={world.name} style={{
+                  background: '#141414', border: '1px solid #1C1C1C',
+                  padding: '10px 14px', display: 'flex', alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6em', color: '#FFF' }}>
+                      🌍 {world.name}
+                    </div>
+                    <div style={{ fontSize: '0.5em', color: '#666', marginTop: 2 }}>
+                      {world.game_mode} · {world.difficulty} · {world.size_mb.toFixed(1)} MB
+                      {world.last_played && ` · ${relativeTime(world.last_played)}`}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {world.seed && (
+                      <Badge variant="muted">Seed: {world.seed}</Badge>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
       {activeTab === 'logs' && (
-        <div className={styles.placeholderTab}>{t('instanceDetail.comingSoon')}</div>
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            {logFiles.map((log) => (
+              <button
+                key={log.filename}
+                onClick={() => setSelectedLog(log.filename)}
+                style={{
+                  background: selectedLog === log.filename ? 'var(--color-accent)' : '#141414',
+                  color: selectedLog === log.filename ? '#000' : '#FFF',
+                  border: '1px solid #1C1C1C',
+                  padding: '4px 10px',
+                  fontSize: '0.5em',
+                  fontFamily: 'var(--font-mono)',
+                  cursor: 'pointer',
+                }}
+              >
+                {log.filename} ({(log.size / 1024).toFixed(0)}KB)
+              </button>
+            ))}
+            {logFiles.length === 0 && (
+              <span style={{ fontSize: '0.5em', color: '#666' }}>
+                {t('instanceDetail.noLogs')}
+              </span>
+            )}
+          </div>
+          {selectedLog ? (
+            loadingLog ? (
+              <div style={{ fontSize: '0.6em', color: '#666', padding: 20 }}>Loading...</div>
+            ) : (
+              <div style={{
+                background: '#0A0A0A',
+                border: '1px solid #1C1C1C',
+                padding: 10,
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.5em',
+                color: '#AAA',
+                maxHeight: 400,
+                overflowY: 'auto',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+              }}>
+                {logContent}
+              </div>
+            )
+          ) : (
+            <div style={{ padding: 20 }}>
+              <GameConsole visible={true} />
+            </div>
+          )}
+        </div>
       )}
 
       {/* Delete modal */}

@@ -1,0 +1,59 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  height: 100%;
+  overflow: hidden;
+}
+
+.listView {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 4px;
+}
+
+.listView > * {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.listView > *:last-child {
+  border-bottom: none;
+}
+
+.emptyState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 300px;
+}
+
+.emptyState__icon {
+  font-size: 3em;
+  opacity: 0.3;
+}
+
+.emptyState__title {
+  font-family: var(--font-heading);
+  font-size: 1em;
+  color: var(--color-text-dim);
+  letter-spacing: 3px;
+}
+
+.emptyState__desc {
+  font-size: 0.6em;
+  color: var(--color-text-dim);
+  text-align: center;
+  max-width: 320px;
+  line-height: 1.6;
+}
+
+.footerTicker {
+  flex-shrink: 0;
+}
