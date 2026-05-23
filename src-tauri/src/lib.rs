@@ -14,8 +14,12 @@ mod launch;
 mod loader;
 mod modrinth;
 mod platform;
+mod security;
 mod version;
+mod commands;
 
+use serde::Serialize;
+use serde::Deserialize;
 use config::AppConfig;
 use crash_parser::CrashInfo;
 use crash_parser::CrashDiagnosis;
@@ -70,6 +74,11 @@ async fn find_java() -> Result<String, LauncherError> {
 }
 
 #[tauri::command]
+async fn find_all_java() -> Vec<platform::java::JavaInfo> {
+    platform::java::find_all_java()
+}
+
+#[tauri::command]
 async fn check_java_version(java_path: String) -> Result<Option<u32>, LauncherError> {
     let path = std::path::PathBuf::from(&java_path);
     let version = platform::java::check_java_version(&path);
@@ -78,15 +87,18 @@ async fn check_java_version(java_path: String) -> Result<Option<u32>, LauncherEr
 
 #[tauri::command]
 async fn check_jre_available(major_version: u32) -> Result<bool, LauncherError> {
-    // Check if a compatible JRE is already downloaded
     if platform::java_download::find_downloaded_jre(major_version).is_some() {
         return Ok(true);
     }
-    // Also check if we can reach Adoptium API
     match platform::java_download::fetch_available_jres(major_version).await {
         Ok(releases) => Ok(!releases.is_empty()),
         Err(_) => Ok(false),
     }
+}
+
+#[tauri::command]
+async fn get_jre_sources() -> Vec<platform::java_download::JreSourceInfo> {
+    platform::java_download::get_jre_sources()
 }
 
 #[tauri::command]
@@ -266,7 +278,42 @@ async fn launch_game_inner(
     }
 
     let details = version::resolver::resolve_version_with_parents(&version_id, &version_url).await?;
-    let resolved = version::resolver::ResolvedVersion::from_details(&details);
+    let mut resolved = version::resolver::ResolvedVersion::from_details(&details);
+
+    if let Some(ref iid) = &instance_id {
+        if let Ok(Some(inst)) = instance::manager::get_instance(iid) {
+            if let (Some(lt), Some(lv)) = (&inst.loader_type, &inst.loader_version) {
+                tracing::info!("Instance has loader {} {}, installing/verging loader...", lt, lv);
+                if let Some(loader_type) = loader::LoaderType::from_str(lt) {
+                    match loader::install_loader(&loader_type, &details, lv, iid).await {
+                        Ok(loader_result) => {
+                            if !loader_result.extra_libraries.is_empty() {
+                                let tasks = download::queue::build_library_download_tasks(&loader_result.extra_libraries);
+                                let queue = DownloadQueue::new();
+                                match queue.download_all(tasks).await {
+                                    Ok(_) => tracing::info!("Loader libraries downloaded successfully"),
+                                    Err(e) => tracing::warn!("Failed to download some loader libraries: {}", e),
+                                }
+                            }
+                            resolved.main_class = loader_result.main_class;
+                            resolved.libraries.extend(loader_result.extra_libraries);
+                            resolved.jvm_args.extend(loader_result.extra_jvm_args);
+                            resolved.game_args.extend(loader_result.extra_game_args);
+                            resolved.id = loader_result.version_id;
+                            tracing::info!(
+                                "Loader merged: id={}, mainClass={}, total libs={}",
+                                resolved.id, resolved.main_class, resolved.libraries.len()
+                            );
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to install loader: {}", e);
+                            return Err(e);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     tracing::info!(
         "Resolved: id={}, mainClass={}, libs={}, natives={}, java_ver={}",
@@ -275,7 +322,7 @@ async fn launch_game_inner(
         resolved.java_version.major_version,
     );
 
-    let instance_settings = InstanceSettings { max_memory, min_memory, java_path, jvm_args, user_type: Some(user_type) };
+    let instance_settings = InstanceSettings { id: instance_id.clone(), max_memory, min_memory, java_path, jvm_args, user_type: Some(user_type) };
     let ctx = LaunchContext::build(resolved, username, uuid, access_token, Some(instance_settings))?;
     let mut launcher = LaunchProcess::with_app_handle(launch_state, _app.clone());
     if let Some(ref iid) = instance_id {
@@ -549,15 +596,15 @@ async fn open_folder(path: String) -> Result<(), LauncherError> {
     if !p.exists() {
         return Err(LauncherError::Other(format!("Path does not exist: {}", path)));
     }
-    let game_dir = paths::get_game_dir();
-    let config_dir = paths::get_config_dir();
-    let is_allowed = p.starts_with(&game_dir)
-        || p.starts_with(&config_dir)
-        || p.starts_with(paths::get_default_game_dir());
+    let canonical = p.canonicalize().map_err(|e| LauncherError::Other(format!("Invalid path: {}", e)))?;
+    let game_dir = paths::get_game_dir().canonicalize().unwrap_or_else(|_| paths::get_game_dir());
+    let config_dir = paths::get_config_dir().canonicalize().unwrap_or_else(|_| paths::get_config_dir());
+    let default_game_dir = paths::get_default_game_dir().canonicalize().unwrap_or_else(|_| paths::get_default_game_dir());
+    let is_allowed = canonical.starts_with(&game_dir)
+        || canonical.starts_with(&config_dir)
+        || canonical.starts_with(&default_game_dir);
     if !is_allowed {
-        return Err(LauncherError::Other(format!(
-            "Access denied: path outside allowed directories"
-        )));
+        return Err(LauncherError::Other("Access denied: path outside allowed directories".into()));
     }
     opener::open(&p).map_err(|e| LauncherError::Other(e.to_string()))?;
     Ok(())
@@ -589,6 +636,15 @@ async fn install_loader(
         let queue = DownloadQueue::new();
         queue.download_all(tasks).await?;
     }
+
+    if let Ok(Some(mut inst)) = instance::manager::get_instance(&instance_id) {
+        inst.loader_type = Some(loader_type);
+        inst.loader_version = Some(loader_version);
+        if let Err(e) = instance::manager::update_instance(&inst) {
+            tracing::warn!("Failed to update instance loader info: {}", e);
+        }
+    }
+
     Ok(result)
 }
 
@@ -772,12 +828,13 @@ async fn apply_optimization_preset(instance_id: String, preset_id: String) -> Re
     let mut errors: Vec<String> = Vec::new();
 
     for mod_entry in &preset.mods {
+        // TODO: pass game_version and loader from instance for filtering
         let versions = modrinth::get_mod_versions(&mod_entry.slug, None, None).await;
         match versions {
             Ok(versions) => {
                 if let Some(latest) = versions.first() {
                     if let Some(file) = latest.files.first() {
-                        let dest = mods_dir.join(&file.filename);
+                        let _dest = mods_dir.join(&file.filename);
                         let sha1 = file.hashes.sha1.clone().unwrap_or_default();
                         match modrinth::download_content_file(&file.url, &file.filename, &instance_id, "mod", Some(&sha1)).await {
                             Ok(_) => {
@@ -1208,6 +1265,9 @@ async fn list_instance_logs(instance_id: String) -> Result<Vec<LogFileInfo>, Lau
 
 #[tauri::command]
 async fn read_log_file(instance_id: String, filename: String, max_lines: Option<usize>) -> Result<String, LauncherError> {
+    if filename.contains("..") || filename.contains('/') || filename.contains('\\') {
+        return Err(LauncherError::Other("Invalid filename".into()));
+    }
     let mc_dir = paths::get_instance_minecraft_dir(&instance_id);
     let log_path = mc_dir.join("logs").join(&filename);
 
@@ -1261,7 +1321,9 @@ async fn bulk_update_content(instance_id: String) -> Result<BulkUpdateResult, La
             Ok(versions) => {
                 if let Some(latest) = versions.first() {
                     if let Some(file) = latest.files.first() {
-                        let dest = mods_dir.join(&update.filename);
+                        let old_path = mods_dir.join(&update.filename);
+                        let _ = std::fs::remove_file(&old_path);
+                        let dest = mods_dir.join(&file.filename);
                         let queue = download::queue::DownloadQueue::new();
                         let sha1 = file.hashes.sha1.clone().unwrap_or_default();
                         let task = download::queue::DownloadTask::new(
@@ -1406,6 +1468,460 @@ async fn download_cf_mod(
     }
 
     Ok(result)
+}
+
+// ---------------------------------------------------------------
+// Minecraft News
+// ---------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MinecraftNewsEntry {
+    title: String,
+    category: String,
+    date: String,
+    text: String,
+    #[serde(rename = "readMoreLink")]
+    read_more_link: String,
+    id: String,
+    image_url: Option<String>,
+    tag: Option<String>,
+    #[serde(rename = "newsType")]
+    news_type: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct NewsApiResponse {
+    entries: Vec<NewsApiEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+struct NewsApiEntry {
+    title: String,
+    category: String,
+    date: String,
+    text: String,
+    #[serde(rename = "readMoreLink")]
+    read_more_link: String,
+    id: String,
+    #[serde(rename = "newsPageImage")]
+    news_page_image: Option<NewsApiImage>,
+    tag: Option<String>,
+    #[serde(rename = "newsType")]
+    news_type: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct NewsApiImage {
+    url: String,
+}
+
+#[tauri::command]
+async fn get_minecraft_news() -> Result<Vec<MinecraftNewsEntry>, LauncherError> {
+    let client = crate::http_client::build_client();
+    let resp = client
+        .get("https://launchercontent.mojang.com/news.json")
+        .send()
+        .await?;
+
+    let api_data: NewsApiResponse = resp.json().await?;
+
+    let entries = api_data.entries.into_iter().take(10).map(|entry| {
+        let image_url = entry.news_page_image
+            .and_then(|img| {
+                if img.url.is_empty() {
+                    None
+                } else {
+                    Some(format!("https://launchercontent.mojang.com{}", img.url))
+                }
+            });
+        MinecraftNewsEntry {
+            title: entry.title,
+            category: entry.category,
+            date: entry.date,
+            text: entry.text,
+            read_more_link: entry.read_more_link,
+            id: entry.id,
+            image_url,
+            tag: entry.tag,
+            news_type: entry.news_type,
+        }
+    }).collect();
+
+    Ok(entries)
+}
+
+// ---------------------------------------------------------------
+// Minecraft Article
+// ---------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ArticleImage {
+    url: String,
+    caption: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ArticleSection {
+    heading: Option<String>,
+    paragraphs: Vec<String>,
+    images: Vec<ArticleImage>,
+    list_items: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MinecraftArticle {
+    title: String,
+    subtitle: Option<String>,
+    author: Option<String>,
+    date: Option<String>,
+    header_image: Option<String>,
+    sections: Vec<ArticleSection>,
+}
+
+fn strip_html_tags(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let mut in_tag = false;
+    for ch in s.chars() {
+        if ch == '<' {
+            in_tag = true;
+        } else if ch == '>' {
+            in_tag = false;
+        } else if !in_tag {
+            result.push(ch);
+        }
+    }
+    let decoded = result
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&nbsp;", " ");
+    decoded.trim().to_string()
+}
+
+fn extract_tag_content(html: &str, tag: &str) -> Option<String> {
+    let open = format!("<{}", tag);
+    let close = format!("</{}>", tag);
+    let start = html.find(&open)?;
+    let tag_end = html[start..].find('>')?;
+    let content_start = start + tag_end + 1;
+    let content_end = html[content_start..].find(&close)?;
+    Some(html[content_start..content_start + content_end].to_string())
+}
+
+fn extract_all_tag_contents(html: &str, tag: &str) -> Vec<String> {
+    let mut results = Vec::new();
+    let open = format!("<{}", tag);
+    let close = format!("</{}>", tag);
+    let mut search_from = 0;
+    while let Some(start) = html[search_from..].find(&open) {
+        let abs_start = search_from + start;
+        if let Some(tag_end) = html[abs_start..].find('>') {
+            let content_start = abs_start + tag_end + 1;
+            if let Some(content_end) = html[content_start..].find(&close) {
+                results.push(html[content_start..content_start + content_end].to_string());
+                search_from = content_start + content_end + close.len();
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+    results
+}
+
+fn extract_img_src(html: &str) -> Option<String> {
+    let img_start = html.find("<img")?;
+    let img_end = html[img_start..].find('>').unwrap_or(html[img_start..].len());
+    let img_tag = &html[img_start..img_start + img_end];
+    for attr in &["src=\"", "src='"] {
+        if let Some(src_start) = img_tag.find(attr) {
+            let val_start = src_start + attr.len();
+            let quote = &attr[attr.len() - 1..attr.len()];
+            if let Some(val_end) = img_tag[val_start..].find(quote) {
+                return Some(img_tag[val_start..val_start + val_end].to_string());
+            }
+        }
+    }
+    None
+}
+
+fn extract_all_images(html: &str) -> Vec<ArticleImage> {
+    let mut images = Vec::new();
+    let mut search_from = 0;
+    while let Some(img_pos) = html[search_from..].find("<img") {
+        let abs_pos = search_from + img_pos;
+        let tag_end = html[abs_pos..].find('>').unwrap_or(html[abs_pos..].len().min(500));
+        let img_tag = &html[abs_pos..abs_pos + tag_end];
+
+        let mut src = None;
+        for attr in &["src=\"", "src='"] {
+            if let Some(src_start) = img_tag.find(attr) {
+                let val_start = src_start + attr.len();
+                let quote = &attr[attr.len() - 1..attr.len()];
+                if let Some(val_end) = img_tag[val_start..].find(quote) {
+                    src = Some(img_tag[val_start..val_start + val_end].to_string());
+                    break;
+                }
+            }
+        }
+
+        if let Some(url) = src {
+            let full_url = if url.starts_with('/') {
+                format!("https://www.minecraft.net{}", url)
+            } else {
+                url
+            };
+
+            let mut caption = None;
+            let after_img = abs_pos + tag_end;
+            if let Some(fig_end) = html[after_img..].find("</figure>") {
+                let fig_content = &html[after_img..after_img + fig_end];
+                for cap_tag in &["figcaption", "span"] {
+                    if let Some(cap) = extract_tag_content(fig_content, cap_tag) {
+                        let text = strip_html_tags(&cap);
+                        if !text.is_empty() {
+                            caption = Some(text);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            images.push(ArticleImage { url: full_url, caption });
+        }
+
+        search_from = abs_pos + tag_end + 1;
+    }
+    images
+}
+
+fn normalize_img_url(src: &str) -> String {
+    if src.starts_with('/') {
+        format!("https://www.minecraft.net{}", src)
+    } else {
+        src.to_string()
+    }
+}
+
+#[tauri::command]
+async fn get_minecraft_article(url: String) -> Result<MinecraftArticle, LauncherError> {
+    let client = crate::http_client::build_client();
+    let resp = client.get(&url).send().await?;
+    let html = resp.text().await?;
+
+    let title = extract_tag_content(&html, "h1")
+        .or_else(|| extract_tag_content(&html, "title"))
+        .map(|t| strip_html_tags(&t))
+        .unwrap_or_else(|| "Untitled Article".to_string());
+
+    let subtitle = extract_tag_content(&html, "h2")
+        .map(|t| strip_html_tags(&t))
+        .filter(|t| *t != title);
+
+    let author = {
+        let lower = html.to_lowercase();
+        let mut found = None;
+        for marker in &["written by", "writtenby", "author"] {
+            if let Some(pos) = lower.find(marker) {
+                let after = &html[pos + marker.len()..];
+                let text = strip_html_tags(after);
+                let name = text.split(|c: char| c == '\n' || c == '<' || c == '|')
+                    .next()
+                    .unwrap_or("")
+                    .trim()
+                    .to_string();
+                if !name.is_empty() && name.len() < 100 {
+                    found = Some(name);
+                    break;
+                }
+            }
+        }
+        found
+    };
+
+    let date = {
+        let lower = html.to_lowercase();
+        let mut found = None;
+        for marker in &["published", "posted"] {
+            if let Some(pos) = lower.find(marker) {
+                let after = &html[pos + marker.len()..];
+                let text = strip_html_tags(after);
+                let date_str = text.split(|c: char| c == '\n' || c == '<' || c == '|')
+                    .next()
+                    .unwrap_or("")
+                    .trim()
+                    .to_string();
+                if !date_str.is_empty() && date_str.len() < 100 {
+                    found = Some(date_str);
+                    break;
+                }
+            }
+        }
+        found
+    };
+
+    let header_image = {
+        let body = html.find("<body").map(|pos| &html[pos..]).unwrap_or(html.as_str());
+        let hero = body.find("article-hero")
+            .or_else(|| body.find("hero-image"))
+            .or_else(|| body.find("article-header"));
+        if let Some(hero_pos) = hero {
+            let chunk = &body[hero_pos..body.len().min(hero_pos + 5000)];
+            extract_img_src(chunk).map(|s| normalize_img_url(&s))
+        } else {
+            extract_img_src(body).map(|s| normalize_img_url(&s))
+        }
+    };
+
+    let body_start = html.find("<body").map(|pos| {
+        html[pos..].find('>').map(|p| pos + p + 1).unwrap_or(pos)
+    }).unwrap_or(0);
+    let body_html = &html[body_start..];
+
+    let article_content = body_html
+        .find("<article")
+        .or_else(|| body_html.find("class=\"article\""))
+        .or_else(|| body_html.find("class=\"post\""))
+        .or_else(|| body_html.find("class=\"content\""))
+        .map(|pos| &body_html[pos..])
+        .unwrap_or(body_html);
+
+    let content_end = article_content
+        .find("</article>")
+        .or_else(|| article_content.find("class=\"footer\""))
+        .or_else(|| article_content.find("<footer"))
+        .unwrap_or(article_content.len());
+    let content = &article_content[..content_end];
+
+    let mut sections: Vec<ArticleSection> = Vec::new();
+    let mut current_section = ArticleSection {
+        heading: None,
+        paragraphs: Vec::new(),
+        images: Vec::new(),
+        list_items: Vec::new(),
+    };
+
+    let heading_positions: Vec<(usize, String, Option<String>)> = {
+        let mut positions = Vec::new();
+        for tag in &["h2", "h3"] {
+            let open = format!("<{}", tag);
+            let close = format!("</{}>", tag);
+            let mut search_from = 0;
+            while let Some(pos) = content[search_from..].find(&open) {
+                let abs_pos = search_from + pos;
+                if let Some(tag_end) = content[abs_pos..].find('>') {
+                    let content_start = abs_pos + tag_end + 1;
+                    if let Some(content_end) = content[content_start..].find(&close) {
+                        let heading_text = strip_html_tags(
+                            &content[content_start..content_start + content_end]
+                        );
+                        if !heading_text.is_empty() {
+                            positions.push((abs_pos, heading_text, Some(tag.to_string())));
+                        }
+                        search_from = content_start + content_end + close.len();
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+        positions.sort_by_key(|(pos, _, _)| *pos);
+        positions
+    };
+
+    if heading_positions.is_empty() {
+        let paragraphs = extract_all_tag_contents(content, "p");
+        let images = extract_all_images(content);
+        let list_items: Vec<String> = extract_all_tag_contents(content, "li")
+            .into_iter()
+            .map(|li| strip_html_tags(&li))
+            .filter(|t| !t.is_empty())
+            .collect();
+
+        current_section.paragraphs = paragraphs
+            .into_iter()
+            .map(|p| strip_html_tags(&p))
+            .filter(|t| !t.is_empty())
+            .collect();
+        current_section.images = images;
+        current_section.list_items = list_items;
+
+        if current_section.paragraphs.is_empty()
+            && current_section.images.is_empty()
+            && current_section.list_items.is_empty()
+        {
+            let plain = strip_html_tags(content);
+            if !plain.is_empty() {
+                current_section.paragraphs.push(plain);
+            }
+        }
+
+        sections.push(current_section);
+    } else {
+        let mut chunks: Vec<(Option<String>, &str)> = Vec::new();
+
+        let first_heading_start = heading_positions[0].0;
+        if first_heading_start > 0 {
+            chunks.push((None, &content[..first_heading_start]));
+        }
+
+        for (i, (pos, heading, _)) in heading_positions.iter().enumerate() {
+            let next_pos = heading_positions
+                .get(i + 1)
+                .map(|(p, _, _)| *p)
+                .unwrap_or(content.len());
+            chunks.push((Some(heading.clone()), &content[*pos..next_pos]));
+        }
+
+        for (heading, chunk) in chunks {
+            let paragraphs = extract_all_tag_contents(chunk, "p");
+            let images = extract_all_images(chunk);
+            let list_items: Vec<String> = extract_all_tag_contents(chunk, "li")
+                .into_iter()
+                .map(|li| strip_html_tags(&li))
+                .filter(|t| !t.is_empty())
+                .collect();
+
+            let clean_paragraphs: Vec<String> = paragraphs
+                .into_iter()
+                .map(|p| strip_html_tags(&p))
+                .filter(|t| !t.is_empty())
+                .collect();
+
+            sections.push(ArticleSection {
+                heading,
+                paragraphs: clean_paragraphs,
+                images,
+                list_items,
+            });
+        }
+    }
+
+    if sections.iter().all(|s| s.paragraphs.is_empty() && s.images.is_empty() && s.list_items.is_empty()) {
+        let plain = strip_html_tags(content);
+        if !plain.is_empty() {
+            sections.push(ArticleSection {
+                heading: None,
+                paragraphs: vec![plain],
+                images: Vec::new(),
+                list_items: Vec::new(),
+            });
+        }
+    }
+
+    Ok(MinecraftArticle {
+        title,
+        subtitle,
+        author,
+        date,
+        header_image,
+        sections,
+    })
 }
 
 // ---------------------------------------------------------------
@@ -1731,7 +2247,7 @@ async fn check_mod_conflicts(instance_id: String) -> Result<Vec<ConflictInfo>, L
     Ok(conflicts)
 }
 
-// ---- #21 Server Status Monitor ----
+// ---- #21 Server Status Monitor (Minecraft SLP Protocol) ----
 
 #[derive(Debug, Clone, serde::Serialize)]
 struct ServerStatusInfo {
@@ -1745,24 +2261,169 @@ struct ServerStatusInfo {
     version: String,
 }
 
+fn write_varint(buf: &mut Vec<u8>, mut value: i32) {
+    loop {
+        let mut temp = (value & 0x7F) as u8;
+        value = ((value as u32) >> 7) as i32;
+        if value != 0 {
+            temp |= 0x80;
+        }
+        buf.push(temp);
+        if value == 0 {
+            break;
+        }
+    }
+}
+
+fn read_varint(reader: &mut impl std::io::Read) -> Result<i32, LauncherError> {
+    let mut result = 0i32;
+    let mut shift = 0u32;
+    loop {
+        let mut buf = [0u8; 1];
+        reader.read_exact(&mut buf).map_err(|e| LauncherError::Other(format!("SLP read error: {}", e)))?;
+        let byte = buf[0];
+        result |= ((byte & 0x7F) as i32) << shift;
+        if byte & 0x80 == 0 {
+            break;
+        }
+        shift += 7;
+        if shift >= 32 {
+            return Err(LauncherError::Other("VarInt too long".into()));
+        }
+    }
+    Ok(result)
+}
+
+fn write_string(buf: &mut Vec<u8>, s: &str) {
+    let bytes = s.as_bytes();
+    write_varint(buf, bytes.len() as i32);
+    buf.extend_from_slice(bytes);
+}
+
+fn read_string(reader: &mut impl std::io::Read) -> Result<String, LauncherError> {
+    let len = read_varint(reader)? as usize;
+    let mut buf = vec![0u8; len];
+    reader.read_exact(&mut buf).map_err(|e| LauncherError::Other(format!("SLP string read: {}", e)))?;
+    String::from_utf8(buf).map_err(|e| LauncherError::Other(format!("SLP invalid utf8: {}", e)))
+}
+
 #[tauri::command]
 async fn ping_server(address: String) -> Result<ServerStatusInfo, LauncherError> {
     let start = std::time::Instant::now();
-    let online = std::net::TcpStream::connect_timeout(
-        &address.parse().map_err(|e: std::net::AddrParseError| LauncherError::Other(format!("Invalid address: {}", e)))?,
+
+    let addr = address.trim();
+    let (host, port) = if addr.starts_with('[') {
+        if let Some(bracket_end) = addr.find(']') {
+            let h = addr[1..bracket_end].to_string();
+            let p = addr.get(bracket_end + 2..).and_then(|s| s.parse::<u16>().ok()).unwrap_or(25565);
+            (h, p)
+        } else {
+            (addr.to_string(), 25565u16)
+        }
+    } else if let Some((h, p)) = addr.rsplit_once(':') {
+        (h.to_string(), p.parse::<u16>().unwrap_or(25565))
+    } else {
+        (addr.to_string(), 25565u16)
+    };
+
+    let sock_addr = format!("{}:{}", host, port);
+
+    let connect_result = tokio::time::timeout(
         std::time::Duration::from_secs(5),
-    ).is_ok();
+        tokio::net::TcpStream::connect(&sock_addr)
+    ).await;
+    let stream = connect_result.map_err(|_| LauncherError::Other(format!("Connection timeout: {}", sock_addr)))?
+        .map_err(|e| LauncherError::Other(format!("Cannot connect to {}: {}", sock_addr, e)))?;
+
     let latency_ms = start.elapsed().as_millis() as u64;
 
+    let (mut reader, mut writer) = stream.into_split();
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let mut handshake = Vec::new();
+    write_varint(&mut handshake, 0x00);
+    write_varint(&mut handshake, -1);
+    write_string(&mut handshake, &host);
+    handshake.push((port >> 8) as u8);
+    handshake.push((port & 0xFF) as u8);
+    write_varint(&mut handshake, 1);
+
+    let mut handshake_packet = Vec::new();
+    write_varint(&mut handshake_packet, handshake.len() as i32);
+    handshake_packet.extend_from_slice(&handshake);
+
+    let mut status_request = Vec::new();
+    write_varint(&mut status_request, 1);
+    write_varint(&mut status_request, 0x00);
+
+    writer.write_all(&handshake_packet).await.map_err(|e| LauncherError::Other(format!("SLP handshake: {}", e)))?;
+    writer.write_all(&status_request).await.map_err(|e| LauncherError::Other(format!("SLP status req: {}", e)))?;
+
+    let mut len_buf = [0u8; 5];
+    let mut len_pos = 0;
+    loop {
+        let n = reader.read(&mut len_buf[len_pos..(len_pos + 1)]).await.map_err(|e| LauncherError::Other(format!("SLP read len: {}", e)))?;
+        if n == 0 {
+            return Ok(ServerStatusInfo {
+                name: host.clone(), address: sock_addr.clone(),
+                online: true, players_online: 0, players_max: 0,
+                latency_ms, motd: String::new(), version: String::new(),
+            });
+        }
+        len_pos += 1;
+        if len_buf[len_pos - 1] & 0x80 == 0 {
+            break;
+        }
+        if len_pos >= 5 {
+            return Err(LauncherError::Other("SLP packet too large".into()));
+        }
+    }
+
+    let packet_len = {
+        let mut cursor = std::io::Cursor::new(&len_buf[..len_pos]);
+        read_varint(&mut cursor)?
+    } as usize;
+
+    let mut packet_data = vec![0u8; packet_len];
+    reader.read_exact(&mut packet_data).await.map_err(|e| LauncherError::Other(format!("SLP read packet: {}", e)))?;
+
+    let mut cursor = std::io::Cursor::new(&packet_data);
+    let packet_id = read_varint(&mut cursor)?;
+    if packet_id != 0x00 {
+        return Ok(ServerStatusInfo {
+            name: host.clone(), address: sock_addr.clone(),
+            online: true, players_online: 0, players_max: 0,
+            latency_ms, motd: format!("Unexpected packet ID: {}", packet_id), version: String::new(),
+        });
+    }
+
+    let json_str = read_string(&mut cursor)?;
+    let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap_or_default();
+
+    let motd = if let Some(desc) = parsed["description"].as_str() {
+        desc.to_string()
+    } else if let Some(text) = parsed["description"]["text"].as_str() {
+        text.to_string()
+    } else if let Some(extra) = parsed["description"]["extra"].as_array() {
+        extra.iter().filter_map(|e| e["text"].as_str()).collect::<Vec<_>>().join("")
+    } else {
+        String::new()
+    };
+
+    let players_online = parsed["players"]["online"].as_u64().unwrap_or(0) as u32;
+    let players_max = parsed["players"]["max"].as_u64().unwrap_or(0) as u32;
+
+    let version = parsed["version"]["name"].as_str().unwrap_or("").to_string();
+
     Ok(ServerStatusInfo {
-        name: address.clone(),
-        address,
-        online,
-        players_online: 0,
-        players_max: 0,
+        name: host.clone(),
+        address: sock_addr,
+        online: true,
+        players_online,
+        players_max,
         latency_ms,
-        motd: String::new(),
-        version: String::new(),
+        motd,
+        version,
     })
 }
 
@@ -1906,6 +2567,85 @@ async fn get_disk_usage() -> Result<DiskUsageInfo, LauncherError> {
     ];
 
     Ok(DiskUsageInfo { total_bytes, instances_bytes, versions_bytes, libraries_bytes, assets_bytes, logs_bytes, other_bytes, breakdown })
+}
+
+// ---- File Management: List installed versions ----
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct InstalledVersionInfo {
+    version_id: String,
+    size_bytes: u64,
+    version_type: String,
+    path: String,
+}
+
+#[tauri::command]
+async fn list_installed_versions() -> Result<Vec<InstalledVersionInfo>, LauncherError> {
+    let versions_dir = paths::get_versions_dir();
+    let manifest_dir = versions_dir.join("version_manifest_v2.json");
+    let mut manifest_versions: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    if manifest_dir.exists() {
+        if let Ok(data) = std::fs::read_to_string(&manifest_dir) {
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&data) {
+                if let Some(arr) = parsed["versions"].as_array() {
+                    for v in arr {
+                        if let (Some(id), Some(typ)) = (v["id"].as_str(), v["type"].as_str()) {
+                            manifest_versions.insert(id.to_string(), typ.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let mut result = Vec::new();
+    if versions_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&versions_dir) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_dir() {
+                    let id = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                    let size = dir_size(&p);
+                    let version_type = manifest_versions.get(&id).cloned().unwrap_or_else(|| "unknown".to_string());
+                    result.push(InstalledVersionInfo {
+                        version_id: id,
+                        size_bytes: size,
+                        version_type,
+                        path: p.to_string_lossy().to_string(),
+                    });
+                }
+            }
+        }
+    }
+    result.sort_by(|a, b| b.version_id.cmp(&a.version_id));
+    Ok(result)
+}
+
+#[tauri::command]
+async fn delete_version_cmd(version_id: String) -> Result<(), LauncherError> {
+    let version_dir = paths::get_versions_dir().join(&version_id);
+    if !version_dir.exists() {
+        return Err(LauncherError::Other(format!("Version not found: {}", version_id)));
+    }
+    std::fs::remove_dir_all(&version_dir)
+        .map_err(|e| LauncherError::Other(format!("Failed to delete version {}: {}", version_id, e)))?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_dir_size_cmd(path: String) -> Result<u64, LauncherError> {
+    let p = std::path::PathBuf::from(&path);
+    if !p.exists() {
+        return Ok(0);
+    }
+    let canonical = p.canonicalize().map_err(|e| LauncherError::Other(format!("Invalid path: {}", e)))?;
+    let game_dir = paths::get_game_dir().canonicalize().unwrap_or_else(|_| paths::get_game_dir());
+    let config_dir = paths::get_config_dir().canonicalize().unwrap_or_else(|_| paths::get_config_dir());
+    let is_allowed = canonical.starts_with(&game_dir) || canonical.starts_with(&config_dir);
+    if !is_allowed {
+        return Err(LauncherError::Other("Access denied: path outside game/config directory".into()));
+    }
+    Ok(dir_size(&p))
 }
 
 // ---- #44 Smart Recommendations ----
@@ -2153,6 +2893,14 @@ async fn set_instance_icon(instance_id: String, icon_path: String) -> Result<(),
     if !src.exists() {
         return Err(LauncherError::Other(format!("Icon file not found: {}", icon_path)));
     }
+    let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    if !["png", "jpg", "jpeg", "gif", "webp", "bmp"].contains(&ext.as_str()) {
+        return Err(LauncherError::Other("Icon must be an image file (png, jpg, gif, webp, bmp)".into()));
+    }
+    let metadata = std::fs::metadata(src)?;
+    if metadata.len() > 5 * 1024 * 1024 {
+        return Err(LauncherError::Other("Icon file too large (max 5MB)".into()));
+    }
 
     let dest_dir = paths::get_instance_dir(&instance_id);
     std::fs::create_dir_all(&dest_dir)?;
@@ -2174,11 +2922,22 @@ struct DownloadScheduleConfig {
 
 #[tauri::command]
 async fn get_download_schedule_config() -> Result<DownloadScheduleConfig, LauncherError> {
-    Ok(DownloadScheduleConfig {
-        max_speed_bytes: 0,
-        active_during_game: false,
-        priority: "normal".to_string(),
-    })
+    let config_path = paths::get_game_dir().join("download_schedule.json");
+    if config_path.exists() {
+        let data = std::fs::read_to_string(&config_path)?;
+        let config: DownloadScheduleConfig = serde_json::from_str(&data).unwrap_or(DownloadScheduleConfig {
+            max_speed_bytes: 0,
+            active_during_game: false,
+            priority: "normal".to_string(),
+        });
+        Ok(config)
+    } else {
+        Ok(DownloadScheduleConfig {
+            max_speed_bytes: 0,
+            active_during_game: false,
+            priority: "normal".to_string(),
+        })
+    }
 }
 
 #[tauri::command]
@@ -2434,13 +3193,6 @@ async fn stop_discord_rpc() -> Result<(), LauncherError> {
     Ok(())
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
-struct DiscordPresenceUpdate {
-    details: String,
-    state: String,
-    large_image: Option<String>,
-    large_text: Option<String>,
-}
 
 #[tauri::command]
 async fn update_discord_presence(details: String, state: String) -> Result<(), LauncherError> {
@@ -2472,7 +3224,7 @@ async fn get_launch_profiling_data(instance_id: String) -> Result<Vec<LaunchProf
 
 // ---- #37 Frame Time Analysis ----
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct FrameTimeData {
     avg_fps: f32,
     min_fps: f32,
@@ -2482,10 +3234,56 @@ struct FrameTimeData {
 
 #[tauri::command]
 async fn get_frame_time_data(instance_id: String) -> Result<FrameTimeData, LauncherError> {
+    let fps_path = paths::get_instance_minecraft_dir(&instance_id).join("fps_data.json");
+    if fps_path.exists() {
+        match std::fs::read_to_string(&fps_path) {
+            Ok(data) => {
+                if let Ok(parsed) = serde_json::from_str::<FrameTimeData>(&data) {
+                    return Ok(parsed);
+                }
+            }
+            Err(_) => {}
+        }
+    }
+    let log_path = paths::get_instance_minecraft_dir(&instance_id).join("logs").join("latest.log");
+    if log_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&log_path) {
+            let mut fps_values: Vec<f32> = Vec::new();
+            for line in content.lines() {
+                if line.contains("fps") || line.contains("FPS") {
+                    let lower = line.to_lowercase();
+                    if let Some(pos) = lower.find("fps") {
+                        let before = &lower[..pos].trim();
+                        if let Some(num_str) = before.rsplit(|c: char| !c.is_ascii_digit() && c != '.').next() {
+                            if let Ok(val) = num_str.parse::<f32>() {
+                                if val > 0.0 && val < 1000.0 {
+                                    fps_values.push(val);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if !fps_values.is_empty() {
+                let avg = fps_values.iter().sum::<f32>() / fps_values.len() as f32;
+                let min = fps_values.iter().cloned().fold(f32::MAX, f32::min);
+                let mut sorted = fps_values.clone();
+                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                let p1_idx = ((sorted.len() as f32) * 0.01).max(1.0) as usize - 1;
+                let p1_low = sorted.get(p1_idx).copied().unwrap_or(min);
+                return Ok(FrameTimeData {
+                    avg_fps: avg,
+                    min_fps: min,
+                    p1_low_fps: p1_low,
+                    frame_times_ms: fps_values.iter().take(30).map(|&f| if f > 0.0 { 1000.0 / f } else { 0.0 }).collect(),
+                });
+            }
+        }
+    }
     Ok(FrameTimeData {
-        avg_fps: 60.0,
-        min_fps: 30.0,
-        p1_low_fps: 25.0,
+        avg_fps: 0.0,
+        min_fps: 0.0,
+        p1_low_fps: 0.0,
         frame_times_ms: Vec::new(),
     })
 }
@@ -2641,6 +3439,168 @@ fn compute_agg_speed_eta(bytes: u64, start: std::time::Instant) -> (u64, u64) {
     (speed, eta)
 }
 
+#[tauri::command]
+async fn get_security_config() -> Result<config::SecurityConfig, LauncherError> {
+    let cfg = config::load_config()?;
+    Ok(cfg.security)
+}
+
+#[tauri::command]
+async fn save_security_config(
+    security: config::SecurityConfig,
+) -> Result<(), LauncherError> {
+    let mut cfg = config::load_config()?;
+    let old_encryption = cfg.security.credential_encryption;
+    cfg.security = security;
+    config::save_config(&cfg)?;
+    security::audit::log_audit(
+        security::audit::AuditLevel::Info,
+        security::audit::AuditCategory::Config,
+        "Security config updated",
+        Some(serde_json::json!({
+            "credential_encryption_changed": old_encryption != cfg.security.credential_encryption,
+        })),
+    );
+    if !old_encryption && cfg.security.credential_encryption {
+        let _ = security::credential_store::migrate_plain_to_encrypted();
+    }
+    let _ = security::audit::init_audit(cfg.security.audit_log_enabled);
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_security_score() -> Result<u32, LauncherError> {
+    let cfg = config::load_config()?;
+    let mut score: u32 = 40;
+    if security::credential_store::is_encrypted() {
+        score += 20;
+    }
+    if cfg.security.strict_verification {
+        score += 10;
+    }
+    if cfg.security.jvm_args_mode == "whitelist" {
+        score += 10;
+    }
+    match cfg.security.sandbox_mode.as_str() {
+        "strict" => score += 10,
+        "basic" => score += 5,
+        _ => {}
+    }
+    if cfg.security.audit_log_enabled {
+        score += 10;
+    }
+    Ok(score)
+}
+
+#[tauri::command]
+async fn get_audit_log(
+    category: Option<String>,
+    limit: Option<usize>,
+    offset: Option<usize>,
+) -> Result<Vec<security::audit::AuditEntry>, LauncherError> {
+    let filter_category = category.and_then(|c| serde_json::from_value(serde_json::Value::String(c)).ok());
+    security::audit::read_audit_log(
+        filter_category,
+        limit.unwrap_or(100),
+        offset.unwrap_or(0),
+    )
+}
+
+#[tauri::command]
+async fn get_login_history() -> Result<Vec<security::audit::LoginHistoryEntry>, LauncherError> {
+    security::audit::get_login_history()
+}
+
+#[tauri::command]
+async fn migrate_credentials() -> Result<(), LauncherError> {
+    security::credential_store::migrate_plain_to_encrypted()
+}
+
+#[tauri::command]
+async fn get_encryption_status() -> Result<serde_json::Value, LauncherError> {
+    Ok(serde_json::json!({
+        "encrypted": security::credential_store::is_encrypted(),
+        "plain": security::credential_store::is_plain(),
+    }))
+}
+
+#[tauri::command]
+async fn save_api_key(name: String, value: String) -> Result<(), LauncherError> {
+    security::sanitizer::sanitize_id(&name)?;
+    security::sanitizer::sanitize_general_string(&value)?;
+    security::key_store::set_key(&name, &value)
+}
+
+#[tauri::command]
+async fn delete_api_key(name: String) -> Result<(), LauncherError> {
+    security::sanitizer::sanitize_id(&name)?;
+    security::key_store::delete_key(&name)
+}
+
+#[tauri::command]
+async fn get_api_key_status(name: String) -> Result<security::key_store::KeyStatus, LauncherError> {
+    security::sanitizer::sanitize_id(&name)?;
+    security::key_store::key_status(&name)
+}
+
+#[tauri::command]
+async fn check_file_permissions() -> Result<Vec<serde_json::Value>, LauncherError> {
+    let results = security::file_permissions::check_all_sensitive_permissions();
+    Ok(results
+        .into_iter()
+        .map(|(path, secure)| {
+            serde_json::json!({
+                "path": path.to_string_lossy().to_string(),
+                "secure": secure,
+            })
+        })
+        .collect())
+}
+
+#[tauri::command]
+async fn fix_file_permissions() -> Result<Vec<serde_json::Value>, LauncherError> {
+    let results = security::file_permissions::fix_all_sensitive_permissions();
+    for (path, fixed) in &results {
+        if *fixed {
+            security::audit::log_audit(
+                security::audit::AuditLevel::Info,
+                security::audit::AuditCategory::File,
+                &format!("Fixed insecure permissions on {}", path.display()),
+                None,
+            );
+        }
+    }
+    Ok(results
+        .into_iter()
+        .map(|(path, fixed)| {
+            serde_json::json!({
+                "path": path.to_string_lossy().to_string(),
+                "fixed": fixed,
+            })
+        })
+        .collect())
+}
+
+#[tauri::command]
+async fn validate_jvm_args(args: String) -> Result<serde_json::Value, LauncherError> {
+    let cfg = config::load_config()?;
+    let arg_list: Vec<String> = args.split_whitespace().map(String::from).collect();
+    if cfg.security.jvm_args_mode == "whitelist" {
+        match security::jvm_whitelist::validate_jvm_args(&arg_list) {
+            Ok(valid) => Ok(serde_json::json!({ "valid": true, "args": valid })),
+            Err(e) => Ok(serde_json::json!({ "valid": false, "error": e.to_string() })),
+        }
+    } else {
+        let (valid, invalid) = security::jvm_whitelist::validate_jvm_args_custom(&arg_list);
+        Ok(serde_json::json!({ "valid": true, "args": valid, "warnings": invalid }))
+    }
+}
+
+#[tauri::command]
+async fn get_sandbox_availability() -> Result<security::sandbox::SandboxAvailability, LauncherError> {
+    Ok(security::sandbox::check_sandbox_availability())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     platform::logger::init_logger();
@@ -2658,7 +3618,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_versions, get_launch_state, reset_launch_state,
             get_config, save_config,
-            find_java, check_java_version, check_jre_available,
+            find_java, find_all_java, check_java_version, check_jre_available,
+            get_jre_sources,
             offline_login, start_microsoft_auth, poll_microsoft_auth,
             list_accounts, get_active_account, set_active_account,
             remove_account, refresh_auth_token,
@@ -2685,6 +3646,8 @@ pub fn run() {
             get_cf_mod_files, download_cf_mod,
             add_to_collection, remove_from_collection,
             is_in_collection, list_collection,
+            get_minecraft_news,
+            get_minecraft_article,
             quick_start, select_fastest_mirror,
             get_system_info, auto_tune_memory_cmd,
             smart_tune_memory_cmd,
@@ -2697,6 +3660,7 @@ pub fn run() {
               export_instance_config, import_instance_config,
               get_hardware_profile,
               get_disk_usage,
+            list_installed_versions, delete_version_cmd, get_dir_size_cmd,
               get_recommendations,
               check_migration_readiness,
               warmup_launch,
@@ -2717,8 +3681,31 @@ pub fn run() {
               get_launch_profiling_data,
               get_frame_time_data,
               nlp_search_content,
+              get_security_config, save_security_config,
+              get_security_score,
+              get_audit_log, get_login_history,
+              migrate_credentials, get_encryption_status,
+              save_api_key, delete_api_key, get_api_key_status,
+              check_file_permissions, fix_file_permissions,
+              validate_jvm_args, get_sandbox_availability,
 
         ])
+        .setup(|_app| {
+            let audit_enabled = config::load_config()
+                .map(|c| c.security.audit_log_enabled)
+                .unwrap_or(true);
+            if let Err(e) = security::audit::init_audit(audit_enabled) {
+                tracing::warn!("Failed to initialize audit system: {}", e);
+            }
+            if config::load_config().map(|c| c.security.credential_encryption).unwrap_or(true) {
+                if security::credential_store::is_plain() {
+                    if let Err(e) = security::credential_store::migrate_plain_to_encrypted() {
+                        tracing::warn!("Failed to migrate credentials to encrypted storage: {}", e);
+                    }
+                }
+            }
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
