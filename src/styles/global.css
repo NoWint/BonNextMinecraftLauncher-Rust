@@ -154,3 +154,179 @@ html, body, #root {
     animation: none;
   }
 }
+
+/* ==========================================================================
+   Font Customization — driven by SettingsPage font weight / line height sliders
+   ========================================================================== */
+
+body {
+  font-weight: var(--bonnext-font-weight, 400);
+  line-height: var(--bonnext-line-height, 1.5);
+}
+
+/* ==========================================================================
+   Window Effects — transparency & blur (frosted glass)
+   ========================================================================== */
+
+.app-sidebar {
+  backdrop-filter: blur(var(--bonnext-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--bonnext-blur, 0px));
+}
+
+.theme-dark .app-sidebar {
+  background: color-mix(in srgb, var(--color-sidebar) calc(var(--bonnext-transparency, 1) * 100%), transparent);
+}
+
+.theme-light .app-sidebar {
+  background: color-mix(in srgb, var(--color-sidebar) calc(var(--bonnext-transparency, 1) * 100%), transparent);
+}
+
+.theme-oled .app-sidebar {
+  background: color-mix(in srgb, var(--color-sidebar) calc(var(--bonnext-transparency, 1) * 100%), transparent);
+}
+
+@supports not (background: color-mix(in srgb, black 100%, transparent)) {
+  .app-sidebar {
+    opacity: var(--bonnext-transparency, 1);
+  }
+}
+
+/* ==========================================================================
+   Colorblind Mode Filters
+   ========================================================================== */
+
+.cb-protanopia {
+  --cb-filter: grayscale(0.5) sepia(0.3) hue-rotate(-30deg) saturate(1.5);
+}
+
+.cb-deuteranopia {
+  --cb-filter: grayscale(0.5) sepia(0.3) hue-rotate(20deg) saturate(1.5);
+}
+
+.cb-tritanopia {
+  --cb-filter: grayscale(0.5) sepia(0.3) hue-rotate(180deg) saturate(1.5);
+}
+
+.cb-protanopia body,
+.cb-deuteranopia body,
+.cb-tritanopia body {
+  filter: var(--cb-filter);
+}
+
+/* ==========================================================================
+   Dynamic Backgrounds
+   ========================================================================== */
+
+/* Minimal — clean, no background pattern (default) */
+.bg-minimal {
+  --bg-theme-color: transparent;
+}
+
+/* Cyberpunk — neon grid overlay */
+.bg-cyberpunk body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(255, 230, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 230, 0, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: bg-cyber-drift 20s linear infinite;
+}
+
+@keyframes bg-cyber-drift {
+  from { background-position: 0 0; }
+  to   { background-position: 60px 60px; }
+}
+
+.bg-cyberpunk body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 230, 0, 0.04) 0%, transparent 60%);
+}
+
+/* Starfield — drifting particles */
+.bg-starfield body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, rgba(255, 255, 255, 0.15), transparent),
+    radial-gradient(1px 1px at 80px 120px, rgba(255, 255, 255, 0.1), transparent),
+    radial-gradient(1px 1px at 150px 40px, rgba(255, 255, 255, 0.12), transparent),
+    radial-gradient(1px 1px at 220px 180px, rgba(255, 255, 255, 0.08), transparent),
+    radial-gradient(1px 1px at 300px 80px, rgba(255, 255, 255, 0.14), transparent),
+    radial-gradient(1px 1px at 400px 200px, rgba(255, 255, 255, 0.1), transparent),
+    radial-gradient(1px 1px at 50px 250px, rgba(255, 255, 255, 0.09), transparent),
+    radial-gradient(2px 2px at 350px 150px, rgba(255, 255, 255, 0.12), transparent),
+    radial-gradient(1px 1px at 180px 280px, rgba(255, 255, 255, 0.11), transparent),
+    radial-gradient(2px 2px at 420px 60px, rgba(255, 255, 255, 0.08), transparent),
+    radial-gradient(1px 1px at 480px 240px, rgba(255, 255, 255, 0.1), transparent),
+    radial-gradient(1px 1px at 30px 350px, rgba(255, 255, 255, 0.07), transparent),
+    radial-gradient(1px 1px at 250px 320px, rgba(255, 255, 255, 0.13), transparent),
+    radial-gradient(1px 1px at 460px 300px, rgba(255, 255, 255, 0.09), transparent);
+  background-size: 500px 400px;
+  animation: bg-star-drift 60s linear infinite;
+}
+
+@keyframes bg-star-drift {
+  from { background-position: 0 0; }
+  to   { background-position: 500px 400px; }
+}
+
+/* Matrix — code rain aesthetic */
+.bg-matrix body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 255, 136, 0.015) 2px,
+      rgba(0, 255, 136, 0.015) 4px
+    );
+  background-size: 100% 4px;
+  animation: bg-matrix-rain 3s linear infinite;
+}
+
+@keyframes bg-matrix-rain {
+  from { background-position: 0 0; }
+  to   { background-position: 0 60px; }
+}
+
+.bg-matrix body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(ellipse at 30% 20%, rgba(0, 255, 136, 0.03) 0%, transparent 50%);
+}
+
+/* ==========================================================================
+   Mini Mode — compact UI
+   ========================================================================== */
+
+.mini-mode {
+  --sidebar-width: 56px;
+  font-size: calc(var(--ui-scale, 1) * 14px);
+}
+
+.mini-mode .app-main {
+  padding: 12px 14px;
+}
+
+.mini-mode .app-sidebar {
+  padding: 12px 0;
+}

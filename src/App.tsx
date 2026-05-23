@@ -25,7 +25,6 @@ import ContentDetailPage from './pages/ContentDetailPage';
 import LibraryPage from './pages/LibraryPage';
 import CollectionsPage from './pages/CollectionsPage';
 import SettingsPage from './pages/SettingsPage';
-
 type Page =
   | 'home'
   | 'instances'

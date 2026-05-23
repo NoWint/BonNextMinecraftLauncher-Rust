@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://api.curseforge.com https://api.modrinth.com https://api.adoptium.net https://login.microsoftonline.com https://user.auth.xboxlive.com https://xsts.auth.xboxlive.com https://api.minecraftservices.com https://piston-meta.mojang.com https://launchermeta.mojang.com https://resources.download.minecraft.net https://bmclapi2.bangbang93.com https://download.mcbbs.net; font-src 'self' data:; media-src 'self'"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' https: data: blob:; connect-src 'self' https://api.curseforge.com https://api.modrinth.com https://api.adoptium.net https://login.microsoftonline.com https://user.auth.xboxlive.com https://xsts.auth.xboxlive.com https://api.minecraftservices.com https://piston-meta.mojang.com https://launchermeta.mojang.com https://resources.download.minecraft.net https://bmclapi2.bangbang93.com https://download.mcbbs.net; font-src 'self' data: https://fonts.gstatic.com; media-src 'self'"
     }
   },
   "bundle": {

@@ -1,4 +1,4 @@
-import { useReducer, useCallback } from 'react';
+import { useReducer, useCallback, useState, useEffect } from 'react';
 import { SectionHeader } from '../components/layout';
 import TypeTabs from '../components/marketplace/TypeTabs';
 import FilterBar from '../components/marketplace/FilterBar';
@@ -9,11 +9,36 @@ import {
   marketplaceReducer, INITIAL_STATE, PAGE_SIZE,
   type ContentType, type DataSource, type SubView, type ViewMode,
 } from '../components/marketplace/types';
+import { useConfig } from '../stores/configStore';
+import { useInstances } from '../stores/instanceStore';
+import { api } from '../api';
 import styles from './MarketplacePage.module.css';
+import badgeStyles from '../components/ui/Status.module.css';
+
+interface RecommendationItem {
+  slug: string;
+  name: string;
+  reason: string;
+  category: string;
+}
 
 export default function MarketplacePage() {
   const [state, dispatch] = useReducer(marketplaceReducer, INITIAL_STATE);
   const [totalHits, setTotalHits] = useReducer((_s: number, a: number) => a, 0);
+  const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
+  const { state: configState } = useConfig();
+  const { state: instanceState } = useInstances();
+
+  const instanceId = configState.config?.selected_instance || instanceState.instances[0]?.id || null;
+
+  useEffect(() => {
+    if (!instanceId) return;
+    let cancelled = false;
+    api.getRecommendations(instanceId).then((recs) => {
+      if (!cancelled) setRecommendations(recs);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [instanceId]);
 
   const handleTabChange = useCallback((tab: ContentType) => {
     dispatch({ type: 'SET_TAB', payload: tab });
@@ -71,6 +96,31 @@ export default function MarketplacePage() {
   return (
     <div className={`page-enter ${styles.page}`}>
       <SectionHeader title="MARKETPLACE" subtitle="Discover and install Minecraft content" />
+
+      {recommendations.length > 0 && (
+        <div className={styles.recommendations}>
+          <div className={styles.recommendations__header}>
+            <span className={styles.recommendations__title}>RECOMMENDED FOR YOU</span>
+          </div>
+          <div className={styles.recommendations__row}>
+            {recommendations.map((rec) => (
+              <button
+                key={rec.slug}
+                className={styles.recommendations__card}
+                onClick={() => {
+                  window.location.hash = `#/store/mod/${rec.slug}`;
+                }}
+              >
+                <div className={styles.recommendations__cardName}>{rec.name}</div>
+                <div className={styles.recommendations__cardReason}>{rec.reason}</div>
+                <span className={`${badgeStyles.badge} ${badgeStyles['badge--accent']} ${styles.recommendations__cardBadge}`}>
+                  {rec.category}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <TypeTabs activeTab={state.activeTab} onTabChange={handleTabChange} />
 

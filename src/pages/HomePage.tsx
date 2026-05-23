@@ -336,6 +336,7 @@ export default function HomePage() {
   const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
   const [showConsole, setShowConsole] = useState(false);
   const [instanceCoverImage, setInstanceCoverImage] = useState<string | null>(null);
+
   const activeInstance = instances.find((i) => i.id === selectedInstanceId)
     || (instances.length > 0 ? instances[0] : null);
   const isBusy = launchState !== 'idle' && launchState !== 'exited' && launchState !== 'crashed' && launchState !== 'error';

@@ -14,3 +14,7 @@ export { StatBadge } from './StatBadge';
 export { InstanceSelect } from './InstanceSelect';
 export { CollectionButton } from './CollectionButton';
 export { CrashModal } from './CrashModal';
+export { ConflictWarning } from './ConflictWarning';
+export { ShareModal } from './ShareModal';
+export { default as SettingsNav } from './SettingsNav';
+export type { NavCategory } from './SettingsNav';

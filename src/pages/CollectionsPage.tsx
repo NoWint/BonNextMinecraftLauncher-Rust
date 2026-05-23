@@ -6,6 +6,17 @@ import { Button, ContentCard, Tabs } from '../components/ui';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import styles from './CollectionsPage.module.css';
 
+interface Achievement {
+  id: string;
+  name: string;
+  description: string;
+  unlocked: boolean;
+  unlocked_at: string | null;
+  icon: string;
+}
+
+const ACHIEVEMENT_ICON_FALLBACK = '\u{1F3C6}';
+
 export default function CollectionsPage() {
   const { t } = useI18n();
   const TYPE_TABS = [
@@ -18,6 +29,8 @@ export default function CollectionsPage() {
   const [items, setItems] = useState<CollectionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [achievementsLoading, setAchievementsLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -31,6 +44,12 @@ export default function CollectionsPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    api.getAchievements().then((list) => {
+      setAchievements(list);
+    }).catch(() => {}).finally(() => setAchievementsLoading(false));
+  }, []);
 
   const filtered = filter === 'all'
     ? items
@@ -99,6 +118,33 @@ export default function CollectionsPage() {
           'Collections are stored locally',
           'Click the heart icon to save or remove items',
         ]} />
+      </div>
+
+      <div className={styles.achievementsSection}>
+        <div className={styles.achievementsSection__header}>
+          <div className={styles.achievementsSection__bar} />
+          <span className={styles.achievementsSection__title}>ACHIEVEMENTS</span>
+        </div>
+        {achievementsLoading ? (
+          <div className={styles.achievementsSection__loading}>Loading achievements...</div>
+        ) : (
+          <div className={styles.achievementsGrid}>
+            {achievements.map((a) => (
+              <div
+                key={a.id}
+                className={`${styles.achievementCard} ${a.unlocked ? styles['achievementCard--unlocked'] : styles['achievementCard--locked']}`}
+              >
+                <div className={styles.achievementCard__icon}>
+                  {a.icon || ACHIEVEMENT_ICON_FALLBACK}
+                </div>
+                <div className={styles.achievementCard__info}>
+                  <div className={styles.achievementCard__name}>{a.name}</div>
+                  <div className={styles.achievementCard__desc}>{a.description}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
