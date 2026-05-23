@@ -21,6 +21,7 @@ export default function LoginPage() {
   const [deviceCode, setDeviceCode] = useState<DeviceCodeResponse | null>(null);
   const [msError, setMsError] = useState('');
   const [dots, setDots] = useState(0);
+  const [guestLoading, setGuestLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Auto-focus input
@@ -96,7 +97,22 @@ export default function LoginPage() {
     return () => { cancelled = true; };
   }, [deviceCode]);
 
-  const busy = state.loading || loading || msLoading;
+  const handleGuestLogin = async () => {
+    setGuestLoading(true);
+    setError('');
+    try {
+      await api.createGuestInstance();
+      await offlineLogin('Guest_' + Math.random().toString(36).slice(2, 8));
+      fireConfetti();
+      window.location.hash = '#/home';
+    } catch (e: any) {
+      setError(e?.toString() || t('login.error.default'));
+    } finally {
+      setGuestLoading(false);
+    }
+  };
+
+  const busy = state.loading || loading || msLoading || guestLoading;
   const loadingMsg = getRandomLoadingMessage(t);
 
   return (
@@ -204,11 +220,25 @@ export default function LoginPage() {
           )}
         </div>
 
+        {/* Guest mode */}
+        <div className={styles.guestSection}>
+          <div className={styles.guestLabel}>{t('login.guestDesc')}</div>
+          <Button
+            variant="secondary"
+            size="md"
+            disabled={busy}
+            onClick={handleGuestLogin}
+            style={{ width: '100%', justifyContent: 'center', fontSize: '0.65em', padding: '8px 20px' }}
+          >
+            {guestLoading ? `${loadingMsg}${'.'.repeat(dots)}` : '👤 ' + t('login.guest')}
+          </Button>
+        </div>
+
         {/* Status */}
         <div className={styles.statusRow}>
           <StatusDot status={busy ? 'processing' : 'inactive'} />
           <span className={styles.statusText}>
-            {t('login.signal')} · {loading ? t('login.status.authing') : msLoading ? t('login.status.waiting') : t('login.status.awaiting')}
+            {t('login.signal')} · {loading ? t('login.status.authing') : msLoading ? t('login.status.waiting') : guestLoading ? t('login.status.authing') : t('login.status.awaiting')}
           </span>
         </div>
       </div>

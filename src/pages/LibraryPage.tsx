@@ -41,6 +41,8 @@ export default function LibraryPage() {
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
   const [updateProgress, setUpdateProgress] = useState<Record<string, UpdateStatus>>({});
   const [updatingAll, setUpdatingAll] = useState(false);
+  const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ succeeded: number; failed: number; errors: string[] } | null>(null);
 
   const instances = instState.instances;
   const selectedInstance = instances.find((i) => i.id === selectedId);
@@ -179,6 +181,27 @@ export default function LibraryPage() {
     }
   };
 
+  const handleBulkUpdate = async () => {
+    if (!selectedId) return;
+    setBulkUpdating(true);
+    setBulkResult(null);
+    try {
+      const result = await api.bulkUpdateContent(selectedId);
+      setBulkResult(result);
+      loadContent();
+      setUpdates([]);
+      if (result.failed === 0) {
+        addToast({ type: 'success', title: t('library.updateSummary'), message: `All ${result.succeeded} items updated.` });
+      } else {
+        addToast({ type: 'warning', title: t('library.updateSummary'), message: `${result.succeeded} succeeded, ${result.failed} failed.` });
+      }
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Bulk update failed', message: e?.toString() || '' });
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
   const handleRemoveMod = async () => {
     if (!removeTarget || !selectedId) return;
     try {
@@ -255,9 +278,17 @@ export default function LibraryPage() {
               >
                 {checkingUpdates ? 'Checking...' : 'Check for updates'}
               </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={bulkUpdating}
+                onClick={handleBulkUpdate}
+              >
+                {bulkUpdating ? 'Updating...' : 'Check All Updates'}
+              </Button>
               {updates.length > 0 && !updatingAll && (
                 <Button
-                  variant="primary"
+                  variant="secondary-highlight"
                   size="sm"
                   onClick={updateAll}
                 >
@@ -446,6 +477,62 @@ export default function LibraryPage() {
           )}
         </>
       )}
+
+      {/* Bulk update result modal */}
+      <Modal
+        open={bulkResult !== null}
+        onClose={() => setBulkResult(null)}
+        title="Bulk Update Results"
+        actions={
+          <Button variant="primary" size="sm" onClick={() => setBulkResult(null)}>
+            OK
+          </Button>
+        }
+      >
+        {bulkResult && (
+          <div>
+            <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2em', color: 'var(--color-success)' }}>
+                  {bulkResult.succeeded}
+                </div>
+                <div style={{ fontSize: '0.5em', color: 'var(--color-text-dim)', letterSpacing: 2 }}>SUCCEEDED</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2em', color: bulkResult.failed > 0 ? 'var(--color-error)' : 'var(--color-text-dim)' }}>
+                  {bulkResult.failed}
+                </div>
+                <div style={{ fontSize: '0.5em', color: 'var(--color-text-dim)', letterSpacing: 2 }}>FAILED</div>
+              </div>
+            </div>
+            {bulkResult.errors.length > 0 && (
+              <div>
+                <div style={{ fontSize: '0.45em', color: 'var(--color-text-muted)', letterSpacing: 2, marginBottom: 6 }}>
+                  ERRORS
+                </div>
+                <div style={{ maxHeight: 150, overflowY: 'auto' }}>
+                  {bulkResult.errors.map((err, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        fontSize: '0.5em',
+                        color: 'var(--color-error)',
+                        padding: '4px 6px',
+                        background: 'var(--color-panel-alt)',
+                        border: '1px solid var(--color-border)',
+                        marginBottom: 2,
+                        fontFamily: 'var(--font-mono)',
+                      }}
+                    >
+                      {err}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
 
       {/* Remove confirmation */}
       <Modal

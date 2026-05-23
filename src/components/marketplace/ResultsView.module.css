@@ -55,8 +55,8 @@
 
 .galleryView {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
   flex: 1;
   overflow-y: auto;
   min-height: 0;
@@ -66,8 +66,8 @@
 
 .skeletonGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
   flex: 1;
   overflow-y: auto;
   min-height: 0;

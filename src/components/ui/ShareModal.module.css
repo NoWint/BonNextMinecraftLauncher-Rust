@@ -1,0 +1,58 @@
+.section {
+  margin-bottom: 0;
+}
+
+.sectionLabel {
+  font-family: var(--font-heading);
+  font-size: 0.6em;
+  color: var(--color-accent);
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
+.sectionDesc {
+  font-size: 0.45em;
+  color: var(--color-text-dim);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.textarea {
+  width: 100%;
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border-mid);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 0.45em;
+  padding: 6px 8px;
+  outline: none;
+  resize: vertical;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  transition: border-color 150ms;
+  line-height: 1.4;
+}
+
+.textarea:focus {
+  border-color: var(--color-accent-30);
+}
+
+.textarea::placeholder {
+  color: var(--color-text-dim);
+}
+
+.textarea[readonly] {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.divider {
+  height: 1px;
+  background: var(--color-border-mid);
+  margin: 12px 0;
+}
+
+.loading {
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+  font-style: italic;
+}

@@ -186,3 +186,15 @@
   font-size: 0.45em;
   color: var(--color-text-dim);
 }
+
+.guestSection {
+  margin-top: 8px;
+}
+
+.guestLabel {
+  font-size: 0.4em;
+  color: var(--color-text-dim);
+  text-align: center;
+  letter-spacing: 3px;
+  margin-bottom: 6px;
+}

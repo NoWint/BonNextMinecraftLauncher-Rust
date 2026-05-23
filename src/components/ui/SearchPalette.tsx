@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { type GameInstance, type VersionEntry } from '../../api';
+import { api, type GameInstance, type VersionEntry } from '../../api';
 import { useI18n } from '../../i18n';
 import styles from './SearchPalette.module.css';
 
@@ -10,6 +10,13 @@ interface SearchResult {
   subtitle: string;
   icon: string;
   action: () => void;
+}
+
+interface NlpResult {
+  slug: string;
+  name: string;
+  relevance: number;
+  interpretation: string;
 }
 
 interface SearchPaletteProps {
@@ -48,17 +55,52 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
   const { t } = useI18n();
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
+  const [activeNlpIndex, setActiveNlpIndex] = useState(0);
+  const [nlpResults, setNlpResults] = useState<NlpResult[]>([]);
+  const [nlpLoading, setNlpLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const nlpTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Focus input when opened, reset state
   useEffect(() => {
     if (open) {
       setQuery('');
       setActiveIndex(0);
+      setActiveNlpIndex(0);
+      setNlpResults([]);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
+
+  // NLP search with debounce when query > 15 chars
+  useEffect(() => {
+    if (nlpTimerRef.current) {
+      clearTimeout(nlpTimerRef.current);
+    }
+    if (query.trim().length > 15) {
+      setNlpLoading(true);
+      nlpTimerRef.current = setTimeout(async () => {
+        try {
+          const results = await api.nlpSearchContent(query.trim());
+          setNlpResults(results);
+        } catch {
+          setNlpResults([]);
+        }
+        setNlpLoading(false);
+      }, 600);
+    } else {
+      setNlpResults([]);
+      setNlpLoading(false);
+    }
+    return () => {
+      if (nlpTimerRef.current) {
+        clearTimeout(nlpTimerRef.current);
+      }
+    };
+  }, [query]);
+
+  const hasNlpResults = nlpResults.length > 0;
 
   const results = useMemo<SearchResult[]>(() => {
     const q = query.trim().toLowerCase();
@@ -126,22 +168,42 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
   // Clamp active index
   useEffect(() => {
     setActiveIndex((prev) => Math.min(prev, Math.max(0, results.length - 1)));
-  }, [results.length]);
+    setActiveNlpIndex((prev) => Math.min(prev, Math.max(0, nlpResults.length - 1)));
+  }, [results.length, nlpResults.length]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
-          setActiveIndex((prev) => Math.min(prev + 1, results.length - 1));
+          if (hasNlpResults && activeIndex >= results.length - 1) {
+            setActiveNlpIndex((prev) => Math.min(prev + 1, nlpResults.length - 1));
+            setActiveIndex(results.length - 1);
+          } else {
+            setActiveIndex((prev) => Math.min(prev + 1, results.length - 1));
+            setActiveNlpIndex(-1);
+          }
           break;
         case 'ArrowUp':
           e.preventDefault();
-          setActiveIndex((prev) => Math.max(prev - 1, 0));
+          if (activeNlpIndex > 0) {
+            setActiveNlpIndex((prev) => Math.max(prev - 1, 0));
+          } else if (activeNlpIndex === 0 && hasNlpResults) {
+            setActiveNlpIndex(-1);
+            setActiveIndex(results.length - 1);
+          } else {
+            setActiveIndex((prev) => Math.max(prev - 1, 0));
+          }
           break;
         case 'Enter':
           e.preventDefault();
-          if (results[activeIndex]) {
+          if (activeNlpIndex >= 0 && nlpResults[activeNlpIndex]) {
+            onClose();
+            navigate('store');
+            setTimeout(() => {
+              window.location.hash = `#/store/mod/${nlpResults[activeNlpIndex].slug}`;
+            }, 0);
+          } else if (results[activeIndex]) {
             results[activeIndex].action();
           }
           break;
@@ -151,7 +213,7 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
           break;
       }
     },
-    [results, activeIndex, onClose],
+    [results, activeIndex, activeNlpIndex, nlpResults, hasNlpResults, navigate, onClose],
   );
 
   // Scroll active item into view
@@ -178,28 +240,66 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
             autoComplete="off"
             spellCheck={false}
           />
+          {query.trim().length > 15 && (
+            <span className={styles.aiBadge}>
+              {nlpLoading ? '⏳' : 'AI'}
+            </span>
+          )}
           <span className={styles.shortcutHint}>ESC</span>
         </div>
 
         <div className={styles.results} ref={listRef}>
-          {results.length === 0 ? (
-            <div className={styles.empty}>No results found</div>
+          {results.length === 0 && !hasNlpResults ? (
+            <div className={styles.empty}>
+              {query.trim().length > 15 && nlpLoading ? 'AI is understanding your search...' : 'No results found'}
+            </div>
           ) : (
-            results.map((result, idx) => (
-              <div
-                key={result.id}
-                className={`${styles.resultItem} ${idx === activeIndex ? styles['resultItem--active'] : ''}`}
-                onClick={() => result.action()}
-                onMouseEnter={() => setActiveIndex(idx)}
-              >
-                <div className={styles.resultIcon}>{result.icon}</div>
-                <div className={styles.resultInfo}>
-                  <div className={styles.resultTitle}>{result.title}</div>
-                  <div className={styles.resultSubtitle}>{result.subtitle}</div>
+            <>
+              {results.map((result, idx) => (
+                <div
+                  key={result.id}
+                  className={`${styles.resultItem} ${idx === activeIndex && activeNlpIndex < 0 ? styles['resultItem--active'] : ''}`}
+                  onClick={() => result.action()}
+                  onMouseEnter={() => { setActiveIndex(idx); setActiveNlpIndex(-1); }}
+                >
+                  <div className={styles.resultIcon}>{result.icon}</div>
+                  <div className={styles.resultInfo}>
+                    <div className={styles.resultTitle}>{result.title}</div>
+                    <div className={styles.resultSubtitle}>{result.subtitle}</div>
+                  </div>
+                  <div className={styles.resultType}>{result.type.toUpperCase()}</div>
                 </div>
-                <div className={styles.resultType}>{result.type.toUpperCase()}</div>
-              </div>
-            ))
+              ))}
+
+              {hasNlpResults && (
+                <>
+                  <div className={styles.nlpDivider}>
+                    <span className={styles.nlpDividerLabel}>🤖 AI Understanding</span>
+                  </div>
+                  {nlpResults.map((nlp, idx) => (
+                    <div
+                      key={nlp.slug}
+                      className={`${styles.resultItem} ${styles.nlpResult} ${idx === activeNlpIndex ? styles['resultItem--active'] : ''}`}
+                      onClick={() => {
+                        onClose();
+                        navigate('store');
+                        setTimeout(() => {
+                          window.location.hash = `#/store/mod/${nlp.slug}`;
+                        }, 0);
+                      }}
+                      onMouseEnter={() => { setActiveNlpIndex(idx); setActiveIndex(results.length - 1); }}
+                    >
+                      <div className={styles.nlpIcon}>🧠</div>
+                      <div className={styles.resultInfo}>
+                        <div className={styles.resultTitle}>{nlp.name}</div>
+                        <div className={styles.nlpInterpretation}>{nlp.interpretation}</div>
+                      </div>
+                      <div className={styles.nlpRelevance}>{Math.round(nlp.relevance)}%</div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </>
           )}
         </div>
       </div>

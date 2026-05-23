@@ -427,7 +427,7 @@ export const api = {
   importInstanceConfig: (configCode: string) => invoke<GameInstance>('import_instance_config', { configCode }),
 
   // Hardware profile
-  getHardwareProfile: () => invoke<{ cpu_name: string; cpu_count: number; total_ram_mb: number; gpu_name: string; performance_score: number; performance_level: string }>('get_hardware_profile'),
+  getHardwareProfile: () => invoke<HardwareProfile>('get_hardware_profile'),
 
   // Disk usage
   getDiskUsage: () => invoke<DiskUsage>('get_disk_usage'),
@@ -472,6 +472,34 @@ export const api = {
 
   // P3: Web API
   getWebApiStatus: () => invoke<{ running: boolean; port: number; token: string }>('get_web_api_status'),
+
+  // Friends
+  listFriends: () => invoke<Array<{ id: string; name: string; status: string; current_game: string | null }>>('list_friends'),
+  addFriend: (id: string, name: string) => invoke<void>('add_friend', { id, name }),
+  removeFriend: (id: string) => invoke<void>('remove_friend', { id }),
+
+  // LAN Discovery
+  startLanDiscovery: () => invoke<void>('start_lan_discovery'),
+  stopLanDiscovery: () => invoke<void>('stop_lan_discovery'),
+  getLanWorlds: () => invoke<Array<{ host: string; port: number; motd: string; version: string; players_online: number; players_max: number }>>('get_lan_worlds'),
+
+  // P2P
+  scanP2PPeers: () => invoke<Array<{ name: string; address: string; available_bytes: number }>>('scan_p2p_peers'),
+  sendFileP2P: (peerAddress: string, filePath: string) => invoke<void>('send_file_p2p', { peerAddress, filePath }),
+
+  // Discord RPC
+  startDiscordRpc: () => invoke<void>('start_discord_rpc'),
+  stopDiscordRpc: () => invoke<void>('stop_discord_rpc'),
+  updateDiscordPresence: (details: string, state: string) => invoke<void>('update_discord_presence', { details, state }),
+
+  // Launch Profiling
+  getLaunchProfilingData: (instanceId: string) => invoke<Array<{ stage: string; duration_ms: number; details: string }>>('get_launch_profiling_data', { instanceId }),
+
+  // Frame Time
+  getFrameTimeData: (instanceId: string) => invoke<{ avg_fps: number; min_fps: number; p1_low_fps: number; frame_times_ms: number[] }>('get_frame_time_data', { instanceId }),
+
+  // NLP Search
+  nlpSearchContent: (query: string) => invoke<Array<{ slug: string; name: string; relevance: number; interpretation: string }>>('nlp_search_content', { query }),
 };
 export interface SystemInfo {
   total_ram_mb: number;
@@ -510,13 +538,18 @@ export interface CrashDiagnosis {
   auto_fix_action: string | null;
 }
 
+export interface PresetMod {
+  slug: string;
+  name: string;
+}
+
 export interface OptimizationPreset {
   id: string;
   name: string;
   description: string;
-  mods: string[];
-  min_ram_gb: number;
-  performance_level: 'low' | 'medium' | 'high';
+  mods: PresetMod[];
+  min_ram_mb: number;
+  performance_level: string;
 }
 
 export interface PlaytimeStats {
@@ -546,6 +579,15 @@ export interface FriendInfo {
   status: 'online' | 'offline' | 'gaming' | 'away';
   current_game: string | null;
   avatar_url: string | null;
+}
+
+export interface HardwareProfile {
+  cpu_name: string;
+  cpu_count: number;
+  total_ram_mb: number;
+  gpu_name: string;
+  performance_score: number;
+  performance_level: string;
 }
 
 export interface DiskUsage {
