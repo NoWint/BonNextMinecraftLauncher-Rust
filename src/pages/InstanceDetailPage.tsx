@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { api, type GameInstance, type InstalledModInfo, type WorldInfo, type LogFileInfo, type OptimizationPreset, type VersionEntry } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useInstances } from '../stores/instanceStore';
@@ -55,6 +56,8 @@ export default function InstanceDetailPage() {
   const { state, deleteInstance, reloadInstances } = useInstances();
   const { addToast } = useToast();
   const { t } = useI18n();
+  const { id: routeId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const auth = authState.currentUser;
   const [instance, setInstance] = useState<GameInstance | null>(null);
   const [loading, setLoading] = useState(true);
@@ -97,7 +100,7 @@ export default function InstanceDetailPage() {
   const [fpsData, setFpsData] = useState<{ avg_fps: number; min_fps: number; p1_low_fps: number; frame_times_ms: number[] } | null>(null);
   const [loadingFps, setLoadingFps] = useState(false);
 
-  const instanceId = window.location.hash.replace('#/instances/', '').split('?')[0];
+  const instanceId = routeId || '';
 
   useEffect(() => {
     const load = async () => {
@@ -328,7 +331,7 @@ export default function InstanceDetailPage() {
     if (!instance) return;
     await deleteInstance(instance.id);
     addToast({ type: 'success', title: 'Deleted', message: `Instance "${instance.name}" deleted` });
-    window.location.hash = '#/instances';
+    navigate('/instances');
   };
 
   const handleDuplicate = async () => {
@@ -344,7 +347,7 @@ export default function InstanceDetailPage() {
       addToast({ type: 'success', title: 'Duplicated', message: `Instance "${duplicateName}" created` });
       setDuplicateOpen(false);
       await reloadInstances();
-      window.location.hash = '#/instances';
+      navigate('/instances');
     } catch (e: any) {
       addToast({ type: 'error', title: 'Duplicate failed', message: e?.toString() || 'Failed to duplicate' });
     }
