@@ -46,6 +46,9 @@ sha2 = "0.10"
 whoami = "1.5"
 base64 = "0.22"
 scraper = "0.22"
+fastnbt = "2"
+clap = { version = "4", features = ["derive"] }
+mdns-sd = "0.13"
 discord-rich-presence = "0.2"
 
 [dev-dependencies]

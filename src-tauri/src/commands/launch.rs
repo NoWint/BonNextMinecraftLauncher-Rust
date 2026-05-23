@@ -116,7 +116,7 @@ pub async fn launch_game(
     result
 }
 
-async fn launch_game_inner(
+pub(crate) async fn launch_game_inner(
     _app: tauri::AppHandle,
     launch_state: Arc<Mutex<LaunchState>>,
     version_id: String,
