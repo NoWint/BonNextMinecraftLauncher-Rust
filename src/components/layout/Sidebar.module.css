@@ -79,10 +79,11 @@
   color: var(--color-text-muted);
   letter-spacing: 1px;
   cursor: pointer;
-  transition: color 0.15s var(--ease-out-expo),
-              background 0.15s var(--ease-out-expo),
-              border-color 0.15s var(--ease-out-expo),
-              box-shadow 0.3s var(--ease-out-expo);
+  transition:
+    color 0.15s var(--ease-out-expo),
+    background 0.15s var(--ease-out-expo),
+    border-color 0.15s var(--ease-out-expo),
+    box-shadow 0.3s var(--ease-out-expo);
   position: relative;
   border: none;
   background: none;
@@ -109,7 +110,9 @@
   color: var(--color-text-dim);
   opacity: 0;
   transform: translateX(-4px);
-  transition: opacity 0.2s, transform 0.2s var(--ease-out-expo);
+  transition:
+    opacity 0.2s,
+    transform 0.2s var(--ease-out-expo);
 }
 
 .sidebar__navItem:hover .sidebar__navShortcut {
@@ -123,20 +126,20 @@
   color: var(--color-text);
   font-weight: 700;
 
-  &::before {
-    content: '';
-    position: absolute;
-    left: -8px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 14px;
-    background: var(--color-accent);
-  }
-
   &:hover {
     color: var(--color-text);
   }
+}
+
+.sidebar__activeIndicator {
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 14px;
+  background: var(--color-accent);
+  border-radius: 0 1px 1px 0;
 }
 
 .sidebar__navDivider {
@@ -269,7 +272,9 @@
   font-size: 0.7em;
   padding: 0;
   line-height: 1;
-  transition: opacity 0.15s var(--ease-out-expo), color 0.15s var(--ease-out-expo);
+  transition:
+    opacity 0.15s var(--ease-out-expo),
+    color 0.15s var(--ease-out-expo);
   flex-shrink: 0;
 }
 
@@ -297,7 +302,9 @@
   padding: 4px 6px;
   margin-top: 4px;
   text-align: left;
-  transition: background 0.15s var(--ease-out-expo), border-color 0.15s var(--ease-out-expo);
+  transition:
+    background 0.15s var(--ease-out-expo),
+    border-color 0.15s var(--ease-out-expo);
 }
 
 .sidebar__addFriendBtn:hover {
@@ -364,7 +371,9 @@
   background: none;
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: color 0.15s var(--ease-out-expo), border-color 0.15s var(--ease-out-expo);
+  transition:
+    color 0.15s var(--ease-out-expo),
+    border-color 0.15s var(--ease-out-expo);
 }
 
 .sidebar__addBtnCancel:hover {

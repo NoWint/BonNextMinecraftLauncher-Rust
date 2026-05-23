@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useI18n } from '../../i18n';
 import { StatusDot } from '../ui/Status';
 import { api } from '../../api';
@@ -133,16 +134,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {mainItems.map((item) => (
           <button
             key={item.id}
-            className={`${styles.sidebar__navItem} ${
-              activeId === item.id ? styles['sidebar__navItem--active'] : ''
-            }`}
+            className={`${styles.sidebar__navItem} ${activeId === item.id ? styles['sidebar__navItem--active'] : ''}`}
             onClick={() => navigate(NAV_ID_TO_PATH[item.id] || `/${item.id}`)}
             title={item.shortcut ? `Ctrl+${item.shortcut}` : undefined}
           >
-            <span>{item.label}</span>
-            {item.shortcut && (
-              <span className={styles.sidebar__navShortcut}>^{item.shortcut}</span>
+            {activeId === item.id && (
+              <motion.div
+                className={styles.sidebar__activeIndicator}
+                layoutId="sidebar-active-indicator"
+                transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+              />
             )}
+            <span>{item.label}</span>
+            {item.shortcut && <span className={styles.sidebar__navShortcut}>^{item.shortcut}</span>}
           </button>
         ))}
 
@@ -156,10 +160,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={() => navigate(NAV_ID_TO_PATH[settingsItem.id] || `/${settingsItem.id}`)}
               title={settingsItem.shortcut ? `Ctrl+${settingsItem.shortcut}` : undefined}
             >
-              <span>{settingsItem.label}</span>
-              {settingsItem.shortcut && (
-                <span className={styles.sidebar__navShortcut}>^{settingsItem.shortcut}</span>
+              {activeId === settingsItem.id && (
+                <motion.div
+                  className={styles.sidebar__activeIndicator}
+                  layoutId="sidebar-active-indicator"
+                  transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                />
               )}
+              <span>{settingsItem.label}</span>
+              {settingsItem.shortcut && <span className={styles.sidebar__navShortcut}>^{settingsItem.shortcut}</span>}
             </button>
           </>
         )}
@@ -168,11 +177,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className={styles.sidebar__spacer} />
 
       <div className={styles.sidebar__friends}>
-        <button
-          className={styles.sidebar__friendsHeader}
-          onClick={() => setFriendsOpen(!friendsOpen)}
-        >
-          <span className={`${styles.sidebar__friendsCaret} ${friendsOpen ? styles['sidebar__friendsCaret--open'] : ''}`}>▶</span>
+        <button className={styles.sidebar__friendsHeader} onClick={() => setFriendsOpen(!friendsOpen)}>
+          <span
+            className={`${styles.sidebar__friendsCaret} ${friendsOpen ? styles['sidebar__friendsCaret--open'] : ''}`}
+          >
+            ▶
+          </span>
           <span className={styles.sidebar__friendsTitle}>{t('sidebar.friends')}</span>
           <span className={styles.sidebar__friendsCount}>{friends.length}</span>
         </button>
@@ -187,9 +197,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 />
                 <div className={styles.sidebar__friendInfo}>
                   <span className={styles.sidebar__friendName}>{friend.name}</span>
-                  {friend.current_game && (
-                    <span className={styles.sidebar__friendGame}>{friend.current_game}</span>
-                  )}
+                  {friend.current_game && <span className={styles.sidebar__friendGame}>{friend.current_game}</span>}
                   {!friend.current_game && (
                     <span className={styles.sidebar__friendStatus}>
                       {STATUS_LABELS[friend.status] || friend.status}
@@ -206,9 +214,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             ))}
 
-            {friends.length === 0 && (
-              <div className={styles.sidebar__friendsEmpty}>{t('sidebar.friendsEmpty')}</div>
-            )}
+            {friends.length === 0 && <div className={styles.sidebar__friendsEmpty}>{t('sidebar.friendsEmpty')}</div>}
 
             {showAddForm ? (
               <div className={styles.sidebar__addForm}>
@@ -232,17 +238,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </button>
                   <button
                     className={styles.sidebar__addBtnCancel}
-                    onClick={() => { setShowAddForm(false); setNewFriendId(''); setNewFriendName(''); }}
+                    onClick={() => {
+                      setShowAddForm(false);
+                      setNewFriendId('');
+                      setNewFriendName('');
+                    }}
                   >
                     {t('common.cancel')}
                   </button>
                 </div>
               </div>
             ) : (
-              <button
-                className={styles.sidebar__addFriendBtn}
-                onClick={() => setShowAddForm(true)}
-              >
+              <button className={styles.sidebar__addFriendBtn} onClick={() => setShowAddForm(true)}>
                 + {t('sidebar.friendsAdd')}
               </button>
             )}
@@ -256,7 +263,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span className={styles.sidebar__playtimeValue}>{playtimeHours.toFixed(1)}</span>
           <span className={styles.sidebar__playtimeUnit}>{t('common.unit.hours')}</span>
         </div>
-        <div className={styles.sidebar__playtimeLabel} style={{ marginTop: 8 }}>{t('sidebar.total')}</div>
+        <div className={styles.sidebar__playtimeLabel} style={{ marginTop: 8 }}>
+          {t('sidebar.total')}
+        </div>
         <div>
           <span className={styles.sidebar__playtimeValue}>{totalPlaytimeHours.toFixed(1)}</span>
           <span className={styles.sidebar__playtimeUnit}>{t('common.unit.hours')}</span>

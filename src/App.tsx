@@ -8,7 +8,7 @@ import { ToastProvider } from './stores/toastStore';
 import { DownloadProvider } from './stores/downloadStore';
 import { ThemeProvider } from './stores/themeStore';
 import { I18nProvider, useI18n } from './i18n';
-import { Sidebar } from './components/layout';
+import { Sidebar, PageTransition } from './components/layout';
 import { MiniMode, exitMiniMode } from './components/MiniMode';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CommandPalette } from './components/CommandPalette';
@@ -49,19 +49,28 @@ function AppShell() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [todayPlaytimeHours, setTodayPlaytimeHours] = useState(0);
   const [isMiniMode, setIsMiniMode] = useState<boolean>(() => {
-    try { return localStorage.getItem('bonnext_mini_mode') === 'true'; } catch { return false; }
+    try {
+      return localStorage.getItem('bonnext_mini_mode') === 'true';
+    } catch {
+      return false;
+    }
   });
 
   useEffect(() => {
     const fetchPlaytime = () => {
-      api.getPlaytimeStats().then((stats) => {
-        const todayKey = new Date().toISOString().slice(0, 10);
-        const todaySeconds = stats.daily[todayKey] || 0;
-        setTodayPlaytimeHours(todaySeconds / 3600);
-      }).catch(() => {});
+      api
+        .getPlaytimeStats()
+        .then((stats) => {
+          const todayKey = new Date().toISOString().slice(0, 10);
+          const todaySeconds = stats.daily[todayKey] || 0;
+          setTodayPlaytimeHours(todaySeconds / 3600);
+        })
+        .catch(() => {});
     };
     fetchPlaytime();
-    const onVisible = () => { if (document.visibilityState === 'visible') fetchPlaytime(); };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') fetchPlaytime();
+    };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
@@ -112,10 +121,15 @@ function AppShell() {
       if (!inst || !authState.currentUser) return;
       try {
         await api.launchGame(
-          inst.version_id, inst.version_url,
-          authState.currentUser.username, authState.currentUser.uuid,
-          authState.currentUser.access_token, inst.max_memory, inst.min_memory,
-          inst.java_path || undefined, inst.jvm_args || undefined,
+          inst.version_id,
+          inst.version_url,
+          authState.currentUser.username,
+          authState.currentUser.uuid,
+          authState.currentUser.access_token,
+          inst.max_memory,
+          inst.min_memory,
+          inst.java_path || undefined,
+          inst.jvm_args || undefined,
           inst.id,
         );
       } catch (e) {
@@ -148,10 +162,7 @@ function AppShell() {
     );
   }
 
-  const totalPlaytimeHours = instState.instances.reduce(
-    (sum, inst) => sum + (inst.playtime_seconds || 0),
-    0
-  ) / 3600;
+  const totalPlaytimeHours = instState.instances.reduce((sum, inst) => sum + (inst.playtime_seconds || 0), 0) / 3600;
 
   return (
     <>
@@ -170,21 +181,23 @@ function AppShell() {
           <div className="decorative-rect decorative-rect--bottom-left" />
 
           <ErrorBoundary>
-            <Routes>
-              <Route path="/" element={<Navigate to="/home" replace />} />
-              <Route path="/home" element={<HomePage />} />
-              <Route path="/instances" element={<InstancesPage />} />
-              <Route path="/instances/new" element={<NewInstancePage />} />
-              <Route path="/instances/:id" element={<InstanceDetailPage />} />
-              <Route path="/versions" element={<VersionsPage />} />
-              <Route path="/store" element={<MarketplacePage />} />
-              <Route path="/mods" element={<MarketplacePage />} />
-              <Route path="/store/:type/:slug" element={<ContentDetailPage />} />
-              <Route path="/collections" element={<CollectionsPage />} />
-              <Route path="/library" element={<LibraryPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="*" element={<Navigate to="/home" replace />} />
-            </Routes>
+            <PageTransition>
+              <Routes>
+                <Route path="/" element={<Navigate to="/home" replace />} />
+                <Route path="/home" element={<HomePage />} />
+                <Route path="/instances" element={<InstancesPage />} />
+                <Route path="/instances/new" element={<NewInstancePage />} />
+                <Route path="/instances/:id" element={<InstanceDetailPage />} />
+                <Route path="/versions" element={<VersionsPage />} />
+                <Route path="/store" element={<MarketplacePage />} />
+                <Route path="/mods" element={<MarketplacePage />} />
+                <Route path="/store/:type/:slug" element={<ContentDetailPage />} />
+                <Route path="/collections" element={<CollectionsPage />} />
+                <Route path="/library" element={<LibraryPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="*" element={<Navigate to="/home" replace />} />
+              </Routes>
+            </PageTransition>
           </ErrorBoundary>
         </main>
       </div>
@@ -210,11 +223,11 @@ export default function App() {
               <InstanceProvider>
                 <ToastProvider>
                   <DownloadProvider>
-                  <ContextMenuProvider>
-                    <CommandPalette />
-                    <AppShell />
-                    <DownloadPanel />
-                  </ContextMenuProvider>
+                    <ContextMenuProvider>
+                      <CommandPalette />
+                      <AppShell />
+                      <DownloadPanel />
+                    </ContextMenuProvider>
                   </DownloadProvider>
                 </ToastProvider>
               </InstanceProvider>

@@ -1,4 +1,4 @@
-/* ==========================================================================
+2/* ==========================================================================
    BonNext UX Delight — Micro-interactions, animations, and polish
    Every pixel, every frame, every feedback loop must feel alive.
    ========================================================================== */
@@ -8,22 +8,49 @@
    --------------------------------------------------------------- */
 
 @keyframes page-enter-slide-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes page-enter-slide-right {
-  from { opacity: 0; transform: translateX(-16px); }
-  to   { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes page-exit-slide-left {
-  from { opacity: 1; transform: translateX(0); }
-  to   { opacity: 0; transform: translateX(-16px); }
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
 }
 
 .page-enter {
-  animation: page-enter-slide-up calc(0.35s * var(--anim-speed, 1)) var(--ease-out-expo) forwards;
+  animation: page-enter-slide-right 250ms ease-out forwards;
+}
+
+.page-exit {
+  animation: page-exit-slide-left 200ms ease-out forwards;
+}
+
+.page-transition-container {
+  position: relative;
+  overflow: hidden;
 }
 
 .page-enter--deep {
@@ -35,9 +62,17 @@
    --------------------------------------------------------------- */
 
 @keyframes number-pop-in {
-  0%   { transform: scale(0.8); opacity: 0; }
-  60%  { transform: scale(1.08); }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .number-animate {
@@ -60,18 +95,22 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle, rgba(255,255,255,0.12) 10%, transparent 10%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 10%, transparent 10%);
   background-position: center;
   background-repeat: no-repeat;
   opacity: 0;
-  transition: opacity 0.4s, background-size 0.4s;
+  transition:
+    opacity 0.4s,
+    background-size 0.4s;
   background-size: 0% 0%;
 }
 
 .btn-ripple:active::after {
   background-size: 200% 200%;
   opacity: 1;
-  transition: background-size 0s, opacity 0s;
+  transition:
+    background-size 0s,
+    opacity 0s;
 }
 
 /* Button press depth */
@@ -80,10 +119,11 @@ button:active:not(:disabled) {
 }
 
 button {
-  transition: transform 0.1s var(--ease-out-expo),
-              box-shadow 0.15s var(--ease-out-expo),
-              border-color 0.15s var(--ease-out-expo),
-              background 0.15s var(--ease-out-expo);
+  transition:
+    transform 0.1s var(--ease-out-expo),
+    box-shadow 0.15s var(--ease-out-expo),
+    border-color 0.15s var(--ease-out-expo),
+    background 0.15s var(--ease-out-expo);
 }
 
 /* ---------------------------------------------------------------
@@ -91,9 +131,10 @@ button {
    --------------------------------------------------------------- */
 
 .card-hover-glow {
-  transition: border-color 0.2s var(--ease-out-expo),
-              box-shadow 0.2s var(--ease-out-expo),
-              transform 0.2s var(--ease-out-expo);
+  transition:
+    border-color 0.2s var(--ease-out-expo),
+    box-shadow 0.2s var(--ease-out-expo),
+    transform 0.2s var(--ease-out-expo);
 }
 
 .card-hover-glow:hover {
@@ -128,32 +169,60 @@ select:focus-visible {
    --------------------------------------------------------------- */
 
 @keyframes breathe-subtle {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 @keyframes breathe-strong {
-  0%, 100% { opacity: 1;    box-shadow: 0 0 0 0 currentColor; }
-  50%      { opacity: 0.65; box-shadow: 0 0 6px 2px transparent; }
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  50% {
+    opacity: 0.65;
+    box-shadow: 0 0 6px 2px transparent;
+  }
 }
 
 @keyframes pulse-ring {
-  0%   { box-shadow: 0 0 0 0 rgba(255, 230, 0, 0.3); }
-  70%  { box-shadow: 0 0 0 8px rgba(255, 230, 0, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 230, 0, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 230, 0, 0.3);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(255, 230, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 230, 0, 0);
+  }
 }
 
-.breathe-subtle { animation: breathe-subtle 2.5s ease-in-out infinite; }
-.breathe-strong { animation: breathe-strong 2s ease-in-out infinite; }
-.pulse-ring     { animation: pulse-ring 1.8s ease-out infinite; }
+.breathe-subtle {
+  animation: breathe-subtle 2.5s ease-in-out infinite;
+}
+.breathe-strong {
+  animation: breathe-strong 2s ease-in-out infinite;
+}
+.pulse-ring {
+  animation: pulse-ring 1.8s ease-out infinite;
+}
 
 /* ---------------------------------------------------------------
    Skeleton Shimmer (shared with Skeleton component)
    --------------------------------------------------------------- */
 
 @keyframes skeleton-shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 /* ---------------------------------------------------------------
@@ -161,12 +230,29 @@ select:focus-visible {
    --------------------------------------------------------------- */
 
 @keyframes shake-x {
-  0%, 100% { transform: translateX(0); }
-  10%, 90% { transform: translateX(-2px); }
-  20%, 80% { transform: translateX(3px); }
-  30%, 70% { transform: translateX(-4px); }
-  40%, 60% { transform: translateX(4px); }
-  50%      { transform: translateX(-3px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  90% {
+    transform: translateX(-2px);
+  }
+  20%,
+  80% {
+    transform: translateX(3px);
+  }
+  30%,
+  70% {
+    transform: translateX(-4px);
+  }
+  40%,
+  60% {
+    transform: translateX(4px);
+  }
+  50% {
+    transform: translateX(-3px);
+  }
 }
 
 .shake {
@@ -182,25 +268,52 @@ select:focus-visible {
   animation: page-enter-slide-up 0.35s var(--ease-out-expo) forwards;
 }
 
-.stagger-children > *:nth-child(1)  { animation-delay: calc(0.00s * var(--anim-speed, 1)); }
-.stagger-children > *:nth-child(2)  { animation-delay: calc(0.04s * var(--anim-speed, 1)); }
-.stagger-children > *:nth-child(3)  { animation-delay: calc(0.08s * var(--anim-speed, 1)); }
-.stagger-children > *:nth-child(4)  { animation-delay: calc(0.12s * var(--anim-speed, 1)); }
-.stagger-children > *:nth-child(5)  { animation-delay: calc(0.16s * var(--anim-speed, 1)); }
-.stagger-children > *:nth-child(6)  { animation-delay: calc(0.20s * var(--anim-speed, 1)); }
-.stagger-children > *:nth-child(7)  { animation-delay: calc(0.24s * var(--anim-speed, 1)); }
-.stagger-children > *:nth-child(8)  { animation-delay: calc(0.28s * var(--anim-speed, 1)); }
-.stagger-children > *:nth-child(9)  { animation-delay: calc(0.32s * var(--anim-speed, 1)); }
-.stagger-children > *:nth-child(10) { animation-delay: calc(0.36s * var(--anim-speed, 1)); }
-.stagger-children > *:nth-child(n+11) { animation-delay: calc(0.40s * var(--anim-speed, 1)); }
+.stagger-children > *:nth-child(1) {
+  animation-delay: calc(0s * var(--anim-speed, 1));
+}
+.stagger-children > *:nth-child(2) {
+  animation-delay: calc(0.04s * var(--anim-speed, 1));
+}
+.stagger-children > *:nth-child(3) {
+  animation-delay: calc(0.08s * var(--anim-speed, 1));
+}
+.stagger-children > *:nth-child(4) {
+  animation-delay: calc(0.12s * var(--anim-speed, 1));
+}
+.stagger-children > *:nth-child(5) {
+  animation-delay: calc(0.16s * var(--anim-speed, 1));
+}
+.stagger-children > *:nth-child(6) {
+  animation-delay: calc(0.2s * var(--anim-speed, 1));
+}
+.stagger-children > *:nth-child(7) {
+  animation-delay: calc(0.24s * var(--anim-speed, 1));
+}
+.stagger-children > *:nth-child(8) {
+  animation-delay: calc(0.28s * var(--anim-speed, 1));
+}
+.stagger-children > *:nth-child(9) {
+  animation-delay: calc(0.32s * var(--anim-speed, 1));
+}
+.stagger-children > *:nth-child(10) {
+  animation-delay: calc(0.36s * var(--anim-speed, 1));
+}
+.stagger-children > *:nth-child(n + 11) {
+  animation-delay: calc(0.4s * var(--anim-speed, 1));
+}
 
 /* ---------------------------------------------------------------
    Empty State Animation
    --------------------------------------------------------------- */
 
 @keyframes border-dance {
-  0%, 100% { border-color: #1C1C1C; }
-  50%      { border-color: #2A2A2A; }
+  0%,
+  100% {
+    border-color: #1c1c1c;
+  }
+  50% {
+    border-color: #2a2a2a;
+  }
 }
 
 .empty-state-animated {
@@ -212,8 +325,14 @@ select:focus-visible {
    --------------------------------------------------------------- */
 
 @keyframes tab-underline-in {
-  from { transform: scaleX(0); opacity: 0; }
-  to   { transform: scaleX(1); opacity: 1; }
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
 }
 
 /* ---------------------------------------------------------------
@@ -221,8 +340,13 @@ select:focus-visible {
    --------------------------------------------------------------- */
 
 @keyframes progress-glow {
-  0%, 100% { box-shadow: 0 0 4px rgba(255, 230, 0, 0.1); }
-  50%      { box-shadow: 0 0 8px rgba(255, 230, 0, 0.2); }
+  0%,
+  100% {
+    box-shadow: 0 0 4px rgba(255, 230, 0, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 8px rgba(255, 230, 0, 0.2);
+  }
 }
 
 .progress-bar--active {
@@ -230,9 +354,15 @@ select:focus-visible {
 }
 
 @keyframes progress-complete-flash {
-  0%   { filter: brightness(1); }
-  50%  { filter: brightness(1.6); }
-  100% { filter: brightness(1); }
+  0% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.6);
+  }
+  100% {
+    filter: brightness(1);
+  }
 }
 
 .progress-bar--complete {
@@ -244,8 +374,9 @@ select:focus-visible {
    --------------------------------------------------------------- */
 
 select {
-  transition: border-color 0.15s var(--ease-out-expo),
-              box-shadow 0.15s var(--ease-out-expo);
+  transition:
+    border-color 0.15s var(--ease-out-expo),
+    box-shadow 0.15s var(--ease-out-expo);
 }
 
 select:hover {
@@ -269,8 +400,14 @@ select:hover {
    --------------------------------------------------------------- */
 
 @keyframes dot-bounce {
-  0%, 80%, 100% { transform: scale(0); }
-  40%           { transform: scale(1); }
+  0%,
+  80%,
+  100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
 }
 
 .dot-bounce {
@@ -287,14 +424,18 @@ select:hover {
   animation: dot-bounce 1.4s ease-in-out infinite both;
 }
 
-.dot-bounce > span:nth-child(2) { animation-delay: 0.16s; }
-.dot-bounce > span:nth-child(3) { animation-delay: 0.32s; }
+.dot-bounce > span:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.dot-bounce > span:nth-child(3) {
+  animation-delay: 0.32s;
+}
 
 /* ---------------------------------------------------------------
    Checkbox / Toggle Snap
    --------------------------------------------------------------- */
 
-input[type="checkbox"] {
+input[type='checkbox'] {
   accent-color: var(--color-accent);
 }
 
@@ -303,8 +444,14 @@ input[type="checkbox"] {
    --------------------------------------------------------------- */
 
 @keyframes tooltip-in {
-  from { opacity: 0; transform: translateY(4px) scale(0.95); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* ---------------------------------------------------------------
@@ -312,8 +459,14 @@ input[type="checkbox"] {
    --------------------------------------------------------------- */
 
 @keyframes confetti-fall {
-  0%   { transform: translateY(-100%) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+  0% {
+    transform: translateY(-100%) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
 }
 
 .confetti-piece {
@@ -338,8 +491,12 @@ input[type="checkbox"] {
    --------------------------------------------------------------- */
 
 @keyframes backdrop-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* ---------------------------------------------------------------
@@ -348,7 +505,7 @@ input[type="checkbox"] {
 
 ::selection {
   background: rgba(255, 230, 0, 0.25);
-  color: #FFF;
+  color: #fff;
 }
 
 /* ---------------------------------------------------------------
@@ -356,8 +513,14 @@ input[type="checkbox"] {
    --------------------------------------------------------------- */
 
 @keyframes toast-enter {
-  from { opacity: 0; transform: translateX(30px) scale(0.95); }
-  to   { opacity: 1; transform: translateX(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateX(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
 }
 
 .toast-enter {
@@ -369,9 +532,15 @@ input[type="checkbox"] {
    --------------------------------------------------------------- */
 
 @keyframes toggle-spring {
-  0%   { transform: scaleX(1); }
-  40%  { transform: scaleX(1.25); }
-  100% { transform: scaleX(1); }
+  0% {
+    transform: scaleX(1);
+  }
+  40% {
+    transform: scaleX(1.25);
+  }
+  100% {
+    transform: scaleX(1);
+  }
 }
 
 .toggle-spring {
@@ -383,8 +552,14 @@ input[type="checkbox"] {
    --------------------------------------------------------------- */
 
 @keyframes dropdown-in {
-  from { opacity: 0; transform: translateY(-6px) scale(0.96); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .dropdown-enter {
@@ -396,8 +571,12 @@ input[type="checkbox"] {
    --------------------------------------------------------------- */
 
 @keyframes tab-underline-slide {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 
 .tab-underline {
@@ -410,10 +589,19 @@ input[type="checkbox"] {
    --------------------------------------------------------------- */
 
 @keyframes icon-bounce {
-  0%, 100% { transform: scale(1); }
-  30%      { transform: scale(1.3); }
-  60%      { transform: scale(0.9); }
-  80%      { transform: scale(1.05); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.3);
+  }
+  60% {
+    transform: scale(0.9);
+  }
+  80% {
+    transform: scale(1.05);
+  }
 }
 
 .icon-bounce {
@@ -425,8 +613,12 @@ input[type="checkbox"] {
    --------------------------------------------------------------- */
 
 @keyframes copy-flash {
-  0%   { background: rgba(0, 255, 136, 0.15); }
-  100% { background: transparent; }
+  0% {
+    background: rgba(0, 255, 136, 0.15);
+  }
+  100% {
+    background: transparent;
+  }
 }
 
 .copy-flash {
@@ -438,15 +630,17 @@ input[type="checkbox"] {
    --------------------------------------------------------------- */
 
 .card-lift {
-  transition: transform 0.2s var(--ease-out-expo),
-              box-shadow 0.3s var(--ease-out-expo),
-              border-color 0.2s var(--ease-out-expo);
+  transition:
+    transform 0.2s var(--ease-out-expo),
+    box-shadow 0.3s var(--ease-out-expo),
+    border-color 0.2s var(--ease-out-expo);
 }
 
 .card-lift:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3),
-              0 0 0 1px rgba(255, 230, 0, 0.06);
+  box-shadow:
+    0 8px 30px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 230, 0, 0.06);
   border-color: rgba(255, 230, 0, 0.12);
 }
 
@@ -455,13 +649,21 @@ input[type="checkbox"] {
    --------------------------------------------------------------- */
 
 @keyframes update-dot-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%      { opacity: 0.5; transform: scale(1.5); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.5);
+  }
 }
 
 .update-dot {
-  width: 6px; height: 6px;
-  background: #FF4444;
+  width: 6px;
+  height: 6px;
+  background: #ff4444;
   clip-path: var(--clip-diamond);
   animation: update-dot-pulse 2s ease-in-out infinite;
   display: inline-block;
@@ -472,11 +674,17 @@ input[type="checkbox"] {
    --------------------------------------------------------------- */
 
 @keyframes konami-glow {
-  0%   { filter: hue-rotate(0deg); }
-  100% { filter: hue-rotate(360deg); }
+  0% {
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    filter: hue-rotate(360deg);
+  }
 }
 
-.konami-active { animation: konami-glow 2s linear infinite; }
+.konami-active {
+  animation: konami-glow 2s linear infinite;
+}
 
 /* ==========================================================================
    NEO-TOKYO CYBERPUNK ANIMATION SYSTEM
@@ -484,30 +692,62 @@ input[type="checkbox"] {
 
 /* ---- Neon flicker — subtle random-looking glow flicker ---- */
 @keyframes neon-flicker {
-  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
-  20%, 24%, 55% { opacity: 0.6; }
+  0%,
+  19%,
+  21%,
+  23%,
+  25%,
+  54%,
+  56%,
+  100% {
+    opacity: 1;
+  }
+  20%,
+  24%,
+  55% {
+    opacity: 0.6;
+  }
 }
 
-.neon-flicker { animation: neon-flicker 3s ease-in-out infinite; }
+.neon-flicker {
+  animation: neon-flicker 3s ease-in-out infinite;
+}
 
 /* ---- Scanline drift — vertical scanline moving down ---- */
 @keyframes scanline-drift {
-  from { transform: translateY(-100%); }
-  to   { transform: translateY(100vh); }
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(100vh);
+  }
 }
 
 .scanline-drift::after {
   content: '';
-  position: absolute; inset: 0;
-  pointer-events: none; z-index: 9997;
-  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,230,0,0.015) 3px, rgba(255,230,0,0.015) 4px);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9997;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(255, 230, 0, 0.015) 3px,
+    rgba(255, 230, 0, 0.015) 4px
+  );
   animation: scanline-drift 8s linear infinite;
 }
 
 /* ---- Terminal cursor blink ---- */
 @keyframes cursor-blink {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
 }
 
 .cursor-blink::after {
@@ -518,10 +758,19 @@ input[type="checkbox"] {
 
 /* ---- Glitch — rapid horizontal offset ---- */
 @keyframes glitch-shift {
-  0%, 100% { transform: translate(0); }
-  5%  { transform: translate(-2px, 1px); }
-  10% { transform: translate(2px, -1px); }
-  15% { transform: translate(0); }
+  0%,
+  100% {
+    transform: translate(0);
+  }
+  5% {
+    transform: translate(-2px, 1px);
+  }
+  10% {
+    transform: translate(2px, -1px);
+  }
+  15% {
+    transform: translate(0);
+  }
 }
 
 .glitch-hover:hover {
@@ -530,8 +779,16 @@ input[type="checkbox"] {
 
 /* ---- Hero reveal — dramatic entrance from darkness ---- */
 @keyframes hero-reveal {
-  from { opacity: 0; transform: scale(0.97); filter: brightness(0.5); }
-  to   { opacity: 1; transform: scale(1);    filter: brightness(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+    filter: brightness(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1);
+  }
 }
 
 .hero-reveal {
@@ -540,8 +797,17 @@ input[type="checkbox"] {
 
 /* ---- Hero glow breathing — ambient pulse on hero banner ---- */
 @keyframes hero-glow-breathe {
-  0%, 100% { box-shadow: 0 0 20px rgba(255,230,0,0.02), inset 0 0 0 rgba(255,230,0,0); }
-  50%      { box-shadow: 0 0 40px rgba(255,230,0,0.05), inset 0 0 30px rgba(255,230,0,0.01); }
+  0%,
+  100% {
+    box-shadow:
+      0 0 20px rgba(255, 230, 0, 0.02),
+      inset 0 0 0 rgba(255, 230, 0, 0);
+  }
+  50% {
+    box-shadow:
+      0 0 40px rgba(255, 230, 0, 0.05),
+      inset 0 0 30px rgba(255, 230, 0, 0.01);
+  }
 }
 
 .hero-glow-breathe {
@@ -550,8 +816,14 @@ input[type="checkbox"] {
 
 /* ---- Card entrance — grid items reveal one by one ---- */
 @keyframes card-rise {
-  from { opacity: 0; transform: translateY(20px) scale(0.96); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 .card-rise {
   animation: card-rise calc(0.5s * var(--anim-speed, 1)) var(--ease-out-expo) forwards;
@@ -560,22 +832,29 @@ input[type="checkbox"] {
 
 /* ---- Card hover glow — border illumination on hover ---- */
 @keyframes card-glow-pulse {
-  0%, 100% { border-color: rgba(255,230,0,0.08); }
-  50%      { border-color: rgba(255,230,0,0.2); }
+  0%,
+  100% {
+    border-color: rgba(255, 230, 0, 0.08);
+  }
+  50% {
+    border-color: rgba(255, 230, 0, 0.2);
+  }
 }
 
 .card-glow-hover {
-  transition: transform 0.25s var(--ease-out-expo),
-              box-shadow 0.3s var(--ease-out-expo),
-              border-color 0.2s var(--ease-out-expo);
+  transition:
+    transform 0.25s var(--ease-out-expo),
+    box-shadow 0.3s var(--ease-out-expo),
+    border-color 0.2s var(--ease-out-expo);
 }
 
 .card-glow-hover:hover {
   transform: translateY(-3px);
-  border-color: rgba(255,230,0,0.2);
-  box-shadow: 0 12px 40px rgba(0,0,0,0.4),
-              0 0 0 1px rgba(255,230,0,0.08),
-              0 0 30px rgba(255,230,0,0.04);
+  border-color: rgba(255, 230, 0, 0.2);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 230, 0, 0.08),
+    0 0 30px rgba(255, 230, 0, 0.04);
 }
 
 .card-glow-hover:hover .card__playOverlay {
@@ -584,23 +863,43 @@ input[type="checkbox"] {
 
 /* ---- Status dot breathing — alive indicators ---- */
 @keyframes status-breathe-ready {
-  0%, 100% { box-shadow: 0 0 4px rgba(76,175,80,0.6); }
-  50%      { box-shadow: 0 0 10px rgba(76,175,80,0.3); }
+  0%,
+  100% {
+    box-shadow: 0 0 4px rgba(76, 175, 80, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+  }
 }
 
 @keyframes status-breathe-download {
-  0%, 100% { box-shadow: 0 0 4px rgba(255,152,0,0.6); }
-  50%      { box-shadow: 0 0 10px rgba(255,152,0,0.3); }
+  0%,
+  100% {
+    box-shadow: 0 0 4px rgba(255, 152, 0, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(255, 152, 0, 0.3);
+  }
 }
 
-.status-breathe-ready    { animation: status-breathe-ready 2s ease-in-out infinite; }
-.status-breathe-download { animation: status-breathe-download 1.5s ease-in-out infinite; }
+.status-breathe-ready {
+  animation: status-breathe-ready 2s ease-in-out infinite;
+}
+.status-breathe-download {
+  animation: status-breathe-download 1.5s ease-in-out infinite;
+}
 
 /* ---- Play button pulse — calls to action ---- */
 @keyframes play-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(255,230,0,0.4); }
-  70%  { box-shadow: 0 0 0 12px rgba(255,230,0,0); }
-  100% { box-shadow: 0 0 0 0 rgba(255,230,0,0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 230, 0, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(255, 230, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 230, 0, 0);
+  }
 }
 
 .play-pulse {
@@ -609,9 +908,15 @@ input[type="checkbox"] {
 
 /* ---- Border dance — animated dashed border for empty states ---- */
 @keyframes border-dash-dance {
-  0%   { border-color: var(--color-border); }
-  50%  { border-color: var(--color-accent); }
-  100% { border-color: var(--color-border); }
+  0% {
+    border-color: var(--color-border);
+  }
+  50% {
+    border-color: var(--color-accent);
+  }
+  100% {
+    border-color: var(--color-border);
+  }
 }
 
 .border-dance {
@@ -620,16 +925,27 @@ input[type="checkbox"] {
 
 /* ---- Float up/down — subtle elevation animation ---- */
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-6px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
-.float-subtle { animation: float 4s ease-in-out infinite; }
+.float-subtle {
+  animation: float 4s ease-in-out infinite;
+}
 
 /* ---- Data stream — horizontal scrolling text effect ---- */
 @keyframes data-stream {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 .data-stream {
@@ -639,9 +955,15 @@ input[type="checkbox"] {
 
 /* ---- Gradient shift — animated gradient background ---- */
 @keyframes gradient-shift {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .gradient-shift {
@@ -651,17 +973,31 @@ input[type="checkbox"] {
 
 /* ---- Icon spin slow — decorative rotation ---- */
 @keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-.spin-slow { animation: spin-slow 12s linear infinite; }
+.spin-slow {
+  animation: spin-slow 12s linear infinite;
+}
 
 /* ---- Scale in bounce — pop-in for modals and panels ---- */
 @keyframes scale-in-bounce {
-  from { opacity: 0; transform: scale(0.92); }
-  60%  { opacity: 1; transform: scale(1.02); }
-  100% { transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .scale-in-bounce {
@@ -670,8 +1006,14 @@ input[type="checkbox"] {
 
 /* ---- Slide in from right ---- */
 @keyframes slide-in-right {
-  from { opacity: 0; transform: translateX(40px); }
-  to   { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .slide-in-right {
@@ -680,8 +1022,14 @@ input[type="checkbox"] {
 
 /* ---- Fade up — subtle content reveal ---- */
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .fade-up {
@@ -690,18 +1038,22 @@ input[type="checkbox"] {
 
 /* ---- Progress bar data flow ---- */
 @keyframes progress-stripe {
-  from { background-position: 0 0; }
-  to   { background-position: 30px 0; }
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 30px 0;
+  }
 }
 
 .progress-stripe {
   background-image: linear-gradient(
     45deg,
-    rgba(255,255,255,0.05) 25%,
+    rgba(255, 255, 255, 0.05) 25%,
     transparent 25%,
     transparent 50%,
-    rgba(255,255,255,0.05) 50%,
-    rgba(255,255,255,0.05) 75%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0.05) 75%,
     transparent 75%,
     transparent
   );
@@ -711,9 +1063,15 @@ input[type="checkbox"] {
 
 /* ---- Notification badge pop ---- */
 @keyframes badge-pop {
-  0%   { transform: scale(0); }
-  50%  { transform: scale(1.3); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .badge-pop {
@@ -722,8 +1080,16 @@ input[type="checkbox"] {
 
 /* ---- Panel slide down — dropdown/expand reveal ---- */
 @keyframes panel-slide-down {
-  from { opacity: 0; max-height: 0; transform: translateY(-4px); }
-  to   { opacity: 1; max-height: 500px; transform: translateY(0); }
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+    transform: translateY(0);
+  }
 }
 
 .panel-slide-down {
@@ -733,8 +1099,12 @@ input[type="checkbox"] {
 
 /* ---- Loading bar indeterminate ---- */
 @keyframes loading-bar-indeterminate {
-  from { transform: translateX(-100%); }
-  to   { transform: translateX(400%); }
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(400%);
+  }
 }
 
 .loading-bar-indeterminate {
@@ -743,8 +1113,13 @@ input[type="checkbox"] {
 
 /* ---- Rotate hue — for special accent effects ---- */
 @keyframes hue-rotate-accent {
-  0%, 100% { filter: hue-rotate(0deg); }
-  50%      { filter: hue-rotate(15deg); }
+  0%,
+  100% {
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    filter: hue-rotate(15deg);
+  }
 }
 
 .hue-rotate-accent {
@@ -753,8 +1128,12 @@ input[type="checkbox"] {
 
 /* ---- Text reveal — character by character ---- */
 @keyframes text-reveal {
-  from { clip-path: inset(0 100% 0 0); }
-  to   { clip-path: inset(0 0 0 0); }
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
 }
 
 .text-reveal {
@@ -766,14 +1145,15 @@ input[type="checkbox"] {
    --------------------------------------------------------------- */
 
 button:active:not(:disabled),
-[role="button"]:active:not(:disabled) {
+[role='button']:active:not(:disabled) {
   transform: scale(0.97);
   transition: transform 80ms ease;
 }
 
 [data-hover-glow]:hover {
-  box-shadow: 0 0 20px rgba(255, 230, 0, 0.15),
-              0 0 40px rgba(255, 230, 0, 0.06);
+  box-shadow:
+    0 0 20px rgba(255, 230, 0, 0.15),
+    0 0 40px rgba(255, 230, 0, 0.06);
   transition: box-shadow 250ms ease-out;
 }
 
@@ -782,7 +1162,9 @@ button:active:not(:disabled),
    ========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
