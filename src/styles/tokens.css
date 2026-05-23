@@ -54,6 +54,7 @@
 
   --transition-fast: 100ms ease;
   --transition-normal: 150ms ease;
+  --transition-medium: 250ms ease-out;
   --transition-slow: 300ms ease-out;
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);

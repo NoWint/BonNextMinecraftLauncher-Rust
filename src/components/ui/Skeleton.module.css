@@ -1,8 +1,24 @@
 .skeleton {
-  background: linear-gradient(90deg, var(--color-panel-alt) 25%, var(--color-panel-alt) 50%, var(--color-panel-alt) 75%);
+  background: var(--color-panel-alt);
+  clip-path: var(--clip-small);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 230, 0, 0.06) 40%,
+    rgba(255, 230, 0, 0.15) 50%,
+    rgba(255, 230, 0, 0.06) 60%,
+    transparent 100%
+  );
   background-size: 200% 100%;
   animation: skeletonShimmer 1.5s ease-in-out infinite;
-  border-radius: 2px;
 }
 
 .skeleton--text {
@@ -29,7 +45,6 @@
 .skeleton--avatar {
   width: 32px;
   height: 32px;
-  border-radius: 0;
 }
 
 @keyframes skeletonShimmer {

@@ -761,6 +761,22 @@ input[type="checkbox"] {
   animation: text-reveal 0.6s steps(20) forwards;
 }
 
+/* ---------------------------------------------------------------
+   Global Interaction Feedback
+   --------------------------------------------------------------- */
+
+button:active:not(:disabled),
+[role="button"]:active:not(:disabled) {
+  transform: scale(0.97);
+  transition: transform 80ms ease;
+}
+
+[data-hover-glow]:hover {
+  box-shadow: 0 0 20px rgba(255, 230, 0, 0.15),
+              0 0 40px rgba(255, 230, 0, 0.06);
+  transition: box-shadow 250ms ease-out;
+}
+
 /* ==========================================================================
    Reduced motion
    ========================================================================== */
