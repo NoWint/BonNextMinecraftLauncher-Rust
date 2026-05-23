@@ -10,13 +10,6 @@ import styles from './LibraryPage.module.css';
 
 type UpdateStatus = 'pending' | 'downloading' | 'complete' | 'failed';
 
-const TABS = [
-  { id: 'mods', label: 'MODS' },
-  { id: 'resourcepacks', label: 'RESOURCE PACKS' },
-  { id: 'shaders', label: 'SHADERS' },
-  { id: 'worlds', label: 'WORLDS' },
-];
-
 function formatSize(bytes: number): string {
   if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
   if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -27,6 +20,13 @@ export default function LibraryPage() {
   const { state: instState } = useInstances();
   const { addToast } = useToast();
   const { t } = useI18n();
+
+  const TABS = [
+    { id: 'mods', label: t('library.mods') },
+    { id: 'resourcepacks', label: t('library.resourcePacks') },
+    { id: 'shaders', label: t('library.shaders') },
+    { id: 'worlds', label: t('library.worlds') },
+  ];
 
   const [selectedId, setSelectedId] = useState('');
   const [activeTab, setActiveTab] = useState('mods');
@@ -85,10 +85,10 @@ export default function LibraryPage() {
       const result = await api.checkContentUpdates(selectedId);
       setUpdates(result);
       if (result.length === 0) {
-        addToast({ type: 'info', title: 'All up to date', message: 'No updates available.' });
+        addToast({ type: 'info', title: t('library.allUpToDate'), message: t('library.noUpdatesAvailable') });
       }
     } catch (e: any) {
-      addToast({ type: 'error', title: 'Update check failed', message: e?.toString() || '' });
+      addToast({ type: 'error', title: t('library.updateCheckFailed'), message: e?.toString() || '' });
     } finally {
       setCheckingUpdates(false);
     }
@@ -115,13 +115,13 @@ export default function LibraryPage() {
         update.slug, latest.id,
       );
 
-      addToast({ type: 'success', title: 'Updated', message: `${update.slug} → ${latest.version_number}` });
+      addToast({ type: 'success', title: t('library.updated'), message: `${update.slug} → ${latest.version_number}` });
 
       // Refresh
       setUpdates((prev) => prev.filter((u) => u.filename !== update.filename));
       loadContent();
     } catch (e: any) {
-      addToast({ type: 'error', title: 'Update failed', message: e?.toString() || '' });
+      addToast({ type: 'error', title: t('library.updateFailed'), message: e?.toString() || '' });
     } finally {
       setUpdatingItems((prev) => {
         const next = new Set(prev);
@@ -175,9 +175,9 @@ export default function LibraryPage() {
     setUpdatingAll(false);
 
     if (failCount === 0) {
-      addToast({ type: 'success', title: t('library.updateSummary'), message: `All ${successCount} items updated.` });
+      addToast({ type: 'success', title: t('library.updateSummary'), message: t('library.allUpdated', { count: String(successCount) }) });
     } else {
-      addToast({ type: 'warning', title: t('library.updateSummary'), message: `${successCount} succeeded, ${failCount} failed.` });
+      addToast({ type: 'warning', title: t('library.updateSummary'), message: t('library.partialUpdated', { succeeded: String(successCount), failed: String(failCount) }) });
     }
   };
 
@@ -191,12 +191,12 @@ export default function LibraryPage() {
       loadContent();
       setUpdates([]);
       if (result.failed === 0) {
-        addToast({ type: 'success', title: t('library.updateSummary'), message: `All ${result.succeeded} items updated.` });
+        addToast({ type: 'success', title: t('library.updateSummary'), message: t('library.allUpdated', { count: String(result.succeeded) }) });
       } else {
-        addToast({ type: 'warning', title: t('library.updateSummary'), message: `${result.succeeded} succeeded, ${result.failed} failed.` });
+        addToast({ type: 'warning', title: t('library.updateSummary'), message: t('library.partialUpdated', { succeeded: String(result.succeeded), failed: String(result.failed) }) });
       }
     } catch (e: any) {
-      addToast({ type: 'error', title: 'Bulk update failed', message: e?.toString() || '' });
+      addToast({ type: 'error', title: t('library.bulkUpdateFailed'), message: e?.toString() || '' });
     } finally {
       setBulkUpdating(false);
     }
@@ -206,11 +206,11 @@ export default function LibraryPage() {
     if (!removeTarget || !selectedId) return;
     try {
       await api.removeInstalledMod(selectedId, removeTarget);
-      addToast({ type: 'success', title: 'Removed', message: removeTarget });
+      addToast({ type: 'success', title: t('common.remove'), message: removeTarget });
       setRemoveTarget(null);
       loadContent();
     } catch (e: any) {
-      addToast({ type: 'error', title: 'Remove failed', message: e?.toString() || '' });
+      addToast({ type: 'error', title: t('library.remove'), message: e?.toString() || '' });
     }
   };
 
@@ -222,16 +222,16 @@ export default function LibraryPage() {
 
   return (
     <div className={`page-enter ${styles.page}`}>
-      <SectionHeader title="CONTENT LIBRARY" subtitle="Manage installed content per instance" />
+      <SectionHeader title={t('library.contentLibrary')} subtitle={t('library.managePerInstance')} />
 
       {/* Instance selector */}
       <div className={styles.instanceRow}>
-        <span className={styles.instanceRow__label}>INSTANCE</span>
+        <span className={styles.instanceRow__label}>{t('library.instance')}</span>
         <Select
           value={selectedId}
           onChange={(e) => setSelectedId(e.target.value)}
           options={[
-            { value: '', label: 'Select instance...' },
+            { value: '', label: t('library.selectInstance') },
             ...instanceOptions,
           ]}
         />
@@ -242,19 +242,19 @@ export default function LibraryPage() {
         <div className={styles.summary}>
           <div className={styles.summaryCard}>
             <div className={styles.summaryCard__value}>{counts.mods}</div>
-            <div className={styles.summaryCard__label}>MODS</div>
+            <div className={styles.summaryCard__label}>{t('library.mods')}</div>
           </div>
           <div className={styles.summaryCard}>
             <div className={styles.summaryCard__value}>{counts.resourcepacks}</div>
-            <div className={styles.summaryCard__label}>RESOURCE PACKS</div>
+            <div className={styles.summaryCard__label}>{t('library.resourcePacks')}</div>
           </div>
           <div className={styles.summaryCard}>
             <div className={styles.summaryCard__value}>{counts.shaders}</div>
-            <div className={styles.summaryCard__label}>SHADERS</div>
+            <div className={styles.summaryCard__label}>{t('library.shaders')}</div>
           </div>
           <div className={styles.summaryCard}>
             <div className={styles.summaryCard__value}>{counts.worlds}</div>
-            <div className={styles.summaryCard__label}>WORLDS</div>
+            <div className={styles.summaryCard__label}>{t('library.worlds')}</div>
           </div>
         </div>
       )}
@@ -264,9 +264,9 @@ export default function LibraryPage() {
         <div className={styles.updatesSection}>
           <div className={styles.updatesSection__header}>
             <div>
-              <span className={styles.updatesSection__title}>UPDATES</span>
+              <span className={styles.updatesSection__title}>{t('library.updates')}</span>
               {updates.length > 0 && (
-                <span className={styles.updatesSection__count}>{updates.length} available</span>
+                <span className={styles.updatesSection__count}>{t('library.available', { count: String(updates.length) })}</span>
               )}
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
@@ -276,7 +276,7 @@ export default function LibraryPage() {
                 disabled={checkingUpdates}
                 onClick={checkForUpdates}
               >
-                {checkingUpdates ? 'Checking...' : 'Check for updates'}
+                {checkingUpdates ? t('library.checking') : t('library.checkForUpdates')}
               </Button>
               <Button
                 variant="primary"
@@ -284,7 +284,7 @@ export default function LibraryPage() {
                 disabled={bulkUpdating}
                 onClick={handleBulkUpdate}
               >
-                {bulkUpdating ? 'Updating...' : 'Check All Updates'}
+                {bulkUpdating ? t('library.updatingStatus') : t('library.checkAllUpdates')}
               </Button>
               {updates.length > 0 && !updatingAll && (
                 <Button
@@ -345,7 +345,7 @@ export default function LibraryPage() {
                       </Button>
                     )}
                     {updatingItems.has(update.filename) && (
-                      <span className={styles.updatingLabel}>Updating...</span>
+                      <span className={styles.updatingLabel}>{t('library.updatingStatus')}</span>
                     )}
                   </div>
                 );
@@ -354,7 +354,7 @@ export default function LibraryPage() {
           ) : (
             !checkingUpdates && updates.length === 0 && !updatingAll && (
               <div className={styles.updatesSection__empty}>
-                Click "Check for updates" to scan installed content for newer versions.
+                {t('library.clickToCheck')}
               </div>
             )
           )}
@@ -373,8 +373,8 @@ export default function LibraryPage() {
         </div>
       ) : !selectedId ? (
         <div className={styles.empty}>
-          <div className={styles.empty__title}>Select an instance</div>
-          <div className={styles.empty__desc}>Choose an instance to view its installed content.</div>
+          <div className={styles.empty__title}>{t('library.selectInstanceHint')}</div>
+          <div className={styles.empty__desc}>{t('library.selectInstanceDesc')}</div>
         </div>
       ) : (
         <>
@@ -382,10 +382,10 @@ export default function LibraryPage() {
           {activeTab === 'mods' && (
             mods.length === 0 ? (
               <div className={styles.empty}>
-                <div className={styles.empty__title}>No mods installed</div>
-                <div className={styles.empty__desc}>Browse the marketplace to install mods.</div>
+                <div className={styles.empty__title}>{t('library.noModsInstalled')}</div>
+                <div className={styles.empty__desc}>{t('library.noModsInstalledDesc')}</div>
                 <Button variant="secondary" size="sm" onClick={() => (window.location.hash = '#/mods')}>
-                  Browse mods
+                  {t('library.browseMods')}
                 </Button>
               </div>
             ) : (
@@ -404,7 +404,7 @@ export default function LibraryPage() {
                         size="sm"
                         onClick={() => setRemoveTarget(mod.filename)}
                       >
-                        Remove
+                        {t('library.remove')}
                       </Button>
                     </div>
                   </div>
@@ -417,8 +417,8 @@ export default function LibraryPage() {
           {activeTab === 'resourcepacks' && (
             resourcepacks.length === 0 ? (
               <div className={styles.empty}>
-                <div className={styles.empty__title}>No resource packs installed</div>
-                <div className={styles.empty__desc}>Browse the marketplace to install resource packs.</div>
+                <div className={styles.empty__title}>{t('library.noResourcePacks')}</div>
+                <div className={styles.empty__desc}>{t('library.noResourcePacksDesc')}</div>
               </div>
             ) : (
               <div className={styles.list}>
@@ -436,8 +436,8 @@ export default function LibraryPage() {
           {activeTab === 'shaders' && (
             shaders.length === 0 ? (
               <div className={styles.empty}>
-                <div className={styles.empty__title}>No shaders installed</div>
-                <div className={styles.empty__desc}>Browse the marketplace to install shaders.</div>
+                <div className={styles.empty__title}>{t('library.noShaders')}</div>
+                <div className={styles.empty__desc}>{t('library.noShadersDesc')}</div>
               </div>
             ) : (
               <div className={styles.list}>
@@ -455,13 +455,13 @@ export default function LibraryPage() {
           {activeTab === 'worlds' && (
             counts && counts.worlds === 0 ? (
               <div className={styles.empty}>
-                <div className={styles.empty__title}>No saved worlds</div>
-                <div className={styles.empty__desc}>Worlds will appear here when you create or download them.</div>
+                <div className={styles.empty__title}>{t('library.noWorlds')}</div>
+                <div className={styles.empty__desc}>{t('library.noWorldsDesc')}</div>
               </div>
             ) : (
               <div className={styles.empty}>
-                <div className={styles.empty__title}>World management</div>
-                <div className={styles.empty__desc}>Use the instance folder to manage worlds directly.</div>
+                <div className={styles.empty__title}>{t('library.worldManagement')}</div>
+                <div className={styles.empty__desc}>{t('library.worldManagementDesc')}</div>
                 {selectedInstance && (
                   <Button variant="secondary" size="sm" onClick={async () => {
                     try {
@@ -469,7 +469,7 @@ export default function LibraryPage() {
                       await api.openFolder(`${gameDir}/instances/${selectedInstance.id}/.minecraft/saves`);
                     } catch (e) { console.error("Failed to load library:", e); }
                   }}>
-                    Open saves folder
+                    {t('library.openSavesFolder')}
                   </Button>
                 )}
               </div>
@@ -482,10 +482,10 @@ export default function LibraryPage() {
       <Modal
         open={bulkResult !== null}
         onClose={() => setBulkResult(null)}
-        title="Bulk Update Results"
+        title={t('library.bulkUpdateResults')}
         actions={
           <Button variant="primary" size="sm" onClick={() => setBulkResult(null)}>
-            OK
+            {t('library.ok')}
           </Button>
         }
       >
@@ -496,19 +496,19 @@ export default function LibraryPage() {
                 <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2em', color: 'var(--color-success)' }}>
                   {bulkResult.succeeded}
                 </div>
-                <div style={{ fontSize: '0.5em', color: 'var(--color-text-dim)', letterSpacing: 2 }}>SUCCEEDED</div>
+                <div style={{ fontSize: '0.5em', color: 'var(--color-text-dim)', letterSpacing: 2 }}>{t('library.succeeded')}</div>
               </div>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2em', color: bulkResult.failed > 0 ? 'var(--color-error)' : 'var(--color-text-dim)' }}>
                   {bulkResult.failed}
                 </div>
-                <div style={{ fontSize: '0.5em', color: 'var(--color-text-dim)', letterSpacing: 2 }}>FAILED</div>
+                <div style={{ fontSize: '0.5em', color: 'var(--color-text-dim)', letterSpacing: 2 }}>{t('library.failed')}</div>
               </div>
             </div>
             {bulkResult.errors.length > 0 && (
               <div>
                 <div style={{ fontSize: '0.45em', color: 'var(--color-text-muted)', letterSpacing: 2, marginBottom: 6 }}>
-                  ERRORS
+                  {t('library.errors')}
                 </div>
                 <div style={{ maxHeight: 150, overflowY: 'auto' }}>
                   {bulkResult.errors.map((err, i) => (
@@ -538,27 +538,27 @@ export default function LibraryPage() {
       <Modal
         open={!!removeTarget}
         onClose={() => setRemoveTarget(null)}
-        title="Remove mod"
+        title={t('library.removeMod')}
         actions={
           <>
             <Button variant="secondary" size="sm" onClick={() => setRemoveTarget(null)}>
-              Cancel
+              {t('library.cancel')}
             </Button>
             <Button variant="danger" size="sm" onClick={handleRemoveMod}>
-              Remove
+              {t('library.remove')}
             </Button>
           </>
         }
       >
         <p style={{ fontSize: '0.6em', color: 'var(--color-text-secondary)' }}>
-          Are you sure you want to remove <strong>{removeTarget}</strong>?
+          {t('library.removeConfirm', { name: removeTarget || '' })}
         </p>
       </Modal>
 
       <Ticker messages={[
-        `Instance: ${selectedInstance?.name || 'None'} · ${selectedInstance?.version_id || 'N/A'}`,
-        `Total: ${(counts?.mods || 0) + (counts?.resourcepacks || 0) + (counts?.shaders || 0)} content items`,
-        'All content stored in instance .minecraft directory',
+        t('library.tickerInstance', { name: selectedInstance?.name || 'None', version: selectedInstance?.version_id || 'N/A' }),
+        t('library.tickerTotal', { count: String((counts?.mods || 0) + (counts?.resourcepacks || 0) + (counts?.shaders || 0)) }),
+        t('library.tickerStorage'),
       ]} />
     </div>
   );

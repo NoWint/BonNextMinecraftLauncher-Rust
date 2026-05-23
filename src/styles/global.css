@@ -18,6 +18,7 @@ html, body, #root {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background 0.3s ease, color 0.3s ease;
+  --overlay-enabled: 1;
 }
 
 .theme-transition *,
@@ -56,6 +57,7 @@ html, body, #root {
   pointer-events: none;
   z-index: 9999;
   animation: noise-flicker 0.15s steps(2) infinite;
+  animation-play-state: var(--overlay-animation-state, running);
 }
 
 @keyframes noise-flicker {
@@ -77,6 +79,7 @@ html, body, #root {
   pointer-events: none;
   z-index: 9998;
   animation: scanline-scroll 10s linear infinite;
+  animation-play-state: var(--overlay-animation-state, running);
 }
 
 @keyframes scanline-scroll {
@@ -314,19 +317,11 @@ body {
   background: radial-gradient(ellipse at 30% 20%, rgba(0, 255, 136, 0.03) 0%, transparent 50%);
 }
 
-/* ==========================================================================
-   Mini Mode — compact UI
-   ========================================================================== */
-
-.mini-mode {
-  --sidebar-width: 56px;
-  font-size: calc(var(--ui-scale, 1) * 14px);
+@media (prefers-reduced-motion: reduce) {
+  .noise-overlay,
+  .scanline-overlay {
+    display: none !important;
+  }
 }
 
-.mini-mode .app-main {
-  padding: 12px 14px;
-}
 
-.mini-mode .app-sidebar {
-  padding: 12px 0;
-}

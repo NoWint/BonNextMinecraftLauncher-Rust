@@ -100,16 +100,18 @@ pub async fn check_updates(instance_id: &str) -> Result<Vec<UpdateInfo>, Launche
                 if let Ok(mod_id) = slug.parse::<u64>() {
                     crate::curseforge::get_mod_versions(mod_id).await
                 } else {
+                    // TODO: pass game_version and loader from instance for filtering
                     modrinth::get_mod_versions(&slug, None, None).await
                 }
             } else {
+                // TODO: pass game_version and loader from instance for filtering
                 modrinth::get_mod_versions(&slug, None, None).await
             };
             (filename, slug, version_id, content_type, result)
         }
     }).collect();
 
-    let results = futures::future::join_all(futures).await;
+    let results = futures_util::future::join_all(futures).await;
 
     let mut updates = Vec::new();
     for (filename, slug, installed_version, content_type, result) in results {

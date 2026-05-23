@@ -15,12 +15,22 @@ fn get_cf_api_key() -> String {
             return key;
         }
     }
-    "$2a$10$AwfSqJ0yOoyURJZ3BkJeDOmSUk4B5BSP2A6fK0l0eX5Oq5Y3VwOZa".to_string()
+    if let Ok(Some(key)) = crate::security::key_store::get_key("cf_api_key") {
+        if !key.is_empty() {
+            return key;
+        }
+    }
+    String::new()
 }
 
 fn cf_headers() -> reqwest::header::HeaderMap {
     let mut headers = reqwest::header::HeaderMap::new();
-    headers.insert("x-api-key", get_cf_api_key().parse().unwrap());
+    let key = get_cf_api_key();
+    if !key.is_empty() {
+        if let Ok(val) = key.parse() {
+            headers.insert("x-api-key", val);
+        }
+    }
     headers.insert("Accept", "application/json".parse().unwrap());
     headers
 }
@@ -213,7 +223,7 @@ fn map_mod_full(cf: CfMod) -> ModProjectFull {
 fn map_file(f: CfFile) -> ModFile {
     let sha1 = f.hashes.iter().find(|h| h.algo == 1).map(|h| h.value.clone());
     ModFile {
-        url: f.download_url.unwrap_or_default(),
+        url: f.download_url.clone().unwrap_or_else(|| format!("cf://{}", f.id)),
         filename: f.file_name,
         size: f.file_length,
         hashes: ModHashes { sha1, sha512: None },
@@ -223,7 +233,7 @@ fn map_file(f: CfFile) -> ModFile {
 fn map_file_to_version(f: CfFile) -> ModVersion {
     let sha1 = f.hashes.iter().find(|h| h.algo == 1).map(|h| h.value.clone());
     let primary_file = ModFile {
-        url: f.download_url.clone().unwrap_or_default(),
+        url: f.download_url.clone().unwrap_or_else(|| format!("cf://{}", f.id)),
         filename: f.file_name.clone(),
         size: f.file_length,
         hashes: ModHashes { sha1, sha512: None },

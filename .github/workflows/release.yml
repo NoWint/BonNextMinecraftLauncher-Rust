@@ -136,9 +136,9 @@ jobs:
   # Build Linux (AppImage + deb)
   # =========================================================================
   build-linux:
-    name: Build Linux
+    name: Build Linux (glibc-compat via Ubuntu 22.04)
     needs: prepare
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 

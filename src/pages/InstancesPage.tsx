@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { api, type GameInstance, type ServerStatus, type PlaytimeStats } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useInstances } from '../stores/instanceStore';
@@ -37,13 +37,6 @@ function formatTodayPlaytime(seconds: number): string {
 
 type SortKey = 'recent' | 'name' | 'playtime' | 'version';
 
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'recent', label: 'Recent' },
-  { key: 'name', label: 'A–Z' },
-  { key: 'playtime', label: 'Most Played' },
-  { key: 'version', label: 'Version' },
-];
-
 export default function InstancesPage() {
   const { state: authState } = useAuth();
   const { state, deleteInstance, reloadInstances } = useInstances();
@@ -61,19 +54,29 @@ export default function InstancesPage() {
     const now = Date.now();
     const diff = now - d.getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'Just now';
-    if (mins < 60) return `${mins}m ago`;
+    if (mins < 1) return t('instances.justNow');
+    if (mins < 60) return t('instances.minAgo', { mins: String(mins) });
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
+    if (hrs < 24) return t('instances.hrAgo', { hrs: String(hrs) });
     const days = Math.floor(hrs / 24);
-    if (days < 7) return `${days}d ago`;
+    if (days < 7) return t('instances.dayAgo', { days: String(days) });
     return d.toLocaleDateString();
   };
+
+  const SORT_OPTIONS: { key: SortKey; label: string }[] = useMemo(() => [
+    { key: 'recent', label: t('instances.sortRecent') },
+    { key: 'name', label: t('instances.sortName') },
+    { key: 'playtime', label: t('instances.sortPlaytime') },
+    { key: 'version', label: t('instances.sortVersion') },
+  ], [t]);
+
   const { instances } = state;
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('recent');
   const [readyStates, setReadyStates] = useState<Record<string, boolean | null>>({});
   const [confirmDelete, setConfirmDelete] = useState<GameInstance | null>(null);
+  const [exportingInstance, setExportingInstance] = useState<GameInstance | null>(null);
+  const [failedIcons, setFailedIcons] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   const [duplicating, setDuplicating] = useState<GameInstance | null>(null);
   const [dupName, setDupName] = useState('');
@@ -111,11 +114,13 @@ export default function InstancesPage() {
 
   useEffect(() => {
     const checkAll = async () => {
+      const results = await Promise.allSettled(
+        instances.map(inst => api.checkInstanceReady(inst.id))
+      );
       const states: Record<string, boolean | null> = {};
-      for (const inst of instances) {
-        try { states[inst.id] = await api.checkInstanceReady(inst.id); }
-        catch { states[inst.id] = null; }
-      }
+      results.forEach((result, i) => {
+        states[instances[i].id] = result.status === 'fulfilled' ? result.value : null;
+      });
       setReadyStates(states);
     };
     if (instances.length > 0) checkAll();
@@ -129,7 +134,7 @@ export default function InstancesPage() {
   }, [contextMenu]);
 
   useEffect(() => {
-    localStorage.setItem('bonnext_servers', JSON.stringify(servers));
+    try { localStorage.setItem('bonnext_servers', JSON.stringify(servers)); } catch {}
   }, [servers]);
 
   useEffect(() => {
@@ -138,15 +143,14 @@ export default function InstancesPage() {
 
   useEffect(() => {
     const pollAll = async () => {
-      const results: Record<string, ServerStatus | null> = {};
-      for (const s of servers) {
-        try {
-          results[s.address] = await api.pingServer(s.address);
-        } catch {
-          results[s.address] = null;
-        }
-      }
-      setServerStatuses(results);
+      const results = await Promise.allSettled(
+        servers.map(s => api.pingServer(s.address))
+      );
+      const statuses: Record<string, ServerStatus | null> = {};
+      results.forEach((result, i) => {
+        statuses[servers[i].address] = result.status === 'fulfilled' ? result.value : null;
+      });
+      setServerStatuses(statuses);
     };
     pollAll();
     const timer = setInterval(pollAll, 30000);
@@ -155,7 +159,12 @@ export default function InstancesPage() {
 
   useEffect(() => {
     if (instances.length > 0) {
-      api.detectAnomalies(instances[0].id).then(setAnomalies).catch(() => setAnomalies([]));
+      Promise.allSettled(instances.map(inst => api.detectAnomalies(inst.id)))
+        .then(results => {
+          const all = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
+          setAnomalies(all);
+        })
+        .catch(() => setAnomalies([]));
     } else {
       setAnomalies([]);
     }
@@ -201,25 +210,25 @@ export default function InstancesPage() {
         inst.java_path || undefined, inst.jvm_args || undefined,
         inst.id,
       );
-      addToast({ type: 'success', title: 'Launching', message: `${inst.name} is starting...` });
+      addToast({ type: 'success', title: t('instances.launching'), message: t('instances.isStarting', { name: inst.name }) });
     } catch (e: any) {
-      setError(e?.toString() || 'Launch failed');
-      addToast({ type: 'error', title: 'Launch failed', message: e?.toString() || '' });
+      setError(e?.toString() || t('instances.launchFailed'));
+      addToast({ type: 'error', title: t('instances.launchFailed'), message: e?.toString() || '' });
     }
-  }, [auth, addToast]);
+  }, [auth, addToast, t]);
 
   const handleDuplicate = useCallback(async () => {
     if (!duplicating || !dupName.trim()) return;
     try {
       await api.duplicateInstance(duplicating.id, dupName.trim());
-      addToast({ type: 'success', title: 'Duplicated', message: `"${dupName}" created` });
+      addToast({ type: 'success', title: t('instances.duplicated'), message: t('instances.created', { name: dupName }) });
       await reloadInstances();
     } catch (e: any) {
-      addToast({ type: 'error', title: 'Failed', message: e?.toString() || '' });
+      addToast({ type: 'error', title: t('instances.failed'), message: e?.toString() || '' });
     } finally {
       setDuplicating(null); setDupName('');
     }
-  }, [duplicating, dupName, reloadInstances, addToast]);
+  }, [duplicating, dupName, reloadInstances, addToast, t]);
 
   const handleImport = async () => {
     try {
@@ -229,15 +238,15 @@ export default function InstancesPage() {
       });
       if (!selected || typeof selected !== 'string') return;
       setImporting(true);
-      addToast({ type: 'info', title: 'Importing modpack...', message: 'Parsing and downloading mods' });
+      addToast({ type: 'info', title: t('instances.importing'), message: t('instances.parsingMods') });
       const inst = await api.importModpack(selected);
       await reloadInstances();
       setImporting(false);
-      addToast({ type: 'success', title: 'Imported', message: `"${inst.name}" is ready to play` });
+      addToast({ type: 'success', title: t('instances.imported'), message: t('instances.importedReady', { name: inst.name }) });
       window.location.hash = `#/instances/${inst.id}`;
     } catch (e: any) {
       setImporting(false);
-      addToast({ type: 'error', title: 'Import failed', message: e?.toString() || '' });
+      addToast({ type: 'error', title: t('instances.importFailed'), message: e?.toString() || '' });
     }
   };
 
@@ -246,20 +255,23 @@ export default function InstancesPage() {
     setContextMenu({ x: e.clientX, y: e.clientY, inst });
   };
 
-  const filtered = instances
-    .filter((inst) => !search || inst.name.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => {
-      switch (sortKey) {
-        case 'recent':
-          const aTime = a.last_played ? new Date(a.last_played).getTime() : 0;
-          const bTime = b.last_played ? new Date(b.last_played).getTime() : 0;
-          return bTime - aTime;
-        case 'name': return a.name.localeCompare(b.name);
-        case 'playtime': return b.playtime_seconds - a.playtime_seconds;
-        case 'version': return b.version_id.localeCompare(a.version_id);
-        default: return 0;
-      }
-    });
+  const filtered = useMemo(() =>
+    instances
+      .filter((inst) => !search || inst.name.toLowerCase().includes(search.toLowerCase()))
+      .sort((a, b) => {
+        switch (sortKey) {
+          case 'recent':
+            const aTime = a.last_played ? new Date(a.last_played).getTime() : 0;
+            const bTime = b.last_played ? new Date(b.last_played).getTime() : 0;
+            return bTime - aTime;
+          case 'name': return a.name.localeCompare(b.name);
+          case 'playtime': return b.playtime_seconds - a.playtime_seconds;
+          case 'version': return b.version_id.localeCompare(a.version_id);
+          default: return 0;
+        }
+      }),
+    [instances, search, sortKey]
+  );
 
   const heroInstance = filtered.length > 0 ? filtered[0] : null;
   const loaderClass = getLoaderClass(heroInstance?.loader_type ?? null);
@@ -289,7 +301,7 @@ export default function InstancesPage() {
 
             <div className={styles.hero__info}>
               <div className={styles.hero__label}>
-                {heroInstance.last_played ? 'LAST PLAYED' : 'READY TO PLAY'}
+                {heroInstance.last_played ? t('instances.lastPlayed') : t('instances.readyToPlay')}
               </div>
               <h1 className={styles.hero__name}>{heroInstance.name}</h1>
               <div className={styles.hero__meta}>
@@ -309,15 +321,15 @@ export default function InstancesPage() {
                   {Math.round(heroInstance.max_memory / 1024)}GB
                 </span>
                 <span className={styles.hero__metaItem}>
-                  {formatPlaytime(heroInstance.playtime_seconds)} played
+                  {formatPlaytime(heroInstance.playtime_seconds)}
                 </span>
               </div>
             </div>
 
             <div className={styles.hero__actions}>
-              <button className={`${styles.hero__playBtn} play-pulse`} title="Play">▶</button>
+              <button className={`${styles.hero__playBtn} play-pulse`} title={t('instances.play')}>▶</button>
               <button className={styles.hero__contextBtn} onClick={(e) => { e.stopPropagation(); window.location.hash = `#/instances/${heroInstance.id}`; }}>
-                ⚙ Details
+                {'⚙ ' + t('instances.details')}
               </button>
             </div>
           </div>
@@ -327,20 +339,20 @@ export default function InstancesPage() {
       {/* ---- Header bar ---- */}
       <div className={styles.headerBar}>
         <div className={styles.headerBar__left}>
-          <span className={styles.headerBar__title}>ALL INSTANCES</span>
-          <span className={styles.headerBar__count}>{instances.length} total</span>
+          <span className={styles.headerBar__title}>{t('instances.allInstances')}</span>
+          <span className={styles.headerBar__count}>{t('instances.total', { count: String(instances.length) })}</span>
         </div>
         <div className={styles.headerBar__right}>
           <TextInput
-            placeholder="Filter..."
+            placeholder={t('instances.filter')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           <Button variant="secondary" size="sm" onClick={handleImport} disabled={importing}>
-            {importing ? 'Importing...' : '📥 Import'}
+            {importing ? t('instances.importingBtn') : '📥 ' + t('instances.importBtn')}
           </Button>
           <Button variant="primary" size="sm" onClick={() => window.location.hash = '#/instances/new'}>
-            + New
+            {'+ ' + t('instances.newBtn')}
           </Button>
         </div>
       </div>
@@ -364,16 +376,16 @@ export default function InstancesPage() {
       {instances.length === 0 ? (
         <div className={styles.emptyState}>
           <div className={styles.emptyState__icon}>📦</div>
-          <div className={styles.emptyState__title}>NO INSTANCES YET</div>
+          <div className={styles.emptyState__title}>{t('instances.noInstancesTitle')}</div>
           <div className={styles.emptyState__desc}>
-            Create your first Minecraft instance to get started. Each instance has its own mods, worlds, and settings.
+            {t('instances.noInstancesDesc')}
           </div>
           <Button variant="primary" size="md" onClick={() => window.location.hash = '#/instances/new'}>
-            + Create instance
+            {'+ ' + t('instances.createInstance')}
           </Button>
         </div>
       ) : filtered.length === 0 ? (
-        <div className={styles.noMatch}>No instances match your filter.</div>
+        <div className={styles.noMatch}>{t('instances.noMatch')}</div>
       ) : (
         <div className={styles.libraryGrid}>
           {filtered.map((inst, i) => {
@@ -393,18 +405,17 @@ export default function InstancesPage() {
                   onClick={(e) => { e.stopPropagation(); window.location.hash = `#/instances/${inst.id}`; }}
                 >
                   <div className={styles.coverCard__coverPattern} />
-                  {iconUrls[inst.id] ? (
+                  {iconUrls[inst.id] && !failedIcons.has(inst.id) ? (
                     <img
                       src={iconUrls[inst.id]}
                       alt={inst.name}
                       className={styles.coverCard__coverImg}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                        (e.target as HTMLImageElement).nextElementSibling?.classList.remove(styles.coverCard__placeholderHidden);
+                      onError={() => {
+                        setFailedIcons(prev => new Set(prev).add(inst.id));
                       }}
                     />
                   ) : null}
-                  <div className={`${styles.coverCard__placeholder} ${iconUrls[inst.id] ? styles.coverCard__placeholderHidden : ''}`}>
+                  <div className={`${styles.coverCard__placeholder} ${iconUrls[inst.id] && !failedIcons.has(inst.id) ? styles.coverCard__placeholderHidden : ''}`}>
                     <span className={styles.coverCard__placeholderChar}>{inst.name.charAt(0).toUpperCase()}</span>
                   </div>
                   <div className={styles.coverCard__overlay}>
@@ -431,13 +442,13 @@ export default function InstancesPage() {
                       className={styles.coverCard__actionBtn}
                       onClick={(e) => { e.stopPropagation(); handleLaunch(inst); }}
                     >
-                      ▶ Play
+                      {'▶ ' + t('instances.play')}
                     </button>
                     <button
                       className={styles.coverCard__actionBtn}
                       onClick={(e) => { e.stopPropagation(); window.location.hash = `#/instances/${inst.id}`; }}
                     >
-                      ⚙ Manage
+                      {'⚙ ' + t('instances.manage')}
                     </button>
                   </div>
                 </div>
@@ -455,21 +466,21 @@ export default function InstancesPage() {
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
           <button className={styles.contextMenu__item} onClick={() => { handleLaunch(contextMenu.inst); setContextMenu(null); }}>
-            ▶ Play
+            {'▶ ' + t('instances.contextPlay')}
           </button>
           <button className={styles.contextMenu__item} onClick={() => { window.location.hash = `#/instances/${contextMenu.inst.id}`; setContextMenu(null); }}>
-            ⚙ Details
+            {'⚙ ' + t('instances.contextDetails')}
           </button>
           <div className={styles.contextMenu__separator} />
           <button className={styles.contextMenu__item} onClick={() => { setDuplicating(contextMenu.inst); setDupName(`${contextMenu.inst.name} (Copy)`); setContextMenu(null); }}>
-            📋 Duplicate
+            {'📋 ' + t('instances.contextDuplicate')}
           </button>
-          <button className={styles.contextMenu__item} onClick={() => { setConfirmDelete(contextMenu.inst); setContextMenu(null); }}>
-            📤 Export
+          <button className={styles.contextMenu__item} onClick={() => { setExportingInstance(contextMenu.inst); setContextMenu(null); }}>
+            {'📤 ' + t('instances.contextExport')}
           </button>
           <div className={styles.contextMenu__separator} />
           <button className={`${styles.contextMenu__item} ${styles['contextMenu__item--danger']}`} onClick={() => { setConfirmDelete(contextMenu.inst); setContextMenu(null); }}>
-            🗑 Delete
+            {'🗑 ' + t('instances.contextDelete')}
           </button>
         </div>
       )}
@@ -478,42 +489,72 @@ export default function InstancesPage() {
       <Modal
         open={confirmDelete !== null}
         onClose={() => setConfirmDelete(null)}
-        title="Delete instance"
+        title={t('instances.deleteInstance')}
         actions={
           <>
-            <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+            <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(null)}>{t('common.cancel')}</Button>
             <Button variant="danger" size="sm" onClick={async () => {
-              if (confirmDelete) { await deleteInstance(confirmDelete.id); addToast({ type: 'success', title: 'Deleted', message: `"${confirmDelete.name}" removed` }); }
+              if (confirmDelete) { await deleteInstance(confirmDelete.id); addToast({ type: 'success', title: t('instances.deleted'), message: `"${confirmDelete.name}" removed` }); }
               setConfirmDelete(null);
-            }}>Delete</Button>
+            }}>{t('common.delete')}</Button>
           </>
         }
       >
-        Are you sure you want to delete "{confirmDelete?.name}"? This action cannot be undone.
+        {t('instances.deleteConfirm', { name: confirmDelete?.name || '' })}
       </Modal>
+
+      {exportingInstance && (
+        <Modal
+          open={!!exportingInstance}
+          onClose={() => setExportingInstance(null)}
+          title={t('instances.exportAsMrpack') || 'Export'}
+          actions={
+            <>
+              <Button variant="secondary" size="sm" onClick={() => setExportingInstance(null)}>{t('common.cancel')}</Button>
+              <Button variant="primary" size="sm" onClick={async () => {
+                try {
+                  const { save } = await import('@tauri-apps/plugin-dialog');
+                  const path = await save({ defaultPath: `${exportingInstance.name}.mrpack`, filters: [{ name: 'Mrpack', extensions: ['mrpack'] }] });
+                  if (path && typeof path === 'string') {
+                    await api.exportMrpack(exportingInstance.id, path);
+                    addToast({ type: 'success', title: t('instances.exportAsMrpack') || 'Exported' });
+                  }
+                } catch (e) {
+                  addToast({ type: 'error', title: String(e) });
+                }
+                setExportingInstance(null);
+              }}>{t('common.save')}</Button>
+            </>
+          }
+        >
+          <p style={{ fontSize: '0.7em', color: 'var(--color-text-muted)' }}>
+            {exportingInstance.name}
+          </p>
+        </Modal>
+      )}
 
       {/* ---- Duplicate modal ---- */}
       <Modal
         open={duplicating !== null}
         onClose={() => { setDuplicating(null); setDupName(''); }}
-        title="Duplicate instance"
+        title={t('instances.duplicateInstance')}
         actions={
           <>
-            <Button variant="secondary" size="sm" onClick={() => { setDuplicating(null); setDupName(''); }}>Cancel</Button>
-            <Button variant="primary" size="sm" onClick={handleDuplicate} disabled={!dupName.trim()}>Duplicate</Button>
+            <Button variant="secondary" size="sm" onClick={() => { setDuplicating(null); setDupName(''); }}>{t('common.cancel')}</Button>
+            <Button variant="primary" size="sm" onClick={handleDuplicate} disabled={!dupName.trim()}>{t('instances.duplicateBtn')}</Button>
           </>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <label style={{ fontSize: '0.6em', color: 'var(--color-text-secondary)' }}>Name:</label>
-          <TextInput value={dupName} onChange={(e) => setDupName(e.target.value)} placeholder="Instance name" autoFocus />
+          <label style={{ fontSize: '0.6em', color: 'var(--color-text-secondary)' }}>{t('instances.nameLabel')}</label>
+          <TextInput value={dupName} onChange={(e) => setDupName(e.target.value)} placeholder={t('instances.instanceName')} autoFocus />
         </div>
       </Modal>
 
       {/* ---- Server Monitor ---- */}
       <div className={styles.serverMonitor}>
         <div className={styles.serverMonitor__header}>
-          <SubLabel>SERVER MONITOR</SubLabel>
+          <SubLabel>{t('instances.serverMonitor')}</SubLabel>
           <span className={styles.serverMonitor__count}>
             {String(servers.length).padStart(2, '0')}
           </span>
@@ -523,20 +564,20 @@ export default function InstancesPage() {
           <input
             className={styles.serverMonitor__input}
             type="text"
-            placeholder="address:port"
+            placeholder={t('instances.serverAddPlaceholder')}
             value={newAddress}
             onChange={(e) => setNewAddress(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleAddServer(); }}
           />
           <Button variant="primary" size="sm" onClick={handleAddServer}>
-            + ADD
+            {'+ ' + t('instances.serverAddBtn')}
           </Button>
         </div>
 
         <div className={styles.serverMonitor__list}>
           {servers.length === 0 ? (
             <div className={styles.serverMonitor__empty}>
-              No servers added. Enter an address above.
+              {t('instances.serverEmpty')}
             </div>
           ) : (
             servers.map((server) => {
@@ -589,7 +630,7 @@ export default function InstancesPage() {
                             [server.address]: server.name,
                           }))
                         }
-                        title="Double-click to rename"
+                        title={t('instances.doubleClickRename')}
                       >
                         {server.name}
                       </span>
@@ -599,8 +640,8 @@ export default function InstancesPage() {
                     </span>
                     <div className={styles.serverCard__meta}>
                       <span className={styles.serverCard__statusLabel}>
-                        {isOnline === null ? 'Pinging...'
-                          : isOnline ? 'Online' : 'Offline'}
+                        {isOnline === null ? t('instances.serverPinging')
+                          : isOnline ? t('instances.serverOnline') : t('instances.serverOffline')}
                       </span>
                       {isOnline && status && (
                         <>
@@ -628,7 +669,7 @@ export default function InstancesPage() {
                   <button
                     className={styles.serverCard__remove}
                     onClick={() => handleRemoveServer(server.address)}
-                    title="Remove server"
+                    title={t('instances.removeServer')}
                   >
                     ✕
                   </button>
@@ -642,7 +683,7 @@ export default function InstancesPage() {
       {/* ---- Playtime Dashboard ---- */}
       <div className={styles.playtimeDashboard}>
         <div className={styles.playtimeDashboard__header}>
-          <SubLabel>PLAYTIME</SubLabel>
+          <SubLabel>{t('instances.playtimeTitle')}</SubLabel>
         </div>
         <div className={styles.playtimeDashboard__grid}>
           <div className={styles.playtimeDashboard__stat}>
@@ -650,22 +691,22 @@ export default function InstancesPage() {
               {(instances.reduce((s, i) => s + (i.playtime_seconds || 0), 0) / 3600).toFixed(1)}
               <span className={styles.playtimeDashboard__statUnit}>h</span>
             </div>
-            <div className={styles.playtimeDashboard__statLabel}>Total</div>
+            <div className={styles.playtimeDashboard__statLabel}>{t('instances.playtimeTotal')}</div>
           </div>
           <div className={styles.playtimeDashboard__stat}>
             <div className={styles.playtimeDashboard__statValue}>
               {playtimeStats
                 ? formatTodayPlaytime(
-                    Object.values(playtimeStats.daily).reduce((s, v) => s + v, 0)
+                    playtimeStats.daily[new Date().toISOString().slice(0, 10)] || 0
                   )
                 : '—'}
             </div>
-            <div className={styles.playtimeDashboard__statLabel}>Today</div>
+            <div className={styles.playtimeDashboard__statLabel}>{t('instances.playtimeToday')}</div>
           </div>
         </div>
         {playtimeStats && playtimeStats.top_instances.length > 0 && (
           <div className={styles.playtimeDashboard__topList}>
-            <div className={styles.playtimeDashboard__topLabel}>Top Playtime</div>
+            <div className={styles.playtimeDashboard__topLabel}>{t('instances.playtimeTop')}</div>
             {playtimeStats.top_instances.slice(0, 3).map((item, i) => (
               <div key={item.id} className={styles.playtimeDashboard__topItem}>
                 <span className={styles.playtimeDashboard__topRank}>{String(i + 1).padStart(2, '0')}</span>
@@ -681,7 +722,7 @@ export default function InstancesPage() {
       {anomalies.length > 0 && (
         <div className={styles.anomalySection}>
           <div className={styles.anomalySection__header}>
-            <SubLabel>ANOMALY DETECTION</SubLabel>
+            <SubLabel>{t('instances.anomalyTitle')}</SubLabel>
             <span className={styles.anomalySection__count}>
               {String(anomalies.length).padStart(2, '0')}
             </span>
@@ -697,7 +738,7 @@ export default function InstancesPage() {
                 </div>
                 <div className={styles.anomalyCard__message}>{a.message}</div>
                 <div className={styles.anomalyCard__suggestion}>
-                  <span className={styles.anomalyCard__suggestionLabel}>SUGGESTION: </span>
+                  <span className={styles.anomalyCard__suggestionLabel}>{t('instances.anomalySuggestion')}</span>
                   {a.suggestion}
                 </div>
               </div>

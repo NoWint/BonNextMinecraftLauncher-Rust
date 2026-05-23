@@ -1,0 +1,245 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--color-overlay-80);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 200ms ease forwards;
+  backdrop-filter: blur(4px);
+}
+
+.container {
+  position: relative;
+  width: 90vw;
+  max-width: 720px;
+  height: 85vh;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border-light);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 300ms var(--ease-out-expo) forwards;
+}
+
+.closeBtn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--color-border-light);
+  color: var(--color-text-secondary);
+  font-size: 0.7em;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  clip-path: var(--clip-small);
+  transition: all var(--transition-fast);
+  &:hover {
+    background: var(--color-accent);
+    color: var(--color-accent-action-text);
+    border-color: var(--color-accent);
+  }
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  font-size: 0.6em;
+  color: var(--color-text-tertiary);
+  letter-spacing: 1px;
+}
+
+.loadingSpinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--color-border-light);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 8px;
+  padding: 40px;
+}
+
+.errorTitle {
+  font-family: var(--font-heading);
+  font-size: 0.85em;
+  color: var(--color-error);
+  letter-spacing: 3px;
+}
+
+.errorMsg {
+  font-size: 0.55em;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.heroImage {
+  position: relative;
+  width: 100%;
+  height: 240px;
+  flex-shrink: 0;
+  overflow: hidden;
+
+  & img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.heroGradient {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: linear-gradient(to top, var(--color-panel) 10%, transparent);
+}
+
+.articleHeader {
+  padding: 0 28px 16px;
+  flex-shrink: 0;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.metaItem {
+  font-size: 0.45em;
+  color: var(--color-accent);
+  letter-spacing: 2px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.metaSep {
+  font-size: 0.4em;
+  color: var(--color-text-muted);
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: 1.4em;
+  color: var(--color-text);
+  letter-spacing: 4px;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 0.55em;
+  color: var(--color-text-secondary);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 28px 28px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-light) transparent;
+}
+
+.section {
+  margin-top: 20px;
+}
+
+.sectionHeading {
+  font-family: var(--font-heading);
+  font-size: 0.85em;
+  color: var(--color-accent);
+  letter-spacing: 3px;
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-accent-15);
+}
+
+.paragraph {
+  font-size: 0.55em;
+  color: var(--color-text-secondary);
+  line-height: 1.7;
+  margin: 0 0 12px;
+}
+
+.list {
+  margin: 0 0 12px;
+  padding-left: 16px;
+}
+
+.listItem {
+  font-size: 0.55em;
+  color: var(--color-text-secondary);
+  line-height: 1.7;
+  margin-bottom: 4px;
+  &::marker {
+    color: var(--color-accent);
+  }
+}
+
+.figure {
+  margin: 16px 0;
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.sectionImage {
+  width: 100%;
+  display: block;
+}
+
+.figcaption {
+  padding: 8px 12px;
+  font-size: 0.45em;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  line-height: 1.4;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

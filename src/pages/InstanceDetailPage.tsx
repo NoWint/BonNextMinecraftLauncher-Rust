@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api, type GameInstance, type InstalledModInfo, type WorldInfo, type LogFileInfo, type OptimizationPreset, type VersionEntry } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useInstances } from '../stores/instanceStore';
@@ -125,10 +125,17 @@ export default function InstanceDetailPage() {
 
   useEffect(() => {
     if (instanceId) {
-      api.checkInstanceReady(instanceId).then(setIsReady).catch(() => setIsReady(null));
-      api.listInstanceMods(instanceId).then(setInstalledMods).catch(() => setInstalledMods([]));
-      api.listInstanceSaves(instanceId).then(setWorlds).catch(() => setWorlds([]));
-      api.listInstanceLogs(instanceId).then(setLogFiles).catch(() => setLogFiles([]));
+      Promise.allSettled([
+        api.checkInstanceReady(instanceId),
+        api.listInstanceMods(instanceId),
+        api.listInstanceSaves(instanceId),
+        api.listInstanceLogs(instanceId),
+      ]).then(([readyRes, modsRes, savesRes, logsRes]) => {
+        setIsReady(readyRes.status === 'fulfilled' ? readyRes.value : null);
+        setInstalledMods(modsRes.status === 'fulfilled' ? modsRes.value : []);
+        setWorlds(savesRes.status === 'fulfilled' ? savesRes.value : []);
+        setLogFiles(logsRes.status === 'fulfilled' ? logsRes.value : []);
+      });
     }
   }, [instanceId]);
 
@@ -288,13 +295,13 @@ export default function InstanceDetailPage() {
         instance.java_path || undefined, instance.jvm_args || undefined,
         instance.id,
       );
-      addToast({ type: 'success', title: 'Launching', message: `${instance.name} is starting...` });
+      addToast({ type: 'success', title: t('instances.launching'), message: t('instances.isStarting', { name: instance.name }) });
     } catch (e: any) {
-      setError(e?.toString() || 'Launch failed');
-      addToast({ type: 'error', title: 'Launch failed', message: e?.toString() || 'Launch failed' });
+      setError(e?.toString() || t('instances.launchFailed'));
+      addToast({ type: 'error', title: t('instances.launchFailed'), message: e?.toString() || t('instances.launchFailed') });
       setTimeout(() => setError(''), 8000);
     }
-  }, [instance, auth, addToast]);
+  }, [instance, auth, addToast, t]);
 
   const handlePickIcon = async () => {
     try {
@@ -370,6 +377,8 @@ export default function InstanceDetailPage() {
     }
   }, [instance, addToast]);
 
+  const DETAIL_TABS = useMemo(() => useDetailTabs(t, installedMods.length), [t, installedMods.length]);
+
   if (loading) {
     return (
       <div className={styles.loadingWrap}>
@@ -382,7 +391,6 @@ export default function InstanceDetailPage() {
     return <div className={styles.notFound}>{t('instanceDetail.notFound')}</div>;
   }
 
-  const DETAIL_TABS = useDetailTabs(t, installedMods.length);
   const memoryGB = Math.round(instance.max_memory / 1024);
   const playtimeH = instance.playtime_seconds > 0
     ? (instance.playtime_seconds / 3600).toFixed(1)
@@ -402,7 +410,7 @@ export default function InstanceDetailPage() {
         <div
           className={`${styles.topBarIcon} ${iconStatus === 'success' ? styles.topBarIconSuccess : ''} ${iconStatus === 'error' ? styles.topBarIconError : ''} ${iconStatus === 'loading' ? styles.topBarIconLoading : ''}`}
           onClick={handlePickIcon}
-          title="Click to change icon"
+          title={t('instanceDetail.clickChangeIcon')}
         >
           {iconUrl ? (
             <img
@@ -446,11 +454,11 @@ export default function InstanceDetailPage() {
           <Tooltip content={t('common.launch')}>
             <Button variant="primary" size="md" onClick={handleLaunch}>▶ {t('instanceDetail.launch')}</Button>
           </Tooltip>
-          <Tooltip content="Export as .mrpack modpack">
-            <Button variant="secondary" size="sm" onClick={handleExport} disabled={exporting}>📤 {exporting ? 'Exporting...' : 'Export'}</Button>
+          <Tooltip content={t('instances.exportAsMrpack')}>
+            <Button variant="secondary" size="sm" onClick={handleExport} disabled={exporting}>📤 {exporting ? t('instanceDetail.exporting') : t('instanceDetail.export')}</Button>
           </Tooltip>
-          <Tooltip content="Duplicate this instance">
-            <Button variant="secondary" size="sm" onClick={handleDuplicate}>📋 Duplicate</Button>
+          <Tooltip content={t('instances.duplicateInstanceTooltip')}>
+            <Button variant="secondary" size="sm" onClick={handleDuplicate}>📋 {t('instanceDetail.duplicate')}</Button>
           </Tooltip>
           <Tooltip content={t('instanceDetail.delete')}>
             <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>{t('instanceDetail.delete')}</Button>
@@ -472,10 +480,10 @@ export default function InstanceDetailPage() {
               <div className={styles.infoCardHeader}>{t('instanceDetail.versionInfo').toUpperCase()}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <InfoRow label="Minecraft" value={instance.version_id} />
-                <InfoRow label="Loader" value={instance.loader_type ? `${getLoaderLabel(instance.loader_type)} ${instance.loader_version || ''}` : 'Vanilla'} />
+                <InfoRow label="Loader" value={instance.loader_type ? `${getLoaderLabel(instance.loader_type)} ${instance.loader_version || ''}` : t('common.vanilla')} />
                 <InfoRow label="Java" value={instance.java_path || t('instanceDetail.autoDetect')} />
                 <InfoRow label="Created" value={new Date(instance.created_at).toLocaleDateString()} />
-                <InfoRow label="Status" value={isReady === null ? 'Checking...' : isReady ? 'Ready' : 'Needs download'} mono />
+                <InfoRow label={t('instanceDetail.status')} value={isReady === null ? t('common.checking') : isReady ? t('common.ready') : t('common.needsDownload')} mono />
               </div>
             </div>
 
@@ -501,7 +509,7 @@ export default function InstanceDetailPage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span className={styles.infoRowLabel}>Min Memory</span>
+                  <span className={styles.infoRowLabel}>{t('instanceDetail.minMemory')}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <input
                       type="range"
@@ -519,7 +527,7 @@ export default function InstanceDetailPage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span className={styles.infoRowLabel}>JVM Args</span>
+                  <span className={styles.infoRowLabel}>{t('settings.jvmArgs')}</span>
                   <input
                     type="text"
                     value={instance.jvm_args || ''}
@@ -537,7 +545,7 @@ export default function InstanceDetailPage() {
                   />
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span className={styles.infoRowLabel}>Java Path</span>
+                  <span className={styles.infoRowLabel}>{t('instanceDetail.javaPath')}</span>
                   <input
                     type="text"
                     value={instance.java_path || ''}
@@ -564,17 +572,17 @@ export default function InstanceDetailPage() {
               <div className={styles.statCardLabel}>{t('instanceDetail.playtime').toUpperCase()}</div>
               <div className={styles.statCardValue}>{playtimeH} h</div>
               <div className={styles.statCardSub}>
-                {instance.playtime_seconds > 0 ? `${Math.floor(instance.playtime_seconds / 60)} minutes total` : 'No playtime recorded'}
+                {instance.playtime_seconds > 0 ? t('instanceDetail.playtimeMinutes', { minutes: String(Math.floor(instance.playtime_seconds / 60)) }) : t('instanceDetail.noPlaytime')}
               </div>
             </div>
 
             <div className={styles.statCard}>
-              <div className={styles.statCardLabel}>DOWNLOAD STATUS</div>
+              <div className={styles.statCardLabel}>{t('instanceDetail.downloadStatus')}</div>
               <div className={styles.statCardValue}>
-                {isReady === null ? '⏳' : isReady ? '✅ Ready' : '⚠️ Not ready'}
+                {isReady === null ? '⏳' : isReady ? '✅ ' + t('common.ready') : '⚠️ ' + t('common.needsDownload')}
               </div>
               <div className={styles.statCardSub}>
-                {isReady ? 'Game files are ready to play' : 'Run launch to download required files'}
+                {isReady ? t('instanceDetail.readyStatus') : t('instanceDetail.notReadyStatus')}
               </div>
               {!isReady && isReady !== null && (
                 <div className={styles.statBar}>
@@ -584,7 +592,7 @@ export default function InstanceDetailPage() {
             </div>
 
             <div className={styles.exportBtn}>
-              <Tooltip content="Export instance as ZIP archive">
+              <Tooltip content={t('instanceDetail.exportAsZip')}>
                 <Button
                   variant="secondary-highlight"
                   size="md"
@@ -592,7 +600,7 @@ export default function InstanceDetailPage() {
                   onClick={handleExport}
                   disabled={exporting}
                 >
-                  {exporting ? '⏳ Exporting...' : '📤 ' + t('instanceDetail.exportInstance')}
+                  {exporting ? '⏳ ' + t('instanceDetail.exporting') : '📤 ' + t('instanceDetail.exportInstance')}
                 </Button>
               </Tooltip>
             </div>
@@ -604,7 +612,7 @@ export default function InstanceDetailPage() {
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           {installedMods.length === 0 ? (
             <div className={styles.placeholderTab}>
-              No mods installed yet. Browse the mod marketplace to find mods.
+              {t('instanceDetail.noModsInstalled')}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -619,7 +627,7 @@ export default function InstanceDetailPage() {
                       {mod.filename}
                     </div>
                     <div style={{ fontSize: '0.5em', color: '#666', marginTop: 2 }}>
-                      {(mod.size / 1024).toFixed(1)} KB · Installed {new Date(mod.installed_at).toLocaleDateString()}
+                      {t('instanceDetail.modSize', { size: (mod.size / 1024).toFixed(1), date: new Date(mod.installed_at).toLocaleDateString() })}
                     </div>
                   </div>
                 </div>
@@ -690,7 +698,7 @@ export default function InstanceDetailPage() {
           </div>
           {selectedLog ? (
             loadingLog ? (
-              <div style={{ fontSize: '0.6em', color: '#666', padding: 20 }}>Loading...</div>
+              <div style={{ fontSize: '0.6em', color: '#666', padding: 20 }}>{t('common.loading')}</div>
             ) : (
               <div style={{
                 background: '#0A0A0A',
@@ -718,7 +726,7 @@ export default function InstanceDetailPage() {
       {activeTab === 'optimize' && (
         <div className={presetStyles.container}>
           {presetsLoading ? (
-            <div className={presetStyles.loading}>Loading presets...</div>
+            <div className={presetStyles.loading}>{t('instanceDetail.loadingPresets')}</div>
           ) : (
             <>
               <div className={presetStyles.cards}>
@@ -745,7 +753,7 @@ export default function InstanceDetailPage() {
                         </div>
                       </div>
                       <div className={presetStyles.ramInfo}>
-                        <span className={presetStyles.ramLabel}>Min RAM</span>
+                        <span className={presetStyles.ramLabel}>{t('instanceDetail.minRam')}</span>
                         <span className={presetStyles.ramValue}>{Math.round(preset.min_ram_mb / 1024)} GB</span>
                       </div>
                       <div className={presetStyles.applyBtn}>
@@ -756,15 +764,15 @@ export default function InstanceDetailPage() {
                           disabled={isApplying}
                           style={{ width: '100%', justifyContent: 'center' }}
                         >
-                          {isApplying ? 'Applying...' : 'Apply'}
+                          {isApplying ? t('instanceDetail.applying') : t('instanceDetail.applyPreset')}
                         </Button>
                       </div>
                       {result && (
                         <div className={presetStyles.applyResult}>
                           <div className={presetStyles.applyResultSummary}>
-                            <span className={presetStyles.applyResultSuccess}>✓ {result.succeeded} succeeded</span>
+                            <span className={presetStyles.applyResultSuccess}>✓ {t('instanceDetail.presetSucceeded', { count: String(result.succeeded) })}</span>
                             {result.failed > 0 && (
-                              <span className={presetStyles.applyResultFailed}>✗ {result.failed} failed</span>
+                              <span className={presetStyles.applyResultFailed}>✗ {t('instanceDetail.presetFailed', { count: String(result.failed) })}</span>
                             )}
                           </div>
                           {result.errors.length > 0 && (
@@ -781,7 +789,7 @@ export default function InstanceDetailPage() {
                 })}
               </div>
               {presets.length === 0 && (
-                <div className={presetStyles.loading}>No optimization presets available</div>
+                <div className={presetStyles.loading}>{t('instanceDetail.noPresets')}</div>
               )}
             </>
           )}
@@ -791,14 +799,14 @@ export default function InstanceDetailPage() {
       {activeTab === 'migrate' && (
         <div className={styles.migrateTab}>
           <div className={styles.migrateSection}>
-            <div className={styles.migrateSectionHeader}>VERSION MIGRATION</div>
+            <div className={styles.migrateSectionHeader}>{t('instanceDetail.versionMigration')}</div>
             <div className={styles.migrateRow}>
               <select
                 className={styles.migrateSelect}
                 value={migrationTarget}
                 onChange={(e) => setMigrationTarget(e.target.value)}
               >
-                <option value="">Select target version...</option>
+                <option value="">{t('instanceDetail.selectTargetVersion')}</option>
                 {versions
                   .filter((v) => v.type === 'release' || v.type === 'snapshot')
                   .map((v) => (
@@ -811,13 +819,13 @@ export default function InstanceDetailPage() {
                 onClick={handleCheckMigration}
                 disabled={!migrationTarget || checkingMigration}
               >
-                {checkingMigration ? 'Checking...' : 'Check Compatibility'}
+                {checkingMigration ? t('instanceDetail.checking') : t('instanceDetail.checkCompat')}
               </Button>
             </div>
             {migrationResults && (
               <div className={styles.migrateResults}>
                 {migrationResults.length === 0 ? (
-                  <div className={styles.migrateEmpty}>All mods are compatible with {migrationTarget}!</div>
+                  <div className={styles.migrateEmpty}>{t('instanceDetail.allCompatible', { version: migrationTarget })}</div>
                 ) : (
                   migrationResults.map((item) => {
                     const statusBadgeClass =
@@ -843,9 +851,9 @@ export default function InstanceDetailPage() {
           </div>
 
           <div className={styles.migrateSection}>
-            <div className={styles.migrateSectionHeader}>SMART TUNE MEMORY</div>
+            <div className={styles.migrateSectionHeader}>{t('instanceDetail.smartTune')}</div>
             <p className={styles.migrateDesc}>
-              Analyze this instance's installed content and recommend the optimal memory allocation.
+              {t('instanceDetail.smartTuneDesc')}
             </p>
             <div className={styles.migrateRow}>
               <Button
@@ -854,11 +862,11 @@ export default function InstanceDetailPage() {
                 onClick={handleSmartTune}
                 disabled={tuningMemory}
               >
-                {tuningMemory ? 'Analyzing...' : 'Smart Tune'}
+                {tuningMemory ? t('instanceDetail.analyzing') : t('instanceDetail.smartTuneBtn')}
               </Button>
               {smartMemory !== null && (
                 <span className={styles.migrateMemoryResult}>
-                  Recommended: <strong>{smartMemory} MB</strong> ({(smartMemory / 1024).toFixed(1)} GB)
+                  {t('instanceDetail.recommended')}: <strong>{smartMemory} MB</strong> ({(smartMemory / 1024).toFixed(1)} GB)
                 </span>
               )}
             </div>
@@ -869,7 +877,7 @@ export default function InstanceDetailPage() {
       {activeTab === 'profile' && (
         <div className={styles.profileTab}>
           {loadingProfiling ? (
-            <div className={styles.placeholderTab}>Loading profiling data...</div>
+            <div className={styles.placeholderTab}>{t('instanceDetail.loadingProfiling')}</div>
           ) : !profilingData ? (
             <div className={styles.placeholderTab}>
               {t('instanceDetail.noProfilingData') || 'No profiling data yet - launch the game first'}
@@ -877,9 +885,9 @@ export default function InstanceDetailPage() {
           ) : (
             <div className={styles.profileContent}>
               <div className={styles.profileHeader}>
-                <span className={styles.profileHeaderStage}>STAGE</span>
-                <span className={styles.profileHeaderDuration}>DURATION</span>
-                <span className={styles.profileHeaderDetails}>DETAILS</span>
+                <span className={styles.profileHeaderStage}>{t('instanceDetail.profileStage')}</span>
+                <span className={styles.profileHeaderDuration}>{t('instanceDetail.profileDuration')}</span>
+                <span className={styles.profileHeaderDetails}>{t('instanceDetail.profileDetails')}</span>
               </div>
               {profilingData.map((item, i) => {
                 const maxDuration = Math.max(...profilingData.map((p) => p.duration_ms), 1);
@@ -913,7 +921,7 @@ export default function InstanceDetailPage() {
       {activeTab === 'fps' && (
         <div className={styles.fpsTab}>
           {loadingFps ? (
-            <div className={styles.placeholderTab}>Loading FPS data...</div>
+            <div className={styles.placeholderTab}>{t('instanceDetail.loadingFps')}</div>
           ) : !fpsData ? (
             <div className={styles.placeholderTab}>
               {t('instanceDetail.noFpsData') || 'Run the game with monitoring enabled'}
@@ -922,20 +930,20 @@ export default function InstanceDetailPage() {
             <div className={styles.fpsContent}>
               <div className={styles.fpsStats}>
                 <div className={styles.fpsStatCard}>
-                  <div className={styles.fpsStatLabel}>AVG FPS</div>
+                  <div className={styles.fpsStatLabel}>{t('instanceDetail.fpsAvg')}</div>
                   <div className={styles.fpsStatValue}>{fpsData.avg_fps.toFixed(0)}</div>
                 </div>
                 <div className={styles.fpsStatCard}>
-                  <div className={styles.fpsStatLabel}>MIN FPS</div>
+                  <div className={styles.fpsStatLabel}>{t('instanceDetail.fpsMin')}</div>
                   <div className={styles.fpsStatValue}>{fpsData.min_fps.toFixed(0)}</div>
                 </div>
                 <div className={styles.fpsStatCard}>
-                  <div className={styles.fpsStatLabel}>1% LOW</div>
+                  <div className={styles.fpsStatLabel}>{t('instanceDetail.fps1Low')}</div>
                   <div className={styles.fpsStatValue}>{fpsData.p1_low_fps.toFixed(0)}</div>
                 </div>
               </div>
               <div className={styles.fpsChartSection}>
-                <div className={styles.fpsChartHeader}>FRAME TIMES (first 30 frames)</div>
+                <div className={styles.fpsChartHeader}>{t('instanceDetail.fpsFrameTimes')}</div>
                 <div className={styles.fpsChart}>
                   {fpsData.frame_times_ms.slice(0, 30).map((ft, i) => {
                     const fpsFromFt = ft > 0 ? 1000 / ft : 999;
@@ -973,7 +981,7 @@ export default function InstanceDetailPage() {
                 type="text"
                 value={snapshotName}
                 onChange={(e) => setSnapshotName(e.target.value)}
-                placeholder="Snapshot name (optional)"
+                placeholder={t('instanceDetail.snapshotName')}
                 className={styles.snapshotInput}
                 onKeyDown={(e) => e.key === 'Enter' && handleCreateSnapshot()}
               />
@@ -983,22 +991,22 @@ export default function InstanceDetailPage() {
                 onClick={handleCreateSnapshot}
                 disabled={snapshotLoading}
               >
-                {snapshotLoading ? 'Creating...' : '📸 Create Snapshot'}
+                {snapshotLoading ? t('instanceDetail.creating') : '📸 ' + t('instanceDetail.createSnapshot')}
               </Button>
             </div>
           </div>
 
           {snapshots.length === 0 ? (
             <div className={styles.placeholderTab}>
-              No snapshots yet. Create one to save your current mods, configs, and world saves.
+              {t('instanceDetail.noSnapshots')}
             </div>
           ) : (
             <div className={styles.snapshotList}>
               <div className={styles.snapshotTableHeader}>
-                <span className={styles.snapshotColName}>NAME</span>
-                <span className={styles.snapshotColDate}>CREATED</span>
-                <span className={styles.snapshotColSize}>SIZE</span>
-                <span className={styles.snapshotColActions}>ACTIONS</span>
+                <span className={styles.snapshotColName}>{t('instanceDetail.snapshotNameCol')}</span>
+                <span className={styles.snapshotColDate}>{t('instanceDetail.snapshotDateCol')}</span>
+                <span className={styles.snapshotColSize}>{t('instanceDetail.snapshotSizeCol')}</span>
+                <span className={styles.snapshotColActions}>{t('instanceDetail.snapshotActionsCol')}</span>
               </div>
               {snapshots.map((snap) => (
                 <div key={snap.id} className={styles.snapshotRow}>
@@ -1021,14 +1029,14 @@ export default function InstanceDetailPage() {
                       size="sm"
                       onClick={() => handleRestoreSnapshot(snap.id, snap.name)}
                     >
-                      ↺ Restore
+                      {'↺ ' + t('instanceDetail.restore')}
                     </Button>
                     <Button
                       variant="danger"
                       size="sm"
                       onClick={() => handleDeleteSnapshot(snap.id, snap.name)}
                     >
-                      ✕ Delete
+                      {'✕ ' + t('common.delete')}
                     </Button>
                   </span>
                 </div>
@@ -1057,22 +1065,22 @@ export default function InstanceDetailPage() {
       <Modal
         open={duplicateOpen}
         onClose={() => setDuplicateOpen(false)}
-        title="Duplicate Instance"
+        title={t('instanceDetail.duplicateInstance')}
         actions={
           <>
             <Button variant="secondary" size="sm" onClick={() => setDuplicateOpen(false)}>{t('common.cancel')}</Button>
             <Button variant="primary" size="sm" onClick={confirmDuplicate} disabled={!duplicateName.trim()}>
-              Duplicate
+              {t('instanceDetail.duplicate')}
             </Button>
           </>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <label style={{ fontSize: '0.6em', color: 'var(--color-text-secondary)' }}>New instance name:</label>
+          <label style={{ fontSize: '0.6em', color: 'var(--color-text-secondary)' }}>{t('instanceDetail.newInstanceName')}</label>
           <TextInput
             value={duplicateName}
             onChange={(e) => setDuplicateName(e.target.value)}
-            placeholder="Instance name"
+            placeholder={t('instanceDetail.instanceName')}
             autoFocus
           />
         </div>

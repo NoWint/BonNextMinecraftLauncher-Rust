@@ -3,7 +3,7 @@ import { type GameInstance } from '../api';
 
 interface ShortcutHandlers {
   /** Navigate to a page by ID */
-  navigate: (id: string) => void;
+  navigate: (id: string, params?: Record<string, string>) => void;
   /** Launch an instance by id */
   launchInstance: (instanceId: string) => void | Promise<void>;
   /** Toggle search palette visibility */

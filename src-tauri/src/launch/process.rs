@@ -1,8 +1,10 @@
 #![allow(dead_code)]
+use crate::config;
 use crate::error::LauncherError;
 use crate::instance;
 use crate::launch::args::{self, LaunchContext};
 use crate::launch::state::LaunchState;
+use crate::platform;
 use std::io::Read;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -41,9 +43,19 @@ pub fn new(state: Arc<Mutex<LaunchState>>) -> Self {
     }
 
     pub async fn launch(&self, mut ctx: LaunchContext) -> Result<(), LauncherError> {
+        let launch_start = std::time::Instant::now();
+        let mut profile_stages: Vec<ProfileStage> = Vec::new();
+
         self.set_state(LaunchState::Checking)?;
 
+        let check_start = std::time::Instant::now();
         let missing = self.check_files(&ctx);
+        profile_stages.push(ProfileStage {
+            stage: "File Check".into(),
+            duration_ms: check_start.elapsed().as_millis() as u64,
+            details: if missing.is_empty() { "All files present".into() } else { format!("{} files missing", missing.len()) },
+        });
+
         if !missing.is_empty() {
             tracing::warn!("Missing {} files: {:?}", missing.len(), missing.iter().take(5).collect::<Vec<_>>());
         }
@@ -59,16 +71,24 @@ pub fn new(state: Arc<Mutex<LaunchState>>) -> Self {
                 required_java, current_java_ver
             );
 
+            let jre_start = std::time::Instant::now();
             // First check if we already downloaded a compatible JRE
             if let Some(cached_java) = platform::java_download::find_downloaded_jre(required_java) {
                 tracing::info!("Using cached JRE: {}", cached_java.display());
                 ctx.java_path = cached_java;
+                profile_stages.push(ProfileStage {
+                    stage: "JRE (cached)".into(),
+                    duration_ms: jre_start.elapsed().as_millis() as u64,
+                    details: format!("Java {}", required_java),
+                });
             } else {
-                // Download JRE with progress
-                tracing::info!("Downloading Adoptium JRE {} ...", required_java);
+                let cfg = config::load_config().unwrap_or_default();
+                let source = platform::java_download::JreSource::from_str(&cfg.java_download_source);
+                tracing::info!("Downloading JRE {} from {}...", required_java, source.as_str());
                 let app = self.app_handle.clone();
-                let java_path = platform::java_download::download_java_with_progress(
+                let java_path = platform::java_download::download_java_with_source(
                     required_java,
+                    &source,
                     move |downloaded, total| {
                         if let Some(ref app) = app {
                             let _ = app.emit("jre-download-progress", serde_json::json!({
@@ -80,6 +100,11 @@ pub fn new(state: Arc<Mutex<LaunchState>>) -> Self {
                     },
                 ).await?;
                 ctx.java_path = PathBuf::from(java_path);
+                profile_stages.push(ProfileStage {
+                    stage: "JRE Download".into(),
+                    duration_ms: jre_start.elapsed().as_millis() as u64,
+                    details: format!("Java {}", required_java),
+                });
             }
             tracing::info!("Using Java: {}", ctx.java_path.display());
         }
@@ -89,7 +114,13 @@ pub fn new(state: Arc<Mutex<LaunchState>>) -> Self {
         // Record launch start time for playtime tracking
         let launch_instant = std::time::Instant::now();
 
+        let args_start = std::time::Instant::now();
         let command = args::build_launch_command(&ctx)?;
+        profile_stages.push(ProfileStage {
+            stage: "Build Args".into(),
+            duration_ms: args_start.elapsed().as_millis() as u64,
+            details: format!("{} JVM args", command.len()),
+        });
 
         tracing::info!("Launching Minecraft with {} args", command.len());
         tracing::debug!("Command: {}", command.join(" "));
@@ -97,6 +128,7 @@ pub fn new(state: Arc<Mutex<LaunchState>>) -> Self {
         let program = &command[0];
         let cmd_args = &command[1..];
 
+        let spawn_start = std::time::Instant::now();
         let mut child = std::process::Command::new(program)
             .args(cmd_args)
             .stdout(std::process::Stdio::piped())
@@ -106,6 +138,11 @@ pub fn new(state: Arc<Mutex<LaunchState>>) -> Self {
                 let _ = self.set_state(LaunchState::Error);
                 LauncherError::LaunchFailed(format!("Failed to spawn process: {}", e))
             })?;
+        profile_stages.push(ProfileStage {
+            stage: "Process Spawn".into(),
+            duration_ms: spawn_start.elapsed().as_millis() as u64,
+            details: format!("PID {}", child.id()),
+        });
 
         let pid = child.id();
         tracing::info!("Game process started with PID: {}", pid);
@@ -174,6 +211,8 @@ pub fn new(state: Arc<Mutex<LaunchState>>) -> Self {
         // Wait for the process to exit
         let state_clone = self.state.clone();
         let instance_id_for_exit = self.instance_id.clone();
+        let profile_stages_clone = profile_stages.clone();
+        let launch_start_clone = launch_start;
         std::thread::spawn(move || {
             let output = child.wait();
             let elapsed = launch_instant.elapsed().as_secs();
@@ -194,6 +233,17 @@ pub fn new(state: Arc<Mutex<LaunchState>>) -> Self {
                             if let Err(e) = instance::manager::update_playtime(iid, elapsed) {
                                 tracing::warn!("Failed to record playtime for {}: {}", iid, e);
                             }
+                        }
+                        let total_duration = launch_start_clone.elapsed().as_millis() as u64;
+                        let mut final_stages = profile_stages_clone;
+                        final_stages.push(ProfileStage {
+                            stage: "Total Launch".into(),
+                            duration_ms: total_duration,
+                            details: format!("{}s session", elapsed),
+                        });
+                        let profile_path = paths::get_instance_minecraft_dir(iid).join("launch_profile.json");
+                        if let Ok(json) = serde_json::to_string_pretty(&final_stages) {
+                            let _ = std::fs::write(&profile_path, json);
                         }
                     }
                 }
@@ -252,5 +302,11 @@ pub fn new(state: Arc<Mutex<LaunchState>>) -> Self {
     }
 }
 
-use crate::platform;
 use crate::platform::paths;
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct ProfileStage {
+    stage: String,
+    duration_ms: u64,
+    details: String,
+}

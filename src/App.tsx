@@ -8,6 +8,7 @@ import { DownloadProvider } from './stores/downloadStore';
 import { ThemeProvider } from './stores/themeStore';
 import { I18nProvider, useI18n } from './i18n';
 import { Sidebar } from './components/layout';
+import { MiniMode, exitMiniMode } from './components/MiniMode';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CommandPalette } from './components/CommandPalette';
 import { SearchPalette } from './components/ui/SearchPalette';
@@ -57,6 +58,10 @@ function AppShell() {
   const { t } = useI18n();
   const [page, setPage] = useState<Page>(getPageFromHash);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [todayPlaytimeHours, setTodayPlaytimeHours] = useState(0);
+  const [isMiniMode, setIsMiniMode] = useState<boolean>(() => {
+    try { return localStorage.getItem('bonnext_mini_mode') === 'true'; } catch { return false; }
+  });
 
   useEffect(() => {
     const onHashChange = () => setPage(getPageFromHash());
@@ -64,13 +69,59 @@ function AppShell() {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
-  const navigate = (id: string) => {
+  useEffect(() => {
+    const fetchPlaytime = () => {
+      api.getPlaytimeStats().then((stats) => {
+        const todayKey = new Date().toISOString().slice(0, 10);
+        const todaySeconds = stats.daily[todayKey] || 0;
+        setTodayPlaytimeHours(todaySeconds / 3600);
+      }).catch(() => {});
+    };
+    fetchPlaytime();
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchPlaytime(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+
+  useEffect(() => {
+    const handler = () => {
+      const val = localStorage.getItem('bonnext_mini_mode') === 'true';
+      setIsMiniMode(val);
+    };
+    window.addEventListener('storage', handler);
+    const interval = setInterval(() => {
+      const val = localStorage.getItem('bonnext_mini_mode') === 'true';
+      if (val !== isMiniMode) setIsMiniMode(val);
+    }, 500);
+    return () => {
+      window.removeEventListener('storage', handler);
+      clearInterval(interval);
+    };
+  }, [isMiniMode]);
+
+  const handleExitMiniMode = async () => {
+    await exitMiniMode();
+    setIsMiniMode(false);
+  };
+
+  if (isMiniMode && authState.currentUser) {
+    return (
+      <ErrorBoundary>
+        <MiniMode onExpand={handleExitMiniMode} />
+      </ErrorBoundary>
+    );
+  }
+
+  const navigate = (id: string, params?: Record<string, string>) => {
     const map: Record<string, string> = {
       new_instance: 'instances/new',
-      instance_detail: 'instances',
       content_detail: 'store',
       marketplace: 'store',
     };
+    if (id === 'instance_detail' && params?.id) {
+      window.location.hash = `#/instances/${params.id}`;
+      return;
+    }
     window.location.hash = `#/${map[id] || id}`;
   };
 
@@ -140,7 +191,8 @@ function AppShell() {
           onNavigate={navigate}
           username={authState.currentUser.username}
           accountType={authState.currentUser.access_token?.startsWith('offline_') ? 'OFFLINE' : 'MICROSOFT'}
-          playtimeHours={totalPlaytimeHours}
+          playtimeHours={todayPlaytimeHours}
+          totalPlaytimeHours={totalPlaytimeHours}
         />
         <main className="app-main">
           <div className="decorative-rect decorative-rect--top-right" />

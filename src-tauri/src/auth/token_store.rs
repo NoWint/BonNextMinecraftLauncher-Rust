@@ -2,11 +2,8 @@ use crate::error::LauncherError;
 use crate::platform::paths;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use parking_lot::Mutex;
 
-lazy_static::lazy_static! {
-    static ref STORE_LOCK: Mutex<()> = Mutex::new(());
-}
+static STORE_LOCK: parking_lot::Mutex<()> = parking_lot::Mutex::new(());
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredAccount {
@@ -33,23 +30,19 @@ impl AccountStore {
     }
 
     pub fn load() -> Result<Self, LauncherError> {
-        let path = Self::path();
-        if !path.exists() {
-            return Ok(AccountStore::default());
-        }
-        let content = std::fs::read_to_string(&path)?;
-        let store: AccountStore = serde_json::from_str(&content)?;
-        Ok(store)
+        let store = crate::security::credential_store::load()?;
+        let json = serde_json::to_value(&store)?;
+        serde_json::from_value(json).map_err(Into::into)
     }
 
     pub fn save(&self) -> Result<(), LauncherError> {
-        let path = Self::path();
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let content = serde_json::to_string_pretty(self)?;
-        std::fs::write(&path, content)?;
-        Ok(())
+        let use_encryption = crate::config::load_config()
+            .map(|c| c.security.credential_encryption)
+            .unwrap_or(true);
+        let json = serde_json::to_value(self)?;
+        let store: crate::security::credential_store::AccountStore =
+            serde_json::from_value(json)?;
+        crate::security::credential_store::save(&store, use_encryption)
     }
 
     pub fn upsert_account(&mut self, account: StoredAccount) -> Result<(), LauncherError> {

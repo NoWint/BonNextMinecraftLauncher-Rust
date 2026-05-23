@@ -8,6 +8,7 @@ import { CollectionButton } from '../components/ui/CollectionButton';
 import { InstanceSelect } from '../components/ui/InstanceSelect';
 import { SectionHeader, Ticker } from '../components/layout';
 import { CardSkeleton } from '../components/ui/Skeleton';
+import DOMPurify from 'dompurify';
 import styles from './ContentDetailPage.module.css';
 
 function parseHash(): { type: string; slug: string; source: string } | null {
@@ -24,13 +25,13 @@ function parseHash(): { type: string; slug: string; source: string } | null {
   return null;
 }
 
-function getTypeLabel(type: string): string {
+function getTypeLabel(type: string, t: (key: string) => string): string {
   const map: Record<string, string> = {
-    mod: 'Mods',
-    modpack: 'Modpacks',
-    resourcepack: 'Resource Packs',
-    shader: 'Shaders',
-    datapack: 'Data Packs',
+    mod: t('contentDetail.typeMods'),
+    modpack: t('contentDetail.typeModpacks'),
+    resourcepack: t('contentDetail.typeResourcePacks'),
+    shader: t('contentDetail.typeShaders'),
+    datapack: t('contentDetail.typeDataPacks'),
   };
   return map[type] || type;
 }
@@ -48,15 +49,16 @@ function formatNum(n: number): string {
 }
 
 function sanitizeHtml(html: string): string {
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
-    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
-    .replace(/<embed\b[^>]*>/gi, '')
-    .replace(/<link\b[^>]*>/gi, '')
-    .replace(/<meta\b[^>]*>/gi, '')
-    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/javascript\s*:/gi, '');
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      'h1','h2','h3','h4','h5','h6','p','br','hr','div','span',
+      'ul','ol','li','a','strong','em','b','i','u','s','code','pre',
+      'blockquote','table','thead','tbody','tr','th','td','img',
+      'details','summary','sup','sub','mark','del','ins',
+    ],
+    ALLOWED_ATTR: ['href','src','alt','title','class','id','target','rel','width','height','align'],
+    ALLOW_DATA_ATTR: false,
+  });
 }
 
 export default function ContentDetailPage() {
@@ -86,7 +88,7 @@ export default function ContentDetailPage() {
 
   useEffect(() => {
     if (!parsed) {
-      setError('Invalid URL');
+      setError(t('contentDetail.invalidUrl'));
       setLoading(false);
       return;
     }
@@ -102,24 +104,38 @@ export default function ContentDetailPage() {
 
         if (parsed.source === 'curseforge') {
           const modId = parseInt(parsed.slug, 10);
+          if (isNaN(modId)) {
+            setError(t('contentDetail.invalidCfId'));
+            setLoading(false);
+            return;
+          }
           [proj, vers] = await Promise.all([
             api.getCfProjectDetails(modId),
             api.getCfModVersions(modId),
           ]);
         } else {
-          [proj, vers] = await Promise.all([
-            api.getProjectDetails(parsed.slug),
-            api.getModVersions(parsed.slug),
-          ]);
+          try {
+            proj = await api.getProjectDetails(parsed.slug);
+          } catch (projErr: any) {
+            if (!cancelled) setError(t('contentDetail.failedToLoad') || `Failed to load project: ${projErr?.toString() || 'Unknown error'}`);
+            setLoading(false);
+            return;
+          }
+          try {
+            vers = await api.getModVersions(parsed.slug);
+          } catch (verErr: any) {
+            vers = [];
+            console.warn('Failed to load versions, continuing with empty list:', verErr);
+          }
         }
 
         if (!cancelled) {
           setProject(proj);
           setAllVersions(vers);
+          setLoading(false);
         }
       } catch (e: any) {
-        if (!cancelled) setError(e?.toString() || 'Failed to load project');
-      } finally {
+        if (!cancelled) setError(e?.toString() || t('contentDetail.failedToLoad'));
         if (!cancelled) setLoading(false);
       }
     };
@@ -181,7 +197,7 @@ export default function ContentDetailPage() {
 
   if (!parsed) {
     return (
-      <div className={styles.notFound}>Invalid URL — expected #/store/:type/:slug</div>
+      <div className={styles.notFound}>{t('contentDetail.invalidUrl')}</div>
     );
   }
 
@@ -203,12 +219,12 @@ export default function ContentDetailPage() {
   }
 
   if (!project) {
-    return <div className={styles.notFound}>Project not found</div>;
+    return <div className={styles.notFound}>{t('contentDetail.projectNotFound')}</div>;
   }
 
   const breadcrumbItems = [
-    { label: 'Marketplace', href: '#/store' },
-    { label: getTypeLabel(parsed.type), href: `#/mods?type=${parsed.type}` },
+    { label: t('contentDetail.marketplace'), href: '#/store' },
+    { label: getTypeLabel(parsed.type, t), href: `#/mods?type=${parsed.type}` },
     { label: project.title },
   ];
 
@@ -230,8 +246,8 @@ export default function ContentDetailPage() {
           <div className={styles.header__title}>{project.title}</div>
           <div className={styles.header__author}>by {project.author}</div>
           <div className={styles.header__statsRow}>
-            <StatBadge icon="⬇" value={formatNum(project.downloads)} label="downloads" />
-            <StatBadge icon="❤" value={formatNum(project.follows)} label="follows" />
+            <StatBadge icon="⬇" value={formatNum(project.downloads)} label={t('contentDetail.downloads')} />
+            <StatBadge icon="❤" value={formatNum(project.follows)} label={t('contentDetail.follows')} />
             {project.categories.map((cat) => (
               <Badge key={cat} variant="muted">{cat}</Badge>
             ))}
@@ -240,8 +256,8 @@ export default function ContentDetailPage() {
               project.client_side === 'optional' ? 'processing' : 'inactive'
             } />
             <span style={{ fontSize: '0.5em', color: 'var(--color-text-dim)' }}>
-              {project.client_side === 'required' ? 'Client required' :
-               project.client_side === 'optional' ? 'Client optional' : 'Server only'}
+              {project.client_side === 'required' ? t('contentDetail.clientRequired') :
+               project.client_side === 'optional' ? t('contentDetail.clientOptional') : t('contentDetail.serverOnly')}
             </span>
           </div>
         </div>
@@ -278,7 +294,7 @@ export default function ContentDetailPage() {
 
       {/* Description */}
       <div className={styles.descSection}>
-        <SectionHeader title="DESCRIPTION" />
+        <SectionHeader title={t('contentDetail.description')} />
         <div
           className={styles.descBody}
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(project.body) }}
@@ -287,7 +303,7 @@ export default function ContentDetailPage() {
 
       {/* Gallery */}
       <div>
-        <SectionHeader title="GALLERY" />
+        <SectionHeader title={t('contentDetail.gallery')} />
         {project.gallery.length > 0 ? (
           <div className={styles.gallerySection}>
             {/* Main image */}
@@ -349,22 +365,22 @@ export default function ContentDetailPage() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {project.source_url && (
             <a href={project.source_url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-              <Button variant="secondary" size="sm">Source</Button>
+              <Button variant="secondary" size="sm">{t('contentDetail.source')}</Button>
             </a>
           )}
           {project.wiki_url && (
             <a href={project.wiki_url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-              <Button variant="secondary" size="sm">Wiki</Button>
+              <Button variant="secondary" size="sm">{t('contentDetail.wiki')}</Button>
             </a>
           )}
           {project.discord_url && (
             <a href={project.discord_url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-              <Button variant="secondary" size="sm">Discord</Button>
+              <Button variant="secondary" size="sm">{t('contentDetail.discord')}</Button>
             </a>
           )}
           {project.issues_url && (
             <a href={project.issues_url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-              <Button variant="secondary" size="sm">Issues</Button>
+              <Button variant="secondary" size="sm">{t('contentDetail.issues')}</Button>
             </a>
           )}
         </div>
@@ -373,8 +389,8 @@ export default function ContentDetailPage() {
       {/* Tabs: Versions / Dependencies */}
       <Tabs
         tabs={[
-          { id: 'versions', label: `VERSIONS (${allVersions.length})` },
-          { id: 'dependencies', label: 'DEPENDENCIES' },
+          { id: 'versions', label: `${t('contentDetail.versions')} (${allVersions.length})` },
+          { id: 'dependencies', label: t('contentDetail.dependencies') },
         ]}
         activeId={activeTab}
         onChange={setActiveTab}
@@ -395,14 +411,14 @@ export default function ContentDetailPage() {
               <span className={styles.versionSelect__label}>
                 {selectedVersion
                   ? `${selectedVersion.version_number} — ${selectedVersion.game_versions.slice(0, 2).join(', ')}`
-                  : 'Select version...'}
+                  : t('contentDetail.selectVersion')}
               </span>
               <span className={styles.versionSelect__arrow}>{versionDropdownOpen ? '▲' : '▼'}</span>
             </button>
 
             <div className={`${styles.versionSelect__dropdown} ${versionDropdownOpen ? styles['versionSelect__dropdown--open'] : ''}`}>
               {allVersions.length === 0 ? (
-                <div className={styles.versionSelect__empty}>No versions available</div>
+                <div className={styles.versionSelect__empty}>{t('contentDetail.noVersions')}</div>
               ) : (
                 allVersions.map((ver) => {
                   const compat = versionCompat[ver.id] || 'grey';
@@ -508,18 +524,18 @@ export default function ContentDetailPage() {
                   {dep.dependency_type}
                 </Badge>
                 <span style={{ color: 'var(--color-text-secondary)' }}>
-                  {dep.project_id || 'Unknown project'}
+                  {dep.project_id || t('contentDetail.unknownProject')}
                 </span>
                 {dep.version_id && (
                   <span style={{ color: 'var(--color-text-dim)' }}>
-                    requires {dep.version_id}
+                    {t('contentDetail.requires')} {dep.version_id}
                   </span>
                 )}
               </div>
             ))
           ) : (
             <div className={styles.notFound} style={{ height: 80 }}>
-              No dependencies listed for the latest version
+              {t('contentDetail.noDeps')}
             </div>
           )}
         </div>
@@ -532,15 +548,15 @@ export default function ContentDetailPage() {
           padding: '6px 10px', background: 'var(--color-panel)',
           border: '1px solid var(--color-border)',
         }}>
-          License: {project.license.name}
-          {project.license.url && <> &mdash; <a href={project.license.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)' }}>View</a></>}
+          {t('contentDetail.license')}: {project.license.name}
+          {project.license.url && <> &mdash; <a href={project.license.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)' }}>{t('contentDetail.view')}</a></>}
         </div>
       )}
 
       <Ticker messages={[
-        `Updated ${new Date(project.date_modified).toLocaleDateString()}`,
-        `Created ${new Date(project.date_created).toLocaleDateString()}`,
-        `${project.project_type} · ${parsed.source === 'curseforge' ? 'CurseForge' : 'Modrinth'}`,
+        `${t('contentDetail.updated')} ${new Date(project.date_modified).toLocaleDateString()}`,
+        `${t('contentDetail.created')} ${new Date(project.date_created).toLocaleDateString()}`,
+        `${project.project_type} · ${parsed.source === 'curseforge' ? t('contentDetail.curseforge') : t('contentDetail.modrinth')}`,
       ]} />
 
       {/* Lightbox */}

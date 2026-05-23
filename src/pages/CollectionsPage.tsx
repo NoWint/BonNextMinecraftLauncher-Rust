@@ -57,7 +57,7 @@ export default function CollectionsPage() {
 
   return (
     <div className={`page-enter ${styles.page}`}>
-      <SectionHeader title="MY COLLECTION" subtitle={`${items.length} ${t('common.installed')}`} />
+      <SectionHeader title={t('collections.myCollection')} subtitle={`${items.length} ${t('common.installed')}`} />
 
       <Tabs tabs={TYPE_TABS} activeId={filter} onChange={setFilter} />
 
@@ -84,28 +84,24 @@ export default function CollectionsPage() {
         </div>
       ) : (
         <div className={styles.listView}>
-          {filtered.map((item) => ({
-            ...item,
-            latest_version: null as string | null,
-            date_modified: item.added_at,
-          })).map((content) => (
+          {filtered.map((item) => (
             <ContentCard
-              key={content.slug}
+              key={item.slug}
               content={{
-                slug: content.slug,
-                title: content.title,
-                description: content.description,
-                author: content.author,
-                icon_url: content.icon_url,
-                categories: content.categories,
-                downloads: content.downloads,
+                slug: item.slug,
+                title: item.title,
+                description: item.description,
+                author: item.author,
+                icon_url: item.icon_url,
+                categories: item.categories,
+                downloads: item.downloads,
                 latest_version: null,
-                date_modified: content.added_at,
-                project_type: content.content_type,
+                date_modified: item.added_at,
+                project_type: item.content_type,
               }}
               variant="list"
               onNavigate={(slug) => {
-                window.location.hash = `#/store/${content.content_type}/${slug}`;
+                window.location.hash = `#/store/${item.content_type}/${slug}`;
               }}
             />
           ))}
@@ -114,19 +110,19 @@ export default function CollectionsPage() {
 
       <div className={styles.footerTicker}>
         <Ticker messages={[
-          `Saved ${items.length} items to collection`,
-          'Collections are stored locally',
-          'Click the heart icon to save or remove items',
+          t('collections.tickerSaved', { count: String(items.length) }),
+          t('collections.tickerLocal'),
+          t('collections.tickerHeart'),
         ]} />
       </div>
 
       <div className={styles.achievementsSection}>
         <div className={styles.achievementsSection__header}>
           <div className={styles.achievementsSection__bar} />
-          <span className={styles.achievementsSection__title}>ACHIEVEMENTS</span>
+          <span className={styles.achievementsSection__title}>{t('collections.achievements')}</span>
         </div>
         {achievementsLoading ? (
-          <div className={styles.achievementsSection__loading}>Loading achievements...</div>
+          <div className={styles.achievementsSection__loading}>{t('collections.loadingAchievements')}</div>
         ) : (
           <div className={styles.achievementsGrid}>
             {achievements.map((a) => (

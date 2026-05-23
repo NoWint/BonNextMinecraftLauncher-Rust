@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useDownloads } from '../../stores/downloadStore';
 import styles from './DownloadPanel.module.css';
 
@@ -13,14 +13,22 @@ export function DownloadPanel() {
   const { state, removeTask, clearCompleted } = useDownloads();
   const [open, setOpen] = useState(false);
 
-  const active = state.tasks.filter(
-    (t) => t.status === 'pending' || t.status === 'downloading'
+  const active = useMemo(() =>
+    state.tasks.filter(
+      (t) => t.status === 'pending' || t.status === 'downloading'
+    ),
+    [state.tasks]
   );
-  const completed = state.tasks.filter(
-    (t) => t.status === 'complete' || t.status === 'failed'
+  const completed = useMemo(() =>
+    state.tasks.filter(
+      (t) => t.status === 'complete' || t.status === 'failed'
+    ),
+    [state.tasks]
   );
-  // Show all in panel: active first, then recent completed
-  const display = [...active, ...completed.slice(0, 5)];
+  const display = useMemo(() =>
+    [...active, ...completed.slice(0, 5)],
+    [active, completed]
+  );
 
   if (state.tasks.length === 0 && !open) return null;
 
