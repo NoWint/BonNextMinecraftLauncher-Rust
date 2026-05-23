@@ -50,8 +50,87 @@ fn compute_dir_size_bytes(dir: &std::path::Path) -> u64 {
     total
 }
 
-fn parse_level_dat_basic(_level_dat: &std::path::Path) -> (String, String, Option<String>) {
-    ("Survival".to_string(), "Normal".to_string(), None)
+fn try_decompress_gzip(data: &[u8]) -> Option<Vec<u8>> {
+    use std::io::Read;
+    let mut decoder = flate2::read::GzDecoder::new(data);
+    let mut decompressed = Vec::new();
+    decoder.read_to_end(&mut decompressed).ok()?;
+    Some(decompressed)
+}
+
+fn parse_level_dat_basic(level_dat: &std::path::Path) -> (String, String, Option<String>) {
+    let raw_data = match std::fs::read(level_dat) {
+        Ok(data) => data,
+        Err(e) => {
+            tracing::warn!("Failed to read level.dat: {}", e);
+            return ("Unknown".to_string(), "Unknown".to_string(), None);
+        }
+    };
+
+    let decompressed = try_decompress_gzip(&raw_data);
+    let data: &[u8] = match &decompressed {
+        Some(d) => d,
+        None => &raw_data,
+    };
+
+    let mut cursor = std::io::Cursor::new(data);
+    let nbt: fastnbt::Value = match fastnbt::from_reader(&mut cursor) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!("Failed to parse level.dat NBT: {}", e);
+            return ("Unknown".to_string(), "Unknown".to_string(), None);
+        }
+    };
+
+    let data_compound = match &nbt {
+        fastnbt::Value::Compound(map) => match map.get("Data") {
+            Some(fastnbt::Value::Compound(data)) => data,
+            _ => map,
+        },
+        _ => {
+            tracing::warn!("level.dat root is not a compound");
+            return ("Unknown".to_string(), "Unknown".to_string(), None);
+        }
+    };
+
+    let game_type = data_compound
+        .get("GameType")
+        .and_then(|v| match v {
+            fastnbt::Value::Int(gt) => Some(match gt {
+                0 => "Survival",
+                1 => "Creative",
+                2 => "Adventure",
+                3 => "Spectator",
+                _ => "Unknown",
+            }),
+            _ => None,
+        })
+        .unwrap_or("Unknown")
+        .to_string();
+
+    let difficulty = data_compound
+        .get("Difficulty")
+        .and_then(|v| match v {
+            fastnbt::Value::Byte(d) => Some(match d {
+                0 => "Peaceful",
+                1 => "Easy",
+                2 => "Normal",
+                3 => "Hard",
+                _ => "Unknown",
+            }),
+            _ => None,
+        })
+        .unwrap_or("Normal")
+        .to_string();
+
+    let seed = data_compound
+        .get("RandomSeed")
+        .and_then(|v| match v {
+            fastnbt::Value::Long(s) => Some(s.to_string()),
+            _ => None,
+        });
+
+    (game_type, difficulty, seed)
 }
 
 #[tauri::command]

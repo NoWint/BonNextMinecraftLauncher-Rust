@@ -116,7 +116,49 @@ fn parse_lan_broadcast(data: &str, host: String) -> Option<LanWorldInfo> {
 
 #[tauri::command]
 pub async fn scan_p2p_peers() -> Result<Vec<P2PPeer>, LauncherError> {
-    Ok(Vec::new())
+    let service_type = "_bonnext._tcp.local.";
+
+    let daemon = mdns_sd::ServiceDaemon::new()
+        .map_err(|e| LauncherError::Other(format!("mDNS init failed: {}", e)))?;
+
+    let receiver = daemon
+        .browse(service_type)
+        .map_err(|e| LauncherError::Other(format!("mDNS browse failed: {}", e)))?;
+
+    let mut peers = Vec::new();
+    let timeout = Duration::from_secs(3);
+    let start = std::time::Instant::now();
+
+    while start.elapsed() < timeout {
+        let remaining = timeout.saturating_sub(start.elapsed());
+        match receiver.recv_timeout(remaining.min(Duration::from_millis(500))) {
+            Ok(event) => match event {
+                mdns_sd::ServiceEvent::ServiceResolved(info) => {
+                    let addr = info
+                        .get_addresses()
+                        .iter()
+                        .next()
+                        .map(|a| a.to_string())
+                        .unwrap_or_default();
+                    let port = info.get_port();
+                    let name = info.get_fullname().to_string();
+                    peers.push(P2PPeer {
+                        name,
+                        address: format!("{}:{}", addr, port),
+                        available_bytes: 0,
+                    });
+                }
+                _ => {}
+            },
+            Err(_) => break,
+        }
+    }
+
+    if let Err(e) = daemon.stop_browse(service_type) {
+        tracing::warn!("Failed to stop mDNS browse: {}", e);
+    }
+
+    Ok(peers)
 }
 
 #[tauri::command]
@@ -124,7 +166,48 @@ pub async fn send_file_p2p(
     peer_address: String,
     file_path: String,
 ) -> Result<(), LauncherError> {
-    tracing::info!("P2P send: {} -> {}", file_path, peer_address);
+    use std::io::{Read, Write};
+    use std::net::TcpStream;
+
+    let file = std::fs::File::open(&file_path).map_err(|e| LauncherError::Io(e))?;
+    let file_size = file.metadata().map(|m| m.len()).unwrap_or(0);
+    let file_name = std::path::Path::new(&file_path)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+
+    let mut stream = TcpStream::connect(&peer_address)
+        .map_err(|e| LauncherError::Other(format!("Failed to connect to peer: {}", e)))?;
+
+    let name_bytes = file_name.as_bytes();
+    stream
+        .write_all(&(name_bytes.len() as u64).to_le_bytes())
+        .map_err(|e| LauncherError::Other(format!("Write failed: {}", e)))?;
+    stream
+        .write_all(name_bytes)
+        .map_err(|e| LauncherError::Other(format!("Write failed: {}", e)))?;
+    stream
+        .write_all(&file_size.to_le_bytes())
+        .map_err(|e| LauncherError::Other(format!("Write failed: {}", e)))?;
+
+    let mut reader = std::io::BufReader::new(file);
+    let mut buffer = [0u8; 8192];
+    loop {
+        let bytes_read = reader.read(&mut buffer).map_err(|e| LauncherError::Io(e))?;
+        if bytes_read == 0 {
+            break;
+        }
+        stream
+            .write_all(&buffer[..bytes_read])
+            .map_err(|e| LauncherError::Other(format!("Write failed: {}", e)))?;
+    }
+
+    tracing::info!(
+        "P2P send complete: {} ({} bytes) -> {}",
+        file_name,
+        file_size,
+        peer_address
+    );
     Ok(())
 }
 
