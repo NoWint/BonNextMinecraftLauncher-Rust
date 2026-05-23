@@ -83,7 +83,9 @@ pub async fn poll_device_auth(device_code: &str) -> Result<MicrosoftAuthResult, 
                 .unwrap_or("")
                 .to_string();
 
-            return complete_auth(client, ms_access_token, &refresh_token).await;
+            let result = complete_auth(client, ms_access_token, &refresh_token).await?;
+            let _ = crate::security::audit::record_login("microsoft", true, &result.username);
+            return Ok(result);
         }
 
         let error = body["error"].as_str().unwrap_or("");
@@ -97,23 +99,27 @@ pub async fn poll_device_auth(device_code: &str) -> Result<MicrosoftAuthResult, 
                 continue;
             }
             "expired_token" => {
+                let _ = crate::security::audit::record_login("microsoft", false, "").ok();
                 return Err(LauncherError::AuthFailed("Device code expired".to_string()));
             }
             "access_denied" => {
+                let _ = crate::security::audit::record_login("microsoft", false, "").ok();
                 return Err(LauncherError::AuthFailed("Access denied by user".to_string()));
             }
             _ => {
                 let desc = body["error_description"].as_str().unwrap_or(error);
+                let _ = crate::security::audit::record_login("microsoft", false, "").ok();
                 return Err(LauncherError::AuthFailed(desc.to_string()));
             }
         }
     }
 
+    let _ = crate::security::audit::record_login("microsoft", false, "").ok();
     Err(LauncherError::AuthFailed("Authentication timed out".to_string()))
 }
 
 async fn complete_auth(
-    client: reqwest::Client,
+    client: &reqwest::Client,
     ms_access_token: &str,
     refresh_token: &str,
 ) -> Result<MicrosoftAuthResult, LauncherError> {

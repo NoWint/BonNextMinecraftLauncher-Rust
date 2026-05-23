@@ -17,6 +17,7 @@ interface SidebarProps {
   username?: string;
   accountType?: string;
   playtimeHours?: number;
+  totalPlaytimeHours?: number;
 }
 
 interface FriendEntry {
@@ -47,6 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   username = 'Player',
   accountType = 'OFFLINE',
   playtimeHours = 0,
+  totalPlaytimeHours = 0,
 }) => {
   const { t } = useI18n();
   const mainItems = navItems.filter((item) => !['settings'].includes(item.id));
@@ -103,7 +105,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <div className={styles.sidebar__signal}>
         <StatusDot status="ready" />
-        <span className={`${styles.sidebar__signalText} cursor-blink`}>SIGNAL · ON AIR</span>
+        <span className={`${styles.sidebar__signalText} cursor-blink`}>{t('sidebar.signalOnAir')}</span>
       </div>
 
       <nav className={styles.sidebar__nav}>
@@ -228,9 +230,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       <div className={styles.sidebar__playtime}>
-        <div className={styles.sidebar__playtimeLabel}>TODAY</div>
+        <div className={styles.sidebar__playtimeLabel}>{t('sidebar.today')}</div>
         <div>
           <span className={styles.sidebar__playtimeValue}>{playtimeHours.toFixed(1)}</span>
+          <span className={styles.sidebar__playtimeUnit}>{t('common.unit.hours')}</span>
+        </div>
+        <div className={styles.sidebar__playtimeLabel} style={{ marginTop: 8 }}>{t('sidebar.total')}</div>
+        <div>
+          <span className={styles.sidebar__playtimeValue}>{totalPlaytimeHours.toFixed(1)}</span>
           <span className={styles.sidebar__playtimeUnit}>{t('common.unit.hours')}</span>
         </div>
       </div>

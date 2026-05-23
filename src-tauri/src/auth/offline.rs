@@ -18,6 +18,8 @@ pub fn offline_login(username: &str) -> Result<OfflineAuthResult, LauncherError>
     let namespace = uuid::Uuid::NAMESPACE_DNS;
     let offline_uuid = Uuid::new_v5(&namespace, format!("OfflinePlayer:{}", username).as_bytes());
 
+    crate::security::audit::record_login("offline", true, username)?;
+
     Ok(OfflineAuthResult {
         username: username.trim().to_string(),
         uuid: offline_uuid.to_string().replace("-", ""),

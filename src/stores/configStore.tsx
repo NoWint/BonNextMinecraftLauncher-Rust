@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useMemo } from 'react';
 import { api, type AppConfig } from '../api';
 
 interface ConfigState {
@@ -59,8 +59,12 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state.config]);
 
+  const contextValue = useMemo(() => ({
+    state, saveConfig, reloadConfig,
+  }), [state, saveConfig, reloadConfig]);
+
   return (
-    <ConfigContext.Provider value={{ state, saveConfig, reloadConfig }}>
+    <ConfigContext.Provider value={contextValue}>
       {children}
     </ConfigContext.Provider>
   );

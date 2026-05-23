@@ -19,7 +19,8 @@ export function ParticleBackground({ active = false }: { active?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: -1000, y: -1000 });
   const particlesRef = useRef<Particle[]>([]);
-  const animRef = useRef<number>(0);
+  const animFrameRef = useRef<number>(0);
+  const isVisibleRef = useRef(true);
   const speedMultiplier = useRef(1);
 
   useEffect(() => {
@@ -52,13 +53,21 @@ export function ParticleBackground({ active = false }: { active?: boolean }) {
     };
     window.addEventListener('mousemove', onMouse);
 
+    const onVisibilityChange = () => {
+      isVisibleRef.current = !document.hidden;
+      if (isVisibleRef.current) {
+        animFrameRef.current = requestAnimationFrame(animate);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
     const animate = () => {
+      if (!isVisibleRef.current) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const { x: mx, y: my } = mouseRef.current;
       const spd = speedMultiplier.current;
 
       for (const p of particlesRef.current) {
-        // Mouse repulsion
         const dx = p.x - mx;
         const dy = p.y - my;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -68,11 +77,9 @@ export function ParticleBackground({ active = false }: { active?: boolean }) {
           p.vy += (dy / dist) * force * 0.1;
         }
 
-        // Damping
         p.vx *= 0.995;
         p.vy *= 0.995;
 
-        // Speed limit
         const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
         if (speed > 1.5 * spd) {
           p.vx = (p.vx / speed) * 1.5 * spd;
@@ -82,19 +89,16 @@ export function ParticleBackground({ active = false }: { active?: boolean }) {
         p.x += p.vx;
         p.y += p.vy;
 
-        // Wrap around
         if (p.x < -10) p.x = canvas.width + 10;
         if (p.x > canvas.width + 10) p.x = -10;
         if (p.y < -10) p.y = canvas.height + 10;
         if (p.y > canvas.height + 10) p.y = -10;
 
-        // Draw
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fillStyle = `hsla(${p.hue}, 100%, 70%, ${p.opacity * 0.7})`;
         ctx.fill();
 
-        // Glow for larger particles
         if (p.size > 2) {
           ctx.beginPath();
           ctx.arc(p.x, p.y, p.size * 3, 0, Math.PI * 2);
@@ -103,15 +107,16 @@ export function ParticleBackground({ active = false }: { active?: boolean }) {
         }
       }
 
-      animRef.current = requestAnimationFrame(animate);
+      animFrameRef.current = requestAnimationFrame(animate);
     };
 
-    animRef.current = requestAnimationFrame(animate);
+    animFrameRef.current = requestAnimationFrame(animate);
 
     return () => {
-      cancelAnimationFrame(animRef.current);
+      cancelAnimationFrame(animFrameRef.current);
       window.removeEventListener('resize', resize);
       window.removeEventListener('mousemove', onMouse);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, []);
 

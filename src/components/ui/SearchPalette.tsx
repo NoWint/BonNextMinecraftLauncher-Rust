@@ -24,26 +24,30 @@ interface SearchPaletteProps {
   onClose: () => void;
   instances: GameInstance[];
   versions: VersionEntry[];
-  navigate: (id: string) => void;
+  navigate: (id: string, params?: Record<string, string>) => void;
 }
 
-const SETTING_ITEMS: Omit<SearchResult, 'action'>[] = [
-  { type: 'setting', id: 'settings_account', title: 'Account', subtitle: 'Manage accounts and login', icon: 'A' },
-  { type: 'setting', id: 'settings_java', title: 'Java Runtime', subtitle: 'Configure Java path and JVM args', icon: 'J' },
-  { type: 'setting', id: 'settings_memory', title: 'Memory & Performance', subtitle: 'Set RAM allocation and resolution', icon: 'M' },
-  { type: 'setting', id: 'settings_launch', title: 'Launch Behavior', subtitle: 'Configure startup options', icon: 'L' },
-  { type: 'setting', id: 'settings_data', title: 'Data Directory', subtitle: 'Set instance path location', icon: 'D' },
-  { type: 'setting', id: 'settings_theme', title: 'Theme', subtitle: 'Toggle dark, light, or OLED theme', icon: 'T' },
-];
+function getSettingItems(t: (key: string) => string): Omit<SearchResult, 'action'>[] {
+  return [
+    { type: 'setting', id: 'settings_account', title: t('searchPalette.account'), subtitle: t('searchPalette.accountDesc'), icon: 'A' },
+    { type: 'setting', id: 'settings_java', title: t('searchPalette.java'), subtitle: t('searchPalette.javaDesc'), icon: 'J' },
+    { type: 'setting', id: 'settings_memory', title: t('searchPalette.memory'), subtitle: t('searchPalette.memoryDesc'), icon: 'M' },
+    { type: 'setting', id: 'settings_launch', title: t('searchPalette.launch'), subtitle: t('searchPalette.launchDesc'), icon: 'L' },
+    { type: 'setting', id: 'settings_data', title: t('searchPalette.data'), subtitle: t('searchPalette.dataDesc'), icon: 'D' },
+    { type: 'setting', id: 'settings_theme', title: t('searchPalette.theme'), subtitle: t('searchPalette.themeDesc'), icon: 'T' },
+  ];
+}
 
-const PAGE_ITEMS: Omit<SearchResult, 'action'>[] = [
-  { type: 'page', id: 'nav_home', title: 'Home', subtitle: 'Go to home page', icon: 'H' },
-  { type: 'page', id: 'nav_instances', title: 'Instances', subtitle: 'Manage game instances', icon: 'I' },
-  { type: 'page', id: 'nav_versions', title: 'Versions', subtitle: 'Browse Minecraft versions', icon: 'V' },
-  { type: 'page', id: 'nav_mods', title: 'Mod Browser', subtitle: 'Browse and install mods', icon: 'M' },
-  { type: 'page', id: 'nav_settings', title: 'Settings', subtitle: 'Configure launcher', icon: 'S' },
-  { type: 'page', id: 'nav_new', title: 'New Instance', subtitle: 'Create a new game instance', icon: '+' },
-];
+function getPageItems(t: (key: string) => string): Omit<SearchResult, 'action'>[] {
+  return [
+    { type: 'page', id: 'nav_home', title: t('searchPalette.home'), subtitle: t('searchPalette.homeDesc'), icon: 'H' },
+    { type: 'page', id: 'nav_instances', title: t('searchPalette.instances'), subtitle: t('searchPalette.instancesDesc'), icon: 'I' },
+    { type: 'page', id: 'nav_versions', title: t('searchPalette.versions'), subtitle: t('searchPalette.versionsDesc'), icon: 'V' },
+    { type: 'page', id: 'nav_mods', title: t('searchPalette.modBrowser'), subtitle: t('searchPalette.modBrowserDesc'), icon: 'M' },
+    { type: 'page', id: 'nav_settings', title: t('searchPalette.settings'), subtitle: t('searchPalette.settingsDesc'), icon: 'S' },
+    { type: 'page', id: 'nav_new', title: t('searchPalette.newInstance'), subtitle: t('searchPalette.newInstanceDesc'), icon: '+' },
+  ];
+}
 
 export const SearchPalette: React.FC<SearchPaletteProps> = ({
   open,
@@ -53,6 +57,8 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
   navigate,
 }) => {
   const { t } = useI18n();
+  const SETTING_ITEMS = useMemo(() => getSettingItems(t), [t]);
+  const PAGE_ITEMS = useMemo(() => getPageItems(t), [t]);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeNlpIndex, setActiveNlpIndex] = useState(0);
@@ -126,7 +132,7 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
         type: 'version' as const,
         id: v.id,
         title: v.id,
-        subtitle: v.type === 'release' ? 'Release' : 'Snapshot',
+        subtitle: v.type === 'release' ? t('searchPalette.release') : t('searchPalette.snapshot'),
         icon: 'V',
         action: () => {
           onClose();
@@ -251,7 +257,7 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
         <div className={styles.results} ref={listRef}>
           {results.length === 0 && !hasNlpResults ? (
             <div className={styles.empty}>
-              {query.trim().length > 15 && nlpLoading ? 'AI is understanding your search...' : 'No results found'}
+              {query.trim().length > 15 && nlpLoading ? t('searchPalette.aiLoading') : t('searchPalette.noResults')}
             </div>
           ) : (
             <>
@@ -274,7 +280,7 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
               {hasNlpResults && (
                 <>
                   <div className={styles.nlpDivider}>
-                    <span className={styles.nlpDividerLabel}>🤖 AI Understanding</span>
+                    <span className={styles.nlpDividerLabel}>🤖 {t('searchPalette.aiUnderstanding')}</span>
                   </div>
                   {nlpResults.map((nlp, idx) => (
                     <div

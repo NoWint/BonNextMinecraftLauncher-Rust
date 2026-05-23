@@ -1,25 +1,72 @@
-//! Shared HTTP client factory with proper headers.
-
+use std::sync::OnceLock;
 use std::time::Duration;
 
-/// Build a reqwest Client with proper User-Agent and timeouts.
-/// Mojang's CDN requires a User-Agent header; without it, requests
-/// may return non-JSON error pages that cause "error decoding response body".
-pub fn build_client() -> reqwest::Client {
-    reqwest::Client::builder()
-        .user_agent("BonNext/1.0 (MinecraftLauncher)")
-        .timeout(Duration::from_secs(60))
-        .connect_timeout(Duration::from_secs(15))
-        .build()
-        .expect("Failed to build HTTP client")
+static API_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+static DOWNLOAD_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+
+pub fn build_client() -> &'static reqwest::Client {
+    API_CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .user_agent("BonNext/1.0 (MinecraftLauncher)")
+            .timeout(Duration::from_secs(60))
+            .connect_timeout(Duration::from_secs(15))
+            .build()
+            .expect("Failed to build HTTP client")
+    })
 }
 
-/// Build a reqwest Client with a longer timeout (for large downloads).
-pub fn build_download_client() -> reqwest::Client {
-    reqwest::Client::builder()
+pub fn build_download_client() -> &'static reqwest::Client {
+    DOWNLOAD_CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .user_agent("BonNext/1.0 (MinecraftLauncher)")
+            .connect_timeout(Duration::from_secs(30))
+            .no_proxy()
+            .build()
+            .expect("Failed to build download HTTP client")
+    })
+}
+
+pub fn build_client_with_proxy() -> Result<reqwest::Client, crate::error::LauncherError> {
+    let config = crate::config::load_config()?;
+    let mut builder = reqwest::Client::builder()
         .user_agent("BonNext/1.0 (MinecraftLauncher)")
-        .timeout(Duration::from_secs(300))
-        .connect_timeout(Duration::from_secs(30))
-        .build()
-        .expect("Failed to build download HTTP client")
+        .timeout(std::time::Duration::from_secs(60))
+        .connect_timeout(std::time::Duration::from_secs(15));
+    if config.security.proxy_enabled {
+        if let Some(ref proxy_url) = config.security.proxy_url {
+            let mut proxy = reqwest::Proxy::all(proxy_url).map_err(|e| {
+                crate::error::LauncherError::InvalidConfig(format!("Invalid proxy URL: {}", e))
+            })?;
+            if let (Some(ref user), Some(ref pass)) =
+                (config.security.proxy_username, config.security.proxy_password)
+            {
+                proxy = proxy.basic_auth(user, pass);
+            }
+            builder = builder.proxy(proxy);
+        }
+    }
+    Ok(builder.build()?)
+}
+
+pub fn build_download_client_with_proxy() -> Result<reqwest::Client, crate::error::LauncherError> {
+    let config = crate::config::load_config()?;
+    let mut builder = reqwest::Client::builder()
+        .user_agent("BonNext/1.0 (MinecraftLauncher)")
+        .connect_timeout(std::time::Duration::from_secs(30));
+    if config.security.proxy_enabled {
+        if let Some(ref proxy_url) = config.security.proxy_url {
+            let mut proxy = reqwest::Proxy::all(proxy_url).map_err(|e| {
+                crate::error::LauncherError::InvalidConfig(format!("Invalid proxy URL: {}", e))
+            })?;
+            if let (Some(ref user), Some(ref pass)) =
+                (config.security.proxy_username, config.security.proxy_password)
+            {
+                proxy = proxy.basic_auth(user, pass);
+            }
+            builder = builder.proxy(proxy);
+        }
+    } else {
+        builder = builder.no_proxy();
+    }
+    Ok(builder.build()?)
 }

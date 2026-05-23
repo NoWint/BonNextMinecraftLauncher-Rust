@@ -1,1 +1,697 @@
-// misc commands
+use crate::config;
+use crate::error::LauncherError;
+use crate::instance;
+use crate::modrinth;
+use crate::platform::paths;
+use crate::security;
+use serde::Deserialize;
+use serde::Serialize;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ConflictInfo {
+    pub mod_a: String,
+    pub mod_b: String,
+    pub reason: String,
+    pub severity: String,
+}
+
+#[tauri::command]
+pub async fn check_mod_conflicts(instance_id: String) -> Result<Vec<ConflictInfo>, LauncherError> {
+    let mods_dir = paths::get_instance_mods_dir(&instance_id);
+    if !mods_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut conflicts = Vec::new();
+    let mut mod_ids: Vec<String> = Vec::new();
+
+    for entry in std::fs::read_dir(&mods_dir)?.flatten() {
+        let path = entry.path();
+        if path.extension().map(|e| e == "jar").unwrap_or(false) {
+            mod_ids.push(path.file_name().unwrap_or_default().to_string_lossy().to_string());
+        }
+    }
+
+    let known_conflicts: &[(&str, &str, &str, &str)] = &[
+        ("sodium", "optifine", "Sodium与OptiFine不兼容，请选择其中一个", "high"),
+        ("lithium", "optifine", "Lithium与OptiFine可能冲突", "medium"),
+        ("iris", "optifine", "Iris与OptiFine不兼容，请选择其中一个", "high"),
+        ("sodium", "rubidium", "Sodium与Rubidium功能重叠，不应同时安装", "high"),
+        ("lithium", "rubidium", "Lithium与Rubidium功能重叠", "medium"),
+        ("canvas", "sodium", "Canvas渲染器与Sodium不兼容", "high"),
+        ("phosphor", "starlight", "Phosphor与Starlight功能重叠", "medium"),
+    ];
+
+    for (a, b, reason, severity) in known_conflicts {
+        let has_a = mod_ids.iter().any(|m| m.to_lowercase().contains(a));
+        let has_b = mod_ids.iter().any(|m| m.to_lowercase().contains(b));
+        if has_a && has_b {
+            conflicts.push(ConflictInfo {
+                mod_a: a.to_string(),
+                mod_b: b.to_string(),
+                reason: reason.to_string(),
+                severity: severity.to_string(),
+            });
+        }
+    }
+
+    Ok(conflicts)
+}
+
+#[tauri::command]
+pub async fn find_java() -> Result<String, LauncherError> {
+    let java_path = crate::platform::java::find_java()?;
+    Ok(java_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub async fn find_all_java() -> Vec<crate::platform::java::JavaInfo> {
+    crate::platform::java::find_all_java()
+}
+
+#[tauri::command]
+pub async fn check_java_version(java_path: String) -> Result<Option<u32>, LauncherError> {
+    let path = std::path::PathBuf::from(&java_path);
+    let version = crate::platform::java::check_java_version(&path);
+    Ok(version)
+}
+
+#[tauri::command]
+pub async fn check_jre_available(major_version: u32) -> Result<bool, LauncherError> {
+    if crate::platform::java_download::find_downloaded_jre(major_version).is_some() {
+        return Ok(true);
+    }
+    match crate::platform::java_download::fetch_available_jres(major_version).await {
+        Ok(releases) => Ok(!releases.is_empty()),
+        Err(_) => Ok(false),
+    }
+}
+
+#[tauri::command]
+pub async fn get_jre_sources() -> Vec<crate::platform::java_download::JreSourceInfo> {
+    crate::platform::java_download::get_jre_sources()
+}
+
+#[tauri::command]
+pub async fn warmup_launch(instance_id: String) -> Result<(), LauncherError> {
+    let mc_dir = paths::get_instance_minecraft_dir(&instance_id);
+    let libs_dir = mc_dir.join("libraries");
+    if libs_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&libs_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().map(|e| e == "jar").unwrap_or(false) {
+                    let _ = std::fs::read(&path);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn create_guest_instance() -> Result<instance::manager::GameInstance, LauncherError> {
+    let inst_id = format!("guest_{}", chrono::Utc::now().timestamp_millis());
+    let now = chrono::Local::now().to_rfc3339();
+    let instance = instance::manager::GameInstance {
+        id: inst_id.clone(),
+        name: "访客模式".to_string(),
+        version_id: "1.21".to_string(),
+        version_url: String::new(),
+        loader_type: None,
+        loader_version: None,
+        description: "临时访客实例，退出后自动清理".to_string(),
+        max_memory: 2048,
+        min_memory: 512,
+        java_path: None,
+        jvm_args: None,
+        created_at: now,
+        last_played: None,
+        playtime_seconds: 0,
+    };
+    instance::manager::create_instance(&instance)?;
+    Ok(instance)
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ScreenshotInfo {
+    pub filename: String,
+    pub path: String,
+    pub size_bytes: u64,
+    pub modified: String,
+}
+
+#[tauri::command]
+pub async fn list_screenshots(instance_id: String) -> Result<Vec<ScreenshotInfo>, LauncherError> {
+    let ss_dir = paths::get_instance_minecraft_dir(&instance_id).join("screenshots");
+    if !ss_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut screenshots = Vec::new();
+    for entry in std::fs::read_dir(&ss_dir)?.flatten() {
+        let path = entry.path();
+        if path.extension().map(|e| e == "png").unwrap_or(false) {
+            let meta = std::fs::metadata(&path).ok();
+            let modified = meta.as_ref()
+                .and_then(|m| m.modified().ok())
+                .and_then(|t| t.duration_since(std::time::SystemTime::UNIX_EPOCH).ok())
+                .map(|d| chrono::DateTime::from_timestamp(d.as_secs() as i64, 0)
+                    .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
+                    .unwrap_or_default())
+                .unwrap_or_default();
+            screenshots.push(ScreenshotInfo {
+                filename: path.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                path: path.to_string_lossy().to_string(),
+                size_bytes: meta.map(|m| m.len()).unwrap_or(0),
+                modified,
+            });
+        }
+    }
+
+    screenshots.sort_by(|a, b| b.modified.cmp(&a.modified));
+    Ok(screenshots)
+}
+
+#[tauri::command]
+pub async fn set_instance_icon(instance_id: String, icon_path: String) -> Result<(), LauncherError> {
+    let src = std::path::Path::new(&icon_path);
+    if !src.exists() {
+        return Err(LauncherError::Other(format!("Icon file not found: {}", icon_path)));
+    }
+    let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    if !["png", "jpg", "jpeg", "gif", "webp", "bmp"].contains(&ext.as_str()) {
+        return Err(LauncherError::Other("Icon must be an image file (png, jpg, gif, webp, bmp)".into()));
+    }
+    let metadata = std::fs::metadata(src)?;
+    if metadata.len() > 5 * 1024 * 1024 {
+        return Err(LauncherError::Other("Icon file too large (max 5MB)".into()));
+    }
+
+    let dest_dir = paths::get_instance_dir(&instance_id);
+    std::fs::create_dir_all(&dest_dir)?;
+    let dest = dest_dir.join("icon.png");
+
+    let img_data = std::fs::read(src)?;
+    std::fs::write(&dest, &img_data)?;
+    Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DownloadScheduleConfig {
+    pub max_speed_bytes: u64,
+    pub active_during_game: bool,
+    pub priority: String,
+}
+
+#[tauri::command]
+pub async fn get_download_schedule_config() -> Result<DownloadScheduleConfig, LauncherError> {
+    let config_path = paths::get_game_dir().join("download_schedule.json");
+    if config_path.exists() {
+        let data = std::fs::read_to_string(&config_path)?;
+        let config: DownloadScheduleConfig = serde_json::from_str(&data).unwrap_or(DownloadScheduleConfig {
+            max_speed_bytes: 0,
+            active_during_game: false,
+            priority: "normal".to_string(),
+        });
+        Ok(config)
+    } else {
+        Ok(DownloadScheduleConfig {
+            max_speed_bytes: 0,
+            active_during_game: false,
+            priority: "normal".to_string(),
+        })
+    }
+}
+
+#[tauri::command]
+pub async fn set_download_schedule_config(max_speed_bytes: u64, active_during_game: bool, priority: String) -> Result<(), LauncherError> {
+    let config_path = paths::get_game_dir().join("download_schedule.json");
+    let config = serde_json::json!({
+        "max_speed_bytes": max_speed_bytes,
+        "active_during_game": active_during_game,
+        "priority": priority,
+    });
+    let data = serde_json::to_string_pretty(&config)?;
+    std::fs::write(&config_path, data)?;
+    Ok(())
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GcRecommendation {
+    pub gc_type: String,
+    pub jvm_args: Vec<String>,
+    pub description: String,
+    pub suitable_for: String,
+}
+
+#[tauri::command]
+pub async fn get_gc_recommendations(total_ram_mb: u64) -> Result<Vec<GcRecommendation>, LauncherError> {
+    let ram_gb = total_ram_mb / 1024;
+    Ok(vec![
+        GcRecommendation {
+            gc_type: "G1GC".to_string(),
+            jvm_args: vec!["-XX:+UseG1GC".to_string(), "-XX:MaxGCPauseMillis=50".to_string()],
+            description: "G1垃圾回收器，适合大多数场景".to_string(),
+            suitable_for: if ram_gb <= 8 { "推荐" } else { "可选" }.to_string(),
+        },
+        GcRecommendation {
+            gc_type: "ZGC".to_string(),
+            jvm_args: vec!["-XX:+UseZGC".to_string(), "-XX:+ZGenerational".to_string()],
+            description: "ZGC低延迟垃圾回收器，适合大内存".to_string(),
+            suitable_for: if ram_gb >= 12 { "推荐" } else { "不推荐" }.to_string(),
+        },
+        GcRecommendation {
+            gc_type: "Shenandoah".to_string(),
+            jvm_args: vec!["-XX:+UseShenandoahGC".to_string()],
+            description: "Shenandoah低延迟垃圾回收器".to_string(),
+            suitable_for: if ram_gb >= 16 { "推荐" } else { "可选" }.to_string(),
+        },
+    ])
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AnomalyReport {
+    pub anomaly_type: String,
+    pub severity: String,
+    pub message: String,
+    pub suggestion: String,
+}
+
+#[tauri::command]
+pub async fn detect_anomalies(instance_id: String) -> Result<Vec<AnomalyReport>, LauncherError> {
+    let mut anomalies = Vec::new();
+
+    let mods_dir = paths::get_instance_mods_dir(&instance_id);
+    if mods_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&mods_dir) {
+            let mod_count = entries.count();
+            if mod_count > 200 {
+                anomalies.push(AnomalyReport {
+                    anomaly_type: "too_many_mods".to_string(),
+                    severity: "high".to_string(),
+                    message: format!("安装了{}个模组，可能导致性能问题", mod_count),
+                    suggestion: "建议减少模组数量或增加内存分配".to_string(),
+                });
+            }
+        }
+    }
+
+    let instance = instance::manager::get_instance(&instance_id)?;
+    if let Some(inst) = &instance {
+        if inst.max_memory < 2048 {
+            anomalies.push(AnomalyReport {
+                anomaly_type: "low_memory".to_string(),
+                severity: "medium".to_string(),
+                message: format!("内存分配仅{}MB，可能不足", inst.max_memory),
+                suggestion: "建议至少分配2048MB内存".to_string(),
+            });
+        }
+    }
+
+    Ok(anomalies)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LaunchProfileStage {
+    pub stage: String,
+    pub duration_ms: u64,
+    pub details: String,
+}
+
+#[tauri::command]
+pub async fn get_launch_profiling_data(instance_id: String) -> Result<Vec<LaunchProfileStage>, LauncherError> {
+    let profile_path = paths::get_instance_minecraft_dir(&instance_id).join("launch_profile.json");
+    if profile_path.exists() {
+        let data = std::fs::read_to_string(&profile_path)?;
+        Ok(serde_json::from_str(&data).unwrap_or_default())
+    } else {
+        Ok(vec![
+            LaunchProfileStage { stage: "Java初始化".into(), duration_ms: 0, details: "等待首次启动后获取数据".into() },
+        ])
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrameTimeData {
+    pub avg_fps: f32,
+    pub min_fps: f32,
+    pub p1_low_fps: f32,
+    pub frame_times_ms: Vec<f32>,
+}
+
+#[tauri::command]
+pub async fn get_frame_time_data(instance_id: String) -> Result<FrameTimeData, LauncherError> {
+    let fps_path = paths::get_instance_minecraft_dir(&instance_id).join("fps_data.json");
+    if fps_path.exists() {
+        match std::fs::read_to_string(&fps_path) {
+            Ok(data) => {
+                if let Ok(parsed) = serde_json::from_str::<FrameTimeData>(&data) {
+                    return Ok(parsed);
+                }
+            }
+            Err(_) => {}
+        }
+    }
+    let log_path = paths::get_instance_minecraft_dir(&instance_id).join("logs").join("latest.log");
+    if log_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&log_path) {
+            let mut fps_values: Vec<f32> = Vec::new();
+            for line in content.lines() {
+                if line.contains("fps") || line.contains("FPS") {
+                    let lower = line.to_lowercase();
+                    if let Some(pos) = lower.find("fps") {
+                        let before = &lower[..pos].trim();
+                        if let Some(num_str) = before.rsplit(|c: char| !c.is_ascii_digit() && c != '.').next() {
+                            if let Ok(val) = num_str.parse::<f32>() {
+                                if val > 0.0 && val < 1000.0 {
+                                    fps_values.push(val);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if !fps_values.is_empty() {
+                let avg = fps_values.iter().sum::<f32>() / fps_values.len() as f32;
+                let min = fps_values.iter().cloned().fold(f32::MAX, f32::min);
+                let mut sorted = fps_values.clone();
+                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                let p1_idx = ((sorted.len() as f32) * 0.01).max(1.0) as usize - 1;
+                let p1_low = sorted.get(p1_idx).copied().unwrap_or(min);
+                return Ok(FrameTimeData {
+                    avg_fps: avg,
+                    min_fps: min,
+                    p1_low_fps: p1_low,
+                    frame_times_ms: fps_values.iter().take(30).map(|&f| if f > 0.0 { 1000.0 / f } else { 0.0 }).collect(),
+                });
+            }
+        }
+    }
+    Ok(FrameTimeData {
+        avg_fps: 0.0,
+        min_fps: 0.0,
+        p1_low_fps: 0.0,
+        frame_times_ms: Vec::new(),
+    })
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct NLPSearchResult {
+    pub slug: String,
+    pub name: String,
+    pub relevance: f32,
+    pub interpretation: String,
+}
+
+#[tauri::command]
+pub async fn nlp_search_content(query: String) -> Result<Vec<NLPSearchResult>, LauncherError> {
+    let (results, _total) = modrinth::search_mods(&query, None, None, 10, 0).await?;
+    Ok(results.iter().map(|h| NLPSearchResult {
+        slug: h.slug.clone(),
+        name: h.title.clone(),
+        relevance: 0.9,
+        interpretation: query.clone(),
+    }).collect())
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PlaytimeStats {
+    pub total_seconds: u64,
+    pub daily: std::collections::HashMap<String, u64>,
+    pub top_instances: Vec<InstancePlaytime>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct InstancePlaytime {
+    pub id: String,
+    pub name: String,
+    pub seconds: u64,
+}
+
+#[tauri::command]
+pub async fn get_playtime_stats() -> Result<PlaytimeStats, LauncherError> {
+    let instances = instance::manager::list_instances()?;
+    let total_seconds: u64 = instances.iter().map(|i| i.playtime_seconds).sum();
+    let mut top_instances: Vec<InstancePlaytime> = instances.iter().map(|i| InstancePlaytime {
+        id: i.id.clone(),
+        name: i.name.clone(),
+        seconds: i.playtime_seconds,
+    }).collect();
+    top_instances.sort_by(|a, b| b.seconds.cmp(&a.seconds));
+    top_instances.truncate(10);
+
+    let mut daily: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+    let playtime_path = paths::get_game_dir().join("playtime_log.json");
+    if playtime_path.exists() {
+        if let Ok(data) = std::fs::read_to_string(&playtime_path) {
+            if let Ok(log_entries) = serde_json::from_str::<std::collections::HashMap<String, u64>>(&data) {
+                daily = log_entries;
+            }
+        }
+    }
+
+    Ok(PlaytimeStats { total_seconds, daily, top_instances })
+}
+
+#[tauri::command]
+pub async fn record_playtime(instance_id: String, seconds: u64) -> Result<(), LauncherError> {
+    instance::manager::update_playtime(&instance_id, seconds)?;
+
+    let playtime_path = paths::get_game_dir().join("playtime_log.json");
+    let mut daily: std::collections::HashMap<String, u64> = if playtime_path.exists() {
+        std::fs::read_to_string(&playtime_path)
+            .ok()
+            .and_then(|d| serde_json::from_str(&d).ok())
+            .unwrap_or_default()
+    } else {
+        std::collections::HashMap::new()
+    };
+
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    *daily.entry(today).or_insert(0) += seconds;
+
+    let data = serde_json::to_string_pretty(&daily)?;
+    std::fs::write(&playtime_path, data)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn export_instance_config(instance_id: String) -> Result<String, LauncherError> {
+    let instance = instance::manager::get_instance(&instance_id)?
+        .ok_or_else(|| LauncherError::Other(format!("Instance not found: {}", instance_id)))?;
+
+    let config = serde_json::json!({
+        "name": instance.name,
+        "version_id": instance.version_id,
+        "loader_type": instance.loader_type,
+        "loader_version": instance.loader_version,
+        "max_memory": instance.max_memory,
+        "min_memory": instance.min_memory,
+        "jvm_args": instance.jvm_args,
+    });
+
+    use base64::Engine;
+    let json = serde_json::to_string(&config)?;
+    let encoded = base64::engine::general_purpose::STANDARD.encode(json.as_bytes());
+    Ok(encoded)
+}
+
+#[tauri::command]
+pub async fn import_instance_config(config_code: String) -> Result<instance::manager::GameInstance, LauncherError> {
+    use base64::Engine;
+    let json_bytes = base64::engine::general_purpose::STANDARD.decode(&config_code)
+        .map_err(|e| LauncherError::Other(format!("Invalid config code: {}", e)))?;
+    let config: serde_json::Value = serde_json::from_slice(&json_bytes)
+        .map_err(|e| LauncherError::Other(format!("Invalid config JSON: {}", e)))?;
+
+    let version_id = config["version_id"].as_str().unwrap_or("1.21").to_string();
+    let manifest = crate::version::manifest::fetch_versions_sorted().await?;
+    let version_entry = manifest.iter().find(|v| v.id == version_id)
+        .ok_or_else(|| LauncherError::Other(format!("Version {} not found", version_id)))?;
+
+    let inst_id = format!("shared_{}", chrono::Utc::now().timestamp_millis());
+    let now = chrono::Local::now().to_rfc3339();
+    let instance = instance::manager::GameInstance {
+        id: inst_id.clone(),
+        name: config["name"].as_str().unwrap_or("Imported").to_string(),
+        version_id: version_id.clone(),
+        version_url: version_entry.url.clone(),
+        loader_type: config["loader_type"].as_str().map(|s| s.to_string()),
+        loader_version: config["loader_version"].as_str().map(|s| s.to_string()),
+        description: "Imported from shared config".to_string(),
+        max_memory: config["max_memory"].as_u64().unwrap_or(4096) as u32,
+        min_memory: config["min_memory"].as_u64().unwrap_or(512) as u32,
+        java_path: None,
+        jvm_args: config["jvm_args"].as_str().map(|s| s.to_string()),
+        created_at: now,
+        last_played: None,
+        playtime_seconds: 0,
+    };
+
+    instance::manager::create_instance(&instance)?;
+    Ok(instance)
+}
+
+#[tauri::command]
+pub async fn get_security_config() -> Result<config::SecurityConfig, LauncherError> {
+    let cfg = config::load_config()?;
+    Ok(cfg.security)
+}
+
+#[tauri::command]
+pub async fn save_security_config(
+    security: config::SecurityConfig,
+) -> Result<(), LauncherError> {
+    let mut cfg = config::load_config()?;
+    let old_encryption = cfg.security.credential_encryption;
+    cfg.security = security;
+    config::save_config(&cfg)?;
+    security::audit::log_audit(
+        security::audit::AuditLevel::Info,
+        security::audit::AuditCategory::Config,
+        "Security config updated",
+        Some(serde_json::json!({
+            "credential_encryption_changed": old_encryption != cfg.security.credential_encryption,
+        })),
+    );
+    if !old_encryption && cfg.security.credential_encryption {
+        let _ = security::credential_store::migrate_plain_to_encrypted();
+    }
+    let _ = security::audit::init_audit(cfg.security.audit_log_enabled);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_security_score() -> Result<u32, LauncherError> {
+    let cfg = config::load_config()?;
+    let mut score: u32 = 40;
+    if security::credential_store::is_encrypted() {
+        score += 20;
+    }
+    if cfg.security.strict_verification {
+        score += 10;
+    }
+    if cfg.security.jvm_args_mode == "whitelist" {
+        score += 10;
+    }
+    match cfg.security.sandbox_mode.as_str() {
+        "strict" => score += 10,
+        "basic" => score += 5,
+        _ => {}
+    }
+    if cfg.security.audit_log_enabled {
+        score += 10;
+    }
+    Ok(score)
+}
+
+#[tauri::command]
+pub async fn get_audit_log(
+    category: Option<String>,
+    limit: Option<usize>,
+    offset: Option<usize>,
+) -> Result<Vec<security::audit::AuditEntry>, LauncherError> {
+    let filter_category = category.and_then(|c| serde_json::from_value(serde_json::Value::String(c)).ok());
+    security::audit::read_audit_log(
+        filter_category,
+        limit.unwrap_or(100),
+        offset.unwrap_or(0),
+    )
+}
+
+#[tauri::command]
+pub async fn get_login_history() -> Result<Vec<security::audit::LoginHistoryEntry>, LauncherError> {
+    security::audit::get_login_history()
+}
+
+#[tauri::command]
+pub async fn migrate_credentials() -> Result<(), LauncherError> {
+    security::credential_store::migrate_plain_to_encrypted()
+}
+
+#[tauri::command]
+pub async fn get_encryption_status() -> Result<serde_json::Value, LauncherError> {
+    Ok(serde_json::json!({
+        "encrypted": security::credential_store::is_encrypted(),
+        "plain": security::credential_store::is_plain(),
+    }))
+}
+
+#[tauri::command]
+pub async fn save_api_key(name: String, value: String) -> Result<(), LauncherError> {
+    security::sanitizer::sanitize_id(&name)?;
+    security::sanitizer::sanitize_general_string(&value)?;
+    security::key_store::set_key(&name, &value)
+}
+
+#[tauri::command]
+pub async fn delete_api_key(name: String) -> Result<(), LauncherError> {
+    security::sanitizer::sanitize_id(&name)?;
+    security::key_store::delete_key(&name)
+}
+
+#[tauri::command]
+pub async fn get_api_key_status(name: String) -> Result<security::key_store::KeyStatus, LauncherError> {
+    security::sanitizer::sanitize_id(&name)?;
+    security::key_store::key_status(&name)
+}
+
+#[tauri::command]
+pub async fn check_file_permissions() -> Result<Vec<serde_json::Value>, LauncherError> {
+    let results = security::file_permissions::check_all_sensitive_permissions();
+    Ok(results
+        .into_iter()
+        .map(|(path, secure)| {
+            serde_json::json!({
+                "path": path.to_string_lossy().to_string(),
+                "secure": secure,
+            })
+        })
+        .collect())
+}
+
+#[tauri::command]
+pub async fn fix_file_permissions() -> Result<Vec<serde_json::Value>, LauncherError> {
+    let results = security::file_permissions::fix_all_sensitive_permissions();
+    for (path, fixed) in &results {
+        if *fixed {
+            security::audit::log_audit(
+                security::audit::AuditLevel::Info,
+                security::audit::AuditCategory::File,
+                &format!("Fixed insecure permissions on {}", path.display()),
+                None,
+            );
+        }
+    }
+    Ok(results
+        .into_iter()
+        .map(|(path, fixed)| {
+            serde_json::json!({
+                "path": path.to_string_lossy().to_string(),
+                "fixed": fixed,
+            })
+        })
+        .collect())
+}
+
+#[tauri::command]
+pub async fn validate_jvm_args(args: String) -> Result<serde_json::Value, LauncherError> {
+    let cfg = config::load_config()?;
+    let arg_list: Vec<String> = args.split_whitespace().map(String::from).collect();
+    if cfg.security.jvm_args_mode == "whitelist" {
+        match security::jvm_whitelist::validate_jvm_args(&arg_list) {
+            Ok(valid) => Ok(serde_json::json!({ "valid": true, "args": valid })),
+            Err(e) => Ok(serde_json::json!({ "valid": false, "error": e.to_string() })),
+        }
+    } else {
+        let (valid, invalid) = security::jvm_whitelist::validate_jvm_args_custom(&arg_list);
+        Ok(serde_json::json!({ "valid": true, "args": valid, "warnings": invalid }))
+    }
+}
+
+#[tauri::command]
+pub async fn get_sandbox_availability() -> Result<security::sandbox::SandboxAvailability, LauncherError> {
+    Ok(security::sandbox::check_sandbox_availability())
+}

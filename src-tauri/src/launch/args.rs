@@ -26,6 +26,7 @@ pub struct LaunchContext {
 }
 
 pub struct InstanceSettings {
+    pub id: Option<String>,
     pub max_memory: Option<u32>,
     pub min_memory: Option<u32>,
     pub java_path: Option<String>,
@@ -42,7 +43,20 @@ impl LaunchContext {
         instance: Option<InstanceSettings>,
     ) -> Result<Self, LauncherError> {
         let cfg = config::load_config()?;
-        let java_path = if let Some(ref inst) = instance {
+
+        let java_path = if cfg.force_java_path {
+            if let Some(ref forced_java) = cfg.java_path {
+                let p = PathBuf::from(forced_java);
+                if p.exists() {
+                    p
+                } else {
+                    tracing::warn!("Forced Java path does not exist: {}", forced_java);
+                    java::find_java()?
+                }
+            } else {
+                java::find_java()?
+            }
+        } else if let Some(ref inst) = instance {
             if let Some(ref custom_java) = inst.java_path {
                 let p = PathBuf::from(custom_java);
                 if p.exists() { p } else { java::find_java()? }
@@ -53,8 +67,16 @@ impl LaunchContext {
             java::find_java()?
         };
 
-        let max_memory = instance.as_ref().and_then(|i| i.max_memory).unwrap_or(cfg.max_memory);
-        let min_memory = instance.as_ref().and_then(|i| i.min_memory).unwrap_or(cfg.min_memory);
+        let max_memory = if cfg.force_memory {
+            cfg.max_memory
+        } else {
+            instance.as_ref().and_then(|i| i.max_memory).unwrap_or(cfg.max_memory)
+        };
+        let min_memory = if cfg.force_memory {
+            cfg.min_memory
+        } else {
+            instance.as_ref().and_then(|i| i.min_memory).unwrap_or(cfg.min_memory)
+        };
 
         if min_memory < 256 {
             return Err(LauncherError::InvalidConfig(
@@ -76,7 +98,15 @@ impl LaunchContext {
             .and_then(|i| i.user_type.clone())
             .unwrap_or_else(|| "mojang".to_string());
 
-        let game_dir = paths::get_game_dir();
+        let game_dir = if let Some(ref inst) = instance {
+            if let Some(ref inst_id) = inst.id {
+                paths::get_instance_minecraft_dir(inst_id)
+            } else {
+                paths::get_game_dir()
+            }
+        } else {
+            paths::get_game_dir()
+        };
         let assets_dir = paths::get_assets_dir();
         let version_dir = paths::get_versions_dir().join(&version.id);
         let natives_dir = version_dir.join("natives");

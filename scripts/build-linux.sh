@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
-# BonNext Linux Build Script (Ubuntu 22.04+ / Debian 12+)
+# BonNext Linux Build Script (Ubuntu 22.04 recommended for glibc compatibility)
 # Usage: chmod +x scripts/build-linux.sh && ./scripts/build-linux.sh
+#
+# IMPORTANT: For maximum AppImage compatibility across Linux distributions,
+# build on Ubuntu 22.04 (glibc 2.35). Building on newer distros (glibc 2.39+)
+# produces binaries incompatible with many older systems.
+#
+# If AppImage doesn't run on your target system, try:
+#   ./BonNext.AppImage --appimage-extract-and-run
+# Or install libfuse2:
+#   sudo apt install libfuse2
 
 set -euo pipefail
 

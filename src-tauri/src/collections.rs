@@ -3,11 +3,8 @@ use crate::error::LauncherError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use parking_lot::Mutex;
 
-lazy_static::lazy_static! {
-    static ref COLLECTION_LOCK: Mutex<()> = Mutex::new(());
-}
+static COLLECTION_LOCK: parking_lot::Mutex<()> = parking_lot::Mutex::new(());
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
@@ -35,7 +32,7 @@ fn load() -> Result<CollectionMap, LauncherError> {
         return Ok(HashMap::new());
     }
     let data = std::fs::read_to_string(&path)?;
-    serde_json::from_str(&data).map_err(|e| LauncherError::Other(e.to_string()))
+    Ok(serde_json::from_str(&data).unwrap_or_default())
 }
 
 fn save(map: &CollectionMap) -> Result<(), LauncherError> {
@@ -85,11 +82,13 @@ pub fn remove_item(slug: &str) -> Result<(), LauncherError> {
 }
 
 pub fn is_saved(slug: &str) -> Result<bool, LauncherError> {
+    let _lock = COLLECTION_LOCK.lock();
     let map = load()?;
     Ok(map.contains_key(slug))
 }
 
 pub fn list_all() -> Result<Vec<CollectionItem>, LauncherError> {
+    let _lock = COLLECTION_LOCK.lock();
     let map = load()?;
     let mut items: Vec<_> = map.into_values().collect();
     items.sort_by(|a, b| b.added_at.cmp(&a.added_at));

@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, type ReactNode } from 'react';
+import { createContext, useContext, useReducer, useCallback, useMemo, type ReactNode } from 'react';
 
 export interface DownloadTask {
   id: string;
@@ -53,14 +53,18 @@ const DownloadContext = createContext<DownloadContextValue | null>(null);
 export function DownloadProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, { tasks: [] });
 
-  const addTask = (task: DownloadTask) => dispatch({ type: 'ADD_TASK', task });
-  const updateTask = (id: string, status: DownloadTask['status'], error?: string) =>
-    dispatch({ type: 'UPDATE_TASK', id, status, error });
-  const removeTask = (id: string) => dispatch({ type: 'REMOVE_TASK', id });
-  const clearCompleted = () => dispatch({ type: 'CLEAR_COMPLETED' });
+  const addTask = useCallback((task: DownloadTask) => dispatch({ type: 'ADD_TASK', task }), []);
+  const updateTask = useCallback((id: string, status: DownloadTask['status'], error?: string) =>
+    dispatch({ type: 'UPDATE_TASK', id, status, error }), []);
+  const removeTask = useCallback((id: string) => dispatch({ type: 'REMOVE_TASK', id }), []);
+  const clearCompleted = useCallback(() => dispatch({ type: 'CLEAR_COMPLETED' }), []);
+
+  const contextValue = useMemo(() => ({
+    state, addTask, updateTask, removeTask, clearCompleted,
+  }), [state, addTask, updateTask, removeTask, clearCompleted]);
 
   return (
-    <DownloadContext.Provider value={{ state, addTask, updateTask, removeTask, clearCompleted }}>
+    <DownloadContext.Provider value={contextValue}>
       {children}
     </DownloadContext.Provider>
   );

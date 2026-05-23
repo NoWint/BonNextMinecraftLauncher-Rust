@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useMemo } from 'react';
 import { api, type OfflineAuthResult, type StoredAccount } from '../api';
 
 interface AuthState {
@@ -15,7 +15,8 @@ type AuthAction =
   | { type: 'SET_ACCOUNTS'; accounts: StoredAccount[] }
   | { type: 'SET_ACTIVE'; id: string }
   | { type: 'SET_ERROR'; error: string }
-  | { type: 'SET_LOADING'; loading: boolean };
+  | { type: 'SET_LOADING'; loading: boolean }
+  | { type: 'SET_ALL'; accounts: StoredAccount[]; activeAccountId: string | null; currentUser: OfflineAuthResult | null };
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
@@ -31,6 +32,8 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
       return { ...state, error: action.error };
     case 'SET_LOADING':
       return { ...state, loading: action.loading };
+    case 'SET_ALL':
+      return { ...state, accounts: action.accounts, activeAccountId: action.activeAccountId, currentUser: action.currentUser, error: '', loading: false };
     default:
       return state;
   }
@@ -65,19 +68,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshAccounts = useCallback(async () => {
     try {
       const accounts = await api.listAccounts();
-      dispatch({ type: 'SET_ACCOUNTS', accounts });
       const active = await api.getActiveAccount();
-      if (active) {
-        dispatch({ type: 'SET_ACTIVE', id: active.id });
-        dispatch({
-          type: 'LOGIN',
-          user: {
-            username: active.username,
-            uuid: active.uuid,
-            access_token: active.access_token,
-          },
-        });
-      }
+      dispatch({
+        type: 'SET_ALL',
+        accounts,
+        activeAccountId: active ? active.id : null,
+        currentUser: active
+          ? { username: active.username, uuid: active.uuid, access_token: active.access_token }
+          : null,
+      });
     } catch (e) {
       console.warn('Failed to refresh accounts:', e instanceof Error ? e.message : String(e));
     }
@@ -136,8 +135,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [refreshAccounts]);
 
+  const contextValue = useMemo(() => ({
+    state, offlineLogin, microsoftLogin, logout, switchAccount, refreshAccounts,
+  }), [state, offlineLogin, microsoftLogin, logout, switchAccount, refreshAccounts]);
+
   return (
-    <AuthContext.Provider value={{ state, offlineLogin, microsoftLogin, logout, switchAccount, refreshAccounts }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

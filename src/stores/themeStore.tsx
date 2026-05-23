@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 
 export type Theme = 'dark' | 'light' | 'oled';
+export type AnimationSpeed = 'fast' | 'normal' | 'smooth' | 'custom';
 
 interface ThemeContextValue {
   theme: Theme;
@@ -9,15 +10,28 @@ interface ThemeContextValue {
   switchThemeWithAnimation: (newTheme: Theme) => void;
   uiScale: number;
   setUiScale: (scale: number) => void;
+  animationSpeed: AnimationSpeed;
+  setAnimationSpeed: (speed: AnimationSpeed) => void;
+  animationDuration: number;
+  setAnimationDuration: (duration: number) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const THEME_STORAGE_KEY = 'bonnext:theme';
 const UI_SCALE_STORAGE_KEY = 'bonnext:ui-scale';
+const ANIM_SPEED_STORAGE_KEY = 'bonnext:animation-speed';
+const ANIM_DURATION_STORAGE_KEY = 'bonnext:animation-duration';
 const UI_SCALE_MIN = 0.5;
 const UI_SCALE_MAX = 2.0;
 const UI_SCALE_DEFAULT = 1.0;
+
+const ANIM_SPEED_MAP: Record<AnimationSpeed, number> = {
+  fast: 0.5,
+  normal: 1.0,
+  smooth: 1.8,
+  custom: 1.0,
+};
 
 function getInitialTheme(): Theme {
   try {
@@ -36,6 +50,25 @@ function getInitialUiScale(): number {
     }
   } catch {}
   return UI_SCALE_DEFAULT;
+}
+
+function getInitialAnimationSpeed(): AnimationSpeed {
+  try {
+    const stored = localStorage.getItem(ANIM_SPEED_STORAGE_KEY);
+    if (stored === 'fast' || stored === 'normal' || stored === 'smooth' || stored === 'custom') return stored;
+  } catch {}
+  return 'normal';
+}
+
+function getInitialAnimationDuration(): number {
+  try {
+    const stored = localStorage.getItem(ANIM_DURATION_STORAGE_KEY);
+    if (stored !== null) {
+      const val = parseFloat(stored);
+      if (!isNaN(val) && val >= 0.2 && val <= 5.0) return val;
+    }
+  } catch {}
+  return 1.0;
 }
 
 const THEME_CLASS_MAP: Record<Theme, string> = {
@@ -70,6 +103,14 @@ function createThemeSwitcher(setThemeState: React.Dispatch<React.SetStateAction<
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(getInitialTheme);
   const [uiScale, setUiScaleState] = useState<number>(getInitialUiScale);
+  const [animationSpeed, setAnimationSpeedState] = useState<AnimationSpeed>(getInitialAnimationSpeed);
+  const [animationDuration, setAnimationDurationState] = useState<number>(getInitialAnimationDuration);
+
+  const applyAnimationSpeed = useCallback((speed: AnimationSpeed, customDuration: number) => {
+    const root = document.documentElement;
+    const duration = speed === 'custom' ? customDuration : ANIM_SPEED_MAP[speed];
+    root.style.setProperty('--anim-speed', String(duration));
+  }, []);
 
   const applyThemeClass = useCallback((t: Theme) => {
     const root = document.documentElement;
@@ -90,6 +131,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(UI_SCALE_STORAGE_KEY, String(uiScale));
     } catch {}
   }, [uiScale]);
+
+  useEffect(() => {
+    applyAnimationSpeed(animationSpeed, animationDuration);
+    try {
+      localStorage.setItem(ANIM_SPEED_STORAGE_KEY, animationSpeed);
+      localStorage.setItem(ANIM_DURATION_STORAGE_KEY, String(animationDuration));
+    } catch {}
+  }, [animationSpeed, animationDuration, applyAnimationSpeed]);
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
@@ -114,8 +163,24 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setUiScaleState(clamped);
   }, []);
 
+  const setAnimationSpeed = useCallback((speed: AnimationSpeed) => {
+    setAnimationSpeedState(speed);
+  }, []);
+
+  const setAnimationDuration = useCallback((duration: number) => {
+    const clamped = Math.round(Math.min(5.0, Math.max(0.2, duration)) * 100) / 100;
+    setAnimationDurationState(clamped);
+  }, []);
+
+  const contextValue = useMemo(() => ({
+    theme, setTheme, toggleTheme, switchThemeWithAnimation: switchWithAnimation,
+    uiScale, setUiScale,
+    animationSpeed, setAnimationSpeed,
+    animationDuration, setAnimationDuration,
+  }), [theme, setTheme, toggleTheme, switchWithAnimation, uiScale, setUiScale, animationSpeed, setAnimationSpeed, animationDuration, setAnimationDuration]);
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme, switchThemeWithAnimation: switchWithAnimation, uiScale, setUiScale }}>
+    <ThemeContext.Provider value={contextValue}>
       {children}
     </ThemeContext.Provider>
   );

@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { api, type DownloadProgressEvent, type LaunchState, type GameInstance, type SystemInfo, type JreDownloadProgress } from '../api';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { api, type DownloadProgressEvent, type LaunchState, type GameInstance, type SystemInfo, type JreDownloadProgress, type MinecraftNewsEntry } from '../api';
+import { NewsArticleModal } from '../components/ui/NewsArticleModal';
 import { useAuth } from '../stores/authStore';
 import { useInstances } from '../stores/instanceStore';
 import { useToast } from '../stores/toastStore';
@@ -8,34 +9,18 @@ import { useGreeting } from '../hooks/useGreeting';
 import { Heading, SubLabel, AccentCorner, Ticker } from '../components/layout';
 import { StatusDot, Badge, ProgressBar, Tooltip } from '../components/ui';
 import { Button } from '../components/ui';
+import { OnboardingWizard, isOnboardingSkipped, isOnboardingCompleted, isOnboardingForceShow, clearForceShow } from '../components/ui';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import GameConsole from '../components/ui/GameConsole';
 import { relativeTime } from '../utils/time';
 import styles from './HomePage.module.css';
-
-const BANNER_SLIDES = [
-  { label: 'Featured', title: 'Minecraft 1.21 Tricky Trials', desc: 'Explore trial chambers, battle the breeze, and craft with new copper blocks.', theme: 1 },
-  { label: 'Performance', title: 'Sodium 0.7 Released', desc: 'Up to 40% FPS improvement. Now on Fabric, Quilt, and NeoForge.', theme: 2 },
-  { label: 'Community', title: 'Create Mod 6.0', desc: 'Mechanical marvels expanded. New logistics, trains, and contraptions.', theme: 3 },
-  { label: 'BonNext', title: 'One Click to Play', desc: 'Auto-detect Java, best version, optimal settings. Zero config needed.', theme: 4 },
-  { label: 'Technology', title: 'VulkanMod for Minecraft', desc: 'Native Vulkan rendering. Smoother frametimes on modern GPUs.', theme: 5 },
-  { label: 'Updates', title: 'Fabric 1.0 Milestone', desc: 'Stable API, better mod compat, 30% faster loader.', theme: 6 },
-];
-
-const NEWS_ITEMS = [
-  'Minecraft Live 2026 . New biome & mob reveal',
-  'Sodium 0.7 released . Up to 40% FPS improvement',
-  'Fabric 1.0 milestone . Stable API for modders',
-  'TerraFirmaCraft returns . Hardcore survival revival',
-  'Complementary Shaders v5 . Ray tracing for all GPUs',
-  'Create Mod 6.0 . Mechanical marvels expanded',
-];
 
 function usePollLaunchState(interval = 2000) {
   const [s, setS] = useState<LaunchState>('idle');
   useEffect(() => {
     let timer: ReturnType<typeof setInterval>;
     const poll = async () => {
+      if (document.hidden) return;
       try { setS(await api.getLaunchState()); } catch {}
     };
     poll();
@@ -53,18 +38,10 @@ function getLoaderIcon(loaderType: string | null): string {
   }
 }
 
-function getLoaderLabel(loaderType: string | null): string {
-  switch (loaderType) {
-    case 'fabric': return 'Fabric';
-    case 'forge': return 'Forge';
-    default: return 'Vanilla';
-  }
-}
-
-function formatPlaytime(seconds: number): string {
-  if (seconds < 60) return '< 1m played';
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m played`;
-  return `${(seconds / 3600).toFixed(1)} hrs played`;
+function formatPlaytime(seconds: number, t: (key: string, params?: Record<string, string>) => string): string {
+  if (seconds < 60) return t('home.playtimeLessMin');
+  if (seconds < 3600) return t('home.playtimeMinutes', { mins: String(Math.round(seconds / 60)) });
+  return t('home.playtimeHours', { hrs: (seconds / 3600).toFixed(1) });
 }
 
 function InstanceCard({
@@ -73,15 +50,17 @@ function InstanceCard({
   isReady,
   onLaunch,
   onSelect,
+  t,
 }: {
   instance: GameInstance;
   isActive: boolean;
   isReady: boolean | null;
   onLaunch: (inst: GameInstance) => void;
   onSelect: (inst: GameInstance) => void;
+  t: (key: string, params?: Record<string, string>) => string;
 }) {
-  const loaderLabel = getLoaderLabel(instance.loader_type);
-  const playtimeLabel = formatPlaytime(instance.playtime_seconds);
+  const loaderLabel = instance.loader_type ? t(`common.${instance.loader_type}`) : t('common.vanilla');
+  const playtimeLabel = formatPlaytime(instance.playtime_seconds, t);
 
   return (
     <div
@@ -111,19 +90,19 @@ function InstanceCard({
           </div>
           <div className={styles.card__meta}>
             <span className={styles.card__metaItem}>
-              Last played: {relativeTime(instance.last_played)}
+              {t('home.lastPlayed')}: {relativeTime(instance.last_played)}
             </span>
             <span className={styles.card__metaSep}>.</span>
             <span className={styles.card__metaItem}>{playtimeLabel}</span>
             <span className={styles.card__metaSep}>.</span>
             <span className={styles.card__metaItem}>
-              {isReady === null ? '⏳' : isReady ? '✅ Ready' : '⚠️ Needs download'}
+              {isReady === null ? '⏳' : isReady ? '✅ ' + t('home.ready') : '⚠️ ' + t('home.needsDownload')}
             </span>
           </div>
         </div>
         <div className={styles.card__actions}>
           <Button variant="primary" size="sm" onClick={(e) => { e.stopPropagation(); onLaunch(instance); }}>
-            ▶ START
+            {'▶ ' + t('home.startBtn')}
           </Button>
         </div>
       </div>
@@ -152,7 +131,7 @@ function PlayArea({
   onLaunch: () => void;
   onReset: () => void;
   onSelectInstance: (inst: GameInstance) => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string>) => string;
 }) {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [showCountdown, setShowCountdown] = useState(false);
@@ -166,9 +145,15 @@ function PlayArea({
   }, []);
 
   const stateLabel: Record<LaunchState, string> = {
-    idle: 'START', checking: 'CHECKING', downloading: 'DOWNLOADING',
-    validating: 'VALIDATING', launching: 'LAUNCHING', running: 'RUNNING',
-    exited: 'EXITED', crashed: 'CRASHED', error: 'ERROR',
+    idle: t('home.playArea.start'),
+    checking: t('home.state.checking'),
+    downloading: t('home.downloading'),
+    validating: t('home.state.validating'),
+    launching: t('home.state.launching'),
+    running: t('home.state.running'),
+    exited: t('home.state.exited'),
+    crashed: t('home.state.crashed'),
+    error: t('home.state.error'),
   };
 
   const isError = launchState === 'crashed' || launchState === 'error';
@@ -212,6 +197,7 @@ function PlayArea({
       <div
         className={`${styles.playArea__panel} ${canClick ? styles['playArea__panel--clickable'] : ''} ${isError ? styles['playArea__panel--error'] : ''} ${showCountdown ? styles['playArea__panel--countdown'] : ''}`}
         onClick={handleClick}
+        data-tour="home-play"
       >
         <AccentCorner position="topRight" />
         <AccentCorner position="bottomLeft" />
@@ -227,7 +213,7 @@ function PlayArea({
         <div className={styles.playArea__content}>
           {showCountdown ? (
             <div className={styles.countdownText}>
-              <div className={styles.countdownLabel}>LAUNCHING IN</div>
+              <div className={styles.countdownLabel}>{t('home.launchingIn')}</div>
               <div className={styles.countdownNumber}>{countdown}</div>
             </div>
           ) : isBusy || launchState !== 'idle' ? (
@@ -260,7 +246,7 @@ function PlayArea({
                 )}
               </div>
               <div className={styles.playArea__details}>
-                {instance.loader_type ? `${getLoaderLabel(instance.loader_type)} . ` : ''}{Math.round(instance.max_memory / 1024)}GB
+                {instance.loader_type ? `${t(`common.${instance.loader_type}`)} . ` : ''}{Math.round(instance.max_memory / 1024)}GB
               </div>
             </div>
           ) : (
@@ -336,23 +322,90 @@ export default function HomePage() {
   const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
   const [showConsole, setShowConsole] = useState(false);
   const [instanceCoverImage, setInstanceCoverImage] = useState<string | null>(null);
+  const [showWizard, setShowWizard] = useState(false);
+  const [newsEntries, setNewsEntries] = useState<MinecraftNewsEntry[]>([]);
+  const [articleUrl, setArticleUrl] = useState('');
+  const [articleTitle, setArticleTitle] = useState('');
+  const [articleImageUrl, setArticleImageUrl] = useState<string | null>(null);
+  const [showArticle, setShowArticle] = useState(false);
 
-  const activeInstance = instances.find((i) => i.id === selectedInstanceId)
-    || (instances.length > 0 ? instances[0] : null);
+  const openArticle = useCallback((url: string, title?: string, imageUrl?: string | null) => {
+    if (!url) return;
+    setArticleUrl(url);
+    setArticleTitle(title || '');
+    setArticleImageUrl(imageUrl || null);
+    setShowArticle(true);
+  }, []);
+
+  const lastDownloadUpdateRef = useRef(0);
+  const lastJreUpdateRef = useRef(0);
+
+  const FALLBACK_SLIDES = useMemo(() => [
+    { label: t('home.bannerFeatured'), title: t('home.bannerSlide1Title'), desc: t('home.bannerSlide1Desc'), theme: 1, url: null as string | null, imageUrl: null as string | null },
+    { label: t('home.bannerPerformance'), title: t('home.bannerSlide2Title'), desc: t('home.bannerSlide2Desc'), theme: 2, url: null as string | null, imageUrl: null as string | null },
+    { label: t('home.bannerCommunity'), title: t('home.bannerSlide3Title'), desc: t('home.bannerSlide3Desc'), theme: 3, url: null as string | null, imageUrl: null as string | null },
+    { label: t('home.bannerBonNext'), title: t('home.bannerSlide4Title'), desc: t('home.bannerSlide4Desc'), theme: 4, url: null as string | null, imageUrl: null as string | null },
+    { label: t('home.bannerTechnology'), title: t('home.bannerSlide5Title'), desc: t('home.bannerSlide5Desc'), theme: 5, url: null as string | null, imageUrl: null as string | null },
+    { label: t('home.bannerUpdates'), title: t('home.bannerSlide6Title'), desc: t('home.bannerSlide6Desc'), theme: 6, url: null as string | null, imageUrl: null as string | null },
+  ], [t]);
+
+  const BANNER_SLIDES = useMemo(() => {
+    if (newsEntries.length > 0) {
+      return newsEntries.slice(0, 6).map((entry, i) => ({
+        label: entry.tag || entry.category,
+        title: entry.title,
+        desc: entry.text,
+        theme: (i % 6) + 1,
+        url: entry.read_more_link,
+        imageUrl: entry.image_url,
+      }));
+    }
+    return FALLBACK_SLIDES;
+  }, [newsEntries, FALLBACK_SLIDES]);
+
+  const NEWS_ITEMS = useMemo(() => {
+    if (newsEntries.length > 0) {
+      return newsEntries.slice(0, 6).map((entry) => ({
+        title: entry.title,
+        url: entry.read_more_link,
+      }));
+    }
+    return [
+      { title: t('home.news1'), url: null },
+      { title: t('home.news2'), url: null },
+      { title: t('home.news3'), url: null },
+      { title: t('home.news4'), url: null },
+      { title: t('home.news5'), url: null },
+      { title: t('home.news6'), url: null },
+    ];
+  }, [newsEntries, t]);
+
+  const recentInstances = useMemo(() =>
+    [...instances]
+      .sort((a, b) => {
+        const aTime = a.last_played ? new Date(a.last_played).getTime() : 0;
+        const bTime = b.last_played ? new Date(b.last_played).getTime() : 0;
+        return bTime - aTime;
+      })
+      .slice(0, 3),
+    [instances]
+  );
+
+  const activeInstance = recentInstances.find((i) => i.id === selectedInstanceId)
+    || (recentInstances.length > 0 ? recentInstances[0] : null);
   const isBusy = launchState !== 'idle' && launchState !== 'exited' && launchState !== 'crashed' && launchState !== 'error';
   const loading = instState.loading;
 
   // Check ready state for all instances
   useEffect(() => {
     const checkAll = async () => {
+      const results = await Promise.allSettled(
+        instances.map(inst => api.checkInstanceReady(inst.id))
+      );
       const states: Record<string, boolean | null> = {};
-      for (const inst of instances) {
-        try {
-          states[inst.id] = await api.checkInstanceReady(inst.id);
-        } catch {
-          states[inst.id] = null;
-        }
-      }
+      results.forEach((result, i) => {
+        states[instances[i].id] = result.status === 'fulfilled' ? result.value : null;
+      });
       setReadyStates(states);
     };
     if (instances.length > 0) checkAll();
@@ -360,7 +413,11 @@ export default function HomePage() {
 
   useEffect(() => {
     const unlisten = api.onDownloadProgress((progress) => {
-      setDownloadProgress(progress);
+      const now = Date.now();
+      if (progress.finished || now - lastDownloadUpdateRef.current >= 200) {
+        lastDownloadUpdateRef.current = now;
+        setDownloadProgress(progress);
+      }
       if (progress.finished) setTimeout(() => setDownloadProgress(null), 2000);
     });
     return () => { unlisten.then((fn) => fn()); };
@@ -368,8 +425,13 @@ export default function HomePage() {
 
   useEffect(() => {
     const unlisten = api.onJreDownloadProgress((p) => {
-      setJreDownload(p);
-      if (p.downloaded >= p.total && p.total > 0) {
+      const now = Date.now();
+      const isDone = p.downloaded >= p.total && p.total > 0;
+      if (isDone || now - lastJreUpdateRef.current >= 200) {
+        lastJreUpdateRef.current = now;
+        setJreDownload(p);
+      }
+      if (isDone) {
         setTimeout(() => setJreDownload(null), 3000);
       }
     });
@@ -382,6 +444,10 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    api.getMinecraftNews().then(setNewsEntries).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (activeInstance) {
       api.getInstanceCoverImage(activeInstance.id).then(setInstanceCoverImage).catch(() => setInstanceCoverImage(null));
     } else {
@@ -389,18 +455,28 @@ export default function HomePage() {
     }
   }, [activeInstance]);
 
+  useEffect(() => {
+    const forceShow = isOnboardingForceShow();
+    const shouldShow = !loading && !isOnboardingSkipped() && !isOnboardingCompleted()
+      && (instances.length === 0 || forceShow);
+    if (shouldShow) {
+      if (forceShow) clearForceShow();
+      setShowWizard(true);
+    }
+  }, [loading, instances.length]);
+
   // Rotate news items
   useEffect(() => {
     const timer = setInterval(() => setNewsIndex((i) => (i + 1) % NEWS_ITEMS.length), 5000);
     return () => clearInterval(timer);
-  }, []);
+  }, [NEWS_ITEMS.length]);
 
   // Rotate banner carousel
   useEffect(() => {
     const total = BANNER_SLIDES.length + 1;
     const timer = setInterval(() => setBannerIndex((i) => (i + 1) % total), 6000);
     return () => clearInterval(timer);
-  }, []);
+  }, [BANNER_SLIDES.length]);
 
   const handleLaunch = useCallback(async (instance: GameInstance) => {
     setError('');
@@ -412,48 +488,17 @@ export default function HomePage() {
         instance.java_path || undefined, instance.jvm_args || undefined,
         instance.id,
       );
-      addToast({ type: 'success', title: 'Game launched', message: `${instance.name} is starting...` });
+      addToast({ type: 'success', title: t('home.gameLaunched'), message: t('instances.isStarting', { name: instance.name }) });
     } catch (e: any) {
-      const msg = e?.toString() || 'Launch failed';
+      const msg = e?.toString() || t('instances.launchFailed');
       setError(msg);
-      addToast({ type: 'error', title: 'Launch failed', message: msg });
+      addToast({ type: 'error', title: t('instances.launchFailed'), message: msg });
       setTimeout(() => setError(''), 8000);
     }
-  }, [auth, addToast]);
-
-  const handleQuickStart = useCallback(async () => {
-    setError('');
-    try {
-      await api.quickStart();
-      addToast({ type: 'success', title: 'Quick start', message: 'Launching latest Minecraft...' });
-    } catch (e: any) {
-      const msg = e?.toString() || 'Quick start failed';
-      setError(msg);
-      addToast({ type: 'error', title: 'Quick start failed', message: msg });
-    }
-  }, [addToast]);
+  }, [auth, addToast, t]);
 
   return (
     <div className={`page-enter ${styles.page}`}>
-      {/* New user hero */}
-      {instances.length === 0 && !loading && (
-        <div className={styles.emptyHero}>
-          <div className={styles.emptyHero__glimmer} />
-          <div className={styles.emptyHero__content}>
-            <h2 className={styles.emptyHero__title}>{t('home.welcomeNew')}</h2>
-            <p className={styles.emptyHero__desc}>{t('home.welcomeNewDesc')}</p>
-            <div className={styles.emptyHero__actions}>
-              <Button variant="primary" size="lg" onClick={handleQuickStart} disabled={isBusy}>
-                {isBusy ? 'DOWNLOADING...' : '⚡ ' + t('home.quickStart')}
-              </Button>
-              <Button variant="secondary-highlight" size="lg" onClick={() => window.location.hash = '#/instances/new'}>
-                + {t('home.newInstance')}
-              </Button>
-            </div>
-            <p className={styles.emptyHero__hint}>{t('home.welcomeNewHint')}</p>
-          </div>
-        </div>
-      )}
 
       {/* Banner carousel */}
       <div className={styles.bannerCarousel}>
@@ -463,14 +508,14 @@ export default function HomePage() {
             <div className={styles.bannerAccent} />
             <div className={styles.bannerSlide__leftContent}>
               <div className={styles.bannerLabel}>
-                {activeInstance ? (activeInstance.loader_type ? getLoaderLabel(activeInstance.loader_type).toUpperCase() : 'VANILLA') : 'READY'}
+                {activeInstance ? (activeInstance.loader_type ? t(`common.${activeInstance.loader_type}`).toUpperCase() : t('home.bannerVanilla')) : t('home.bannerReady')}
               </div>
               <div className={styles.bannerTitle}>
                 {activeInstance ? activeInstance.name : t('home.welcomeNew')}
               </div>
               <div className={styles.bannerDesc}>
                 {activeInstance
-                  ? `${activeInstance.version_id}${activeInstance.loader_version ? ` · ${activeInstance.loader_version}` : ''} · ${Math.round(activeInstance.max_memory / 1024)}GB · ${formatPlaytime(activeInstance.playtime_seconds)}`
+                  ? `${activeInstance.version_id}${activeInstance.loader_version ? ` · ${activeInstance.loader_version}` : ''} · ${Math.round(activeInstance.max_memory / 1024)}GB · ${formatPlaytime(activeInstance.playtime_seconds, t)}`
                   : t('home.welcomeNewDesc')
                 }
               </div>
@@ -492,7 +537,15 @@ export default function HomePage() {
 
           {/* Other slides */}
           {BANNER_SLIDES.map((slide, i) => (
-            <div key={i} className={`${styles.bannerSlide} ${styles[`bannerSlide--${slide.theme}`]}`}>
+            <div
+              key={i}
+              className={`${styles.bannerSlide} ${styles[`bannerSlide--${slide.theme}`]}`}
+              style={{
+                cursor: slide.url ? 'pointer' : 'default',
+                ...(slide.imageUrl ? { backgroundImage: `url(${slide.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}),
+              }}
+              onClick={() => { if (slide.url) openArticle(slide.url, slide.title, slide.imageUrl); }}
+            >
               <div className={styles.bannerAccent} />
               <div className={styles.bannerContent}>
                 <div className={styles.bannerLabel}>{slide.label}</div>
@@ -545,9 +598,9 @@ export default function HomePage() {
       {jreDownload && jreDownload.downloaded < jreDownload.total && (
         <div className={styles.downloadOverlay}>
           <div className={styles.downloadPanel}>
-            <Heading level="md">DOWNLOADING JAVA RUNTIME</Heading>
+            <Heading level="md">{t('home.downloadingJava')}</Heading>
             <div style={{ marginTop: 8, fontSize: '0.6em', color: '#888' }}>
-              Java {jreDownload.version} from Adoptium
+              {t('home.javaFromAdoptium', { version: String(jreDownload.version) })}
             </div>
             <div style={{ marginTop: 16 }}>
               <ProgressBar
@@ -595,7 +648,7 @@ export default function HomePage() {
               letterSpacing: 1, transition: 'all 0.15s',
             }}
           >
-            {showConsole ? '▲ CONSOLE' : '▼ CONSOLE'}
+            {showConsole ? '▲ ' + t('home.console') : '▼ ' + t('home.console')}
           </button>
         </div>
       </div>
@@ -608,38 +661,37 @@ export default function HomePage() {
         </div>
       ) : (
         <div className={styles.mainGrid}>
-          {/* Left: instance list */}
+          {/* Left: recent instances */}
           <div className={styles.instanceList}>
             <div className={styles.instanceList__header}>
               <div className={styles.instanceList__title}>
                 <SubLabel>{t('home.instancesHeader')}</SubLabel>
                 <span className={styles.instanceList__count}>
-                  {String(instances.length).padStart(2, '0')}
+                  {String(recentInstances.length).padStart(2, '0')}
                 </span>
               </div>
-              <Button variant="primary" size="sm" onClick={() => window.location.hash = '#/instances/new'}>
-                + {t('home.newInstance')}
-              </Button>
-            </div>
-
-            {instances.length === 0 ? (
-              <div className={styles.emptyState}>
-                <div className={styles.emptyState__bar} />
-                <div className={styles.emptyState__title}>{t('home.noInstancesTitle')}</div>
-                <div className={styles.emptyState__desc}>{t('home.noInstancesDesc')}</div>
-                <Button variant="primary" size="md" onClick={() => window.location.hash = '#/instances/new'}>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {instances.length > 3 && (
+                  <Button variant="secondary" size="sm" onClick={() => window.location.hash = '#/instances'}>
+                    {t('home.viewAll')}
+                  </Button>
+                )}
+                <Button variant="primary" size="sm" onClick={() => window.location.hash = '#/instances/new'} data-tour="home-new-instance">
                   + {t('home.newInstance')}
                 </Button>
               </div>
-            ) : (
-              instances.map((inst) => (
+            </div>
+
+            {recentInstances.length > 0 && (
+              recentInstances.map((inst) => (
                 <InstanceCard
                   key={inst.id}
                   instance={inst}
-                  isActive={inst.id === (selectedInstanceId || instances[0]?.id)}
+                  isActive={inst.id === (selectedInstanceId || recentInstances[0]?.id)}
                   isReady={readyStates[inst.id] ?? null}
                   onLaunch={handleLaunch}
                   onSelect={(inst) => setSelectedInstanceId(inst.id)}
+                  t={t}
                 />
               ))
             )}
@@ -663,10 +715,15 @@ export default function HomePage() {
                 style={{
                   fontSize: '0.55em', color: '#AAA',
                   lineHeight: 1.5, transition: 'opacity 0.3s ease',
+                  cursor: NEWS_ITEMS[newsIndex]?.url ? 'pointer' : 'default',
+                }}
+                onClick={() => {
+                  const item = NEWS_ITEMS[newsIndex];
+                  if (item?.url) openArticle(item.url, item.title);
                 }}
               >
                 <span style={{ color: '#FFE600', marginRight: 6 }}>{'▸'}</span>
-                {NEWS_ITEMS[newsIndex]}
+                {NEWS_ITEMS[newsIndex]?.title}
               </div>
               <div style={{
                 display: 'flex', gap: 4, marginTop: 8, justifyContent: 'center',
@@ -684,7 +741,7 @@ export default function HomePage() {
             </div>
 
             <div>
-              <Ticker messages={NEWS_ITEMS} />
+              <Ticker messages={NEWS_ITEMS.map(item => item.title)} />
             </div>
           </div>
 
@@ -692,7 +749,7 @@ export default function HomePage() {
           <div style={{ flex: 0.7, display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>
             <PlayArea
               instance={activeInstance}
-              instances={instances}
+              instances={recentInstances}
               isBusy={isBusy}
               launchState={launchState}
               javaVersion={javaVersion}
@@ -745,6 +802,19 @@ export default function HomePage() {
       )}
 
       <GameConsole visible={showConsole} />
+
+      <OnboardingWizard
+        open={showWizard}
+        onClose={() => setShowWizard(false)}
+      />
+
+      <NewsArticleModal
+        open={showArticle}
+        onClose={() => setShowArticle(false)}
+        articleUrl={articleUrl}
+        articleTitle={articleTitle}
+        articleImageUrl={articleImageUrl}
+      />
     </div>
   );
 }

@@ -53,12 +53,12 @@ impl DownloadTask {
     }
 
     pub fn is_already_valid(&self) -> bool {
-        verifier::file_exists_and_valid(&self.target_path, &self.sha1, self.size)
+        verifier::file_exists_and_valid(&self.target_path, &self.sha1, self.size, false)
     }
 }
 
 pub struct DownloadQueue {
-    client: reqwest::Client,
+    client: &'static reqwest::Client,
     semaphore: Arc<Semaphore>,
     event_callback: Option<Arc<dyn Fn(DownloadProgress) + Send + Sync>>,
 }
@@ -120,9 +120,11 @@ impl DownloadQueue {
                 match self.do_download(transformed_url, &task.target_path, task.size).await {
                     Ok(downloaded) => {
                         if !task.sha1.is_empty() {
-                            if let Err(e) = verifier::verify_file_sha1(&task.target_path, &task.sha1) {
+                            let target_path = task.target_path.clone();
+                            let sha1 = task.sha1.clone();
+                            if let Err(e) = verifier::verify_file_sha1_async(target_path, sha1).await {
                                 tracing::error!("SHA1 verification failed: {}", e);
-                                let _ = std::fs::remove_file(&task.target_path);
+                                let _ = tokio::fs::remove_file(&task.target_path).await;
                                 last_error = Some(e.to_string());
                                 continue;
                             }
@@ -222,7 +224,7 @@ impl DownloadQueue {
 
         for (index, task) in tasks.into_iter().enumerate() {
             let permit = self.semaphore.clone().acquire_owned().await?;
-            let client = self.client.clone();
+            let client = self.client;
             let callback = self.event_callback.clone();
             let semaphore = self.semaphore.clone();
 
@@ -344,8 +346,12 @@ pub async fn build_asset_object_tasks(
         )));
     }
 
-    let content = std::fs::read_to_string(&index_path)?;
-    let index: serde_json::Value = serde_json::from_str(&content)?;
+    let index_path_clone = index_path.clone();
+    let index = tokio::task::spawn_blocking(move || -> Result<serde_json::Value, LauncherError> {
+        let content = std::fs::read_to_string(&index_path_clone)?;
+        let index: serde_json::Value = serde_json::from_str(&content)?;
+        Ok(index)
+    }).await??;
 
     let objects = index
         .get("objects")

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useMemo } from 'react';
 import { api, type GameInstance } from '../api';
 
 interface InstanceState {
@@ -10,7 +10,8 @@ interface InstanceState {
 type InstanceAction =
   | { type: 'SET_INSTANCES'; instances: GameInstance[] }
   | { type: 'SET_LOADING'; loading: boolean }
-  | { type: 'SET_ERROR'; error: string };
+  | { type: 'SET_ERROR'; error: string }
+  | { type: 'SET_INSTANCES_LOADED'; instances: GameInstance[] };
 
 function instanceReducer(state: InstanceState, action: InstanceAction): InstanceState {
   switch (action.type) {
@@ -20,6 +21,8 @@ function instanceReducer(state: InstanceState, action: InstanceAction): Instance
       return { ...state, loading: action.loading };
     case 'SET_ERROR':
       return { ...state, error: action.error, loading: false };
+    case 'SET_INSTANCES_LOADED':
+      return { ...state, instances: action.instances, loading: false, error: '' };
     default:
       return state;
   }
@@ -36,10 +39,9 @@ export function InstanceProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(instanceReducer, { instances: [], loading: true, error: '' });
 
   const reloadInstances = useCallback(async () => {
-    dispatch({ type: 'SET_LOADING', loading: true });
     try {
       const list = await api.listInstances();
-      dispatch({ type: 'SET_INSTANCES', instances: list });
+      dispatch({ type: 'SET_INSTANCES_LOADED', instances: list });
     } catch (e: any) {
       dispatch({ type: 'SET_ERROR', error: e?.toString() || 'Failed to load' });
     }
@@ -57,8 +59,12 @@ export function InstanceProvider({ children }: { children: React.ReactNode }) {
     await reloadInstances();
   }, [reloadInstances]);
 
+  const contextValue = useMemo(() => ({
+    state, reloadInstances, createInstance, deleteInstance,
+  }), [state, reloadInstances, createInstance, deleteInstance]);
+
   return (
-    <InstanceContext.Provider value={{ state, reloadInstances, createInstance, deleteInstance }}>
+    <InstanceContext.Provider value={contextValue}>
       {children}
     </InstanceContext.Provider>
   );

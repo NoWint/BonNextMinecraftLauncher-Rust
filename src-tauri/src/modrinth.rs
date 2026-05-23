@@ -5,8 +5,17 @@
 use crate::error::LauncherError;
 use crate::http_client;
 use serde::{Deserialize, Serialize};
+use tokio::io::AsyncWriteExt;
 
 const MODRINTH_API_BASE: &str = "https://api.modrinth.com/v2";
+
+fn deserialize_null_string<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let opt = Option::<String>::deserialize(deserializer)?;
+    Ok(opt.unwrap_or_default())
+}
 
 // ---------------------------------------------------------------
 // Public types (serialized to frontend)
@@ -122,15 +131,22 @@ struct ModrinthSearchResponse {
 struct ModrinthSearchHit {
     slug: String,
     title: String,
+    #[serde(default)]
     description: String,
+    #[serde(default)]
     author: String,
     categories: Vec<String>,
     downloads: u64,
     follows: u64,
+    #[serde(default, deserialize_with = "deserialize_null_string")]
     icon_url: String,
+    #[serde(default)]
     client_side: String,
+    #[serde(default)]
     server_side: String,
+    #[serde(default)]
     date_created: String,
+    #[serde(default)]
     date_modified: String,
     latest_version: Option<String>,
 }
@@ -196,15 +212,18 @@ struct ModrinthProjectFull {
     slug: String,
     title: String,
     description: String,
+    #[serde(default)]
     body: String,
     author: String,
     categories: Vec<String>,
     downloads: u64,
     follows: u64,
+    #[serde(default, deserialize_with = "deserialize_null_string")]
     icon_url: String,
     client_side: String,
     server_side: String,
     project_type: String,
+    #[serde(default)]
     gallery: Vec<ModrinthGalleryImage>,
     issues_url: Option<String>,
     source_url: Option<String>,
@@ -627,20 +646,39 @@ pub async fn download_content_file(
         "shader" => crate::platform::paths::get_instance_shaderpacks_dir(instance_id),
         _ => crate::platform::paths::get_instance_mods_dir(instance_id),
     };
-    std::fs::create_dir_all(&target_dir)?;
+    tokio::fs::create_dir_all(&target_dir).await?;
     let target_path = target_dir.join(filename);
 
     let client = http_client::build_download_client();
     let response = client.get(file_url).send().await?.error_for_status()?;
-    let bytes = response.bytes().await?;
 
-    // Verify SHA1 if provided
-    if let Some(expected_sha1) = sha1_hash {
-        use sha1::{Digest, Sha1};
-        let mut hasher = Sha1::new();
-        hasher.update(&bytes);
-        let actual = hex::encode(hasher.finalize());
+    if let Some(parent) = target_path.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+
+    let mut file = tokio::io::BufWriter::new(tokio::fs::File::create(&target_path).await?);
+    let mut stream = response.bytes_stream();
+    use futures_util::StreamExt;
+    use sha1::{Digest, Sha1};
+
+    let mut hasher = sha1_hash.map(|_| Sha1::new());
+    let mut _downloaded: u64 = 0;
+
+    while let Some(chunk_result) = stream.next().await {
+        let chunk = chunk_result?;
+        if let Some(ref mut h) = hasher {
+            h.update(&chunk);
+        }
+        tokio::io::copy(&mut &chunk[..], &mut file).await?;
+        _downloaded += chunk.len() as u64;
+    }
+
+    file.flush().await?;
+
+    if let (Some(expected_sha1), Some(h)) = (sha1_hash, hasher) {
+        let actual = hex::encode(h.finalize());
         if !actual.eq_ignore_ascii_case(expected_sha1) {
+            let _ = tokio::fs::remove_file(&target_path).await;
             return Err(LauncherError::Sha1Mismatch(format!(
                 "File {} expected SHA1 {} but got {}",
                 filename, expected_sha1, actual
@@ -648,7 +686,6 @@ pub async fn download_content_file(
         }
     }
 
-    std::fs::write(&target_path, &bytes)?;
     tracing::info!("Content downloaded: {} -> {}", filename, target_path.display());
     Ok(target_path.to_string_lossy().to_string())
 }

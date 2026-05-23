@@ -14,33 +14,33 @@ interface Template {
   loaderType: string;
 }
 
-const TEMPLATES: Template[] = [
+const getTemplates = (t: (key: string) => string): Template[] => [
   {
     id: 'vanilla',
-    name: 'Vanilla',
+    name: t('newInstance.templateVanilla'),
     icon: '\u{1F4E6}',
-    description: 'Pure Minecraft experience. No mods, no loaders. The original game as intended.',
+    description: t('newInstance.templateVanillaDesc'),
     loaderType: '',
   },
   {
     id: 'fabric',
-    name: 'Fabric',
+    name: t('newInstance.templateFabric'),
     icon: '\u{1F9F5}',
-    description: 'Lightweight modding framework. Best performance, fastest updates, huge mod selection.',
+    description: t('newInstance.templateFabricDesc'),
     loaderType: 'fabric',
   },
   {
     id: 'forge',
-    name: 'Forge',
+    name: t('newInstance.templateForge'),
     icon: '\u{2692}',
-    description: 'Classic modding platform. Largest mod ecosystem, stable and battle-tested.',
+    description: t('newInstance.templateForgeDesc'),
     loaderType: 'forge',
   },
   {
     id: 'optifine',
-    name: 'OptiFine',
+    name: t('newInstance.templateOptifine'),
     icon: '\u{1F50D}',
-    description: 'Performance optimizer running on Forge. Boost FPS, add shaders, HD textures.',
+    description: t('newInstance.templateOptifineDesc'),
     loaderType: 'forge',
   },
 ];
@@ -48,6 +48,7 @@ const TEMPLATES: Template[] = [
 export default function NewInstancePage() {
   const { createInstance } = useInstances();
   const { t } = useI18n();
+  const TEMPLATES = getTemplates(t);
   const [name, setName] = useState('');
   const [versions, setVersions] = useState<VersionEntry[]>([]);
   const [selectedVersion, setSelectedVersion] = useState('');
@@ -115,12 +116,13 @@ export default function NewInstancePage() {
         try {
           await api.installLoader(loaderType, selectedVersion, selectedUrl, loaderVersion, inst.id);
         } catch (e: any) {
-          setError(`Loader install failed: ${e}. Instance created without loader.`);
+          setError(t('newInstance.loaderInstallFailed', { error: String(e) }));
+          return;
         }
       }
       window.location.hash = '#/';
     } catch (e: any) {
-      setError(e?.toString() || 'Failed to create instance');
+      setError(e?.toString() || t('newInstance.createFailed'));
     } finally {
       setLoading(false);
     }
@@ -132,7 +134,7 @@ export default function NewInstancePage() {
       <div className={styles.form}>
         {/* Template cards */}
         <div>
-          <SubLabel>TEMPLATE</SubLabel>
+          <SubLabel>{t('newInstance.template')}</SubLabel>
           <div className={styles.templateGrid}>
             {TEMPLATES.map((tpl) => (
               <button
@@ -151,19 +153,19 @@ export default function NewInstancePage() {
 
         {optifineNote && (
           <div className={styles.optifineNote}>
-            <span>OptiFine runs on Forge. Select the appropriate Forge loader version for your Minecraft version.</span>
+            <span>{t('newInstance.optifineNote')}</span>
           </div>
         )}
 
         {/* Name */}
-        <div>
-          <SubLabel>INSTANCE NAME</SubLabel>
-          <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="My Minecraft" />
+        <div data-tour="new-name">
+          <SubLabel>{t('newInstance.instanceName')}</SubLabel>
+          <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder={t('newInstance.namePlaceholder')} />
         </div>
 
         {/* Version selector */}
-        <div>
-          <SubLabel>VERSION</SubLabel>
+        <div data-tour="new-version">
+          <SubLabel>{t('newInstance.version')}</SubLabel>
           <Select
             value={selectedVersion}
             onChange={(e) => {
@@ -177,7 +179,7 @@ export default function NewInstancePage() {
 
         {/* Loader selector */}
         <div>
-          <SubLabel>MOD LOADER (OPTIONAL)</SubLabel>
+          <SubLabel>{t('newInstance.modLoader')}</SubLabel>
           <Select
             value={loaderType}
             onChange={(e) => {
@@ -193,9 +195,9 @@ export default function NewInstancePage() {
               }
             }}
             options={[
-              { value: '', label: 'None (Vanilla)' },
-              { value: 'fabric', label: 'Fabric' },
-              { value: 'forge', label: 'Forge' },
+              { value: '', label: t('newInstance.noneVanilla') },
+              { value: 'fabric', label: t('common.fabric') },
+              { value: 'forge', label: t('common.forge') },
             ]}
           />
         </div>
@@ -203,7 +205,7 @@ export default function NewInstancePage() {
         {/* Loader version */}
         {loaderType && loaderVersions.length > 0 && (
           <div>
-            <SubLabel>LOADER VERSION</SubLabel>
+            <SubLabel>{t('newInstance.loaderVersion')}</SubLabel>
             <Select
               value={loaderVersion}
               onChange={(e) => setLoaderVersion(e.target.value)}
@@ -214,8 +216,8 @@ export default function NewInstancePage() {
 
         {error && <div className={styles.error}>{error}</div>}
 
-        <Button variant="primary" size="lg" disabled={loading || !name.trim()} onClick={handleCreate}>
-          {loading ? 'CREATING...' : 'CREATE'}
+        <Button variant="primary" size="lg" disabled={loading || !name.trim()} onClick={handleCreate} data-tour="new-create">
+          {loading ? t('newInstance.creating') : t('newInstance.create')}
         </Button>
       </div>
     </div>

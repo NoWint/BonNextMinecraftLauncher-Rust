@@ -1,4 +1,6 @@
 use crate::error::LauncherError;
+use serde::Serialize;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 #[cfg(target_os = "windows")]
@@ -6,6 +8,13 @@ use std::os::windows::process::CommandExt;
 
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct JavaInfo {
+    pub path: String,
+    pub version: Option<u32>,
+    pub vendor: Option<String>,
+}
 
 pub fn find_java() -> Result<PathBuf, LauncherError> {
     if let Some(custom) = find_custom_java() {
@@ -42,6 +51,56 @@ pub fn find_java() -> Result<PathBuf, LauncherError> {
     }
 
     Err(LauncherError::JavaNotFound)
+}
+
+pub fn find_all_java() -> Vec<JavaInfo> {
+    let mut seen: BTreeMap<String, JavaInfo> = BTreeMap::new();
+
+    let add_java = |seen: &mut BTreeMap<String, JavaInfo>, path: PathBuf| {
+        let key = path.to_string_lossy().to_string();
+        if seen.contains_key(&key) {
+            return;
+        }
+        let version = check_java_version(&path);
+        seen.insert(key, JavaInfo { path: path.to_string_lossy().to_string(), version, vendor: None });
+    };
+
+    if let Some(p) = find_custom_java() {
+        add_java(&mut seen, p);
+    }
+
+    if let Some(p) = find_java_home() {
+        add_java(&mut seen, p);
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        for info in find_all_linux_java() {
+            add_java(&mut seen, PathBuf::from(&info.path));
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        for info in find_all_macos_java() {
+            add_java(&mut seen, PathBuf::from(&info.path));
+        }
+    }
+
+    for info in find_all_in_path() {
+        add_java(&mut seen, PathBuf::from(&info.path));
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        for info in find_all_windows_registry() {
+            add_java(&mut seen, PathBuf::from(&info.path));
+        }
+    }
+
+    let mut results: Vec<JavaInfo> = seen.into_values().collect();
+    results.sort_by(|a, b| b.version.cmp(&a.version).then_with(|| a.path.cmp(&b.path)));
+    results
 }
 
 fn find_custom_java() -> Option<PathBuf> {
@@ -126,6 +185,33 @@ fn find_in_path() -> Option<PathBuf> {
     }
 }
 
+fn find_all_in_path() -> Vec<JavaInfo> {
+    let mut results = Vec::new();
+    let java_names: &[&str] = if cfg!(target_os = "windows") {
+        &["javaw.exe", "java.exe"]
+    } else {
+        &["java"]
+    };
+    let path_var = match std::env::var("PATH") {
+        Ok(p) => p,
+        Err(_) => return results,
+    };
+    let separator = if cfg!(target_os = "windows") { ';' } else { ':' };
+    for dir in path_var.split(separator) {
+        for java_name in java_names {
+            let candidate = PathBuf::from(dir).join(java_name);
+            if candidate.exists() {
+                let path_str = candidate.to_string_lossy().to_string();
+                if !results.iter().any(|r: &JavaInfo| r.path == path_str) {
+                    let version = check_java_version(&candidate);
+                    results.push(JavaInfo { path: path_str, version, vendor: None });
+                }
+            }
+        }
+    }
+    results
+}
+
 #[cfg(target_os = "windows")]
 fn find_windows_registry() -> Option<PathBuf> {
     let mut command = std::process::Command::new("reg");
@@ -163,6 +249,76 @@ fn find_windows_registry() -> Option<PathBuf> {
     None
 }
 
+#[cfg(target_os = "windows")]
+fn find_all_windows_registry() -> Vec<JavaInfo> {
+    let mut results = Vec::new();
+    let mut command = std::process::Command::new("reg");
+    command.args([
+        "query",
+        r"HKLM\SOFTWARE\JavaSoft\Java Runtime Environment",
+        "/s",
+        "/v",
+        "JavaHome",
+    ]);
+    command.creation_flags(CREATE_NO_WINDOW);
+    if let Ok(output) = command.output() {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines() {
+                if let Some(idx) = line.find("JavaHome") {
+                    if let Some(val) = line[idx..].split("REG_SZ").nth(1) {
+                        let java_home = val.trim();
+                        for exe in &["javaw.exe", "java.exe"] {
+                            let java = PathBuf::from(java_home).join("bin").join(exe);
+                            if java.exists() {
+                                let path_str = java.to_string_lossy().to_string();
+                                if !results.iter().any(|r: &JavaInfo| r.path == path_str) {
+                                    let version = check_java_version(&java);
+                                    results.push(JavaInfo { path: path_str, version, vendor: None });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let mut command = std::process::Command::new("reg");
+    command.args([
+        "query",
+        r"HKLM\SOFTWARE\JavaSoft\JDK",
+        "/s",
+        "/v",
+        "JavaHome",
+    ]);
+    command.creation_flags(CREATE_NO_WINDOW);
+    if let Ok(output) = command.output() {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines() {
+                if let Some(idx) = line.find("JavaHome") {
+                    if let Some(val) = line[idx..].split("REG_SZ").nth(1) {
+                        let java_home = val.trim();
+                        for exe in &["javaw.exe", "java.exe"] {
+                            let java = PathBuf::from(java_home).join("bin").join(exe);
+                            if java.exists() {
+                                let path_str = java.to_string_lossy().to_string();
+                                if !results.iter().any(|r: &JavaInfo| r.path == path_str) {
+                                    let version = check_java_version(&java);
+                                    results.push(JavaInfo { path: path_str, version, vendor: None });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    results
+}
+
 #[cfg(target_os = "linux")]
 fn find_linux_java() -> Option<PathBuf> {
     let search_paths: &[&str] = &[
@@ -191,6 +347,47 @@ fn find_linux_java() -> Option<PathBuf> {
         }
     }
     None
+}
+
+#[cfg(target_os = "linux")]
+fn find_all_linux_java() -> Vec<JavaInfo> {
+    let mut results = Vec::new();
+    let search_paths: &[&str] = &[
+        "/usr/lib/jvm/default/bin/java",
+        "/usr/lib/jvm/default-jdk/bin/java",
+        "/usr/lib/jvm/java-25-openjdk-amd64/bin/java",
+        "/usr/lib/jvm/java-24-openjdk-amd64/bin/java",
+        "/usr/lib/jvm/java-23-openjdk-amd64/bin/java",
+        "/usr/lib/jvm/java-22-openjdk-amd64/bin/java",
+        "/usr/lib/jvm/java-21-openjdk-amd64/bin/java",
+        "/usr/lib/jvm/java-17-openjdk-amd64/bin/java",
+        "/usr/lib/jvm/java-11-openjdk-amd64/bin/java",
+        "/usr/lib/jvm/java-8-openjdk-amd64/bin/java",
+        "/usr/lib/jvm/java-25-openjdk-arm64/bin/java",
+        "/usr/lib/jvm/java-21-openjdk-arm64/bin/java",
+        "/usr/lib/jvm/java-17-openjdk-arm64/bin/java",
+        "/usr/local/lib/jvm/bin/java",
+    ];
+    for path_str in search_paths {
+        let p = PathBuf::from(path_str);
+        if p.exists() {
+            let version = check_java_version(&p);
+            results.push(JavaInfo { path: p.to_string_lossy().to_string(), version, vendor: None });
+        }
+    }
+    if let Ok(entries) = std::fs::read_dir("/usr/lib/jvm") {
+        for entry in entries.flatten() {
+            let java = entry.path().join("bin").join("java");
+            if java.exists() {
+                let path_str = java.to_string_lossy().to_string();
+                if !results.iter().any(|r: &JavaInfo| r.path == path_str) {
+                    let version = check_java_version(&java);
+                    results.push(JavaInfo { path: path_str, version, vendor: None });
+                }
+            }
+        }
+    }
+    results
 }
 
 #[cfg(target_os = "macos")]
@@ -226,6 +423,33 @@ fn find_macos_java() -> Option<PathBuf> {
     }
 
     None
+}
+
+#[cfg(target_os = "macos")]
+fn find_all_macos_java() -> Vec<JavaInfo> {
+    let mut results = Vec::new();
+    for major in [25, 24, 23, 22, 21, 20, 19, 18, 17, 11, 8] {
+        let output = std::process::Command::new("/usr/libexec/java_home")
+            .arg("-v")
+            .arg(major.to_string())
+            .output();
+        if let Ok(output) = output {
+            if output.status.success() {
+                let home = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !home.is_empty() {
+                    let java = PathBuf::from(&home).join("bin").join("java");
+                    if java.exists() {
+                        let path_str = java.to_string_lossy().to_string();
+                        if !results.iter().any(|r: &JavaInfo| r.path == path_str) {
+                            let version = check_java_version(&java);
+                            results.push(JavaInfo { path: path_str, version, vendor: None });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    results
 }
 
 #[allow(clippy::ptr_arg)]

@@ -5,6 +5,44 @@ use serde::Serialize;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+/// Supported JRE download sources.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum JreSource {
+    Adoptium,
+    Zulu,
+    Microsoft,
+    Corretto,
+}
+
+impl JreSource {
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "zulu" => JreSource::Zulu,
+            "microsoft" => JreSource::Microsoft,
+            "corretto" => JreSource::Corretto,
+            _ => JreSource::Adoptium,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            JreSource::Adoptium => "adoptium",
+            JreSource::Zulu => "zulu",
+            JreSource::Microsoft => "microsoft",
+            JreSource::Corretto => "corretto",
+        }
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            JreSource::Adoptium => "Eclipse Adoptium (HotSpot)",
+            JreSource::Zulu => "Azul Zulu",
+            JreSource::Microsoft => "Microsoft OpenJDK",
+            JreSource::Corretto => "Amazon Corretto",
+        }
+    }
+}
+
 /// A JRE release entry from the Adoptium API.
 #[derive(Debug, Clone, Serialize)]
 pub struct JreRelease {
@@ -14,6 +52,14 @@ pub struct JreRelease {
     pub image_type: String,
     pub download_url: String,
     pub size_mb: f64,
+}
+
+/// Descriptor for available JRE sources.
+#[derive(Debug, Clone, Serialize)]
+pub struct JreSourceInfo {
+    pub id: String,
+    pub label: String,
+    pub available: bool,
 }
 
 /// Check if a compatible JRE is already downloaded for the given major version.
@@ -84,8 +130,18 @@ pub async fn download_java(java_version: u32) -> Result<String, LauncherError> {
 }
 
 /// Same as download_java but with a progress callback.
+/// Uses the configured JRE download source.
 pub async fn download_java_with_progress(
     java_version: u32,
+    on_progress: impl Fn(u64, u64) + Send + 'static,
+) -> Result<String, LauncherError> {
+    download_java_with_source(java_version, &JreSource::Adoptium, on_progress).await
+}
+
+/// Download and extract a JDK using the specified source.
+pub async fn download_java_with_source(
+    java_version: u32,
+    source: &JreSource,
     on_progress: impl Fn(u64, u64) + Send + 'static,
 ) -> Result<String, LauncherError> {
     let target_dir = paths::get_game_dir()
@@ -94,7 +150,6 @@ pub async fn download_java_with_progress(
 
     let java_exe = java_executable_path(&target_dir);
 
-    // If already downloaded, return the path
     if java_exe.exists() {
         tracing::info!(
             "Java {} already present at {}",
@@ -106,12 +161,13 @@ pub async fn download_java_with_progress(
 
     std::fs::create_dir_all(&target_dir)?;
 
-    let download_url = resolve_adoptium_url(java_version).await?;
+    let download_url = resolve_jre_url(java_version, source).await?;
 
     tracing::info!(
-        "Downloading Java {} from {}",
+        "Downloading Java {} from {} (source: {})",
         java_version,
-        download_url
+        download_url,
+        source.as_str()
     );
 
     let temp_dir = tempfile::TempDir::new()
@@ -129,8 +185,6 @@ pub async fn download_java_with_progress(
 
     extract_archive(&archive_path, &target_dir)?;
 
-    // On macOS, JDK may be nested inside a Contents/Home directory.
-    // Search for the actual java executable after extraction.
     let final_java_path = find_java_after_extract(&target_dir)?;
 
     if !final_java_path.exists() {
@@ -140,7 +194,6 @@ pub async fn download_java_with_progress(
         )));
     }
 
-    // Make java executable on Unix
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -177,6 +230,24 @@ pub async fn download_java_with_progress(
     );
 
     Ok(final_java_path.to_string_lossy().to_string())
+}
+
+pub fn get_jre_sources() -> Vec<JreSourceInfo> {
+    vec![
+        JreSourceInfo { id: "adoptium".into(), label: JreSource::Adoptium.label().into(), available: true },
+        JreSourceInfo { id: "zulu".into(), label: JreSource::Zulu.label().into(), available: true },
+        JreSourceInfo { id: "microsoft".into(), label: JreSource::Microsoft.label().into(), available: true },
+        JreSourceInfo { id: "corretto".into(), label: JreSource::Corretto.label().into(), available: true },
+    ]
+}
+
+async fn resolve_jre_url(java_version: u32, source: &JreSource) -> Result<String, LauncherError> {
+    match source {
+        JreSource::Adoptium => resolve_adoptium_url(java_version).await,
+        JreSource::Zulu => resolve_zulu_url(java_version).await,
+        JreSource::Microsoft => resolve_microsoft_url(java_version).await,
+        JreSource::Corretto => resolve_corretto_url(java_version).await,
+    }
 }
 
 /// Query the Adoptium API v3 for the latest JDK binary URL for the current platform.
@@ -389,6 +460,124 @@ fn find_java_recursive(dir: &Path, max_depth: u32) -> Result<PathBuf, std::io::E
         std::io::ErrorKind::NotFound,
         "java not found in recursive search",
     ))
+}
+
+// Source-specific URL resolvers
+
+async fn resolve_zulu_url(java_version: u32) -> Result<String, LauncherError> {
+    let os = if cfg!(target_os = "windows") {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "macos"
+    } else {
+        "linux"
+    };
+    let arch = if cfg!(target_arch = "x86_64") { "x86_64" }
+        else if cfg!(target_arch = "aarch64") { "aarch64" }
+        else { "x86_64" };
+
+    let api_url = format!(
+        "https://api.azul.com/metadata/v1/zulu/packages?java_version={}&os={}&arch={}&archive_type=jdk&javafx=false&latest=true",
+        java_version, os, arch
+    );
+
+    let client = crate::http_client::build_client();
+    let json: serde_json::Value = client
+        .get(&api_url)
+        .header("Accept", "application/json")
+        .send().await?.error_for_status()?
+        .json().await?;
+
+    let packages = json.as_array()
+        .ok_or_else(|| LauncherError::Other("Unexpected Zulu API response".into()))?;
+
+    for pkg in packages {
+        if let Some(url) = pkg.get("download_url").and_then(|v| v.as_str()) {
+            return Ok(url.to_string());
+        }
+    }
+
+    Err(LauncherError::Other(format!("No Zulu JDK found for version {}", java_version)))
+}
+
+async fn resolve_microsoft_url(java_version: u32) -> Result<String, LauncherError> {
+    let os = if cfg!(target_os = "windows") {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "macOS"
+    } else {
+        "linux"
+    };
+    let arch = if cfg!(target_arch = "x86_64") { "x64" }
+        else if cfg!(target_arch = "aarch64") { "aarch64" }
+        else { "x64" };
+
+    let api_url = format!(
+        "https://learn.microsoft.com/api/curated/java/jdk/{}/binaries/{}/{}",
+        java_version, os, arch
+    );
+
+    let client = crate::http_client::build_client();
+    let response = client
+        .head(&api_url)
+        .send().await?.error_for_status()?;
+
+    let url = response.url().to_string();
+    if url.contains("learn.microsoft.com") && url.contains("/java/jdk/") {
+        return Ok(url);
+    }
+
+    let alt_url = format!(
+        "https://aka.ms/download-jdk/microsoft-jdk-{}-{}-{}",
+        java_version, os, arch
+    );
+    let response = client.head(&alt_url).send().await?;
+    if response.status().is_success() || response.status().is_redirection() {
+        return Ok(response.url().to_string());
+    }
+
+    Err(LauncherError::Other(format!("No Microsoft JDK found for version {}", java_version)))
+}
+
+async fn resolve_corretto_url(java_version: u32) -> Result<String, LauncherError> {
+    let os = if cfg!(target_os = "windows") { "windows" }
+        else if cfg!(target_os = "macos") { "macos" }
+        else { "linux" };
+    let arch = if cfg!(target_arch = "x86_64") { "x64" }
+        else if cfg!(target_arch = "aarch64") { "aarch64" }
+        else { "x64" };
+
+    let api_url = format!(
+        "https://corretto.aws/downloads/latest/amazon-corretto-{}-{}-{}",
+        java_version, arch, os
+    );
+
+    let client = crate::http_client::build_client();
+    let response = client
+        .head(&api_url)
+        .send().await?;
+
+    if response.status().is_success() || response.status().is_redirection() {
+        return Ok(response.url().to_string());
+    }
+
+    let alt_url = if os == "linux" {
+        format!(
+            "https://corretto.aws/downloads/latest/amazon-corretto-{}-{}-{}-jdk.tar.gz",
+            java_version, arch, os
+        )
+    } else {
+        format!(
+            "https://corretto.aws/downloads/latest/amazon-corretto-{}-{}-{}-jdk.zip",
+            java_version, arch, os
+        )
+    };
+    let response = client.head(&alt_url).send().await?;
+    if response.status().is_success() || response.status().is_redirection() {
+        return Ok(response.url().to_string());
+    }
+
+    Err(LauncherError::Other(format!("No Amazon Corretto JDK found for version {}", java_version)))
 }
 
 /// Download a file from a URL to a local path, with progress callback.

@@ -70,51 +70,6 @@ impl DownloadSource for BmclapiSource {
 }
 
 // ---------------------------------------------------------------
-// MCBBS mirror (China, alternative)
-// ---------------------------------------------------------------
-pub struct McbbsSource;
-
-impl DownloadSource for McbbsSource {
-    fn name(&self) -> &'static str { "mcbbs" }
-    fn version_manifest_url(&self) -> &'static str {
-        "https://download.mcbbs.net/mc/game/version_manifest_v2.json"
-    }
-    fn transform_url(&self, original: &str) -> String {
-        if original.starts_with("https://libraries.minecraft.net/") {
-            return original.replace(
-                "https://libraries.minecraft.net/",
-                "https://download.mcbbs.net/libraries/",
-            );
-        }
-        if original.starts_with("https://resources.download.minecraft.net/") {
-            return original.replace(
-                "https://resources.download.minecraft.net/",
-                "https://download.mcbbs.net/assets/",
-            );
-        }
-        if original.starts_with("https://piston-meta.mojang.com/") {
-            return original.replace(
-                "https://piston-meta.mojang.com/",
-                "https://download.mcbbs.net/",
-            );
-        }
-        if original.starts_with("https://launcher.mojang.com/") {
-            return original.replace(
-                "https://launcher.mojang.com/",
-                "https://download.mcbbs.net/",
-            );
-        }
-        if original.starts_with("https://launchermeta.mojang.com/") {
-            return original.replace(
-                "https://launchermeta.mojang.com/",
-                "https://download.mcbbs.net/",
-            );
-        }
-        original.to_string()
-    }
-}
-
-// ---------------------------------------------------------------
 // Global source manager
 // ---------------------------------------------------------------
 use std::sync::OnceLock;
@@ -134,7 +89,6 @@ impl SourceManager {
         let sources: Vec<Box<dyn DownloadSource>> = vec![
             Box::new(OfficialSource),
             Box::new(BmclapiSource),
-            Box::new(McbbsSource),
         ];
         let active_index = Self::resolve_active_index(&sources);
         SourceManager { sources, active_index }

@@ -6,6 +6,20 @@
   padding-right: 160px;
 }
 
+.topBar {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 100;
+  display: flex;
+  justify-content: flex-end;
+  padding: 6px 10px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  clip-path: var(--clip-small);
+  backdrop-filter: blur(8px);
+}
+
 .title {
   font-family: var(--font-heading);
   font-size: 1.4em;
@@ -532,8 +546,8 @@
   align-items: center;
   justify-content: center;
   gap: 16px;
-  margin-top: 32px;
   padding: 20px 0;
+  margin-top: auto;
   border-top: 1px solid var(--color-border);
 }
 
@@ -572,6 +586,130 @@
   transform: scale(0.97);
 }
 
+/* ---- File Management ---- */
+
+.fileMgmtSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fileMgmtSection + .fileMgmtSection {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border-mid);
+}
+
+.fileMgmtSection__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.fileMgmtSection__title {
+  font-size: 0.5em;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.fileMgmtList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fileMgmtRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border-mid);
+  clip-path: var(--clip-small);
+}
+
+.fileMgmtRow__info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.fileMgmtRow__name {
+  font-size: 0.6em;
+  font-weight: 600;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+}
+
+.fileMgmtRow__badge {
+  font-size: 0.38em;
+  font-weight: 700;
+  padding: 2px 6px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  clip-path: var(--clip-small);
+}
+
+.fileMgmtRow__badge--release {
+  color: #00cc66;
+  background: rgba(0, 204, 102, 0.10);
+  border: 1px solid rgba(0, 204, 102, 0.25);
+}
+
+.fileMgmtRow__badge--snapshot {
+  color: #FFA500;
+  background: rgba(255, 165, 0, 0.10);
+  border: 1px solid rgba(255, 165, 0, 0.25);
+}
+
+.fileMgmtRow__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.fileMgmtRow__size {
+  font-size: 0.55em;
+  font-family: var(--font-mono);
+  color: var(--color-text-secondary);
+}
+
+.fileMgmtSubRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background: rgba(10, 10, 10, 0.4);
+  border: 1px solid rgba(28, 28, 28, 0.6);
+  clip-path: var(--clip-small);
+}
+
+.fileMgmtSubRow__dot {
+  width: 5px;
+  height: 5px;
+  background: var(--color-accent);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  flex-shrink: 0;
+}
+
+.fileMgmtSubRow__name {
+  font-size: 0.5em;
+  color: var(--color-text-dim);
+  flex: 1;
+  min-width: 0;
+}
+
+.fileMgmtSubRow__size {
+  font-size: 0.5em;
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+}
+
 @media (max-width: 1200px) {
   .page {
     padding-right: 110px;
@@ -582,4 +720,20 @@
   .page {
     padding-right: 0;
   }
+}
+
+.textInput {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--clip-small, 2px);
+  color: #fff;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 0.55em;
+  padding: 0.4em 0.6em;
+  outline: none;
+  width: 100%;
+}
+
+.textInput:focus {
+  border-color: var(--accent, #FFE600);
 }

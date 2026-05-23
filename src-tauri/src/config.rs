@@ -3,6 +3,58 @@ use serde::{Deserialize, Serialize};
 use crate::platform::paths;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SecurityConfig {
+    #[serde(default = "default_credential_encryption")]
+    pub credential_encryption: bool,
+    #[serde(default = "default_strict_verification")]
+    pub strict_verification: bool,
+    #[serde(default = "default_enforce_https")]
+    pub enforce_https: bool,
+    #[serde(default = "default_jvm_args_mode")]
+    pub jvm_args_mode: String,
+    #[serde(default = "default_sandbox_mode")]
+    pub sandbox_mode: String,
+    #[serde(default)]
+    pub proxy_enabled: bool,
+    #[serde(default)]
+    pub proxy_url: Option<String>,
+    #[serde(default)]
+    pub proxy_username: Option<String>,
+    #[serde(default)]
+    pub proxy_password: Option<String>,
+    #[serde(default = "default_audit_log_enabled")]
+    pub audit_log_enabled: bool,
+    #[serde(default = "default_secure_launch_check")]
+    pub secure_launch_check: bool,
+}
+
+fn default_credential_encryption() -> bool { true }
+fn default_strict_verification() -> bool { true }
+fn default_enforce_https() -> bool { true }
+fn default_jvm_args_mode() -> String { "whitelist".to_string() }
+fn default_sandbox_mode() -> String { "off".to_string() }
+fn default_audit_log_enabled() -> bool { true }
+fn default_secure_launch_check() -> bool { true }
+
+impl Default for SecurityConfig {
+    fn default() -> Self {
+        SecurityConfig {
+            credential_encryption: true,
+            strict_verification: true,
+            enforce_https: true,
+            jvm_args_mode: "whitelist".to_string(),
+            sandbox_mode: "off".to_string(),
+            proxy_enabled: false,
+            proxy_url: None,
+            proxy_username: None,
+            proxy_password: None,
+            audit_log_enabled: true,
+            secure_launch_check: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     #[serde(default)]
     pub game_dir: Option<String>,
@@ -34,6 +86,14 @@ pub struct AppConfig {
     pub show_log_on_crash: bool,
     #[serde(default)]
     pub auto_update_java: bool,
+    #[serde(default)]
+    pub java_download_source: String,
+    #[serde(default)]
+    pub force_memory: bool,
+    #[serde(default)]
+    pub force_java_path: bool,
+    #[serde(default)]
+    pub security: SecurityConfig,
 }
 
 fn default_max_memory() -> u32 {
@@ -82,6 +142,10 @@ impl Default for AppConfig {
             keep_launcher_open: false,
             show_log_on_crash: true,
             auto_update_java: false,
+            java_download_source: "adoptium".to_string(),
+            force_memory: false,
+            force_java_path: false,
+            security: SecurityConfig::default(),
         }
     }
 }
@@ -137,6 +201,13 @@ mod tests {
         assert!(!c.keep_launcher_open);
         assert!(c.show_log_on_crash);
         assert!(!c.auto_update_java);
+        assert!(c.security.credential_encryption);
+        assert!(c.security.strict_verification);
+        assert!(c.security.enforce_https);
+        assert_eq!(c.security.jvm_args_mode, "whitelist");
+        assert_eq!(c.security.sandbox_mode, "off");
+        assert!(c.security.audit_log_enabled);
+        assert!(c.security.secure_launch_check);
     }
 
     #[test]

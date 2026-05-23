@@ -45,6 +45,21 @@ pub enum LauncherError {
     #[error("ZIP error: {0}")]
     Zip(#[from] zip::result::ZipError),
 
+    #[error("Encryption error: {0}")]
+    Encryption(String),
+
+    #[error("Decryption error: {0}")]
+    Decryption(String),
+
+    #[error("Security validation failed: {0}")]
+    SecurityValidation(String),
+
+    #[error("Sandbox error: {0}")]
+    SandboxError(String),
+
+    #[error("Audit log error: {0}")]
+    AuditLog(String),
+
     #[error("{0}")]
     Other(String),
 }
