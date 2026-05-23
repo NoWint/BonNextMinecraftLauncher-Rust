@@ -12,7 +12,7 @@ type ConfigAction =
   | { type: 'SET_LOADING'; loading: boolean }
   | { type: 'SET_ERROR'; error: string };
 
-function configReducer(state: ConfigState, action: ConfigAction): ConfigState {
+export function configReducer(state: ConfigState, action: ConfigAction): ConfigState {
   switch (action.type) {
     case 'SET_CONFIG':
       return { ...state, config: action.config, loading: false, error: '' };
@@ -44,30 +44,36 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  useEffect(() => { reloadConfig(); }, [reloadConfig]);
+  useEffect(() => {
+    reloadConfig();
+  }, [reloadConfig]);
 
-  const saveConfig = useCallback(async (config: AppConfig) => {
-    const previousConfig = state.config;
-    dispatch({ type: 'SET_CONFIG', config });
-    try {
-      await api.saveConfig(config);
-    } catch (e) {
-      if (previousConfig) {
-        dispatch({ type: 'SET_CONFIG', config: previousConfig });
+  const saveConfig = useCallback(
+    async (config: AppConfig) => {
+      const previousConfig = state.config;
+      dispatch({ type: 'SET_CONFIG', config });
+      try {
+        await api.saveConfig(config);
+      } catch (e) {
+        if (previousConfig) {
+          dispatch({ type: 'SET_CONFIG', config: previousConfig });
+        }
+        dispatch({ type: 'SET_ERROR', error: e instanceof Error ? e.message : 'Failed to save config' });
       }
-      dispatch({ type: 'SET_ERROR', error: e instanceof Error ? e.message : 'Failed to save config' });
-    }
-  }, [state.config]);
-
-  const contextValue = useMemo(() => ({
-    state, saveConfig, reloadConfig,
-  }), [state, saveConfig, reloadConfig]);
-
-  return (
-    <ConfigContext.Provider value={contextValue}>
-      {children}
-    </ConfigContext.Provider>
+    },
+    [state.config],
   );
+
+  const contextValue = useMemo(
+    () => ({
+      state,
+      saveConfig,
+      reloadConfig,
+    }),
+    [state, saveConfig, reloadConfig],
+  );
+
+  return <ConfigContext.Provider value={contextValue}>{children}</ConfigContext.Provider>;
 }
 
 export function useConfig() {
