@@ -16,9 +16,14 @@ type AuthAction =
   | { type: 'SET_ACTIVE'; id: string }
   | { type: 'SET_ERROR'; error: string }
   | { type: 'SET_LOADING'; loading: boolean }
-  | { type: 'SET_ALL'; accounts: StoredAccount[]; activeAccountId: string | null; currentUser: OfflineAuthResult | null };
+  | {
+      type: 'SET_ALL';
+      accounts: StoredAccount[];
+      activeAccountId: string | null;
+      currentUser: OfflineAuthResult | null;
+    };
 
-function authReducer(state: AuthState, action: AuthAction): AuthState {
+export function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
     case 'LOGIN':
       return { ...state, currentUser: action.user, error: '', loading: false };
@@ -33,7 +38,14 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
     case 'SET_LOADING':
       return { ...state, loading: action.loading };
     case 'SET_ALL':
-      return { ...state, accounts: action.accounts, activeAccountId: action.activeAccountId, currentUser: action.currentUser, error: '', loading: false };
+      return {
+        ...state,
+        accounts: action.accounts,
+        activeAccountId: action.activeAccountId,
+        currentUser: action.currentUser,
+        error: '',
+        loading: false,
+      };
     default:
       return state;
   }
@@ -86,22 +98,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshAccounts();
   }, [refreshAccounts]);
 
-  const offlineLogin = useCallback(async (username: string) => {
-    dispatch({ type: 'SET_LOADING', loading: true });
-    try {
-      const result = await api.offlineLogin(username);
-      dispatch({ type: 'LOGIN', user: result });
-      await refreshAccounts();
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Login failed';
-      dispatch({ type: 'SET_ERROR', error: msg });
-    }
-  }, [refreshAccounts]);
+  const offlineLogin = useCallback(
+    async (username: string) => {
+      dispatch({ type: 'SET_LOADING', loading: true });
+      try {
+        const result = await api.offlineLogin(username);
+        dispatch({ type: 'LOGIN', user: result });
+        await refreshAccounts();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Login failed';
+        dispatch({ type: 'SET_ERROR', error: msg });
+      }
+    },
+    [refreshAccounts],
+  );
 
   const microsoftLogin = useCallback(async (): Promise<DeviceCodeResponse | undefined> => {
     dispatch({ type: 'SET_LOADING', loading: true });
     try {
-      const code = await api.startMicrosoftAuth() as DeviceCodeResponse;
+      const code = (await api.startMicrosoftAuth()) as DeviceCodeResponse;
       dispatch({ type: 'SET_LOADING', loading: false });
       return code;
     } catch (e) {
@@ -124,26 +139,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'LOGOUT' });
   }, [state.activeAccountId]);
 
-  const switchAccount = useCallback(async (id: string) => {
-    try {
-      await api.setActiveAccount(id);
-      dispatch({ type: 'SET_ACTIVE', id });
-      await refreshAccounts();
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Switch failed';
-      dispatch({ type: 'SET_ERROR', error: msg });
-    }
-  }, [refreshAccounts]);
-
-  const contextValue = useMemo(() => ({
-    state, offlineLogin, microsoftLogin, logout, switchAccount, refreshAccounts,
-  }), [state, offlineLogin, microsoftLogin, logout, switchAccount, refreshAccounts]);
-
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
+  const switchAccount = useCallback(
+    async (id: string) => {
+      try {
+        await api.setActiveAccount(id);
+        dispatch({ type: 'SET_ACTIVE', id });
+        await refreshAccounts();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Switch failed';
+        dispatch({ type: 'SET_ERROR', error: msg });
+      }
+    },
+    [refreshAccounts],
   );
+
+  const contextValue = useMemo(
+    () => ({
+      state,
+      offlineLogin,
+      microsoftLogin,
+      logout,
+      switchAccount,
+      refreshAccounts,
+    }),
+    [state, offlineLogin, microsoftLogin, logout, switchAccount, refreshAccounts],
+  );
+
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

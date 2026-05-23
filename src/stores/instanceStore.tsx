@@ -13,7 +13,7 @@ type InstanceAction =
   | { type: 'SET_ERROR'; error: string }
   | { type: 'SET_INSTANCES_LOADED'; instances: GameInstance[] };
 
-function instanceReducer(state: InstanceState, action: InstanceAction): InstanceState {
+export function instanceReducer(state: InstanceState, action: InstanceAction): InstanceState {
   switch (action.type) {
     case 'SET_INSTANCES':
       return { ...state, instances: action.instances, loading: false, error: '' };
@@ -47,27 +47,37 @@ export function InstanceProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  useEffect(() => { reloadInstances(); }, [reloadInstances]);
-
-  const createInstance = useCallback(async (inst: GameInstance) => {
-    await api.createInstance(inst);
-    await reloadInstances();
+  useEffect(() => {
+    reloadInstances();
   }, [reloadInstances]);
 
-  const deleteInstance = useCallback(async (id: string) => {
-    await api.deleteInstance(id);
-    await reloadInstances();
-  }, [reloadInstances]);
-
-  const contextValue = useMemo(() => ({
-    state, reloadInstances, createInstance, deleteInstance,
-  }), [state, reloadInstances, createInstance, deleteInstance]);
-
-  return (
-    <InstanceContext.Provider value={contextValue}>
-      {children}
-    </InstanceContext.Provider>
+  const createInstance = useCallback(
+    async (inst: GameInstance) => {
+      await api.createInstance(inst);
+      await reloadInstances();
+    },
+    [reloadInstances],
   );
+
+  const deleteInstance = useCallback(
+    async (id: string) => {
+      await api.deleteInstance(id);
+      await reloadInstances();
+    },
+    [reloadInstances],
+  );
+
+  const contextValue = useMemo(
+    () => ({
+      state,
+      reloadInstances,
+      createInstance,
+      deleteInstance,
+    }),
+    [state, reloadInstances, createInstance, deleteInstance],
+  );
+
+  return <InstanceContext.Provider value={contextValue}>{children}</InstanceContext.Provider>;
 }
 
 export function useInstances() {
