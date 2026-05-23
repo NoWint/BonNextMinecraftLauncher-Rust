@@ -2,21 +2,60 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+*'
+    branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   # =========================================================================
-  # Build for macOS (Universal: Intel + Apple Silicon)
+  # Prepare: calculate next 0.0.N version number
+  # =========================================================================
+  prepare:
+    name: Prepare
+    if: "!contains(github.event.head_commit.message, 'chore: bump version to')"
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.calc.outputs.NEW_VERSION }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: calc
+        name: Calculate next version
+        run: |
+          LATEST=$(git tag -l 'v0.0.[0-9]*' | sort -V | tail -1)
+          if [ -z "$LATEST" ]; then
+            PATCH=1
+          else
+            PATCH=$(echo "$LATEST" | sed 's/v0\.0\.//')
+            PATCH=$((PATCH + 1))
+          fi
+          echo "NEW_VERSION=0.0.$PATCH" >> $GITHUB_OUTPUT
+          echo "Next version: 0.0.$PATCH"
+
+  # =========================================================================
+  # Build macOS (Universal: Intel + Apple Silicon)
   # =========================================================================
   build-macos:
+    name: Build macOS
+    needs: prepare
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set version ${{ needs.prepare.outputs.version }}
+        run: |
+          V="${{ needs.prepare.outputs.version }}"
+          jq ".version = \"$V\"" package.json > tmp && mv tmp package.json
+          jq ".version = \"$V\"" src-tauri/tauri.conf.json > tmp && mv tmp src-tauri/tauri.conf.json
+          sed -i '' "s/^version = .*/version = \"$V\"/" src-tauri/Cargo.toml
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -36,12 +75,6 @@ jobs:
 
       - name: Build Tauri (macOS Universal)
         run: pnpm tauri build --target universal-apple-darwin
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
@@ -51,12 +84,22 @@ jobs:
           if-no-files-found: warn
 
   # =========================================================================
-  # Build for Windows
+  # Build Windows
   # =========================================================================
   build-windows:
+    name: Build Windows
+    needs: prepare
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set version ${{ needs.prepare.outputs.version }}
+        shell: powershell
+        run: |
+          $v = "${{ needs.prepare.outputs.version }}"
+          (Get-Content package.json) -replace '"version": ".*"', """version"": ""$v""" | Set-Content package.json
+          (Get-Content src-tauri/tauri.conf.json) -replace '"version": ".*"', """version"": ""$v""" | Set-Content src-tauri/tauri.conf.json
+          (Get-Content src-tauri/Cargo.toml) -replace '^version = ".*"', "version = ""$v""" | Set-Content src-tauri/Cargo.toml
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -78,7 +121,7 @@ jobs:
       - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
         with:
-          name: bonnext-windows
+          name: bonnext-windows-msi
           path: src-tauri/target/release/bundle/msi/*.msi
           if-no-files-found: warn
 
@@ -90,12 +133,21 @@ jobs:
           if-no-files-found: warn
 
   # =========================================================================
-  # Build for Linux (AppImage + deb)
+  # Build Linux (AppImage + deb)
   # =========================================================================
   build-linux:
+    name: Build Linux
+    needs: prepare
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set version ${{ needs.prepare.outputs.version }}
+        run: |
+          V="${{ needs.prepare.outputs.version }}"
+          jq ".version = \"$V\"" package.json > tmp && mv tmp package.json
+          jq ".version = \"$V\"" src-tauri/tauri.conf.json > tmp && mv tmp src-tauri/tauri.conf.json
+          sed -i "s/^version = .*/version = \"$V\"/" src-tauri/Cargo.toml
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -144,12 +196,32 @@ jobs:
   # Create GitHub Release with all artifacts
   # =========================================================================
   release:
-    needs: [build-macos, build-windows, build-linux]
+    name: Create Release
+    needs: [prepare, build-macos, build-windows, build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set version ${{ needs.prepare.outputs.version }}
+        run: |
+          V="${{ needs.prepare.outputs.version }}"
+          jq ".version = \"$V\"" package.json > tmp && mv tmp package.json
+          jq ".version = \"$V\"" src-tauri/tauri.conf.json > tmp && mv tmp src-tauri/tauri.conf.json
+          sed -i "s/^version = .*/version = \"$V\"/" src-tauri/Cargo.toml
+
+      - name: Commit version bump and tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json
+          git diff --staged --quiet || git commit -m "chore: bump version to ${{ needs.prepare.outputs.version }}"
+          git push
+          git tag "v${{ needs.prepare.outputs.version }}"
+          git push origin "v${{ needs.prepare.outputs.version }}"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -162,9 +234,10 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: BonNext ${{ github.ref_name }}
+          tag_name: v${{ needs.prepare.outputs.version }}
+          name: BonNext v${{ needs.prepare.outputs.version }}
           body: |
-            ## BonNext ${{ github.ref_name }}
+            ## BonNext v${{ needs.prepare.outputs.version }}
 
             ### Downloads
             | Platform | Package |
@@ -173,11 +246,6 @@ jobs:
             | Windows | `.msi` / `.exe` |
             | Linux | `.AppImage` / `.deb` |
 
-            ### Changes
-            See [CHANGELOG.md] for details.
-
-            > Built with ❤️ using Tauri v2 + React 18 + Rust
+            > Built with Tauri v2 + React 18 + Rust
           files: artifacts/**/*
-          draft: false
-          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
           generate_release_notes: true
