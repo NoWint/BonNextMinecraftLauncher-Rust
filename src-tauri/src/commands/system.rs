@@ -199,7 +199,19 @@ pub async fn get_hardware_profile() -> Result<HardwareProfile, LauncherError> {
     let cpu_count = sys.cpus().len();
     let total_ram_mb = sys.total_memory() / 1024 / 1024;
 
-    let gpu_name = String::from("Unknown");
+    let gpu_name = {
+        use sysinfo::Components;
+        let components = Components::new_with_refreshed_list();
+        let gpu_keywords = ["gpu", "graphics", "nvidia", "amd", "radeon", "intel"];
+        components
+            .iter()
+            .find(|c| {
+                let label = c.label().to_lowercase();
+                gpu_keywords.iter().any(|kw| label.contains(kw))
+            })
+            .map(|c| c.label().to_string())
+            .unwrap_or_else(|| "Unknown".to_string())
+    };
     let ram_gb = total_ram_mb / 1024;
     let score = if cpu_count >= 8 && ram_gb >= 16 { 9 }
         else if cpu_count >= 6 && ram_gb >= 12 { 7 }
