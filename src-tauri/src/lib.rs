@@ -1528,7 +1528,7 @@ async fn get_instance_cover_image(instance_id: String) -> Result<Option<String>,
         return Ok(None);
     }
 
-    worlds.sort_by(|a, b| b.1.cmp(&a.1));
+    worlds.sort_by_key(|b| std::cmp::Reverse(b.1));
     let icon_path = &worlds[0].0;
 
     let image_data = std::fs::read(icon_path)?;
@@ -2380,7 +2380,7 @@ async fn get_playtime_stats() -> Result<PlaytimeStats, LauncherError> {
         name: i.name.clone(),
         seconds: i.playtime_seconds,
     }).collect();
-    top_instances.sort_by(|a, b| b.seconds.cmp(&a.seconds));
+    top_instances.sort_by_key(|b| std::cmp::Reverse(b.seconds));
     top_instances.truncate(10);
 
     let mut daily: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
