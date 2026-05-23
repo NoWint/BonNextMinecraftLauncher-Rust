@@ -22,6 +22,7 @@
     "@tauri-apps/plugin-dialog": "^2",
     "@tauri-apps/plugin-opener": "^2",
     "dompurify": "^3.4.5",
+    "framer-motion": "^12.40.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.1.1"
