@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { api } from './api';
 import { AuthProvider, useAuth } from './stores/authStore';
 import { ConfigProvider } from './stores/configStore';
@@ -26,48 +27,30 @@ import ContentDetailPage from './pages/ContentDetailPage';
 import LibraryPage from './pages/LibraryPage';
 import CollectionsPage from './pages/CollectionsPage';
 import SettingsPage from './pages/SettingsPage';
-type Page =
-  | 'home'
-  | 'instances'
-  | 'instance_detail'
-  | 'new_instance'
-  | 'versions'
-  | 'marketplace'
-  | 'content_detail'
-  | 'collections'
-  | 'library'
-  | 'settings';
 
-function getPageFromHash(): Page {
-  const hash = window.location.hash.replace('#/', '').split('?')[0];
-  if (hash === 'instances/new') return 'new_instance';
-  if (hash.startsWith('instances/') && hash.split('/')[1]) return 'instance_detail';
-  if (hash === 'instances') return 'instances';
-  if (hash.startsWith('store/') && hash.split('/').length >= 3) return 'content_detail';
-  if (hash === 'store' || hash === 'mods') return 'marketplace';
-  if (hash === 'versions') return 'versions';
-  if (hash === 'collections') return 'collections';
-  if (hash === 'library') return 'library';
-  if (hash === 'settings') return 'settings';
-  return 'home';
-}
+const NAV_ID_TO_PATH: Record<string, string> = {
+  home: '/home',
+  new_instance: '/instances/new',
+  marketplace: '/store',
+  instances: '/instances',
+  collections: '/collections',
+  library: '/library',
+  versions: '/versions',
+  settings: '/settings',
+  content_detail: '/store',
+};
 
 function AppShell() {
   const { state: authState } = useAuth();
   const { state: instState } = useInstances();
   const { t } = useI18n();
-  const [page, setPage] = useState<Page>(getPageFromHash);
+  const routerNavigate = useNavigate();
+  const location = useLocation();
   const [searchOpen, setSearchOpen] = useState(false);
   const [todayPlaytimeHours, setTodayPlaytimeHours] = useState(0);
   const [isMiniMode, setIsMiniMode] = useState<boolean>(() => {
     try { return localStorage.getItem('bonnext_mini_mode') === 'true'; } catch { return false; }
   });
-
-  useEffect(() => {
-    const onHashChange = () => setPage(getPageFromHash());
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
-  }, []);
 
   useEffect(() => {
     const fetchPlaytime = () => {
@@ -104,25 +87,12 @@ function AppShell() {
     setIsMiniMode(false);
   };
 
-  if (isMiniMode && authState.currentUser) {
-    return (
-      <ErrorBoundary>
-        <MiniMode onExpand={handleExitMiniMode} />
-      </ErrorBoundary>
-    );
-  }
-
-  const navigate = (id: string, params?: Record<string, string>) => {
-    const map: Record<string, string> = {
-      new_instance: 'instances/new',
-      content_detail: 'store',
-      marketplace: 'store',
-    };
+  const navigateById = (id: string, params?: Record<string, string>) => {
     if (id === 'instance_detail' && params?.id) {
-      window.location.hash = `#/instances/${params.id}`;
+      routerNavigate(`/instances/${params.id}`);
       return;
     }
-    window.location.hash = `#/${map[id] || id}`;
+    routerNavigate(NAV_ID_TO_PATH[id] || `/${id}`);
   };
 
   const NAV_ITEMS = [
@@ -136,7 +106,7 @@ function AppShell() {
   ];
 
   useKeyboardShortcuts({
-    navigate,
+    navigate: navigateById,
     launchInstance: async (instanceId: string) => {
       const inst = instState.instances.find((i) => i.id === instanceId);
       if (!inst || !authState.currentUser) return;
@@ -154,11 +124,19 @@ function AppShell() {
     },
     setSearchOpen,
     onRefresh: () => {
-      if (page === 'versions') navigate('versions');
+      if (location.pathname === '/versions') navigateById('versions');
     },
     instances: instState.instances,
     enabled: !!authState.currentUser,
   });
+
+  if (isMiniMode && authState.currentUser) {
+    return (
+      <ErrorBoundary>
+        <MiniMode onExpand={handleExitMiniMode} />
+      </ErrorBoundary>
+    );
+  }
 
   if (!authState.currentUser) {
     return (
@@ -169,11 +147,6 @@ function AppShell() {
       </ErrorBoundary>
     );
   }
-
-  const activeNav =
-    page === 'new_instance' || page === 'instance_detail' ? 'instances' :
-    page === 'content_detail' || page === 'marketplace' ? 'marketplace' :
-    page;
 
   const totalPlaytimeHours = instState.instances.reduce(
     (sum, inst) => sum + (inst.playtime_seconds || 0),
@@ -187,8 +160,6 @@ function AppShell() {
       <div className="app-layout">
         <Sidebar
           navItems={NAV_ITEMS}
-          activeId={activeNav}
-          onNavigate={navigate}
           username={authState.currentUser.username}
           accountType={authState.currentUser.access_token?.startsWith('offline_') ? 'OFFLINE' : 'MICROSOFT'}
           playtimeHours={todayPlaytimeHours}
@@ -199,16 +170,21 @@ function AppShell() {
           <div className="decorative-rect decorative-rect--bottom-left" />
 
           <ErrorBoundary>
-            {page === 'home' && <HomePage />}
-            {page === 'instances' && <InstancesPage />}
-            {page === 'instance_detail' && <InstanceDetailPage />}
-            {page === 'new_instance' && <NewInstancePage />}
-            {page === 'versions' && <VersionsPage />}
-            {page === 'marketplace' && <MarketplacePage />}
-            {page === 'content_detail' && <ContentDetailPage />}
-            {page === 'library' && <LibraryPage />}
-            {page === 'collections' && <CollectionsPage />}
-            {page === 'settings' && <SettingsPage />}
+            <Routes>
+              <Route path="/" element={<Navigate to="/home" replace />} />
+              <Route path="/home" element={<HomePage />} />
+              <Route path="/instances" element={<InstancesPage />} />
+              <Route path="/instances/new" element={<NewInstancePage />} />
+              <Route path="/instances/:id" element={<InstanceDetailPage />} />
+              <Route path="/versions" element={<VersionsPage />} />
+              <Route path="/store" element={<MarketplacePage />} />
+              <Route path="/mods" element={<MarketplacePage />} />
+              <Route path="/store/:type/:slug" element={<ContentDetailPage />} />
+              <Route path="/collections" element={<CollectionsPage />} />
+              <Route path="/library" element={<LibraryPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="*" element={<Navigate to="/home" replace />} />
+            </Routes>
           </ErrorBoundary>
         </main>
       </div>
@@ -218,7 +194,7 @@ function AppShell() {
         onClose={() => setSearchOpen(false)}
         instances={instState.instances}
         versions={[]}
-        navigate={navigate}
+        navigate={navigateById}
       />
     </>
   );
@@ -226,24 +202,26 @@ function AppShell() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <I18nProvider>
-        <AuthProvider>
-          <ConfigProvider>
-            <InstanceProvider>
-              <ToastProvider>
-                <DownloadProvider>
-                <ContextMenuProvider>
-                  <CommandPalette />
-                  <AppShell />
-                  <DownloadPanel />
-                </ContextMenuProvider>
-                </DownloadProvider>
-              </ToastProvider>
-            </InstanceProvider>
-          </ConfigProvider>
-        </AuthProvider>
-      </I18nProvider>
-    </ThemeProvider>
+    <HashRouter>
+      <ThemeProvider>
+        <I18nProvider>
+          <AuthProvider>
+            <ConfigProvider>
+              <InstanceProvider>
+                <ToastProvider>
+                  <DownloadProvider>
+                  <ContextMenuProvider>
+                    <CommandPalette />
+                    <AppShell />
+                    <DownloadPanel />
+                  </ContextMenuProvider>
+                  </DownloadProvider>
+                </ToastProvider>
+              </InstanceProvider>
+            </ConfigProvider>
+          </AuthProvider>
+        </I18nProvider>
+      </ThemeProvider>
+    </HashRouter>
   );
 }

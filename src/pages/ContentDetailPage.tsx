@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { api, type ModProjectFull, type ModVersion } from '../api';
 import { useInstances } from '../stores/instanceStore';
 import { useI18n } from '../i18n';
@@ -10,20 +11,6 @@ import { SectionHeader, Ticker } from '../components/layout';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import DOMPurify from 'dompurify';
 import styles from './ContentDetailPage.module.css';
-
-function parseHash(): { type: string; slug: string; source: string } | null {
-  const hash = window.location.hash.replace('#/', '');
-  if (!hash.startsWith('store/')) return null;
-  const parts = hash.split('/');
-  if (parts.length >= 3) {
-    const slugAndQuery = parts[2].split('?');
-    const slug = slugAndQuery[0];
-    const query = slugAndQuery[1] || '';
-    const source = query.includes('source=curseforge') ? 'curseforge' : 'modrinth';
-    return { type: parts[1], slug, source };
-  }
-  return null;
-}
 
 function getTypeLabel(type: string, t: (key: string) => string): string {
   const map: Record<string, string> = {
@@ -62,7 +49,10 @@ function sanitizeHtml(html: string): string {
 }
 
 export default function ContentDetailPage() {
-  const parsed = parseHash();
+  const { type: routeType, slug: routeSlug } = useParams<{ type: string; slug: string }>();
+  const [searchParams] = useSearchParams();
+  const source = searchParams.get('source') === 'curseforge' ? 'curseforge' : 'modrinth';
+  const parsed = routeType && routeSlug ? { type: routeType, slug: routeSlug, source } : null;
   const { state: instState } = useInstances();
 
   const [project, setProject] = useState<ModProjectFull | null>(null);

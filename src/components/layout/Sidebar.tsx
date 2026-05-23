@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../../i18n';
 import { StatusDot } from '../ui/Status';
 import { api } from '../../api';
@@ -12,12 +13,31 @@ interface NavItem {
 
 interface SidebarProps {
   navItems: NavItem[];
-  activeId: string;
-  onNavigate: (id: string) => void;
   username?: string;
   accountType?: string;
   playtimeHours?: number;
   totalPlaytimeHours?: number;
+}
+
+const NAV_ID_TO_PATH: Record<string, string> = {
+  home: '/home',
+  marketplace: '/store',
+  collections: '/collections',
+  instances: '/instances',
+  library: '/library',
+  versions: '/versions',
+  settings: '/settings',
+};
+
+function getActiveNavId(pathname: string): string {
+  if (pathname === '/home' || pathname === '/') return 'home';
+  if (pathname.startsWith('/store') || pathname === '/mods') return 'marketplace';
+  if (pathname.startsWith('/instances')) return 'instances';
+  if (pathname === '/collections') return 'collections';
+  if (pathname === '/library') return 'library';
+  if (pathname === '/versions') return 'versions';
+  if (pathname === '/settings') return 'settings';
+  return 'home';
 }
 
 interface FriendEntry {
@@ -43,14 +63,15 @@ const STATUS_LABELS: Record<string, string> = {
 
 export const Sidebar: React.FC<SidebarProps> = ({
   navItems,
-  activeId,
-  onNavigate,
   username = 'Player',
   accountType = 'OFFLINE',
   playtimeHours = 0,
   totalPlaytimeHours = 0,
 }) => {
   const { t } = useI18n();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeId = getActiveNavId(location.pathname);
   const mainItems = navItems.filter((item) => !['settings'].includes(item.id));
   const settingsItem = navItems.find((item) => item.id === 'settings');
 
@@ -115,7 +136,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className={`${styles.sidebar__navItem} ${
               activeId === item.id ? styles['sidebar__navItem--active'] : ''
             }`}
-            onClick={() => onNavigate(item.id)}
+            onClick={() => navigate(NAV_ID_TO_PATH[item.id] || `/${item.id}`)}
             title={item.shortcut ? `Ctrl+${item.shortcut}` : undefined}
           >
             <span>{item.label}</span>
@@ -132,7 +153,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className={`${styles.sidebar__navItem} ${
                 activeId === settingsItem.id ? styles['sidebar__navItem--active'] : ''
               }`}
-              onClick={() => onNavigate(settingsItem.id)}
+              onClick={() => navigate(NAV_ID_TO_PATH[settingsItem.id] || `/${settingsItem.id}`)}
               title={settingsItem.shortcut ? `Ctrl+${settingsItem.shortcut}` : undefined}
             >
               <span>{settingsItem.label}</span>
