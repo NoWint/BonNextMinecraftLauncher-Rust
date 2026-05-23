@@ -131,7 +131,7 @@ pub async fn ensure_fresh_token() -> Result<Option<String>, LauncherError> {
         };
         match store.accounts.iter().find(|a| a.id == active_id) {
             Some(acct) if acct.account_type == "microsoft" => {
-                if acct.expires_at.as_ref().map_or(true, |exp| {
+                if acct.expires_at.as_ref().is_none_or(|exp| {
                     chrono::DateTime::parse_from_rfc3339(exp)
                         .map(|dt| {
                             let utc_dt: chrono::DateTime<chrono::Utc> = dt.into();

@@ -555,9 +555,9 @@ async fn open_folder(path: String) -> Result<(), LauncherError> {
         || p.starts_with(&config_dir)
         || p.starts_with(paths::get_default_game_dir());
     if !is_allowed {
-        return Err(LauncherError::Other(format!(
-            "Access denied: path outside allowed directories"
-        )));
+        return Err(LauncherError::Other(
+            "Access denied: path outside allowed directories".to_string()
+        ));
     }
     opener::open(&p).map_err(|e| LauncherError::Other(e.to_string()))?;
     Ok(())
@@ -777,7 +777,7 @@ async fn apply_optimization_preset(instance_id: String, preset_id: String) -> Re
             Ok(versions) => {
                 if let Some(latest) = versions.first() {
                     if let Some(file) = latest.files.first() {
-                        let dest = mods_dir.join(&file.filename);
+                        let _dest = mods_dir.join(&file.filename);
                         let sha1 = file.hashes.sha1.clone().unwrap_or_default();
                         match modrinth::download_content_file(&file.url, &file.filename, &instance_id, "mod", Some(&sha1)).await {
                             Ok(_) => {

@@ -51,7 +51,7 @@ pub fn new(state: Arc<Mutex<LaunchState>>) -> Self {
         // Auto-download JRE if system Java is missing or too old
         let required_java = ctx.version.java_version.major_version;
         let current_java_ver = platform::java::check_java_version(&ctx.java_path);
-        let need_jre = current_java_ver.map_or(true, |v| v < required_java);
+        let need_jre = current_java_ver.is_none_or(|v| v < required_java);
 
         if need_jre {
             tracing::info!(
