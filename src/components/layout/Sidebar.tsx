@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { ChevronRight, User, X } from 'lucide-react';
 import { useI18n } from '../../i18n';
 import { StatusDot } from '../ui/Status';
 import { api } from '../../api';
@@ -182,7 +183,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span
             className={`${styles.sidebar__friendsCaret} ${friendsOpen ? styles['sidebar__friendsCaret--open'] : ''}`}
           >
-            ▶
+            <ChevronRight size={10} />
           </span>
           <span className={styles.sidebar__friendsTitle}>{t('sidebar.friends')}</span>
           <span className={styles.sidebar__friendsCount}>{friends.length}</span>
@@ -211,7 +212,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   title={t('sidebar.friendsRemove')}
                   aria-label={t('sidebar.friendsRemove')}
                 >
-                  ×
+                  <X size={10} />
                 </button>
               </div>
             ))}
@@ -276,7 +277,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <div className={styles.sidebar__bottom}>
         <div className={styles.sidebar__user}>
-          <div className={styles.sidebar__userAvatar}>👤</div>
+          <div className={styles.sidebar__userAvatar}><User size={14} /></div>
           <div>
             <div className={styles.sidebar__userName}>{username}</div>
             <div className={styles.sidebar__userType}>{accountType}</div>

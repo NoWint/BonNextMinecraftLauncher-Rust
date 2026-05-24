@@ -100,6 +100,15 @@ export interface JreSourceInfo {
   available: boolean;
 }
 
+export interface JreRelease {
+  major_version: number;
+  os: string;
+  arch: string;
+  image_type: string;
+  download_url: string;
+  size_mb: number;
+}
+
 export interface JavaInfo {
   path: string;
   version: number | null;
@@ -322,6 +331,9 @@ export const api = {
 
   checkJreAvailable: (majorVersion: number) => invoke<boolean>('check_jre_available', { majorVersion }),
   getJreSources: () => invoke<JreSourceInfo[]>('get_jre_sources'),
+  fetchAvailableJreVersions: (majorVersion: number) => invoke<JreRelease[]>('fetch_available_jre_versions', { majorVersion }),
+  downloadJavaVersion: (majorVersion: number, source: string) => invoke<string>('download_java_version', { majorVersion, source }),
+  listDownloadedJres: () => invoke<number[]>('list_downloaded_jres'),
 
   getVersions: () => cachedInvoke('versions', () => invoke<VersionEntry[]>('get_versions'), 300_000),
   getLaunchState: () => invoke<LaunchState>('get_launch_state'),

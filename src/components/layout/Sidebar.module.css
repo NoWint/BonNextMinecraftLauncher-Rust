@@ -19,8 +19,8 @@
 }
 
 .sidebar__logoIcon {
-  width: 28px;
-  height: 28px;
+  width: 1.75em;
+  height: 1.75em;
   background: var(--color-accent);
   clip-path: var(--clip-diamond);
   flex-shrink: 0;
@@ -133,11 +133,11 @@
 
 .sidebar__activeIndicator {
   position: absolute;
-  left: -8px;
+  left: -0.5em;
   top: 50%;
   transform: translateY(-50%);
-  width: 3px;
-  height: 14px;
+  width: 0.1875em;
+  height: 0.875em;
   background: var(--color-accent);
   border-radius: 0 1px 1px 0;
 }
@@ -221,8 +221,8 @@
 }
 
 .sidebar__friendDot {
-  width: 6px;
-  height: 6px;
+  width: 0.375em;
+  height: 0.375em;
   border-radius: 50%;
   flex-shrink: 0;
   box-shadow: 0 0 4px currentColor;
@@ -260,8 +260,8 @@
 
 .sidebar__friendRemove {
   opacity: 0;
-  width: 16px;
-  height: 16px;
+  width: 1em;
+  height: 1em;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -421,8 +421,8 @@
 }
 
 .sidebar__userAvatar {
-  width: 26px;
-  height: 26px;
+  width: 1.625em;
+  height: 1.625em;
   background: var(--color-panel-alt);
   display: flex;
   align-items: center;

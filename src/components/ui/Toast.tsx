@@ -1,12 +1,13 @@
 import { useState } from 'react';
+import { Check, X, Info, AlertTriangle } from 'lucide-react';
 import { useToast, type Toast } from '../../stores/toastStore';
 import styles from './Toast.module.css';
 
-const ICONS: Record<Toast['type'], string> = {
-  success: '✓',
-  error: '✗',
-  info: 'ℹ',
-  warning: '⚠',
+const ICONS: Record<Toast['type'], React.ReactNode> = {
+  success: <Check size={14} />,
+  error: <X size={14} />,
+  info: <Info size={14} />,
+  warning: <AlertTriangle size={14} />,
 };
 
 function ToastItem({ toast }: { toast: Toast }) {
@@ -29,7 +30,7 @@ function ToastItem({ toast }: { toast: Toast }) {
         {toast.message && <div className={styles.message}>{toast.message}</div>}
       </div>
       <button className={styles.close} onClick={(e) => { e.stopPropagation(); handleDismiss(); }}>
-        ✕
+        <X size={12} />
       </button>
     </div>
   );

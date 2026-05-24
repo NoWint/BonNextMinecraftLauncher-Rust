@@ -1,13 +1,13 @@
 .container {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  bottom: 1.25em;
+  right: 1.25em;
   z-index: 99999;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0.625em;
   pointer-events: none;
-  max-width: 360px;
+  max-width: 22.5em;
 }
 
 .toast {
@@ -26,7 +26,7 @@
   pointer-events: all;
   animation: toastIn 0.35s var(--ease-out-expo) forwards;
   cursor: pointer;
-  min-width: 280px;
+  min-width: 17.5em;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
@@ -66,12 +66,12 @@
 .icon {
   font-size: 0.85em;
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+  width: 1.5em;
+  height: 1.5em;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: 0.375em;
   background: rgba(255, 230, 0, 0.12);
   color: var(--color-accent);
   font-weight: 700;
