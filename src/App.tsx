@@ -14,6 +14,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { CommandPalette } from './components/CommandPalette';
 import { SearchPalette } from './components/ui/SearchPalette';
 import { DownloadPanel } from './components/ui/DownloadPanel';
+import { ToastContainer } from './components/ui/Toast';
 import { ContextMenuProvider } from './components/ContextMenu';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import LoginPage from './pages/LoginPage';
@@ -32,9 +33,15 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 function PageSkeleton() {
   return (
     <div style={{ padding: '2em', display: 'flex', flexDirection: 'column', gap: '1em' }}>
-      <div style={{ width: '40%', height: '1.5em', background: 'var(--color-panel-alt)', clipPath: 'var(--clip-small)' }} />
-      <div style={{ width: '100%', height: '12em', background: 'var(--color-panel-alt)', clipPath: 'var(--clip-medium)' }} />
-      <div style={{ width: '80%', height: '0.8em', background: 'var(--color-panel-alt)', clipPath: 'var(--clip-small)' }} />
+      <div
+        style={{ width: '40%', height: '1.5em', background: 'var(--color-panel-alt)', clipPath: 'var(--clip-small)' }}
+      />
+      <div
+        style={{ width: '100%', height: '12em', background: 'var(--color-panel-alt)', clipPath: 'var(--clip-medium)' }}
+      />
+      <div
+        style={{ width: '80%', height: '0.8em', background: 'var(--color-panel-alt)', clipPath: 'var(--clip-small)' }}
+      />
     </div>
   );
 }
@@ -177,7 +184,9 @@ function AppShell() {
 
   return (
     <>
-      <a href="#main-content" className="skip-link">Skip to main content</a>
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <div className="noise-overlay" />
       <div className="scanline-overlay" />
       <div className="app-layout">
@@ -241,6 +250,7 @@ export default function App() {
                       <CommandPalette />
                       <AppShell />
                       <DownloadPanel />
+                      <ToastContainer />
                     </ContextMenuProvider>
                   </DownloadProvider>
                 </ToastProvider>
