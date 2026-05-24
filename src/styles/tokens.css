@@ -44,7 +44,7 @@
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --font-mono: 'DM Mono', 'SF Mono', 'Fira Code', monospace;
 
-  --sidebar-width: 190px;
+  --sidebar-width: 11.875em;
   --clip-primary: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
   --clip-medium: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
   --clip-small: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);

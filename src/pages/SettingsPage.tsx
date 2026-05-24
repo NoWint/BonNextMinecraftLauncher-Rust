@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { api, type AppConfig, type LoginHistoryEntry, type KeyStatus, type SandboxAvailability, type HardwareProfile, type DiskUsage, type JreSourceInfo, type JavaInfo } from '../api';
+import { api, type AppConfig, type LoginHistoryEntry, type KeyStatus, type SandboxAvailability, type HardwareProfile, type DiskUsage, type JreSourceInfo, type JreRelease, type JavaInfo } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useConfig } from '../stores/configStore';
 import { useInstances } from '../stores/instanceStore';
@@ -693,6 +693,11 @@ export default function SettingsPage() {
   const [hardwareProfile, setHardwareProfile] = useState<HardwareProfile | null>(null);
   const [diskUsage, setDiskUsage] = useState<DiskUsage | null>(null);
   const [jreSources, setJreSources] = useState<JreSourceInfo[]>([]);
+  const [jreDownloadVersion, setJreDownloadVersion] = useState<number>(21);
+  const [jreAvailableVersions, setJreAvailableVersions] = useState<JreRelease[]>([]);
+  const [jreDownloading, setJreDownloading] = useState(false);
+  const [jreDownloadProgress, setJreDownloadProgress] = useState<{ downloaded: number; total: number } | null>(null);
+  const [downloadedJres, setDownloadedJres] = useState<number[]>([]);
   const [gcRecs, setGcRecs] = useState<Array<{ gc_type: string; heap_size_mb: number; metaspace_mb: number; jvm_args: string[]; description: string; suitable_for: string; reason: string }>>([]);
   const [gcCopied, setGcCopied] = useState<Record<string, boolean>>({});
   const [screenshotInstanceId, setScreenshotInstanceId] = useState<string>('');
@@ -715,6 +720,7 @@ export default function SettingsPage() {
     if (config) setLocalConfig(config);
     api.findAllJava().then(setJavaList).catch(() => {});
     api.getJreSources().then(setJreSources).catch(() => {});
+    api.listDownloadedJres().then(setDownloadedJres).catch(() => {});
   }, [config]);
 
   useEffect(() => {
@@ -750,6 +756,41 @@ export default function SettingsPage() {
       alert(e?.toString() || t('settings.fileMgmt.deleteFailed'));
     } finally {
       setDeletingVersion(null);
+    }
+  };
+
+  useEffect(() => {
+    const unlisten = api.onJreDownloadProgress((p) => {
+      setJreDownloadProgress({ downloaded: p.downloaded, total: p.total });
+    });
+    return () => { unlisten.then((fn) => fn()).catch(() => {}); };
+  }, []);
+
+  const handleFetchJreVersions = async (version: number) => {
+    setJreDownloadVersion(version);
+    try {
+      const releases = await api.fetchAvailableJreVersions(version);
+      setJreAvailableVersions(releases);
+    } catch {
+      setJreAvailableVersions([]);
+    }
+  };
+
+  const handleDownloadJre = async () => {
+    if (jreDownloading) return;
+    setJreDownloading(true);
+    setJreDownloadProgress(null);
+    try {
+      const source = localConfig.java_download_source || 'adoptium';
+      await api.downloadJavaVersion(jreDownloadVersion, source);
+      addToast({ type: 'success', title: `Java ${jreDownloadVersion} downloaded` });
+      api.listDownloadedJres().then(setDownloadedJres).catch(() => {});
+      api.findAllJava().then(setJavaList).catch(() => {});
+    } catch (e: any) {
+      addToast({ type: 'error', title: 'Download failed', message: e?.toString() });
+    } finally {
+      setJreDownloading(false);
+      setJreDownloadProgress(null);
     }
   };
 

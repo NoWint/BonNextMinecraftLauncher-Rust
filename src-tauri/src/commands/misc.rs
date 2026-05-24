@@ -169,6 +169,56 @@ pub async fn get_jre_sources() -> Vec<crate::platform::java_download::JreSourceI
 }
 
 #[tauri::command]
+pub async fn fetch_available_jre_versions(major_version: u32) -> Result<Vec<crate::platform::java_download::JreRelease>, LauncherError> {
+    crate::platform::java_download::fetch_available_jres(major_version).await
+}
+
+#[tauri::command]
+pub async fn download_java_version(
+    major_version: u32,
+    source: String,
+    app: tauri::AppHandle,
+) -> Result<String, LauncherError> {
+    let jre_source = crate::platform::java_download::JreSource::from_str(&source);
+    let app_clone = app.clone();
+    crate::platform::java_download::download_java_with_source(
+        major_version,
+        &jre_source,
+        move |downloaded, total| {
+            let _ = app_clone.emit("jre-download-progress", serde_json::json!({
+                "downloaded": downloaded,
+                "total": total,
+                "version": major_version,
+            }));
+        },
+    ).await
+}
+
+#[tauri::command]
+pub async fn list_downloaded_jres() -> Vec<u32> {
+    let java_dir = paths::get_game_dir().join("java");
+    if !java_dir.exists() {
+        return Vec::new();
+    }
+    let mut versions = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&java_dir) {
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                if let Some(name) = entry.file_name().to_str() {
+                    if let Ok(v) = name.parse::<u32>() {
+                        if crate::platform::java_download::find_downloaded_jre(v).is_some() {
+                            versions.push(v);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    versions.sort();
+    versions
+}
+
+#[tauri::command]
 pub async fn warmup_launch(instance_id: String) -> Result<(), LauncherError> {
     let mc_dir = paths::get_instance_minecraft_dir(&instance_id);
     let libs_dir = mc_dir.join("libraries");

@@ -56,7 +56,6 @@ async fn is_terracotta_installed() -> Result<bool, LauncherError> {
 
 #[tauri::command]
 async fn start_terracotta() -> Result<u16, LauncherError> {
-    let port = terracotta::find_available_port().await?;
     let existing_port = *TERRACOTTA_PORT.lock();
     if let Some(p) = existing_port {
         let client = crate::http_client::build_client();
@@ -78,11 +77,11 @@ async fn start_terracotta() -> Result<u16, LauncherError> {
     }
 
     let child = std::process::Command::new(&binary)
-        .arg("--port")
-        .arg(port.to_string())
+        .arg("--daemon")
+        .stderr(std::process::Stdio::piped())
         .spawn()?;
 
-    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    let port = terracotta::discover_terracotta_port(10).await?;
 
     std::mem::forget(child);
 
@@ -168,6 +167,9 @@ pub fn run() {
             commands::misc::check_java_version,
             commands::misc::check_jre_available,
             commands::misc::get_jre_sources,
+            commands::misc::fetch_available_jre_versions,
+            commands::misc::download_java_version,
+            commands::misc::list_downloaded_jres,
             commands::auth::offline_login,
             commands::auth::start_microsoft_auth,
             commands::auth::poll_microsoft_auth,

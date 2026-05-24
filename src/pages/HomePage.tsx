@@ -18,13 +18,12 @@ import styles from './HomePage.module.css';
 function usePollLaunchState(interval = 2000) {
   const [s, setS] = useState<LaunchState>('idle');
   useEffect(() => {
-    let timer: ReturnType<typeof setInterval>;
     const poll = async () => {
       if (document.hidden) return;
-      try { setS(await api.getLaunchState()); } catch {}
+      try { setS(await api.getLaunchState()); } catch { /* poll error */ }
     };
     poll();
-    timer = setInterval(poll, interval);
+    const timer = setInterval(poll, interval);
     return () => clearInterval(timer);
   }, [interval]);
   return s;
@@ -746,7 +745,7 @@ export default function HomePage() {
           </div>
 
           {/* Right: PLAY area + quick actions */}
-          <div style={{ flex: 0.7, display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>
+          <div style={{ flex: 0.7, display: 'flex', flexDirection: 'column', gap: 8, height: '100%', overflow: 'hidden' }}>
             <PlayArea
               instance={activeInstance}
               instances={recentInstances}

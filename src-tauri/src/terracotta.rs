@@ -77,6 +77,21 @@ pub async fn download_terracotta(
         )));
     }
 
+    let expected_name = format!("terracotta-{}-{}", TERRACOTTA_VERSION, classifier);
+    let extracted = dir.join(&expected_name);
+    let target = get_terracotta_binary_path();
+    if extracted.exists() && extracted != target {
+        if target.exists() {
+            let _ = fs::remove_file(&target);
+        }
+        fs::rename(&extracted, &target)?;
+    }
+
+    let pkg_file = dir.join(format!("{}.pkg", expected_name));
+    if pkg_file.exists() {
+        let _ = fs::remove_file(&pkg_file);
+    }
+
     #[cfg(not(target_os = "windows"))]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -95,6 +110,28 @@ pub async fn find_available_port() -> Result<u16, LauncherError> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let port = listener.local_addr()?.port();
     Ok(port)
+}
+
+pub async fn discover_terracotta_port(max_retries: u32) -> Result<u16, LauncherError> {
+    let client = http_client::build_client();
+    for _ in 0..max_retries {
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+        for port in 50320..50400 {
+            if let Ok(resp) = client
+                .get(&format!("http://127.0.0.1:{}/state", port))
+                .timeout(std::time::Duration::from_millis(200))
+                .send()
+                .await
+            {
+                if resp.status().is_success() {
+                    return Ok(port);
+                }
+            }
+        }
+    }
+    Err(LauncherError::Other(
+        "Failed to discover Terracotta port".to_string(),
+    ))
 }
 
 #[allow(dead_code)]

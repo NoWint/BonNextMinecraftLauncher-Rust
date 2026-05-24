@@ -75,6 +75,7 @@
   display: flex;
   gap: 18px;
   min-height: 0;
+  overflow: hidden;
 }
 
 /* Left: instance list */
@@ -268,10 +269,12 @@
   flex-direction: column;
   gap: 8px;
   min-height: 0;
+  overflow: hidden;
 }
 
 .playArea__panel {
   flex: 1;
+  min-height: 280px;
   background: var(--color-sidebar);
   border: 1px solid var(--color-border-light);
   display: flex;
@@ -281,6 +284,7 @@
   position: relative;
   cursor: default;
   transition: border-color var(--transition-normal);
+  overflow: hidden;
 }
 
 .playArea__panel--clickable {
@@ -400,6 +404,7 @@
 .quickStats {
   display: flex;
   gap: 6px;
+  flex-shrink: 0;
 }
 
 .statCard {
