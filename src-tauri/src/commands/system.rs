@@ -173,7 +173,7 @@ pub async fn get_instance_cover_image(instance_id: String) -> Result<Option<Stri
         return Ok(None);
     }
 
-    worlds.sort_by(|a, b| b.1.cmp(&a.1));
+    worlds.sort_by_key(|b| std::cmp::Reverse(b.1));
     let icon_path = &worlds[0].0;
 
     let image_data = std::fs::read(icon_path)?;

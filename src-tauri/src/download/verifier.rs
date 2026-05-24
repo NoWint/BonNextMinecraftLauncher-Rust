@@ -61,7 +61,7 @@ pub fn file_exists_and_valid(path: &Path, expected_sha1: &str, expected_size: u6
     if expected_sha1.is_empty() {
         if strict {
             let msg = format!("Rejected file without SHA1 hash in strict mode: {}", path.display());
-            crate::security::audit::log_audit(
+            let _ = crate::security::audit::log_audit(
                 crate::security::audit::AuditLevel::Warn,
                 crate::security::audit::AuditCategory::Download,
                 &msg,

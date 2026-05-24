@@ -142,8 +142,8 @@ pub async fn scan_p2p_peers() -> Result<Vec<P2PPeer>, LauncherError> {
     while start.elapsed() < timeout {
         let remaining = timeout.saturating_sub(start.elapsed());
         match receiver.recv_timeout(remaining.min(Duration::from_millis(500))) {
-            Ok(event) => match event {
-                mdns_sd::ServiceEvent::ServiceResolved(info) => {
+            Ok(event) => {
+                if let mdns_sd::ServiceEvent::ServiceResolved(info) = event {
                     let addr = info
                         .get_addresses()
                         .iter()
@@ -158,7 +158,6 @@ pub async fn scan_p2p_peers() -> Result<Vec<P2PPeer>, LauncherError> {
                         available_bytes: 0,
                     });
                 }
-                _ => {}
             },
             Err(_) => break,
         }
@@ -179,7 +178,7 @@ pub async fn send_file_p2p(
     use std::io::{Read, Write};
     use std::net::TcpStream;
 
-    let file = std::fs::File::open(&file_path).map_err(|e| LauncherError::Io(e))?;
+    let file = std::fs::File::open(&file_path).map_err(LauncherError::Io)?;
     let file_size = file.metadata().map(|m| m.len()).unwrap_or(0);
     let file_name = std::path::Path::new(&file_path)
         .file_name()
@@ -203,7 +202,7 @@ pub async fn send_file_p2p(
     let mut reader = std::io::BufReader::new(file);
     let mut buffer = [0u8; 8192];
     loop {
-        let bytes_read = reader.read(&mut buffer).map_err(|e| LauncherError::Io(e))?;
+        let bytes_read = reader.read(&mut buffer).map_err(LauncherError::Io)?;
         if bytes_read == 0 {
             break;
         }

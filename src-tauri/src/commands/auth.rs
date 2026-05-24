@@ -244,7 +244,7 @@ pub async fn ensure_authlib_injector() -> Result<String, crate::error::LauncherE
         std::fs::create_dir_all(parent)?;
     }
     std::fs::write(&jar_path, &bytes)?;
-    crate::security::audit::log_audit(
+    let _ = crate::security::audit::log_audit(
         crate::security::audit::AuditLevel::Info,
         crate::security::audit::AuditCategory::Download,
         "Downloaded authlib-injector.jar",

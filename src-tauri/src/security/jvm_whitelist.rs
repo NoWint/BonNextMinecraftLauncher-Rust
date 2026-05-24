@@ -69,6 +69,7 @@ pub fn validate_jvm_args_custom(args: &[String]) -> (Vec<String>, Vec<String>) {
     (valid, invalid)
 }
 
+#[allow(dead_code)]
 pub fn get_whitelist_entries() -> Vec<&'static str> {
     ALLOWED_PREFIXES.to_vec()
 }

@@ -570,7 +570,7 @@ pub async fn get_frame_time_data(instance_id: String) -> Result<FrameTimeData, L
     }
 
     let content = std::fs::read_to_string(&log_path)
-        .map_err(|e| LauncherError::Io(e))?;
+        .map_err(LauncherError::Io)?;
 
     let mut fps_values: Vec<f32> = Vec::new();
     for line in content.lines().rev().take(1000) {
@@ -700,7 +700,7 @@ pub async fn nlp_search_content(query: String) -> Result<Vec<NLPSearchResult>, L
                     all_results.push(NLPSearchResult {
                         slug: r.slug.clone(),
                         name: r.title.clone(),
-                        relevance: relevance.min(1.0).max(0.0),
+                        relevance: relevance.clamp(0.0, 1.0),
                         interpretation: format!("Matched via: {}", term),
                     });
                 }
@@ -737,7 +737,7 @@ pub async fn get_playtime_stats() -> Result<PlaytimeStats, LauncherError> {
         name: i.name.clone(),
         seconds: i.playtime_seconds,
     }).collect();
-    top_instances.sort_by(|a, b| b.seconds.cmp(&a.seconds));
+    top_instances.sort_by_key(|b| std::cmp::Reverse(b.seconds));
     top_instances.truncate(10);
 
     let mut daily: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
@@ -847,7 +847,7 @@ pub async fn save_security_config(
     let old_encryption = cfg.security.credential_encryption;
     cfg.security = security;
     config::save_config(&cfg)?;
-    security::audit::log_audit(
+    let _ = security::audit::log_audit(
         security::audit::AuditLevel::Info,
         security::audit::AuditCategory::Config,
         "Security config updated",
@@ -956,7 +956,7 @@ pub async fn fix_file_permissions() -> Result<Vec<serde_json::Value>, LauncherEr
     let results = security::file_permissions::fix_all_sensitive_permissions();
     for (path, fixed) in &results {
         if *fixed {
-            security::audit::log_audit(
+            let _ = security::audit::log_audit(
                 security::audit::AuditLevel::Info,
                 security::audit::AuditCategory::File,
                 &format!("Fixed insecure permissions on {}", path.display()),

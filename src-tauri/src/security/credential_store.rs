@@ -80,9 +80,8 @@ pub fn load() -> Result<AccountStore, LauncherError> {
     if enc.exists() {
         let content = std::fs::read_to_string(&enc)?;
         let encrypted_data: super::crypto::EncryptedData = serde_json::from_str(&content)?;
-        match super::crypto::decrypt_json::<AccountStore>(&encrypted_data, &enc) {
-            Ok(store) => return Ok(store),
-            Err(_) => {}
+        if let Ok(store) = super::crypto::decrypt_json::<AccountStore>(&encrypted_data, &enc) {
+            return Ok(store);
         }
     }
 

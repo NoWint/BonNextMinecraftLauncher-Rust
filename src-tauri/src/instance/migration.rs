@@ -417,6 +417,7 @@ fn parse_multimc_cfg(cfg_path: &std::path::Path) -> (String, String, Option<Stri
                     for comp in components {
                         let uid = comp.get("uid").and_then(|v| v.as_str()).unwrap_or("");
                         let version = comp.get("version").and_then(|v| v.as_str()).unwrap_or("");
+                        #[allow(clippy::collapsible_match)]
                         match uid {
                             "net.minecraft" => {
                                 if version_id.is_empty() {

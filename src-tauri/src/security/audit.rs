@@ -140,7 +140,7 @@ pub fn read_audit_log(
         .filter(|e: &AuditEntry| {
             filter_category
                 .as_ref()
-                .map_or(true, |cat| &e.category == cat)
+                .is_none_or(|cat| &e.category == cat)
         })
         .collect();
 

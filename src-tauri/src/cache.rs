@@ -104,32 +104,38 @@ impl ApiCache {
         Self::get_raw(&self.popular, key)
     }
 
+    #[allow(dead_code)]
     pub fn cache_cf_search(&self, key: &str, results: &(Vec<super::modrinth::ModResult>, u64)) {
         if let Ok(json) = serde_json::to_string(results) {
             Self::put_raw(&self.cf_searches, key.to_string(), json, SEARCH_TTL);
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_cf_search(&self, key: &str) -> Option<(Vec<super::modrinth::ModResult>, u64)> {
         Self::get_raw(&self.cf_searches, key)
     }
 
+    #[allow(dead_code)]
     pub fn cache_cf_project(&self, key: &str, project: &super::modrinth::ModProjectFull) {
         if let Ok(json) = serde_json::to_string(project) {
             Self::put_raw(&self.cf_projects, key.to_string(), json, PROJECT_TTL);
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_cf_project(&self, key: &str) -> Option<super::modrinth::ModProjectFull> {
         Self::get_raw(&self.cf_projects, key)
     }
 
+    #[allow(dead_code)]
     pub fn cache_cf_featured(&self, key: &str, results: &[super::modrinth::ModResult]) {
         if let Ok(json) = serde_json::to_string(results) {
             Self::put_raw(&self.cf_featured, key.to_string(), json, POPULAR_TTL);
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_cf_featured(&self, key: &str) -> Option<Vec<super::modrinth::ModResult>> {
         Self::get_raw(&self.cf_featured, key)
     }

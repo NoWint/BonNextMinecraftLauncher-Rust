@@ -574,7 +574,7 @@ pub async fn import_curseforge_modpack(path: &str) -> Result<GameInstance, Launc
     let mut downloaded: u32 = 0;
     let mut failed: u32 = 0;
     for cf_file in &manifest.files {
-        if cf_file.required.unwrap_or(true) == false {
+        if !cf_file.required.unwrap_or(true) {
             tracing::debug!("Skipping optional CF file: project {} file {}", cf_file.project_id, cf_file.file_id);
             continue;
         }
@@ -706,8 +706,6 @@ pub async fn export_mrpack(id: &str, output_path: &std::path::Path) -> Result<()
                         entry.version_id.as_deref().unwrap_or(""),
                         filename
                     )]
-                } else if entry.source == "curseforge" {
-                    vec![]
                 } else {
                     vec![]
                 };

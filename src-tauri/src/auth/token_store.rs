@@ -35,6 +35,7 @@ pub struct AccountStore {
 }
 
 impl AccountStore {
+    #[allow(dead_code)]
     fn path() -> std::path::PathBuf {
         paths::get_config_dir().join("accounts.json")
     }

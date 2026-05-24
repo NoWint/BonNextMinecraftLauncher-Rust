@@ -24,6 +24,7 @@ struct InstanceInfo {
     loader_type: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct AuthHeader {
     authorization: String,

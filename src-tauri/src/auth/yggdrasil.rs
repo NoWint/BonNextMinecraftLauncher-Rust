@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 
 const AUTHENTICATE_PATH: &str = "/authserver/authenticate";
 const REFRESH_PATH: &str = "/authserver/refresh";
+#[allow(dead_code)]
 const VALIDATE_PATH: &str = "/authserver/validate";
+#[allow(dead_code)]
 const SIGNOUT_PATH: &str = "/authserver/signout";
 const PROFILE_PATH: &str = "/sessionserver/session/minecraft/profile";
 const SKIN_PATH: &str = "/user/profile";
@@ -63,29 +65,34 @@ struct RefreshRequest {
     request_user: bool,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize)]
 struct ValidateRequest {
     access_token: String,
     client_token: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize)]
 struct SignoutRequest {
     username: String,
     password: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkinTextureInfo {
     pub url: Option<String>,
     pub metadata: Option<SkinMetadata>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkinMetadata {
     pub model: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TexturesValue {
     pub timestamp: i64,
@@ -94,6 +101,7 @@ pub struct TexturesValue {
     pub textures: TexturesMap,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TexturesMap {
     #[serde(rename = "SKIN")]
@@ -212,6 +220,7 @@ pub async fn refresh_token(
     Ok((resp.access_token, resp.client_token, resp.selected_profile))
 }
 
+#[allow(dead_code)]
 pub async fn validate_token(
     server_url: &str,
     access_token: &str,
@@ -254,6 +263,7 @@ pub async fn get_skin_profile(
     Ok(resp)
 }
 
+#[allow(dead_code)]
 pub fn decode_textures_value(value: &str) -> Result<TexturesValue, LauncherError> {
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(value)

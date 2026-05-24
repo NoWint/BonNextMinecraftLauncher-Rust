@@ -60,7 +60,7 @@ async fn start_terracotta() -> Result<u16, LauncherError> {
     if let Some(p) = existing_port {
         let client = crate::http_client::build_client();
         if client
-            .get(&format!("http://127.0.0.1:{}/state", p))
+            .get(format!("http://127.0.0.1:{}/state", p))
             .send()
             .await
             .is_ok()
@@ -334,11 +334,9 @@ pub fn run() {
             if let Err(e) = security::audit::init_audit(audit_enabled) {
                 tracing::warn!("Failed to initialize audit system: {}", e);
             }
-            if config::load_config().map(|c| c.security.credential_encryption).unwrap_or(true) {
-                if security::credential_store::is_plain() {
-                    if let Err(e) = security::credential_store::migrate_plain_to_encrypted() {
-                        tracing::warn!("Failed to migrate credentials to encrypted storage: {}", e);
-                    }
+            if config::load_config().map(|c| c.security.credential_encryption).unwrap_or(true) && security::credential_store::is_plain() {
+                if let Err(e) = security::credential_store::migrate_plain_to_encrypted() {
+                    tracing::warn!("Failed to migrate credentials to encrypted storage: {}", e);
                 }
             }
             Ok(())

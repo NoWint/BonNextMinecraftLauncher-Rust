@@ -140,6 +140,7 @@ pub fn get_config_path() -> PathBuf {
     get_config_dir().join("config.json")
 }
 
+#[allow(dead_code)]
 pub fn get_security_dir() -> PathBuf {
     get_config_dir().join("security")
 }

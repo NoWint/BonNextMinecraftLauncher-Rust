@@ -123,10 +123,10 @@ async fn complete_auth(
     ms_access_token: &str,
     refresh_token: &str,
 ) -> Result<MicrosoftAuthResult, LauncherError> {
-    let xbl_token = auth_xbl(&client, ms_access_token).await?;
-    let (xsts_token, user_hash) = auth_xsts(&client, &xbl_token).await?;
-    let mc_token = auth_minecraft(&client, &xsts_token, &user_hash).await?;
-    let profile = get_mc_profile(&client, &mc_token).await?;
+    let xbl_token = auth_xbl(client, ms_access_token).await?;
+    let (xsts_token, user_hash) = auth_xsts(client, &xbl_token).await?;
+    let mc_token = auth_minecraft(client, &xsts_token, &user_hash).await?;
+    let profile = get_mc_profile(client, &mc_token).await?;
 
     Ok(MicrosoftAuthResult {
         username: profile.name,

@@ -26,6 +26,7 @@ pub fn build_download_client() -> &'static reqwest::Client {
     })
 }
 
+#[allow(dead_code)]
 pub fn build_client_with_proxy() -> Result<reqwest::Client, crate::error::LauncherError> {
     let config = crate::config::load_config()?;
     let mut builder = reqwest::Client::builder()
@@ -48,6 +49,7 @@ pub fn build_client_with_proxy() -> Result<reqwest::Client, crate::error::Launch
     Ok(builder.build()?)
 }
 
+#[allow(dead_code)]
 pub fn build_download_client_with_proxy() -> Result<reqwest::Client, crate::error::LauncherError> {
     let config = crate::config::load_config()?;
     let mut builder = reqwest::Client::builder()

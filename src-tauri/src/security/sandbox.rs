@@ -9,6 +9,7 @@ pub struct SandboxAvailability {
     pub supported_modes: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SandboxConfig {
     pub mode: String,
@@ -66,6 +67,7 @@ pub fn check_sandbox_availability() -> SandboxAvailability {
     }
 }
 
+#[allow(dead_code)]
 pub fn build_sandbox_command(
     config: &SandboxConfig,
     program: &str,

@@ -200,7 +200,7 @@ pub async fn get_minecraft_article(url: String) -> Result<MinecraftArticle, Laun
                 let after = &html[pos + marker.len()..];
                 let text = extract_text_from_html(after);
                 let name = text
-                    .split(|c: char| c == '\n' || c == '|')
+                    .split(['\n', '|'])
                     .next()
                     .unwrap_or("")
                     .trim()
@@ -222,7 +222,7 @@ pub async fn get_minecraft_article(url: String) -> Result<MinecraftArticle, Laun
                 let after = &html[pos + marker.len()..];
                 let text = extract_text_from_html(after);
                 let date_str = text
-                    .split(|c: char| c == '\n' || c == '|')
+                    .split(['\n', '|'])
                     .next()
                     .unwrap_or("")
                     .trim()

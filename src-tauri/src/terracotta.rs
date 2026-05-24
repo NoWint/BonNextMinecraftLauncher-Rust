@@ -106,6 +106,7 @@ pub async fn download_terracotta(
     Ok(())
 }
 
+#[allow(dead_code)]
 pub async fn find_available_port() -> Result<u16, LauncherError> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let port = listener.local_addr()?.port();
@@ -118,7 +119,7 @@ pub async fn discover_terracotta_port(max_retries: u32) -> Result<u16, LauncherE
         tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
         for port in 50320..50400 {
             if let Ok(resp) = client
-                .get(&format!("http://127.0.0.1:{}/state", port))
+                .get(format!("http://127.0.0.1:{}/state", port))
                 .timeout(std::time::Duration::from_millis(200))
                 .send()
                 .await
@@ -187,7 +188,7 @@ pub struct TerracottaState {
 pub async fn get_state(port: u16) -> Result<TerracottaState, LauncherError> {
     let client = http_client::build_client();
     let resp = client
-        .get(&format!("http://127.0.0.1:{}/state", port))
+        .get(format!("http://127.0.0.1:{}/state", port))
         .send()
         .await?;
     let state: TerracottaState = resp.json().await?;
@@ -197,7 +198,7 @@ pub async fn get_state(port: u16) -> Result<TerracottaState, LauncherError> {
 pub async fn set_idle(port: u16) -> Result<(), LauncherError> {
     let client = http_client::build_client();
     client
-        .get(&format!("http://127.0.0.1:{}/state/ide", port))
+        .get(format!("http://127.0.0.1:{}/state/ide", port))
         .send()
         .await?;
     Ok(())
@@ -206,7 +207,7 @@ pub async fn set_idle(port: u16) -> Result<(), LauncherError> {
 pub async fn set_scanning(port: u16) -> Result<(), LauncherError> {
     let client = http_client::build_client();
     client
-        .get(&format!("http://127.0.0.1:{}/state/scanning", port))
+        .get(format!("http://127.0.0.1:{}/state/scanning", port))
         .send()
         .await?;
     Ok(())
@@ -215,7 +216,7 @@ pub async fn set_scanning(port: u16) -> Result<(), LauncherError> {
 pub async fn set_hosting(port: u16) -> Result<(), LauncherError> {
     let client = http_client::build_client();
     client
-        .get(&format!("http://127.0.0.1:{}/state/hosting", port))
+        .get(format!("http://127.0.0.1:{}/state/hosting", port))
         .send()
         .await?;
     Ok(())

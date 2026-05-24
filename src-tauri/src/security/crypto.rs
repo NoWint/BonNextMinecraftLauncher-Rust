@@ -45,7 +45,7 @@ pub fn derive_key(salt: &[u8]) -> Result<[u8; 32], LauncherError> {
 
 fn generate_random_bytes(len: usize) -> Vec<u8> {
     let nonce_size = 12;
-    let chunks_needed = (len + nonce_size - 1) / nonce_size;
+    let chunks_needed = len.div_ceil(nonce_size);
     let mut buf = Vec::with_capacity(chunks_needed * nonce_size);
     for _ in 0..chunks_needed {
         let nonce = Aes256Gcm::generate_nonce(OsRng);
@@ -91,7 +91,7 @@ pub fn encrypt_data(
     Ok(EncryptedData {
         version: "1".to_string(),
         salt: B64.encode(&salt),
-        nonce: B64.encode(&nonce),
+        nonce: B64.encode(nonce),
         ciphertext: B64.encode(&ciphertext),
     })
 }
