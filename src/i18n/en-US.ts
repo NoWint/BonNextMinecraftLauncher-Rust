@@ -26,7 +26,7 @@ const enUS: Record<string, string> = {
   'greeting.sub.morning.0': 'A new day, a new adventure',
   'greeting.sub.morning.1': 'Did your redstone contraption survive the night?',
   'greeting.sub.morning.2': 'Will you find diamonds today?',
-  'greeting.sub.morning.3': 'The zombies have burned — it\'s safe',
+  'greeting.sub.morning.3': "The zombies have burned — it's safe",
 
   'greeting.afternoon.0': 'Building Time',
   'greeting.afternoon.1': 'Full of Energy',
@@ -35,7 +35,7 @@ const enUS: Record<string, string> = {
   'greeting.sub.afternoon.0': 'How many more blocks does your castle need?',
   'greeting.sub.afternoon.1': 'Time for some epic building',
   'greeting.sub.afternoon.2': 'The Ender Dragon still awaits',
-  'greeting.sub.afternoon.3': 'Your luck can\'t be that bad today',
+  'greeting.sub.afternoon.3': "Your luck can't be that bad today",
 
   'greeting.evening.0': 'Night Mining Time',
   'greeting.evening.1': 'Campfire Lit',
@@ -43,7 +43,7 @@ const enUS: Record<string, string> = {
   'greeting.evening.3': 'Getting Late',
   'greeting.sub.evening.0': 'Grab your torches, watch out for creepers',
   'greeting.sub.evening.1': 'Relax in your safe base',
-  'greeting.sub.evening.2': 'The beacon\'s light guides the way',
+  'greeting.sub.evening.2': "The beacon's light guides the way",
   'greeting.sub.evening.3': 'Only your pickaxe glows faintly',
 
   'greeting.night.0': 'Midnight Miner',
@@ -53,7 +53,7 @@ const enUS: Record<string, string> = {
   'greeting.sub.night.0': 'Diamonds glimmer deep at Y=-58',
   'greeting.sub.night.1': 'Good thing you brought bones',
   'greeting.sub.night.2': 'This is your private mining session',
-  'greeting.sub.night.3': 'The piglins are asleep — it\'s safe',
+  'greeting.sub.night.3': "The piglins are asleep — it's safe",
 
   'greeting.loading.0': 'Summoning the Ender Dragon...',
   'greeting.loading.1': 'Opening a Nether Portal...',
@@ -148,7 +148,8 @@ const enUS: Record<string, string> = {
   'instances.import': 'Import',
   'instances.export': 'Export',
   'instances.noInstances': 'No Instances Yet',
-  'instances.noInstancesDesc': 'Create your first Minecraft instance to get started. Each instance has its own mods, worlds, and settings.',
+  'instances.noInstancesDesc':
+    'Create your first Minecraft instance to get started. Each instance has its own mods, worlds, and settings.',
   'instances.noMatch': 'No matching instances',
   'instances.search': 'Search instances...',
   'instances.filterVersion': 'All Versions',
@@ -371,7 +372,8 @@ const enUS: Record<string, string> = {
   'settings.fileMgmt.librariesDir': 'Libraries',
   'settings.fileMgmt.assetsDir': 'Assets',
   'settings.fileMgmt.logsDir': 'Logs',
-  'settings.fileMgmt.deleteConfirm': 'Are you sure you want to delete version "{version}"? This will permanently remove all version files and cannot be undone.',
+  'settings.fileMgmt.deleteConfirm':
+    'Are you sure you want to delete version "{version}"? This will permanently remove all version files and cannot be undone.',
   'settings.fileMgmt.deleteFailed': 'Delete failed',
 
   'settings.dynamicBg': 'Dynamic Background',
@@ -395,7 +397,8 @@ const enUS: Record<string, string> = {
   'settings.miniMode': 'Mini Mode',
   'settings.miniModeToggle': 'Enable Mini Mode',
   'settings.miniModeDesc': 'Compact floating window with just the launch button',
-  'settings.miniModeDescNew': 'Switch to a compact floating window with instance selector and launch button only, always on top and draggable',
+  'settings.miniModeDescNew':
+    'Switch to a compact floating window with instance selector and launch button only, always on top and draggable',
 
   'miniMode.dragToMove': 'DRAG TO MOVE',
   'miniMode.expand': 'Expand to full window',
@@ -560,7 +563,8 @@ const enUS: Record<string, string> = {
 
   'newInstance.templateOptifine': 'OptiFine',
   'newInstance.templateOptifineDesc': 'Performance optimizer running on Forge. Boost FPS, add shaders, HD textures.',
-  'newInstance.optifineNote': 'OptiFine runs on Forge. Select the appropriate Forge loader version for your Minecraft version.',
+  'newInstance.optifineNote':
+    'OptiFine runs on Forge. Select the appropriate Forge loader version for your Minecraft version.',
   'newInstance.namePlaceholder': 'My Minecraft',
   'newInstance.createFailed': 'Failed to create instance',
   'newInstance.loaderInstallFailed': 'Loader install failed: {error}. Instance created without loader.',
@@ -733,7 +737,7 @@ const enUS: Record<string, string> = {
   'onboarding.next': 'Next',
   'onboarding.launch': 'Finish',
   'onboarding.welcome': 'Welcome to BonNext',
-  'onboarding.chooseMode': 'Choose how you\'d like to get started',
+  'onboarding.chooseMode': "Choose how you'd like to get started",
   'onboarding.quickMode': 'Quick Start',
   'onboarding.quickModeDesc': 'Step-by-step guidance on the real interface. Learn by doing.',
   'onboarding.quickModeHint': '~2 minutes · Guided clicks',
@@ -751,7 +755,8 @@ const enUS: Record<string, string> = {
   'onboarding.detailHome': 'HomePage is your launch center. Quick start games, manage instances, and see news.',
   'onboarding.detailHomeHighlight': 'Play area · Instance list · News ticker',
   'onboarding.detailInstancesTitle': 'Instances',
-  'onboarding.detailInstances': 'Each instance is an independent Minecraft world with its own mods, settings, and saves.',
+  'onboarding.detailInstances':
+    'Each instance is an independent Minecraft world with its own mods, settings, and saves.',
   'onboarding.detailInstancesHighlight': 'Create · Launch · Delete · Snapshots',
   'onboarding.detailMarketTitle': 'Marketplace',
   'onboarding.detailMarket': 'Browse thousands of mods, modpacks, shaders, and resource packs. Install with one click.',
@@ -763,6 +768,52 @@ const enUS: Record<string, string> = {
 
   'news.loading': 'Loading...',
   'news.loadFailed': 'Failed to load',
+
+  'instanceDetail.multiplayer': 'Multiplayer',
+  'instanceDetail.mpTitle': 'TERRACOTTA MULTIPLAYER',
+  'instanceDetail.mpDesc':
+    'Free P2P multiplayer based on EasyTier. Host opens LAN world and generates an invitation code, guests join by entering the code. No server needed.',
+  'instanceDetail.mpNotInstalled': 'Multiplayer core is not installed. Click below to download.',
+  'instanceDetail.mpInstall': 'Download Multiplayer Core',
+  'instanceDetail.mpInstalling': 'Installing...',
+  'instanceDetail.mpInstallSuccess': 'Multiplayer core installed',
+  'instanceDetail.mpInstallFailed': 'Installation failed',
+  'instanceDetail.mpReady': 'Multiplayer core is ready. Click start to begin.',
+  'instanceDetail.mpStart': 'Start Multiplayer Service',
+  'instanceDetail.mpStarted': 'Multiplayer service started',
+  'instanceDetail.mpStartFailed': 'Start failed',
+  'instanceDetail.mpStop': 'Stop Service',
+  'instanceDetail.mpStopped': 'Multiplayer service stopped',
+  'instanceDetail.mpStopFailed': 'Stop failed',
+  'instanceDetail.mpStatus': 'Status',
+  'instanceDetail.mpIdle': 'Idle',
+  'instanceDetail.mpHostingStatus': 'Hosting · Open',
+  'instanceDetail.mpGuestingStatus': 'Guest · Connected',
+  'instanceDetail.mpScanningStatus': 'Scanning...',
+  'instanceDetail.mpHostMode': 'HOST',
+  'instanceDetail.mpHostDesc':
+    'Start the game and open your world to LAN, then click Create Room. Share the invitation code with your friends.',
+  'instanceDetail.mpCreateRoom': 'Create Room',
+  'instanceDetail.mpGuestMode': 'GUEST',
+  'instanceDetail.mpGuestDesc':
+    "Enter the invitation code shared by the host. After joining, find the host's world in the LAN list in-game.",
+  'instanceDetail.mpEnterCode': 'Enter invitation code',
+  'instanceDetail.mpJoin': 'Join',
+  'instanceDetail.mpInvitationCode': 'Invitation Code',
+  'instanceDetail.mpCopy': 'Copy',
+  'instanceDetail.mpCopied': 'Copied',
+  'instanceDetail.mpHostHint':
+    'Send this invitation code to your friends. Make sure the game is running and the world is open to LAN (ESC → Open to LAN → Disable online-mode).',
+  'instanceDetail.mpConnected': 'Successfully connected to multiplayer network',
+  'instanceDetail.mpGuestHint':
+    "Joined the multiplayer network. Start the game and find the host's world in the LAN list under Multiplayer. Ensure your game version matches the host.",
+  'instanceDetail.mpDisconnect': 'Disconnect',
+  'instanceDetail.mpDisconnected': 'Disconnected',
+  'instanceDetail.mpHosting': 'Room created',
+  'instanceDetail.mpHostFailed': 'Failed to create room',
+  'instanceDetail.mpJoining': 'Joining room',
+  'instanceDetail.mpJoinFailed': 'Failed to join room',
+  'instanceDetail.mpScanning': 'Scanning for LAN worlds...',
 };
 
 export default enUS;

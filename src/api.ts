@@ -295,7 +295,7 @@ function cachedInvoke<T>(key: string, fn: () => Promise<T>, ttl = IPC_CACHE_TTL)
   if (cached && Date.now() < cached.expires) {
     return Promise.resolve(cached.data as T);
   }
-  return fn().then(data => {
+  return fn().then((data) => {
     ipcCache.set(key, { data, expires: Date.now() + ttl });
     return data;
   });
@@ -303,7 +303,7 @@ function cachedInvoke<T>(key: string, fn: () => Promise<T>, ttl = IPC_CACHE_TTL)
 
 export function invalidateCache(keys?: string[]) {
   if (keys) {
-    keys.forEach(k => ipcCache.delete(k));
+    keys.forEach((k) => ipcCache.delete(k));
   } else {
     ipcCache.clear();
   }
@@ -334,9 +334,32 @@ export const api = {
   offlineLogin: (username: string) => invoke<OfflineAuthResult>('offline_login', { username }),
   startMicrosoftAuth: () => invoke<DeviceCodeResponse>('start_microsoft_auth'),
   pollMicrosoftAuth: (deviceCode: string) => invoke<MicrosoftAuthResult>('poll_microsoft_auth', { deviceCode }),
-  downloadVersion: (versionId: string, versionUrl: string) => invoke<void>('download_version', { versionId, versionUrl }),
-  launchGame: (versionId: string, versionUrl: string, username: string, uuid: string, accessToken: string, maxMemory?: number, minMemory?: number, javaPath?: string, jvmArgs?: string, instanceId?: string) =>
-    invoke<void>('launch_game', { versionId, versionUrl, username, uuid, accessToken, maxMemory, minMemory, javaPath, jvmArgs, instanceId }),
+  downloadVersion: (versionId: string, versionUrl: string) =>
+    invoke<void>('download_version', { versionId, versionUrl }),
+  launchGame: (
+    versionId: string,
+    versionUrl: string,
+    username: string,
+    uuid: string,
+    accessToken: string,
+    maxMemory?: number,
+    minMemory?: number,
+    javaPath?: string,
+    jvmArgs?: string,
+    instanceId?: string,
+  ) =>
+    invoke<void>('launch_game', {
+      versionId,
+      versionUrl,
+      username,
+      uuid,
+      accessToken,
+      maxMemory,
+      minMemory,
+      javaPath,
+      jvmArgs,
+      instanceId,
+    }),
   getGameDir: () => invoke<string>('get_game_dir'),
   getDefaultGameDir: () => invoke<string>('get_default_game_dir'),
   listInstances: () => cachedInvoke('instances', () => invoke<GameInstance[]>('list_instances'), 30_000),
@@ -348,15 +371,21 @@ export const api = {
 
   // Account management
   listAccounts: () => cachedInvoke('accounts', () => invoke<StoredAccount[]>('list_accounts'), 60_000),
-  getActiveAccount: () => cachedInvoke('active_account', () => invoke<StoredAccount | null>('get_active_account'), 30_000),
+  getActiveAccount: () =>
+    cachedInvoke('active_account', () => invoke<StoredAccount | null>('get_active_account'), 30_000),
   setActiveAccount: (id: string) => invoke<void>('set_active_account', { id }),
   removeAccount: (id: string) => invoke<void>('remove_account', { id }),
   refreshAuthToken: () => invoke<string | null>('refresh_auth_token'),
 
   // Loader
   getLoaderVersions: (loaderType: string) => invoke<string[]>('get_loader_versions', { loaderType }),
-  installLoader: (loaderType: string, versionId: string, versionUrl: string, loaderVersion: string, instanceId: string) =>
-    invoke<LoaderInstallResult>('install_loader', { loaderType, versionId, versionUrl, loaderVersion, instanceId }),
+  installLoader: (
+    loaderType: string,
+    versionId: string,
+    versionUrl: string,
+    loaderVersion: string,
+    instanceId: string,
+  ) => invoke<LoaderInstallResult>('install_loader', { loaderType, versionId, versionUrl, loaderVersion, instanceId }),
 
   // Modrinth
   searchMods: (query: string, gameVersion?: string, loader?: string, limit?: number, offset?: number) =>
@@ -367,17 +396,26 @@ export const api = {
   getModVersions: (slug: string, gameVersion?: string, loader?: string) =>
     invoke<ModVersion[]>('get_mod_versions', { slug, gameVersion, loader }),
 
-  getVersionById: (versionId: string) =>
-    invoke<ModVersion>('get_version_by_id', { versionId }),
+  getVersionById: (versionId: string) => invoke<ModVersion>('get_version_by_id', { versionId }),
   installMod: (fileUrl: string, filename: string, instanceId: string, sha1?: string) =>
     invoke<string>('install_mod', { fileUrl, filename, instanceId, sha1 }),
 
   installContent: (
-    fileUrl: string, filename: string, instanceId: string,
-    contentType?: string, sha1?: string, slug?: string, versionId?: string, source?: string,
+    fileUrl: string,
+    filename: string,
+    instanceId: string,
+    contentType?: string,
+    sha1?: string,
+    slug?: string,
+    versionId?: string,
+    source?: string,
   ) => invoke<string>('install_content', { fileUrl, filename, instanceId, contentType, sha1, slug, versionId, source }),
   getOptimizationPresets: () => invoke<OptimizationPreset[]>('get_optimization_presets_cmd'),
-  applyOptimizationPreset: (instanceId: string, presetId: string) => invoke<{ succeeded: number; failed: number; errors: string[] }>('apply_optimization_preset', { instanceId, presetId }),
+  applyOptimizationPreset: (instanceId: string, presetId: string) =>
+    invoke<{ succeeded: number; failed: number; errors: string[] }>('apply_optimization_preset', {
+      instanceId,
+      presetId,
+    }),
 
   // Marketplace
   searchContent: (
@@ -388,43 +426,42 @@ export const api = {
     sort?: string,
     limit?: number,
     offset?: number,
-  ) => invoke<[ModResult[], number]>('search_content', {
-    query, contentType, gameVersion, loader, sort, limit, offset,
-  }),
+  ) =>
+    invoke<[ModResult[], number]>('search_content', {
+      query,
+      contentType,
+      gameVersion,
+      loader,
+      sort,
+      limit,
+      offset,
+    }),
 
-  getProjectDetails: (slug: string) =>
-    invoke<ModProjectFull>('get_project_details', { slug }),
+  getProjectDetails: (slug: string) => invoke<ModProjectFull>('get_project_details', { slug }),
 
-  getTrendingContent: (
-    projectType?: string,
-    gameVersion?: string,
-    limit?: number,
-  ) => invoke<ModResult[]>('get_trending_content', {
-    projectType, gameVersion, limit,
-  }),
+  getTrendingContent: (projectType?: string, gameVersion?: string, limit?: number) =>
+    invoke<ModResult[]>('get_trending_content', {
+      projectType,
+      gameVersion,
+      limit,
+    }),
 
-  getRecentlyUpdated: (
-    projectType?: string,
-    limit?: number,
-  ) => invoke<ModResult[]>('get_recently_updated', {
-    projectType, limit,
-  }),
+  getRecentlyUpdated: (projectType?: string, limit?: number) =>
+    invoke<ModResult[]>('get_recently_updated', {
+      projectType,
+      limit,
+    }),
 
   // Content library
-  listInstanceMods: (instanceId: string) =>
-    invoke<InstalledModInfo[]>('list_instance_mods', { instanceId }),
+  listInstanceMods: (instanceId: string) => invoke<InstalledModInfo[]>('list_instance_mods', { instanceId }),
 
-  listInstanceResourcepacks: (instanceId: string) =>
-    invoke<string[]>('list_instance_resourcepacks', { instanceId }),
+  listInstanceResourcepacks: (instanceId: string) => invoke<string[]>('list_instance_resourcepacks', { instanceId }),
 
-  listInstanceShaders: (instanceId: string) =>
-    invoke<string[]>('list_instance_shaders', { instanceId }),
+  listInstanceShaders: (instanceId: string) => invoke<string[]>('list_instance_shaders', { instanceId }),
 
-  listInstanceSaves: (instanceId: string) =>
-    invoke<WorldInfo[]>('list_instance_saves', { instanceId }),
+  listInstanceSaves: (instanceId: string) => invoke<WorldInfo[]>('list_instance_saves', { instanceId }),
 
-  listInstanceLogs: (instanceId: string) =>
-    invoke<LogFileInfo[]>('list_instance_logs', { instanceId }),
+  listInstanceLogs: (instanceId: string) => invoke<LogFileInfo[]>('list_instance_logs', { instanceId }),
 
   readLogFile: (instanceId: string, filename: string, maxLines?: number) =>
     invoke<string>('read_log_file', { instanceId, filename, maxLines }),
@@ -432,56 +469,76 @@ export const api = {
   removeInstalledMod: (instanceId: string, filename: string) =>
     invoke<void>('remove_installed_mod', { instanceId, filename }),
 
-  getContentCounts: (instanceId: string) =>
-    invoke<ContentCounts>('get_content_counts', { instanceId }),
+  getContentCounts: (instanceId: string) => invoke<ContentCounts>('get_content_counts', { instanceId }),
 
   checkContentUpdates: (instanceId: string) => invoke<UpdateInfo[]>('check_content_updates', { instanceId }),
-  bulkUpdateContent: (instanceId: string) => invoke<{ succeeded: number; failed: number; errors: string[] }>('bulk_update_content', { instanceId }),
+  bulkUpdateContent: (instanceId: string) =>
+    invoke<{ succeeded: number; failed: number; errors: string[] }>('bulk_update_content', { instanceId }),
 
   // Collections / wishlist
   addToCollection: (
-    slug: string, title: string, author: string, iconUrl: string,
-    contentType: string, description: string, downloads: number,
+    slug: string,
+    title: string,
+    author: string,
+    iconUrl: string,
+    contentType: string,
+    description: string,
+    downloads: number,
     categories: string[],
-  ) => invoke<void>('add_to_collection', {
-    slug, title, author, iconUrl, contentType, description, downloads, categories,
-  }),
+  ) =>
+    invoke<void>('add_to_collection', {
+      slug,
+      title,
+      author,
+      iconUrl,
+      contentType,
+      description,
+      downloads,
+      categories,
+    }),
 
-  removeFromCollection: (slug: string) =>
-    invoke<void>('remove_from_collection', { slug }),
+  removeFromCollection: (slug: string) => invoke<void>('remove_from_collection', { slug }),
 
-  isInCollection: (slug: string) =>
-    invoke<boolean>('is_in_collection', { slug }),
+  isInCollection: (slug: string) => invoke<boolean>('is_in_collection', { slug }),
 
-  listCollection: () =>
-    cachedInvoke('collection', () => invoke<CollectionItem[]>('list_collection'), 60_000),
+  listCollection: () => cachedInvoke('collection', () => invoke<CollectionItem[]>('list_collection'), 60_000),
 
   // CurseForge
   searchCfMods: (
-    query: string, gameVersion?: string, category?: string,
-    sort?: string, limit?: number, offset?: number,
-  ) => invoke<[ModResult[], number]>('search_cf_mods', {
-    query, gameVersion, category, sort, limit, offset,
-  }),
+    query: string,
+    gameVersion?: string,
+    category?: string,
+    sort?: string,
+    limit?: number,
+    offset?: number,
+  ) =>
+    invoke<[ModResult[], number]>('search_cf_mods', {
+      query,
+      gameVersion,
+      category,
+      sort,
+      limit,
+      offset,
+    }),
 
-  getCfMod: (modId: number) =>
-    invoke<ModResult>('get_cf_mod', { modId }),
+  getCfMod: (modId: number) => invoke<ModResult>('get_cf_mod', { modId }),
 
-  getCfProjectDetails: (modId: number) =>
-    invoke<ModProjectFull>('get_cf_project_details', { modId }),
+  getCfProjectDetails: (modId: number) => invoke<ModProjectFull>('get_cf_project_details', { modId }),
 
-  getCfModVersions: (modId: number) =>
-    invoke<ModVersion[]>('get_cf_mod_versions', { modId }),
+  getCfModVersions: (modId: number) => invoke<ModVersion[]>('get_cf_mod_versions', { modId }),
 
-  getCfFeatured: () =>
-    invoke<ModResult[]>('get_cf_featured'),
+  getCfFeatured: () => invoke<ModResult[]>('get_cf_featured'),
 
-  getCfModFiles: (modId: number) =>
-    invoke<ModFile[]>('get_cf_mod_files', { modId }),
+  getCfModFiles: (modId: number) => invoke<ModFile[]>('get_cf_mod_files', { modId }),
 
   downloadCfMod: (
-    fileUrl: string, filename: string, instanceId: string,
-    contentType?: string, sha1?: string, slug?: string, versionId?: string,
+    fileUrl: string,
+    filename: string,
+    instanceId: string,
+    contentType?: string,
+    sha1?: string,
+    slug?: string,
+    versionId?: string,
   ) => invoke<string>('download_cf_mod', { fileUrl, filename, instanceId, contentType, sha1, slug, versionId }),
 
   // Quick start & UX
@@ -495,21 +552,36 @@ export const api = {
   checkInstanceReady: (instanceId: string) => invoke<boolean>('check_instance_ready', { instanceId }),
   getInstanceCoverImage: (instanceId: string) => invoke<string | null>('get_instance_cover_image', { instanceId }),
   getLastPlayedInstance: () => invoke<GameInstance | null>('get_last_played_instance'),
-  duplicateInstance: (instanceId: string, newName: string) => invoke<GameInstance>('duplicate_instance', { id: instanceId, newName }),
-  exportInstance: (instanceId: string, outputPath: string) => invoke<void>('export_instance', { id: instanceId, outputPath }),
+  duplicateInstance: (instanceId: string, newName: string) =>
+    invoke<GameInstance>('duplicate_instance', { id: instanceId, newName }),
+  exportInstance: (instanceId: string, outputPath: string) =>
+    invoke<void>('export_instance', { id: instanceId, outputPath }),
   importModpack: (path: string) => invoke<GameInstance>('import_modpack', { path }),
   importModpackAuto: (path: string) => invoke<GameInstance>('import_modpack_auto', { path }),
   detectModpackFormat: (path: string) => invoke<string>('detect_modpack_format', { path }),
-  exportMrpack: (instanceId: string, outputPath: string) => invoke<void>('export_mrpack', { id: instanceId, outputPath }),
+  exportMrpack: (instanceId: string, outputPath: string) =>
+    invoke<void>('export_mrpack', { id: instanceId, outputPath }),
 
   // Snapshots
-  createSnapshot: (instanceId: string, name: string) => invoke<{ id: string; name: string; created_at: string; size_bytes: number }>('create_snapshot', { instanceId, name }),
-  listSnapshots: (instanceId: string) => invoke<Array<{ id: string; name: string; created_at: string; size_bytes: number }>>('list_snapshots', { instanceId }),
-  restoreSnapshot: (instanceId: string, snapshotId: string) => invoke<void>('restore_snapshot', { instanceId, snapshotId }),
-  deleteSnapshot: (instanceId: string, snapshotId: string) => invoke<void>('delete_snapshot', { instanceId, snapshotId }),
+  createSnapshot: (instanceId: string, name: string) =>
+    invoke<{ id: string; name: string; created_at: string; size_bytes: number }>('create_snapshot', {
+      instanceId,
+      name,
+    }),
+  listSnapshots: (instanceId: string) =>
+    invoke<Array<{ id: string; name: string; created_at: string; size_bytes: number }>>('list_snapshots', {
+      instanceId,
+    }),
+  restoreSnapshot: (instanceId: string, snapshotId: string) =>
+    invoke<void>('restore_snapshot', { instanceId, snapshotId }),
+  deleteSnapshot: (instanceId: string, snapshotId: string) =>
+    invoke<void>('delete_snapshot', { instanceId, snapshotId }),
 
   // Conflict detection
-  checkModConflicts: (instanceId: string) => invoke<Array<{ mod_a: string; mod_b: string; reason: string; severity: string }>>('check_mod_conflicts', { instanceId }),
+  checkModConflicts: (instanceId: string) =>
+    invoke<Array<{ mod_a: string; mod_b: string; reason: string; severity: string }>>('check_mod_conflicts', {
+      instanceId,
+    }),
 
   // Server status
   pingServer: (address: string) => invoke<ServerStatus>('ping_server', { address }),
@@ -519,21 +591,32 @@ export const api = {
   importInstanceConfig: (configCode: string) => invoke<GameInstance>('import_instance_config', { configCode }),
 
   // Hardware profile
-  getHardwareProfile: () => cachedInvoke('hardware_profile', () => invoke<HardwareProfile>('get_hardware_profile'), 120_000),
+  getHardwareProfile: () =>
+    cachedInvoke('hardware_profile', () => invoke<HardwareProfile>('get_hardware_profile'), 120_000),
 
   // Disk usage
   getDiskUsage: () => cachedInvoke('disk_usage', () => invoke<DiskUsage>('get_disk_usage'), 120_000),
 
   // File management
-  listInstalledVersions: () => invoke<Array<{ version_id: string; size_bytes: number; version_type: string; path: string }>>('list_installed_versions'),
+  listInstalledVersions: () =>
+    invoke<Array<{ version_id: string; size_bytes: number; version_type: string; path: string }>>(
+      'list_installed_versions',
+    ),
   deleteVersion: (versionId: string) => invoke<void>('delete_version_cmd', { versionId }),
   getDirSize: (path: string) => invoke<number>('get_dir_size_cmd', { path }),
 
   // Recommendations
-  getRecommendations: (instanceId: string) => invoke<Array<{ slug: string; name: string; reason: string; category: string }>>('get_recommendations', { instanceId }),
+  getRecommendations: (instanceId: string) =>
+    invoke<Array<{ slug: string; name: string; reason: string; category: string }>>('get_recommendations', {
+      instanceId,
+    }),
 
   // Migration
-  checkMigrationReadiness: (instanceId: string, targetVersion: string) => invoke<Array<{ mod_slug: string; mod_name: string; status: string; detail: string }>>('check_migration_readiness', { instanceId, targetVersion }),
+  checkMigrationReadiness: (instanceId: string, targetVersion: string) =>
+    invoke<Array<{ mod_slug: string; mod_name: string; status: string; detail: string }>>('check_migration_readiness', {
+      instanceId,
+      targetVersion,
+    }),
 
   // P2: Pre-warming
   warmupLaunch: (instanceId: string) => invoke<void>('warmup_launch', { instanceId }),
@@ -542,24 +625,54 @@ export const api = {
   createGuestInstance: () => invoke<GameInstance>('create_guest_instance'),
 
   // P2: Screenshots
-  listScreenshots: (instanceId: string) => invoke<Array<{ filename: string; path: string; size_bytes: number; modified: string }>>('list_screenshots', { instanceId }),
+  listScreenshots: (instanceId: string) =>
+    invoke<Array<{ filename: string; path: string; size_bytes: number; modified: string }>>('list_screenshots', {
+      instanceId,
+    }),
 
   // P2: Achievements
-  getAchievements: () => invoke<Array<{ id: string; name: string; description: string; unlocked: boolean; unlocked_at: string | null; icon: string }>>('get_achievements'),
+  getAchievements: () =>
+    invoke<
+      Array<{
+        id: string;
+        name: string;
+        description: string;
+        unlocked: boolean;
+        unlocked_at: string | null;
+        icon: string;
+      }>
+    >('get_achievements'),
   unlockAchievement: (achievementId: string) => invoke<void>('unlock_achievement', { achievementId }),
 
   // P2: Instance icon
-  setInstanceIcon: (instanceId: string, iconPath: string) => invoke<void>('set_instance_icon', { instanceId, iconPath }),
+  setInstanceIcon: (instanceId: string, iconPath: string) =>
+    invoke<void>('set_instance_icon', { instanceId, iconPath }),
 
   // P2: Download scheduler
-  getDownloadScheduleConfig: () => invoke<{ max_speed_bytes: number; active_during_game: boolean; priority: string }>('get_download_schedule_config'),
-  setDownloadScheduleConfig: (config: { max_speed_bytes: number; active_during_game: boolean; priority: string }) => invoke<void>('set_download_schedule_config', { config }),
+  getDownloadScheduleConfig: () =>
+    invoke<{ max_speed_bytes: number; active_during_game: boolean; priority: string }>('get_download_schedule_config'),
+  setDownloadScheduleConfig: (config: { max_speed_bytes: number; active_during_game: boolean; priority: string }) =>
+    invoke<void>('set_download_schedule_config', { config }),
 
   // P2: GC tuning
-  getGcRecommendations: (instanceId: string) => invoke<Array<{ gc_type: string; heap_size_mb: number; metaspace_mb: number; jvm_args: string[]; description: string; suitable_for: string; reason: string }>>('get_gc_recommendations', { instanceId }),
+  getGcRecommendations: (instanceId: string) =>
+    invoke<
+      Array<{
+        gc_type: string;
+        heap_size_mb: number;
+        metaspace_mb: number;
+        jvm_args: string[];
+        description: string;
+        suitable_for: string;
+        reason: string;
+      }>
+    >('get_gc_recommendations', { instanceId }),
 
   // P2: Anomaly detection
-  detectAnomalies: (instanceId: string) => invoke<Array<{ anomaly_type: string; severity: string; message: string; suggestion: string }>>('detect_anomalies', { instanceId }),
+  detectAnomalies: (instanceId: string) =>
+    invoke<Array<{ anomaly_type: string; severity: string; message: string; suggestion: string }>>('detect_anomalies', {
+      instanceId,
+    }),
 
   // P3: Battery
   getBatteryStatus: () => invoke<{ on_battery: boolean; percentage: number; charging: boolean }>('get_battery_status'),
@@ -571,14 +684,25 @@ export const api = {
   getWebApiStatus: () => invoke<{ running: boolean; port: number; token: string }>('get_web_api_status'),
 
   // Friends
-  listFriends: () => invoke<Array<{ id: string; name: string; status: string; current_game: string | null }>>('list_friends'),
+  listFriends: () =>
+    invoke<Array<{ id: string; name: string; status: string; current_game: string | null }>>('list_friends'),
   addFriend: (id: string, name: string) => invoke<void>('add_friend', { id, name }),
   removeFriend: (id: string) => invoke<void>('remove_friend', { id }),
 
   // LAN Discovery
   startLanDiscovery: () => invoke<void>('start_lan_discovery'),
   stopLanDiscovery: () => invoke<void>('stop_lan_discovery'),
-  getLanWorlds: () => invoke<Array<{ host: string; port: number; motd: string; world_type: string | null; players_online: number | null; players_max: number | null }>>('get_lan_worlds'),
+  getLanWorlds: () =>
+    invoke<
+      Array<{
+        host: string;
+        port: number;
+        motd: string;
+        world_type: string | null;
+        players_online: number | null;
+        players_max: number | null;
+      }>
+    >('get_lan_worlds'),
 
   // P2P
   scanP2PPeers: () => invoke<Array<{ name: string; address: string; available_bytes: number }>>('scan_p2p_peers'),
@@ -587,25 +711,49 @@ export const api = {
   // Discord RPC
   startDiscordRpc: () => invoke<void>('start_discord_rpc'),
   stopDiscordRpc: () => invoke<void>('stop_discord_rpc'),
-  updateDiscordPresence: (details: string, state: string) => invoke<void>('update_discord_presence', { details, state }),
+  updateDiscordPresence: (details: string, state: string) =>
+    invoke<void>('update_discord_presence', { details, state }),
 
   // Launch Profiling
-  getLaunchProfilingData: (instanceId: string) => invoke<Array<{ stage: string; duration_ms: number; details: string }>>('get_launch_profiling_data', { instanceId }),
+  getLaunchProfilingData: (instanceId: string) =>
+    invoke<Array<{ stage: string; duration_ms: number; details: string }>>('get_launch_profiling_data', { instanceId }),
 
   // Frame Time
-  getFrameTimeData: (instanceId: string) => invoke<{ avg_fps: number; min_fps: number; max_fps: number; frame_times_ms: number[]; stutter_count: number; analysis: string }>('get_frame_time_data', { instanceId }),
+  getFrameTimeData: (instanceId: string) =>
+    invoke<{
+      avg_fps: number;
+      min_fps: number;
+      max_fps: number;
+      frame_times_ms: number[];
+      stutter_count: number;
+      analysis: string;
+    }>('get_frame_time_data', { instanceId }),
 
   // NLP Search
-  nlpSearchContent: (query: string) => invoke<Array<{ slug: string; name: string; relevance: number; interpretation: string }>>('nlp_search_content', { query }),
+  nlpSearchContent: (query: string) =>
+    invoke<Array<{ slug: string; name: string; relevance: number; interpretation: string }>>('nlp_search_content', {
+      query,
+    }),
 
   // Minecraft News
   getMinecraftNews: () => invoke<MinecraftNewsEntry[]>('get_minecraft_news'),
   getMinecraftArticle: (url: string) => invoke<MinecraftArticle>('get_minecraft_article', { url }),
 
+  // Terracotta Multiplayer
+  downloadTerracotta: () => invoke<void>('download_terracotta'),
+  isTerracottaInstalled: () => invoke<boolean>('is_terracotta_installed'),
+  startTerracotta: () => invoke<number>('start_terracotta'),
+  stopTerracotta: () => invoke<void>('stop_terracotta'),
+  getTerracottaState: () => invoke<TerracottaState>('get_terracotta_state'),
+  terracottaSetHost: () => invoke<void>('terracotta_set_host'),
+  terracottaSetGuest: (room: string) => invoke<void>('terracotta_set_guest', { room }),
+  terracottaSetIdle: () => invoke<void>('terracotta_set_idle'),
+
   getSecurityConfig: () => invoke<SecurityConfig>('get_security_config'),
   saveSecurityConfig: (security: SecurityConfig) => invoke<void>('save_security_config', { security }),
   getSecurityScore: () => invoke<number>('get_security_score'),
-  getAuditLog: (category?: string, limit?: number, offset?: number) => invoke<AuditEntry[]>('get_audit_log', { category, limit, offset }),
+  getAuditLog: (category?: string, limit?: number, offset?: number) =>
+    invoke<AuditEntry[]>('get_audit_log', { category, limit, offset }),
   getLoginHistory: () => invoke<LoginHistoryEntry[]>('get_login_history'),
   migrateCredentials: () => invoke<void>('migrate_credentials'),
   getEncryptionStatus: () => invoke<{ encrypted: boolean; plain: boolean }>('get_encryption_status'),
@@ -614,7 +762,8 @@ export const api = {
   getApiKeyStatus: (name: string) => invoke<KeyStatus>('get_api_key_status', { name }),
   checkFilePermissions: () => invoke<FilePermissionResult[]>('check_file_permissions'),
   fixFilePermissions: () => invoke<FilePermissionFixResult[]>('fix_file_permissions'),
-  validateJvmArgs: (args: string) => invoke<{ valid: boolean; args?: string[]; error?: string; warnings?: string[] }>('validate_jvm_args', { args }),
+  validateJvmArgs: (args: string) =>
+    invoke<{ valid: boolean; args?: string[]; error?: string; warnings?: string[] }>('validate_jvm_args', { args }),
   getSandboxAvailability: () => invoke<SandboxAvailability>('get_sandbox_availability'),
 };
 export interface SystemInfo {
@@ -737,6 +886,11 @@ export interface MinecraftArticle {
   date: string | null;
   header_image: string | null;
   sections: ArticleSection[];
+}
+
+export interface TerracottaState {
+  state: string;
+  [key: string]: unknown;
 }
 
 export interface DiskUsage {
