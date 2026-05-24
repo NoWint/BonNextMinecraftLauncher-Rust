@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useMemo } from 'react';
-import { api, type OfflineAuthResult, type StoredAccount } from '../api';
+import { api, type OfflineAuthResult, type StoredAccount, type YggdrasilAuthResult } from '../api';
 
 interface AuthState {
   currentUser: OfflineAuthResult | null;
@@ -63,6 +63,7 @@ const AuthContext = createContext<{
   state: AuthState;
   offlineLogin: (username: string) => Promise<void>;
   microsoftLogin: () => Promise<DeviceCodeResponse | undefined>;
+  yggdrasilLogin: (serverUrl: string, email: string, password: string) => Promise<YggdrasilAuthResult>;
   logout: () => Promise<void>;
   switchAccount: (id: string) => Promise<void>;
   refreshAccounts: () => Promise<void>;
@@ -127,6 +128,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const yggdrasilLogin = useCallback(
+    async (serverUrl: string, email: string, password: string): Promise<YggdrasilAuthResult> => {
+      dispatch({ type: 'SET_LOADING', loading: true });
+      try {
+        const result = await api.yggdrasilLogin(serverUrl, email, password);
+        dispatch({
+          type: 'LOGIN',
+          user: { username: result.username, uuid: result.uuid, access_token: result.access_token },
+        });
+        await refreshAccounts();
+        return result;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        dispatch({ type: 'SET_ERROR', error: msg });
+        dispatch({ type: 'SET_LOADING', loading: false });
+        throw e;
+      }
+    },
+    [refreshAccounts],
+  );
+
   const logout = useCallback(async () => {
     const activeId = state.activeAccountId;
     if (activeId) {
@@ -158,11 +180,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       state,
       offlineLogin,
       microsoftLogin,
+      yggdrasilLogin,
       logout,
       switchAccount,
       refreshAccounts,
     }),
-    [state, offlineLogin, microsoftLogin, logout, switchAccount, refreshAccounts],
+    [state, offlineLogin, microsoftLogin, yggdrasilLogin, logout, switchAccount, refreshAccounts],
   );
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

@@ -4,6 +4,15 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashSet;
 
+#[tauri::command]
+pub async fn open_url(url: String) -> Result<(), LauncherError> {
+    let url_lower = url.to_lowercase();
+    if !url_lower.starts_with("http://") && !url_lower.starts_with("https://") {
+        return Err(LauncherError::Other("Only http/https URLs are allowed".into()));
+    }
+    webbrowser::open(&url).map_err(|e| LauncherError::Other(format!("Failed to open URL: {}", e)))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MinecraftNewsEntry {
     pub title: String,

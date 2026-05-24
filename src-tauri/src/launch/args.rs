@@ -143,6 +143,19 @@ pub fn build_launch_command(ctx: &LaunchContext) -> Result<Vec<String>, Launcher
     cmd.push(format!("-Xms{}m", ctx.min_memory));
     cmd.push(format!("-Xmx{}m", ctx.max_memory));
 
+    let active_account = crate::auth::token_store::AccountStore::load().ok().and_then(|s| s.get_active().cloned());
+    if let Some(ref acct) = active_account {
+        if acct.account_type == "yggdrasil" {
+            if let Some(ref server_url) = acct.yggdrasil_server_url {
+                let jar_path = crate::platform::paths::get_game_dir().join("shared").join("authlib-injector.jar");
+                if jar_path.exists() {
+                    let agent_arg = format!("-javaagent:{}={}", jar_path.to_string_lossy(), server_url);
+                    cmd.push(agent_arg);
+                }
+            }
+        }
+    }
+
     if let Some(ref extra_args) = ctx.extra_jvm_args {
         if !extra_args.is_empty() {
             for arg in extra_args.split_whitespace() {

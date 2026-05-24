@@ -5,6 +5,7 @@ import { useInstances } from '../stores/instanceStore';
 import { useToast } from '../stores/toastStore';
 import { useI18n } from '../i18n';
 import { Badge, Modal, TextInput, Button } from '../components/ui';
+import { MigrationModal } from '../components/ui/MigrationModal';
 import { SubLabel } from '../components/layout';
 import { open } from '@tauri-apps/plugin-dialog';
 import { convertFileSrc } from '@tauri-apps/api/core';
@@ -91,6 +92,7 @@ export default function InstancesPage() {
   const [duplicating, setDuplicating] = useState<GameInstance | null>(null);
   const [dupName, setDupName] = useState('');
   const [importing, setImporting] = useState(false);
+  const [showMigration, setShowMigration] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; inst: GameInstance } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -299,7 +301,7 @@ export default function InstancesPage() {
       if (!selected || typeof selected !== 'string') return;
       setImporting(true);
       addToast({ type: 'info', title: t('instances.importing'), message: t('instances.parsingMods') });
-      const inst = await api.importModpack(selected);
+      const inst = await api.importModpackAuto(selected);
       await reloadInstances();
       setImporting(false);
       addToast({
@@ -516,6 +518,9 @@ export default function InstancesPage() {
           <TextInput placeholder={t('instances.filter')} value={search} onChange={(e) => setSearch(e.target.value)} />
           <Button variant="secondary" size="sm" onClick={handleImport} disabled={importing}>
             {importing ? t('instances.importingBtn') : '📥 ' + t('instances.importBtn')}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => setShowMigration(true)}>
+            {'🔄 ' + t('migration.btn')}
           </Button>
           <Button variant="primary" size="sm" onClick={() => (window.location.hash = '#/instances/new')}>
             {'+ ' + t('instances.newBtn')}
@@ -1187,6 +1192,8 @@ export default function InstancesPage() {
           </div>
         </div>
       )}
+
+      <MigrationModal open={showMigration} onClose={() => setShowMigration(false)} onMigrated={reloadInstances} />
     </div>
   );
 }

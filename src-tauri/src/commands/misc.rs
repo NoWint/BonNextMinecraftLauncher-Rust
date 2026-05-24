@@ -9,6 +9,7 @@ use crate::platform::paths;
 use crate::security;
 use serde::Deserialize;
 use serde::Serialize;
+use tauri::Emitter;
 
 const SYNONYMS: &[(&str, &[&str])] = &[
     ("shader", &["shaders", "glsl", "光影", "着色器"]),

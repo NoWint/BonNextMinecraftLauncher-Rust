@@ -423,13 +423,18 @@ export default function InstanceDetailPage() {
     if (!instance) return;
     setExporting(true);
     try {
-      const gameDir = await api.getGameDir();
+      const { save } = await import('@tauri-apps/plugin-dialog');
       const safeName = instance.name.replace(/[^a-zA-Z0-9_-]/g, '_');
-      const outputPath = `${gameDir}/${safeName}_${instance.version_id}.mrpack`;
-      await api.exportMrpack(instance.id, outputPath);
-      addToast({ type: 'success', title: 'Exported', message: `${safeName}.mrpack saved` });
+      const path = await save({
+        defaultPath: `${safeName}.mrpack`,
+        filters: [{ name: 'Mrpack', extensions: ['mrpack'] }],
+      });
+      if (path && typeof path === 'string') {
+        await api.exportMrpack(instance.id, path);
+        addToast({ type: 'success', title: t('instances.exportAsMrpack') || 'Exported' });
+      }
     } catch (e: any) {
-      addToast({ type: 'error', title: 'Export failed', message: e?.toString() || 'Failed to export' });
+      addToast({ type: 'error', title: t('instances.exportFailed') || 'Export failed', message: e?.toString() || '' });
     } finally {
       setExporting(false);
     }

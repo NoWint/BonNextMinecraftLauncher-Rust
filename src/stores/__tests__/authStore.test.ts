@@ -27,6 +27,11 @@ const mockAccounts: StoredAccount[] = [
     last_used: '2024-01-01',
     expires_at: null,
     avatar_url: null,
+    yggdrasil_client_token: null,
+    yggdrasil_server_url: null,
+    yggdrasil_selected_profile: null,
+    local_skin_path: null,
+    local_skin_model: null,
   },
   {
     id: 'acc-2',
@@ -38,6 +43,11 @@ const mockAccounts: StoredAccount[] = [
     last_used: '2024-01-02',
     expires_at: '2024-12-31',
     avatar_url: null,
+    yggdrasil_client_token: null,
+    yggdrasil_server_url: null,
+    yggdrasil_selected_profile: null,
+    local_skin_path: null,
+    local_skin_model: null,
   },
 ];
 

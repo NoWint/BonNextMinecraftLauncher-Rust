@@ -13,6 +13,16 @@ pub struct StoredAccount {
     pub last_used: String,
     pub expires_at: Option<String>,
     pub avatar_url: Option<String>,
+    #[serde(default)]
+    pub yggdrasil_client_token: Option<String>,
+    #[serde(default)]
+    pub yggdrasil_server_url: Option<String>,
+    #[serde(default)]
+    pub yggdrasil_selected_profile: Option<String>,
+    #[serde(default)]
+    pub local_skin_path: Option<String>,
+    #[serde(default)]
+    pub local_skin_model: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
