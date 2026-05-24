@@ -129,7 +129,7 @@ export default function NewInstancePage() {
   };
 
   return (
-    <div className="page-enter">
+    <div>
       <SectionHeader title={t('instances.create').toUpperCase()} />
       <div className={styles.form}>
         {/* Template cards */}

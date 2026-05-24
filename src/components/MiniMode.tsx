@@ -130,7 +130,7 @@ export const MiniMode: React.FC<{
           <span className={styles.miniMode__brandText}>BONNEXT</span>
         </div>
         <span className={styles.miniMode__dragHint}>{t('miniMode.dragToMove')}</span>
-        <button className={styles.miniMode__expandBtn} onClick={onExpand} title={t('miniMode.expand')}>
+        <button className={styles.miniMode__expandBtn} onClick={onExpand} title={t('miniMode.expand')} aria-label={t('miniMode.expand')}>
           ⤢
         </button>
       </div>
@@ -141,6 +141,9 @@ export const MiniMode: React.FC<{
             <div
               className={styles.miniMode__instance}
               onClick={() => recentInstances.length > 1 && setShowSwitcher((v) => !v)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (recentInstances.length > 1) setShowSwitcher((v) => !v); } }}
             >
               <div className={styles.miniMode__instanceIcon}>
                 {getLoaderIcon(activeInstance.loader_type)}

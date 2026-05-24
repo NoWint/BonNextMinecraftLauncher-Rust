@@ -65,6 +65,7 @@ pub async fn get_version_by_id(version_id: String) -> Result<modrinth::ModVersio
 
 #[tauri::command]
 pub async fn install_content(
+    app: tauri::AppHandle,
     file_url: String,
     filename: String,
     instance_id: String,
@@ -81,6 +82,22 @@ pub async fn install_content(
     if let Some(ref s) = slug {
         if let Err(e) = content::record_install(&instance_id, &filename, s, version_id.as_deref(), ct, src) {
             tracing::warn!("Failed to record install metadata: {}", e);
+        }
+    }
+
+    if ct == "mod" {
+        let mods_dir = crate::platform::paths::get_instance_mods_dir(&instance_id);
+        let mod_count = if mods_dir.exists() {
+            std::fs::read_dir(&mods_dir)
+                .map(|d| d.filter_map(|e| e.ok()).filter(|e| {
+                    e.path().extension().map(|ext| ext == "jar").unwrap_or(false)
+                }).count())
+                .unwrap_or(0)
+        } else {
+            0
+        };
+        if mod_count >= 10 {
+            crate::commands::achievement::try_unlock_achievement(&app, "install_10_mods");
         }
     }
 

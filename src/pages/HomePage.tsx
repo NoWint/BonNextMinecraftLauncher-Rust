@@ -498,7 +498,7 @@ export default function HomePage() {
   }, [auth, addToast, t]);
 
   return (
-    <div className={`page-enter ${styles.page}`}>
+    <div className={styles.page}>
 
       {/* Banner carousel */}
       <div className={styles.bannerCarousel}>
@@ -557,11 +557,11 @@ export default function HomePage() {
         </div>
         <div className={styles.bannerDots}>
           {[null, ...BANNER_SLIDES].map((_, i) => (
-            <button key={i} className={`${styles.bannerDot} ${i === bannerIndex ? styles['bannerDot--active'] : ''}`} onClick={() => setBannerIndex(i)} />
+            <button key={i} className={`${styles.bannerDot} ${i === bannerIndex ? styles['bannerDot--active'] : ''}`} onClick={() => setBannerIndex(i)} aria-label={`Go to slide ${i + 1}`} />
           ))}
         </div>
-        <button className={`${styles.bannerArrow} ${styles['bannerArrow--left']}`} onClick={() => setBannerIndex((i) => (i - 1 + (BANNER_SLIDES.length + 1)) % (BANNER_SLIDES.length + 1))}>◀</button>
-        <button className={`${styles.bannerArrow} ${styles['bannerArrow--right']}`} onClick={() => setBannerIndex((i) => (i + 1) % (BANNER_SLIDES.length + 1))}>▶</button>
+        <button className={`${styles.bannerArrow} ${styles['bannerArrow--left']}`} onClick={() => setBannerIndex((i) => (i - 1 + (BANNER_SLIDES.length + 1)) % (BANNER_SLIDES.length + 1))} aria-label="Previous slide">◀</button>
+        <button className={`${styles.bannerArrow} ${styles['bannerArrow--right']}`} onClick={() => setBannerIndex((i) => (i + 1) % (BANNER_SLIDES.length + 1))} aria-label="Next slide">▶</button>
       </div>
 
       {/* Download overlay */}

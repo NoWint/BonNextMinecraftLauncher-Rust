@@ -213,7 +213,7 @@ export function SpotlightOverlay({ step, steps, onNext, onSkip }: Props) {
           </div>
         </div>
       )}
-      <button className={styles.closeBtn} onClick={onSkip}>
+      <button className={styles.closeBtn} onClick={onSkip} aria-label="Skip tour">
         {t('onboarding.skip') || 'Skip'}
       </button>
     </div>,

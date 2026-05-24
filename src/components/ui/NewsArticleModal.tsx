@@ -62,7 +62,7 @@ export const NewsArticleModal: React.FC<NewsArticleModalProps> = ({
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.container} onClick={(e) => e.stopPropagation()}>
-        <button className={styles.closeBtn} onClick={onClose}>✕</button>
+        <button className={styles.closeBtn} onClick={onClose} aria-label="Close article">✕</button>
 
         {loading && (
           <div className={styles.loading}>

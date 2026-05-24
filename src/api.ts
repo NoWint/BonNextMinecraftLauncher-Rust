@@ -556,7 +556,7 @@ export const api = {
   setDownloadScheduleConfig: (config: { max_speed_bytes: number; active_during_game: boolean; priority: string }) => invoke<void>('set_download_schedule_config', { config }),
 
   // P2: GC tuning
-  getGcRecommendations: (totalRamMb: number) => invoke<Array<{ gc_type: string; jvm_args: string[]; description: string; suitable_for: string }>>('get_gc_recommendations', { totalRamMb }),
+  getGcRecommendations: (instanceId: string) => invoke<Array<{ gc_type: string; heap_size_mb: number; metaspace_mb: number; jvm_args: string[]; description: string; suitable_for: string; reason: string }>>('get_gc_recommendations', { instanceId }),
 
   // P2: Anomaly detection
   detectAnomalies: (instanceId: string) => invoke<Array<{ anomaly_type: string; severity: string; message: string; suggestion: string }>>('detect_anomalies', { instanceId }),
@@ -593,7 +593,7 @@ export const api = {
   getLaunchProfilingData: (instanceId: string) => invoke<Array<{ stage: string; duration_ms: number; details: string }>>('get_launch_profiling_data', { instanceId }),
 
   // Frame Time
-  getFrameTimeData: (instanceId: string) => invoke<{ avg_fps: number; min_fps: number; p1_low_fps: number; frame_times_ms: number[] }>('get_frame_time_data', { instanceId }),
+  getFrameTimeData: (instanceId: string) => invoke<{ avg_fps: number; min_fps: number; max_fps: number; frame_times_ms: number[]; stutter_count: number; analysis: string }>('get_frame_time_data', { instanceId }),
 
   // NLP Search
   nlpSearchContent: (query: string) => invoke<Array<{ slug: string; name: string; relevance: number; interpretation: string }>>('nlp_search_content', { query }),

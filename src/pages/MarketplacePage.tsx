@@ -94,7 +94,7 @@ export default function MarketplacePage() {
   }, [state.source, state.activeTab]);
 
   return (
-    <div className={`page-enter ${styles.page}`}>
+    <div className={styles.page}>
       <SectionHeader title="MARKETPLACE" subtitle="Discover and install Minecraft content" />
 
       {recommendations.length > 0 && (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { api } from './api';
 import { AuthProvider, useAuth } from './stores/authStore';
@@ -17,16 +17,27 @@ import { DownloadPanel } from './components/ui/DownloadPanel';
 import { ContextMenuProvider } from './components/ContextMenu';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import LoginPage from './pages/LoginPage';
-import HomePage from './pages/HomePage';
-import InstancesPage from './pages/InstancesPage';
-import InstanceDetailPage from './pages/InstanceDetailPage';
-import NewInstancePage from './pages/NewInstancePage';
-import VersionsPage from './pages/VersionsPage';
-import MarketplacePage from './pages/MarketplacePage';
-import ContentDetailPage from './pages/ContentDetailPage';
-import LibraryPage from './pages/LibraryPage';
-import CollectionsPage from './pages/CollectionsPage';
-import SettingsPage from './pages/SettingsPage';
+
+const HomePage = lazy(() => import('./pages/HomePage'));
+const InstancesPage = lazy(() => import('./pages/InstancesPage'));
+const InstanceDetailPage = lazy(() => import('./pages/InstanceDetailPage'));
+const NewInstancePage = lazy(() => import('./pages/NewInstancePage'));
+const VersionsPage = lazy(() => import('./pages/VersionsPage'));
+const MarketplacePage = lazy(() => import('./pages/MarketplacePage'));
+const ContentDetailPage = lazy(() => import('./pages/ContentDetailPage'));
+const LibraryPage = lazy(() => import('./pages/LibraryPage'));
+const CollectionsPage = lazy(() => import('./pages/CollectionsPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+
+function PageSkeleton() {
+  return (
+    <div style={{ padding: '2em', display: 'flex', flexDirection: 'column', gap: '1em' }}>
+      <div style={{ width: '40%', height: '1.5em', background: 'var(--color-panel-alt)', clipPath: 'var(--clip-small)' }} />
+      <div style={{ width: '100%', height: '12em', background: 'var(--color-panel-alt)', clipPath: 'var(--clip-medium)' }} />
+      <div style={{ width: '80%', height: '0.8em', background: 'var(--color-panel-alt)', clipPath: 'var(--clip-small)' }} />
+    </div>
+  );
+}
 
 const NAV_ID_TO_PATH: Record<string, string> = {
   home: '/home',
@@ -166,6 +177,7 @@ function AppShell() {
 
   return (
     <>
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       <div className="noise-overlay" />
       <div className="scanline-overlay" />
       <div className="app-layout">
@@ -176,27 +188,29 @@ function AppShell() {
           playtimeHours={todayPlaytimeHours}
           totalPlaytimeHours={totalPlaytimeHours}
         />
-        <main className="app-main">
+        <main className="app-main" id="main-content">
           <div className="decorative-rect decorative-rect--top-right" />
           <div className="decorative-rect decorative-rect--bottom-left" />
 
           <ErrorBoundary>
             <PageTransition>
-              <Routes>
-                <Route path="/" element={<Navigate to="/home" replace />} />
-                <Route path="/home" element={<HomePage />} />
-                <Route path="/instances" element={<InstancesPage />} />
-                <Route path="/instances/new" element={<NewInstancePage />} />
-                <Route path="/instances/:id" element={<InstanceDetailPage />} />
-                <Route path="/versions" element={<VersionsPage />} />
-                <Route path="/store" element={<MarketplacePage />} />
-                <Route path="/mods" element={<MarketplacePage />} />
-                <Route path="/store/:type/:slug" element={<ContentDetailPage />} />
-                <Route path="/collections" element={<CollectionsPage />} />
-                <Route path="/library" element={<LibraryPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="*" element={<Navigate to="/home" replace />} />
-              </Routes>
+              <Suspense fallback={<PageSkeleton />}>
+                <Routes>
+                  <Route path="/" element={<Navigate to="/home" replace />} />
+                  <Route path="/home" element={<HomePage />} />
+                  <Route path="/instances" element={<InstancesPage />} />
+                  <Route path="/instances/new" element={<NewInstancePage />} />
+                  <Route path="/instances/:id" element={<InstanceDetailPage />} />
+                  <Route path="/versions" element={<VersionsPage />} />
+                  <Route path="/store" element={<MarketplacePage />} />
+                  <Route path="/mods" element={<MarketplacePage />} />
+                  <Route path="/store/:type/:slug" element={<ContentDetailPage />} />
+                  <Route path="/collections" element={<CollectionsPage />} />
+                  <Route path="/library" element={<LibraryPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="*" element={<Navigate to="/home" replace />} />
+                </Routes>
+              </Suspense>
             </PageTransition>
           </ErrorBoundary>
         </main>

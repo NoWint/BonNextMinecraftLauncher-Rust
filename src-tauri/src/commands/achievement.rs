@@ -1,6 +1,7 @@
 use crate::error::LauncherError;
 use crate::platform::paths;
 use serde::Serialize;
+use tauri::Emitter;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AchievementInfo {
@@ -10,6 +11,32 @@ pub struct AchievementInfo {
     pub unlocked: bool,
     pub unlocked_at: Option<String>,
     pub icon: String,
+}
+
+pub fn try_unlock_achievement(app: &tauri::AppHandle, id: &str) {
+    let achievements_path = paths::get_game_dir().join("achievements.json");
+    let mut unlocked: std::collections::HashMap<String, String> = if achievements_path.exists() {
+        std::fs::read_to_string(&achievements_path)
+            .ok()
+            .and_then(|d| serde_json::from_str(&d).ok())
+            .unwrap_or_default()
+    } else {
+        std::collections::HashMap::new()
+    };
+
+    if unlocked.contains_key(id) {
+        return;
+    }
+
+    let now = chrono::Local::now().to_rfc3339();
+    unlocked.insert(id.to_string(), now);
+
+    if let Ok(data) = serde_json::to_string_pretty(&unlocked) {
+        let _ = std::fs::write(&achievements_path, data);
+    }
+
+    tracing::info!("Achievement unlocked: {}", id);
+    let _ = app.emit("achievement-unlocked", serde_json::json!({ "id": id }));
 }
 
 #[tauri::command]

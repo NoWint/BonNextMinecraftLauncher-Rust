@@ -97,7 +97,7 @@ export default function InstanceDetailPage() {
   const [profilingData, setProfilingData] = useState<Array<{ stage: string; duration_ms: number; details: string }> | null>(null);
   const [loadingProfiling, setLoadingProfiling] = useState(false);
 
-  const [fpsData, setFpsData] = useState<{ avg_fps: number; min_fps: number; p1_low_fps: number; frame_times_ms: number[] } | null>(null);
+  const [fpsData, setFpsData] = useState<{ avg_fps: number; min_fps: number; max_fps: number; frame_times_ms: number[]; stutter_count: number; analysis: string } | null>(null);
   const [loadingFps, setLoadingFps] = useState(false);
 
   const instanceId = routeId || '';
@@ -400,7 +400,7 @@ export default function InstanceDetailPage() {
     : '0';
 
   return (
-    <div className={`page-enter ${styles.page}`}>
+    <div className={styles.page}>
       <BreadcrumbComp
         items={[
           { label: t('instances.title'), href: '#/instances' },
@@ -941,8 +941,8 @@ export default function InstanceDetailPage() {
                   <div className={styles.fpsStatValue}>{fpsData.min_fps.toFixed(0)}</div>
                 </div>
                 <div className={styles.fpsStatCard}>
-                  <div className={styles.fpsStatLabel}>{t('instanceDetail.fps1Low')}</div>
-                  <div className={styles.fpsStatValue}>{fpsData.p1_low_fps.toFixed(0)}</div>
+                  <div className={styles.fpsStatLabel}>{t('instanceDetail.fpsMax')}</div>
+                  <div className={styles.fpsStatValue}>{fpsData.max_fps.toFixed(0)}</div>
                 </div>
               </div>
               <div className={styles.fpsChartSection}>

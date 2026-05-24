@@ -31,8 +31,10 @@ pub async fn list_instances() -> Result<Vec<instance::manager::GameInstance>, La
 }
 
 #[tauri::command]
-pub async fn create_instance(instance: instance::manager::GameInstance) -> Result<(), LauncherError> {
-    instance::manager::create_instance(&instance)
+pub async fn create_instance(app: tauri::AppHandle, instance: instance::manager::GameInstance) -> Result<(), LauncherError> {
+    instance::manager::create_instance(&instance)?;
+    crate::commands::achievement::try_unlock_achievement(&app, "create_instance");
+    Ok(())
 }
 
 #[tauri::command]
@@ -61,8 +63,10 @@ pub async fn export_instance(id: String, output_path: String) -> Result<(), Laun
 }
 
 #[tauri::command]
-pub async fn import_modpack(path: String) -> Result<instance::manager::GameInstance, LauncherError> {
-    instance::manager::import_modpack(&path).await
+pub async fn import_modpack(app: tauri::AppHandle, path: String) -> Result<instance::manager::GameInstance, LauncherError> {
+    let result = instance::manager::import_modpack(&path).await?;
+    crate::commands::achievement::try_unlock_achievement(&app, "import_modpack");
+    Ok(result)
 }
 
 #[tauri::command]
@@ -71,13 +75,17 @@ pub async fn detect_modpack_format(path: String) -> Result<instance::manager::Mo
 }
 
 #[tauri::command]
-pub async fn import_modpack_auto(path: String) -> Result<instance::manager::GameInstance, LauncherError> {
-    instance::manager::import_modpack_auto(&path).await
+pub async fn import_modpack_auto(app: tauri::AppHandle, path: String) -> Result<instance::manager::GameInstance, LauncherError> {
+    let result = instance::manager::import_modpack_auto(&path).await?;
+    crate::commands::achievement::try_unlock_achievement(&app, "import_modpack");
+    Ok(result)
 }
 
 #[tauri::command]
-pub async fn export_mrpack(id: String, output_path: String) -> Result<(), LauncherError> {
-    instance::manager::export_mrpack(&id, std::path::Path::new(&output_path)).await
+pub async fn export_mrpack(app: tauri::AppHandle, id: String, output_path: String) -> Result<(), LauncherError> {
+    instance::manager::export_mrpack(&id, std::path::Path::new(&output_path)).await?;
+    crate::commands::achievement::try_unlock_achievement(&app, "export_modpack");
+    Ok(())
 }
 
 #[tauri::command]
@@ -164,7 +172,7 @@ pub async fn install_loader(
 }
 
 #[tauri::command]
-pub async fn create_snapshot(instance_id: String, name: String) -> Result<SnapshotInfo, LauncherError> {
+pub async fn create_snapshot(app: tauri::AppHandle, instance_id: String, name: String) -> Result<SnapshotInfo, LauncherError> {
     let instance_dir = paths::get_instance_dir(&instance_id);
     if !instance_dir.exists() {
         return Err(LauncherError::Other(format!("Instance not found: {}", instance_id)));
@@ -195,6 +203,7 @@ pub async fn create_snapshot(instance_id: String, name: String) -> Result<Snapsh
     let meta = serde_json::json!({ "id": snap_id, "name": name, "created_at": created_at });
     std::fs::write(&meta_path, serde_json::to_string_pretty(&meta)?)?;
 
+    crate::commands::achievement::try_unlock_achievement(&app, "use_snapshot");
     Ok(SnapshotInfo { id: snap_id, name, created_at, size_bytes })
 }
 
