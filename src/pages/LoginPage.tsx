@@ -48,6 +48,7 @@ export default function LoginPage() {
     try {
       await offlineLogin(username.trim());
       fireConfetti();
+      window.location.hash = '#/home';
     } catch (e: any) {
       setError(e?.toString() || t('login.error.default'));
       setShakeInput(true);
@@ -82,7 +83,12 @@ export default function LoginPage() {
         }
       } catch (e: any) {
         const msg = e?.toString() || '';
-        if (msg.includes('timed out') || msg.includes('expired') || msg.includes('denied') || msg.includes('cancelled')) {
+        if (
+          msg.includes('timed out') ||
+          msg.includes('expired') ||
+          msg.includes('denied') ||
+          msg.includes('cancelled')
+        ) {
           if (!cancelled) {
             setMsError(msg);
             setMsLoading(false);
@@ -94,7 +100,9 @@ export default function LoginPage() {
       }
     };
     poll();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [deviceCode]);
 
   const handleGuestLogin = async () => {
@@ -129,10 +137,14 @@ export default function LoginPage() {
         </div>
 
         {/* Time-based greeting */}
-        <div style={{
-          fontSize: '0.5em', color: '#666',
-          letterSpacing: 5, marginBottom: 8,
-        }}>
+        <div
+          style={{
+            fontSize: '0.5em',
+            color: '#666',
+            letterSpacing: 5,
+            marginBottom: 8,
+          }}
+        >
           {greeting.emoji} {greeting.subtitle}
         </div>
 
@@ -143,7 +155,8 @@ export default function LoginPage() {
           {!deviceCode ? (
             <>
               <Button
-                variant="primary" size="lg"
+                variant="primary"
+                size="lg"
                 disabled={msLoading}
                 onClick={handleMicrosoftLogin}
                 style={{ width: '100%', justifyContent: 'center', fontSize: '0.9em', padding: '14px 48px' }}
@@ -159,12 +172,15 @@ export default function LoginPage() {
           ) : (
             <div className={styles.deviceCodeBox}>
               <SubLabel>{t('login.verification')}</SubLabel>
-              <div className={styles.deviceCodeValue} style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '1.1em',
-                letterSpacing: 4,
-                animation: 'breathe-subtle 2s ease-in-out infinite',
-              }}>
+              <div
+                className={styles.deviceCodeValue}
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '1.1em',
+                  letterSpacing: 4,
+                  animation: 'breathe-subtle 2s ease-in-out infinite',
+                }}
+              >
                 {deviceCode.user_code}
               </div>
               <div className={styles.deviceCodeMsg}>{deviceCode.message}</div>
@@ -176,8 +192,13 @@ export default function LoginPage() {
               </div>
               <div className={styles.deviceCodeCancel}>
                 <Button
-                  variant="secondary" size="sm"
-                  onClick={() => { setDeviceCode(null); setMsLoading(false); setMsError(''); }}
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setDeviceCode(null);
+                    setMsLoading(false);
+                    setMsError('');
+                  }}
                 >
                   {t('login.cancel')}
                 </Button>
@@ -200,12 +221,16 @@ export default function LoginPage() {
               <TextInput
                 placeholder={t('login.usernamePlaceholder')}
                 value={username}
-                onChange={(e) => { setUsername(e.target.value); setError(''); }}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  setError('');
+                }}
                 onKeyDown={(e) => e.key === 'Enter' && handleOfflineLogin()}
               />
             </div>
             <Button
-              variant="secondary-highlight" size="md"
+              variant="secondary-highlight"
+              size="md"
               disabled={busy || !username.trim()}
               onClick={handleOfflineLogin}
               style={{ fontSize: '0.65em', padding: '10px 20px' }}
@@ -238,7 +263,14 @@ export default function LoginPage() {
         <div className={styles.statusRow}>
           <StatusDot status={busy ? 'processing' : 'inactive'} />
           <span className={styles.statusText}>
-            {t('login.signal')} · {loading ? t('login.status.authing') : msLoading ? t('login.status.waiting') : guestLoading ? t('login.status.authing') : t('login.status.awaiting')}
+            {t('login.signal')} ·{' '}
+            {loading
+              ? t('login.status.authing')
+              : msLoading
+                ? t('login.status.waiting')
+                : guestLoading
+                  ? t('login.status.authing')
+                  : t('login.status.awaiting')}
           </span>
         </div>
       </div>

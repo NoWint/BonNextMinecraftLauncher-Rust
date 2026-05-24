@@ -109,6 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Login failed';
         dispatch({ type: 'SET_ERROR', error: msg });
+        dispatch({ type: 'SET_LOADING', loading: false });
       }
     },
     [refreshAccounts],
