@@ -130,13 +130,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <span className={`${styles.sidebar__signalText} cursor-blink`}>{t('sidebar.signalOnAir')}</span>
       </div>
 
-      <nav className={styles.sidebar__nav}>
+      <nav className={styles.sidebar__nav} aria-label="Main navigation">
         {mainItems.map((item) => (
           <button
             key={item.id}
             className={`${styles.sidebar__navItem} ${activeId === item.id ? styles['sidebar__navItem--active'] : ''}`}
             onClick={() => navigate(NAV_ID_TO_PATH[item.id] || `/${item.id}`)}
             title={item.shortcut ? `Ctrl+${item.shortcut}` : undefined}
+            aria-current={activeId === item.id ? 'page' : undefined}
           >
             {activeId === item.id && (
               <motion.div
@@ -208,6 +209,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   className={styles.sidebar__friendRemove}
                   onClick={() => handleRemoveFriend(friend.id)}
                   title={t('sidebar.friendsRemove')}
+                  aria-label={t('sidebar.friendsRemove')}
                 >
                   ×
                 </button>

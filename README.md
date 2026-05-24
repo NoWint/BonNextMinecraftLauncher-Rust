@@ -23,19 +23,47 @@
 
 ### Core Experience
 - **🔐 Dual Authentication** — Microsoft OAuth 2.0 device-code flow with automatic token refresh, plus offline mode with deterministic UUIDs. Multi-account management with seamless switching.
-- **📦 Smart Instance Management** — Create, configure, clone, and delete isolated Minecraft instances. Each instance has its own mods, saves, configs, resource packs, and shader packs — while sharing core libraries via hard links to save disk space.
-- **⚡ High-Performance Downloads** — Parallel multi-threaded downloads with exponential backoff retry, SHA1 integrity verification, and automatic mirror failover (Official Mojang CDN → BMCLAPI → MCBBS).
-- **🚀 One-Click Launch** — Automatic Java runtime detection (PATH, JAVA_HOME, macOS `/usr/libexec/java_home`, Windows registry), version dependency resolution with parent inheritance, native library extraction, and JVM argument construction with template expansion.
+- **📦 Smart Instance Management** — Create, configure, clone, and delete isolated Minecraft instances. Each instance has its own mods, saves, configs, resource packs, and shader packs — while sharing core libraries via hard links to save disk space. Instance snapshots, import/export, and config sharing via shareable codes.
+- **⚡ High-Performance Downloads** — Parallel multi-threaded downloads with exponential backoff retry, SHA1 integrity verification, and automatic mirror failover (Official Mojang CDN → BMCLAPI → MCBBS). Download scheduler with speed limits and priority control.
+- **🚀 One-Click Launch** — Automatic Java runtime detection (PATH, JAVA_HOME, macOS `/usr/libexec/java_home`, Windows registry), version dependency resolution with parent inheritance, native library extraction, and JVM argument construction with template expansion. JRE auto-download with multiple sources.
 - **🧩 Mod Loader Integration** — First-class Fabric and Forge support. One-click loader installation during instance creation with automatic library resolution.
-- **🛒 Mod Browser (Modrinth)** — Browse, search, and install mods directly from Modrinth with one click. Filter by Minecraft version and mod loader. (New!)
+- **🛒 Dual Mod Browser** — Browse, search, and install mods from both **Modrinth** and **CurseForge** with one click. Filter by Minecraft version and mod loader. Gallery and list view modes.
+- **🏪 Marketplace Hub** — Centralized content discovery with banners, categories, trending content, and recently updated items across all content types (mods, resource packs, shader packs, modpacks).
 - **🎮 Real-Time Status Tracking** — Full launch state machine (Idle → Checking → Downloading → Validating → Launching → Running → Exited/Crashed/Error) with live progress events streamed from the backend.
+- **🔍 NLP-Powered Search** — Natural language search with synonym expansion (including Chinese/English bilingual synonyms) and TF-IDF relevance scoring.
+- **📊 Performance Analysis** — Frame time analysis from game logs, launch profiling, GC tuning recommendations, anomaly detection, and mod conflict checking.
+
+### Social & Multiplayer
+- **💬 Discord Rich Presence** — Show your current game status on Discord with automatic presence updates.
+- **🌐 LAN Discovery** — Automatically discover Minecraft LAN worlds on your local network.
+- **👥 Friends System** — Add, manage, and see online status of friends.
+- **🔗 P2P File Sharing** — Share files directly with peers on your local network.
+
+### Content & Library
+- **📚 Content Library** — Per-instance installed content management with update checking and bulk updates.
+- **❤️ Collections** — Save and organize your favorite content across sessions with wishlist functionality.
+- **📸 Screenshot Manager** — Browse and manage in-game screenshots per instance.
+- **📰 Minecraft News** — Read official Minecraft news articles directly in the launcher.
+- **🏆 Achievements** — Unlock achievements as you use the launcher.
+
+### System & Security
+- **🖥️ Hardware Profiling** — Automatic hardware detection with performance scoring and memory tuning recommendations.
+- **🔋 Battery Awareness** — Detect battery status for laptop-optimized behavior.
+- **🛡️ Security Suite** — Credential encryption, JVM args whitelist validation, sandbox mode, file permission checking, audit logging, and security scoring.
+- **🌐 Web API** — Local HTTP API for remote control and automation.
+- **⌨️ CLI Mode** — Command-line interface for scripting and headless operation.
+- **💾 Disk Usage Analytics** — Visual breakdown of disk usage across instances, versions, libraries, and assets.
 
 ### Design & UX
-- **🌃 Neo-Tokyo Cyberpunk Aesthetic** — Dark theme with neon-yellow accents, geometric clip-path elements, and decorative bounding boxes.
+- **🌃 Neo-Tokyo Cyberpunk Aesthetic** — Dark theme with neon-yellow accents, geometric clip-path elements, and decorative bounding boxes. Multiple theme options (Dark, Light, OLED).
 - **📺 Retro CRT Effects** — SVG noise overlay, scanline filter, and polygon-clipped UI elements for a unique visual identity.
 - **✨ Micro-Interactions** — CSS animations, hover transitions, loading skeletons, toast notifications, and keyboard shortcuts throughout.
 - **⌨️ Keyboard Shortcuts** — `Ctrl+H` Home, `Ctrl+I` Instances, `Ctrl+M` Mods, `Ctrl+N` New Instance, `Ctrl+V` Versions, `Ctrl+,` Settings.
+- **🎨 Dynamic Backgrounds** — Choose from Minimal, Cyberpunk, Starfield, and Matrix background themes.
+- **♿ Accessibility** — ARIA labels, keyboard navigation, focus-visible styles, skip-to-content link, and colorblind mode filters.
 - **🇨🇳 Full Chinese Localization** — Native Chinese interface with bilingual support.
+- **🎯 Mini Mode** — Compact always-on-top mini window for quick game launch while playing.
+- **🖥️ Onboarding Wizard** — Guided tour for new users with spotlight overlay.
 
 ### Engineering Quality
 - **🦀 Rust Backend** — Performance-critical paths in Rust with Tokio async runtime. Zero-cost abstractions, memory safety, and fearless concurrency.
@@ -191,15 +219,21 @@ For downloads: Rust emits `download-progress` events with completed/total counts
 - [x] Parallel download engine with mirrors
 - [x] Version dependency auto-resolution
 - [x] Modrinth mod browser & one-click install
+- [x] CurseForge mod source support
 - [x] Keyboard shortcuts
 - [x] Toast notification system
 - [x] Error boundaries & recovery
-- [ ] Resource pack & shader pack browser
-- [ ] One-click server join
-- [ ] Instance import/export (.mrpack)
+- [x] Instance import/export (.mrpack)
+- [x] Discord Rich Presence
+- [x] LAN discovery
+- [x] P2P file sharing
+- [x] CLI mode & Web API
+- [x] NLP-powered search
+- [x] Frame time analysis & performance profiling
+- [x] Security suite (encryption, sandbox, audit)
+- [x] Accessibility (ARIA, keyboard nav, skip link)
 - [ ] Built-in performance profiler (Spark integration)
-- [ ] CurseForge mod source support
-- [ ] Discord Rich Presence
+- [ ] One-click server join
 - [ ] Plugin system for extensibility
 - [ ] Mobile companion app
 

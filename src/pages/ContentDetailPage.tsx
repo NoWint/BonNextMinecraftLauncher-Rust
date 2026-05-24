@@ -219,7 +219,7 @@ export default function ContentDetailPage() {
   ];
 
   return (
-    <div className={`page-enter ${styles.page}`}>
+    <div className={styles.page}>
       <Breadcrumb items={breadcrumbItems} />
 
       {/* Header */}
@@ -552,7 +552,7 @@ export default function ContentDetailPage() {
       {/* Lightbox */}
       {lightboxOpen && project.gallery.length > 0 && (
         <div className={styles.lightbox} onClick={() => setLightboxOpen(false)}>
-          <button className={styles.lightbox__close} onClick={() => setLightboxOpen(false)}>
+          <button className={styles.lightbox__close} onClick={() => setLightboxOpen(false)} aria-label="Close lightbox">
             {'\u{2715}'}
           </button>
 
@@ -561,12 +561,14 @@ export default function ContentDetailPage() {
               <button
                 className={`${styles.lightbox__nav} ${styles['lightbox__nav--prev']}`}
                 onClick={(e) => { e.stopPropagation(); setGalleryIndex((i) => i > 0 ? i - 1 : project.gallery.length - 1); }}
+                aria-label="Previous image"
               >
                 {'\u{2039}'}
               </button>
               <button
                 className={`${styles.lightbox__nav} ${styles['lightbox__nav--next']}`}
                 onClick={(e) => { e.stopPropagation(); setGalleryIndex((i) => i < project.gallery.length - 1 ? i + 1 : 0); }}
+                aria-label="Next image"
               >
                 {'\u{203A}'}
               </button>

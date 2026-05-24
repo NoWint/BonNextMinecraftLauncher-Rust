@@ -39,6 +39,7 @@ export function DownloadPanel() {
         className={styles.toggle}
         onClick={() => setOpen(!open)}
         title="Downloads"
+        aria-label="Toggle downloads panel"
       >
         {'\u{2B07}'}
         {active.length > 0 && (
@@ -100,6 +101,7 @@ export function DownloadPanel() {
                       <button
                         className={styles.task__dismiss}
                         onClick={() => removeTask(task.id)}
+                        aria-label="Dismiss download"
                       >
                         {'\u{2715}'}
                       </button>

@@ -278,7 +278,7 @@ export default function InstancesPage() {
   const isHeroReady = heroInstance ? readyStates[heroInstance.id] : null;
 
   return (
-    <div className={`page-enter ${styles.page}`}>
+    <div className={styles.page}>
 
       {/* ---- Hero Banner ---- */}
       {heroInstance && (

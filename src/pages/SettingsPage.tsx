@@ -693,7 +693,7 @@ export default function SettingsPage() {
   const [hardwareProfile, setHardwareProfile] = useState<HardwareProfile | null>(null);
   const [diskUsage, setDiskUsage] = useState<DiskUsage | null>(null);
   const [jreSources, setJreSources] = useState<JreSourceInfo[]>([]);
-  const [gcRecs, setGcRecs] = useState<Array<{ gc_type: string; jvm_args: string[]; description: string; suitable_for: string }>>([]);
+  const [gcRecs, setGcRecs] = useState<Array<{ gc_type: string; heap_size_mb: number; metaspace_mb: number; jvm_args: string[]; description: string; suitable_for: string; reason: string }>>([]);
   const [gcCopied, setGcCopied] = useState<Record<string, boolean>>({});
   const [screenshotInstanceId, setScreenshotInstanceId] = useState<string>('');
   const [screenshots, setScreenshots] = useState<Array<{ filename: string; path: string; size_bytes: number; modified: string }>>([]);
@@ -754,9 +754,11 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    const ramMb = hardwareProfile?.total_ram_mb || 8192;
-    api.getGcRecommendations(ramMb).then(setGcRecs).catch(() => {});
-  }, [hardwareProfile]);
+    const instId = instances.length > 0 ? instances[0].id : '';
+    if (instId) {
+      api.getGcRecommendations(instId).then(setGcRecs).catch(() => {});
+    }
+  }, [instances]);
 
   const handleSave = async () => {
     if (!localConfig) return;
@@ -863,7 +865,7 @@ export default function SettingsPage() {
   ], [t]);
 
   return (
-    <div className={`page-enter ${styles.page}`}>
+    <div className={styles.page}>
       <div className={styles.topBar}>
         <div className={styles.actions}>
           <Button variant="secondary" size="sm" onClick={() => setLocalConfig(config)}>{t('settings.reset')}</Button>
@@ -1175,7 +1177,10 @@ export default function SettingsPage() {
                     </span>
                   </div>
                   <div className={styles.gcCard__desc}>{rec.description}</div>
-                  <div className={styles.gcCard__argsLabel}>{t('settings.jvmArgsLabel')}</div>
+                  <div className={styles.gcCard__desc} style={{ fontSize: '0.55em', color: 'var(--color-text-muted)' }}>{rec.reason}</div>
+                  <div className={styles.gcCard__argsLabel}>
+                    {t('settings.jvmArgsLabel')} · Heap {rec.heap_size_mb}MB · Metaspace {rec.metaspace_mb}MB
+                  </div>
                   <div className={styles.gcCard__args}>
                     {rec.jvm_args.map((arg, i) => (
                       <span key={i} className={styles.gcCard__arg}>{arg}</span>

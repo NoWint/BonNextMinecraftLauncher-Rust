@@ -221,7 +221,7 @@ export default function LibraryPage() {
   }));
 
   return (
-    <div className={`page-enter ${styles.page}`}>
+    <div className={styles.page}>
       <SectionHeader title={t('library.contentLibrary')} subtitle={t('library.managePerInstance')} />
 
       {/* Instance selector */}

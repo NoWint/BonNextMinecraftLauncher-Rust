@@ -60,7 +60,7 @@ export default function VersionsPage() {
   }, []);
 
   return (
-    <div className="page-enter">
+    <div>
       <SectionHeader title={t('versions.title').toUpperCase()} subtitle={`${versions.length} ${t('versions.count')}`} />
       <div className={styles.controls}>
         <Select

@@ -59,6 +59,7 @@ export function CollectionButton({
         type="button"
         onClick={toggle}
         disabled={loading}
+        aria-label={saved ? 'Remove from collection' : 'Add to collection'}
         style={{
           background: saved ? 'rgba(255, 68, 68, 0.12)' : 'var(--color-panel)',
           border: saved ? '1px solid rgba(255, 68, 68, 0.3)' : '1px solid var(--color-border)',

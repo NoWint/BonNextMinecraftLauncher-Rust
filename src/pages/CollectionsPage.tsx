@@ -56,7 +56,7 @@ export default function CollectionsPage() {
     : items.filter((i) => i.content_type === filter);
 
   return (
-    <div className={`page-enter ${styles.page}`}>
+    <div className={styles.page}>
       <SectionHeader title={t('collections.myCollection')} subtitle={`${items.length} ${t('common.installed')}`} />
 
       <Tabs tabs={TYPE_TABS} activeId={filter} onChange={setFilter} />

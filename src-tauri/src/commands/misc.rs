@@ -316,32 +316,113 @@ pub async fn set_download_schedule_config(max_speed_bytes: u64, active_during_ga
 #[derive(Debug, Clone, Serialize)]
 pub struct GcRecommendation {
     pub gc_type: String,
+    pub heap_size_mb: u32,
+    pub metaspace_mb: u32,
     pub jvm_args: Vec<String>,
     pub description: String,
     pub suitable_for: String,
+    pub reason: String,
 }
 
 #[tauri::command]
-pub async fn get_gc_recommendations(total_ram_mb: u64) -> Result<Vec<GcRecommendation>, LauncherError> {
-    let ram_gb = total_ram_mb / 1024;
+pub async fn get_gc_recommendations(instance_id: String) -> Result<Vec<GcRecommendation>, LauncherError> {
+    let hw = crate::commands::system::get_hardware_profile().await?;
+    let total_ram_gb = hw.total_ram_mb as f64 / 1024.0;
+
+    let mods_dir = crate::platform::paths::get_instance_mods_dir(&instance_id);
+    let mod_count = if mods_dir.exists() {
+        std::fs::read_dir(&mods_dir)
+            .map(|d| d.filter_map(|e| e.ok()).filter(|e| {
+                e.path().extension().map(|ext| ext == "jar").unwrap_or(false)
+            }).count())
+            .unwrap_or(0)
+    } else {
+        0
+    };
+
+    let metaspace_mb = if mod_count > 100 {
+        512
+    } else if mod_count > 50 {
+        384
+    } else if mod_count > 20 {
+        256
+    } else {
+        128
+    };
+
+    let g1_heap = if total_ram_gb <= 4.0 {
+        1024
+    } else if total_ram_gb <= 8.0 {
+        2048
+    } else if total_ram_gb <= 16.0 {
+        4096
+    } else {
+        6144
+    };
+
+    let mut g1_args = vec![
+        format!("-XX:+UseG1GC"),
+        "-XX:MaxGCPauseMillis=50".to_string(),
+        format!("-XX:MetaspaceSize={}m", metaspace_mb),
+        format!("-XX:MaxMetaspaceSize={}m", metaspace_mb),
+    ];
+    if mod_count > 50 {
+        g1_args.push("-XX:ParallelGCThreads=4".to_string());
+    }
+
+    let mut zgc_args = vec![
+        "-XX:+UnlockExperimentalVMOptions".to_string(),
+        "-XX:+UseZGC".to_string(),
+        format!("-XX:MetaspaceSize={}m", metaspace_mb),
+        format!("-XX:MaxMetaspaceSize={}m", metaspace_mb),
+    ];
+    if mod_count > 50 {
+        zgc_args.push("-XX:ParallelGCThreads=4".to_string());
+    }
+
+    let shenandoah_heap = if total_ram_gb <= 8.0 { 2048 } else { 4096 };
+    let mut shenandoah_args = vec![
+        "-XX:+UseShenandoahGC".to_string(),
+        format!("-XX:MetaspaceSize={}m", metaspace_mb),
+        format!("-XX:MaxMetaspaceSize={}m", metaspace_mb),
+    ];
+    if mod_count > 50 {
+        shenandoah_args.push("-XX:ParallelGCThreads=4".to_string());
+    }
+
+    let g1_reason = if total_ram_gb <= 8.0 {
+        "低/中内存系统：G1GC保守堆分配".to_string()
+    } else {
+        "通用场景：G1GC平衡堆分配".to_string()
+    };
+
     Ok(vec![
         GcRecommendation {
             gc_type: "G1GC".to_string(),
-            jvm_args: vec!["-XX:+UseG1GC".to_string(), "-XX:MaxGCPauseMillis=50".to_string()],
+            heap_size_mb: g1_heap,
+            metaspace_mb,
+            jvm_args: g1_args,
             description: "G1垃圾回收器，适合大多数场景".to_string(),
-            suitable_for: if ram_gb <= 8 { "推荐" } else { "可选" }.to_string(),
+            suitable_for: if total_ram_gb <= 8.0 { "推荐" } else { "可选" }.to_string(),
+            reason: g1_reason,
         },
         GcRecommendation {
             gc_type: "ZGC".to_string(),
-            jvm_args: vec!["-XX:+UseZGC".to_string(), "-XX:+ZGenerational".to_string()],
+            heap_size_mb: if total_ram_gb >= 12.0 { 6144 } else { 4096 },
+            metaspace_mb,
+            jvm_args: zgc_args,
             description: "ZGC低延迟垃圾回收器，适合大内存".to_string(),
-            suitable_for: if ram_gb >= 12 { "推荐" } else { "不推荐" }.to_string(),
+            suitable_for: if total_ram_gb >= 12.0 { "推荐" } else { "不推荐" }.to_string(),
+            reason: if total_ram_gb >= 12.0 { "高内存系统：ZGC最小暂停时间".to_string() } else { "内存不足，不建议使用ZGC".to_string() },
         },
         GcRecommendation {
             gc_type: "Shenandoah".to_string(),
-            jvm_args: vec!["-XX:+UseShenandoahGC".to_string()],
+            heap_size_mb: shenandoah_heap,
+            metaspace_mb,
+            jvm_args: shenandoah_args,
             description: "Shenandoah低延迟垃圾回收器".to_string(),
-            suitable_for: if ram_gb >= 16 { "推荐" } else { "可选" }.to_string(),
+            suitable_for: if total_ram_gb >= 16.0 { "推荐" } else { "可选" }.to_string(),
+            reason: if total_ram_gb >= 16.0 { "高内存系统：Shenandoah低延迟".to_string() } else { "内存有限，Shenandoah可能增加开销".to_string() },
         },
     ])
 }
@@ -412,64 +493,131 @@ pub async fn get_launch_profiling_data(instance_id: String) -> Result<Vec<Launch
 pub struct FrameTimeData {
     pub avg_fps: f32,
     pub min_fps: f32,
-    pub p1_low_fps: f32,
+    pub max_fps: f32,
     pub frame_times_ms: Vec<f32>,
+    pub stutter_count: u32,
+    pub analysis: String,
 }
 
 #[tauri::command]
 pub async fn get_frame_time_data(instance_id: String) -> Result<FrameTimeData, LauncherError> {
-    let fps_path = paths::get_instance_minecraft_dir(&instance_id).join("fps_data.json");
-    if fps_path.exists() {
-        match std::fs::read_to_string(&fps_path) {
-            Ok(data) => {
-                if let Ok(parsed) = serde_json::from_str::<FrameTimeData>(&data) {
-                    return Ok(parsed);
-                }
-            }
-            Err(_) => {}
+    let instance = crate::instance::manager::get_instance(&instance_id)?
+        .ok_or_else(|| LauncherError::Other(format!("Instance not found: {}", instance_id)))?;
+
+    let game_dir = crate::platform::paths::get_instance_minecraft_dir(&instance.id);
+    let log_path = game_dir.join("logs").join("latest.log");
+
+    if !log_path.exists() {
+        return Ok(FrameTimeData {
+            avg_fps: 0.0,
+            min_fps: 0.0,
+            max_fps: 0.0,
+            frame_times_ms: Vec::new(),
+            stutter_count: 0,
+            analysis: "No log file found. Play the game first to generate frame data.".to_string(),
+        });
+    }
+
+    let content = std::fs::read_to_string(&log_path)
+        .map_err(|e| LauncherError::Io(e))?;
+
+    let mut fps_values: Vec<f32> = Vec::new();
+    for line in content.lines().rev().take(1000) {
+        if let Some(fps) = parse_fps_from_log_line(line) {
+            fps_values.push(fps);
         }
     }
-    let log_path = paths::get_instance_minecraft_dir(&instance_id).join("logs").join("latest.log");
-    if log_path.exists() {
-        if let Ok(content) = std::fs::read_to_string(&log_path) {
-            let mut fps_values: Vec<f32> = Vec::new();
-            for line in content.lines() {
-                if line.contains("fps") || line.contains("FPS") {
-                    let lower = line.to_lowercase();
-                    if let Some(pos) = lower.find("fps") {
-                        let before = &lower[..pos].trim();
-                        if let Some(num_str) = before.rsplit(|c: char| !c.is_ascii_digit() && c != '.').next() {
-                            if let Ok(val) = num_str.parse::<f32>() {
-                                if val > 0.0 && val < 1000.0 {
-                                    fps_values.push(val);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            if !fps_values.is_empty() {
-                let avg = fps_values.iter().sum::<f32>() / fps_values.len() as f32;
-                let min = fps_values.iter().cloned().fold(f32::MAX, f32::min);
-                let mut sorted = fps_values.clone();
-                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-                let p1_idx = ((sorted.len() as f32) * 0.01).max(1.0) as usize - 1;
-                let p1_low = sorted.get(p1_idx).copied().unwrap_or(min);
-                return Ok(FrameTimeData {
-                    avg_fps: avg,
-                    min_fps: min,
-                    p1_low_fps: p1_low,
-                    frame_times_ms: fps_values.iter().take(30).map(|&f| if f > 0.0 { 1000.0 / f } else { 0.0 }).collect(),
-                });
-            }
-        }
+
+    if fps_values.is_empty() {
+        return Ok(FrameTimeData {
+            avg_fps: 0.0,
+            min_fps: 0.0,
+            max_fps: 0.0,
+            frame_times_ms: Vec::new(),
+            stutter_count: 0,
+            analysis: "No FPS data found in log. Enable FPS display in game settings.".to_string(),
+        });
     }
+
+    fps_values.reverse();
+
+    let avg_fps = fps_values.iter().sum::<f32>() / fps_values.len() as f32;
+    let min_fps = fps_values.iter().cloned().fold(f32::INFINITY, f32::min);
+    let max_fps = fps_values.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+
+    let frame_times_ms: Vec<f32> = fps_values.iter()
+        .map(|&fps| if fps > 0.0 { 1000.0 / fps } else { 0.0 })
+        .collect();
+
+    let stutter_count = frame_times_ms.iter()
+        .filter(|&&ft| ft > 50.0)
+        .count() as u32;
+
+    let analysis = generate_analysis(avg_fps, min_fps, stutter_count);
+
     Ok(FrameTimeData {
-        avg_fps: 0.0,
-        min_fps: 0.0,
-        p1_low_fps: 0.0,
-        frame_times_ms: Vec::new(),
+        avg_fps: (avg_fps * 10.0).round() / 10.0,
+        min_fps: (min_fps * 10.0).round() / 10.0,
+        max_fps: (max_fps * 10.0).round() / 10.0,
+        frame_times_ms,
+        stutter_count,
+        analysis,
     })
+}
+
+fn parse_fps_from_log_line(line: &str) -> Option<f32> {
+    let line_lower = line.to_lowercase();
+
+    if let Some(pos) = line_lower.find("fps:") {
+        let remainder = &line_lower[pos + 4..].trim_start();
+        if let Some(num_str) = remainder.split(|c: char| !c.is_numeric() && c != '.').next() {
+            if let Ok(fps) = num_str.parse::<f32>() {
+                if fps > 0.0 && fps < 10000.0 {
+                    return Some(fps);
+                }
+            }
+        }
+    }
+
+    if let Some(pos) = line_lower.find(" fps") {
+        let before = &line_lower[..pos];
+        if let Some(num_str) = before.rsplit(|c: char| !c.is_numeric() && c != '.').next() {
+            if let Ok(fps) = num_str.parse::<f32>() {
+                if fps > 0.0 && fps < 10000.0 {
+                    return Some(fps);
+                }
+            }
+        }
+    }
+
+    None
+}
+
+fn generate_analysis(avg_fps: f32, min_fps: f32, stutter_count: u32) -> String {
+    let mut parts = Vec::new();
+
+    if avg_fps >= 60.0 {
+        parts.push("Excellent performance".to_string());
+    } else if avg_fps >= 45.0 {
+        parts.push("Good performance with occasional dips".to_string());
+    } else if avg_fps >= 30.0 {
+        parts.push("Moderate performance - consider optimization".to_string());
+    } else {
+        parts.push("Low performance - optimization recommended".to_string());
+    }
+
+    if stutter_count > 10 {
+        parts.push(format!("{} stutter events detected (>50ms frame time)", stutter_count));
+        parts.push("Consider: reducing render distance, installing Sodium, or allocating more memory".to_string());
+    } else if stutter_count > 0 {
+        parts.push(format!("{} minor stutter events", stutter_count));
+    }
+
+    if min_fps < 30.0 {
+        parts.push("Minimum FPS is very low - check for resource-intensive mods".to_string());
+    }
+
+    parts.join(". ")
 }
 
 #[derive(Debug, Clone, Serialize)]

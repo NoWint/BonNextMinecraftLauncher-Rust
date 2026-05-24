@@ -30,7 +30,7 @@ export default function AuditLogViewer({ open, onClose }: AuditLogViewerProps) {
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <h3 className={styles.title}>安全审计日志</h3>
-          <button className={styles.closeBtn} onClick={onClose}>✕</button>
+          <button className={styles.closeBtn} onClick={onClose} aria-label="Close audit log">✕</button>
         </div>
         <div className={styles.filter}>
           <select

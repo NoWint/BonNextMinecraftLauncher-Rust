@@ -205,7 +205,11 @@ pub(crate) async fn launch_game_inner(
     if let Some(ref iid) = instance_id {
         launcher = launcher.with_instance_id(iid.clone());
     }
-    launcher.launch(ctx).await
+    let result = launcher.launch(ctx).await;
+    if result.is_ok() {
+        crate::commands::achievement::try_unlock_achievement(&_app, "first_launch");
+    }
+    result
 }
 
 pub async fn download_version_inner(
