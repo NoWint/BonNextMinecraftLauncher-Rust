@@ -825,6 +825,17 @@ input[type='checkbox'] {
     transform: translateY(0) scale(1);
   }
 }
+
+@keyframes stagger-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 .card-rise {
   animation: card-rise calc(0.5s * var(--anim-speed, 1)) var(--ease-out-expo) forwards;
   opacity: 0;
