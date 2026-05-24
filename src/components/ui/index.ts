@@ -16,8 +16,16 @@ export { CollectionButton } from './CollectionButton';
 export { CrashModal } from './CrashModal';
 export { ConflictWarning } from './ConflictWarning';
 export { ShareModal } from './ShareModal';
-export { default as OnboardingWizard, isOnboardingSkipped, isOnboardingCompleted, isOnboardingForceShow, clearForceShow, resetOnboarding } from './OnboardingWizard';
+export {
+  default as OnboardingWizard,
+  isOnboardingSkipped,
+  isOnboardingCompleted,
+  isOnboardingForceShow,
+  clearForceShow,
+  resetOnboarding,
+} from './OnboardingWizard';
 export { default as SettingsNav } from './SettingsNav';
 export type { NavCategory } from './SettingsNav';
 export { default as SecurityScore } from './SecurityScore';
 export { default as AuditLogViewer } from './AuditLogViewer';
+export { default as SkinViewer3D } from './SkinViewer3D';

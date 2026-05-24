@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { api, type DownloadProgressEvent, type LaunchState, type GameInstance, type SystemInfo, type JreDownloadProgress, type MinecraftNewsEntry } from '../api';
-import { NewsArticleModal } from '../components/ui/NewsArticleModal';
+import {
+  api,
+  type DownloadProgressEvent,
+  type LaunchState,
+  type GameInstance,
+  type SystemInfo,
+  type JreDownloadProgress,
+  type MinecraftNewsEntry,
+} from '../api';
 import { useAuth } from '../stores/authStore';
 import { useInstances } from '../stores/instanceStore';
 import { useToast } from '../stores/toastStore';
@@ -9,7 +16,13 @@ import { useGreeting } from '../hooks/useGreeting';
 import { Heading, SubLabel, AccentCorner, Ticker } from '../components/layout';
 import { StatusDot, Badge, ProgressBar, Tooltip } from '../components/ui';
 import { Button } from '../components/ui';
-import { OnboardingWizard, isOnboardingSkipped, isOnboardingCompleted, isOnboardingForceShow, clearForceShow } from '../components/ui';
+import {
+  OnboardingWizard,
+  isOnboardingSkipped,
+  isOnboardingCompleted,
+  isOnboardingForceShow,
+  clearForceShow,
+} from '../components/ui';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import GameConsole from '../components/ui/GameConsole';
 import { relativeTime } from '../utils/time';
@@ -20,7 +33,11 @@ function usePollLaunchState(interval = 2000) {
   useEffect(() => {
     const poll = async () => {
       if (document.hidden) return;
-      try { setS(await api.getLaunchState()); } catch { /* poll error */ }
+      try {
+        setS(await api.getLaunchState());
+      } catch {
+        /* poll error */
+      }
     };
     poll();
     const timer = setInterval(poll, interval);
@@ -31,9 +48,12 @@ function usePollLaunchState(interval = 2000) {
 
 function getLoaderIcon(loaderType: string | null): string {
   switch (loaderType) {
-    case 'fabric': return '\u{1F9F5}';
-    case 'forge': return '\u{2692}';
-    default: return '\u{1F4E6}';
+    case 'fabric':
+      return '\u{1F9F5}';
+    case 'forge':
+      return '\u{2692}';
+    default:
+      return '\u{1F4E6}';
   }
 }
 
@@ -68,9 +88,7 @@ function InstanceCard({
     >
       {isActive && <div className={styles.card__accent} />}
       <div className={styles.card__body}>
-        <Tooltip
-          content={`${loaderLabel}${instance.loader_version ? ` ${instance.loader_version}` : ''}`}
-        >
+        <Tooltip content={`${loaderLabel}${instance.loader_version ? ` ${instance.loader_version}` : ''}`}>
           <div
             className={`${styles.card__icon} ${isActive ? styles['card__icon--active'] : styles['card__icon--default']}`}
           >
@@ -79,13 +97,13 @@ function InstanceCard({
         </Tooltip>
         <div className={styles.card__info}>
           <div className={styles.card__nameRow}>
-            <span className={`${styles.card__name} ${isActive ? styles['card__name--active'] : styles['card__name--default']}`}>
+            <span
+              className={`${styles.card__name} ${isActive ? styles['card__name--active'] : styles['card__name--default']}`}
+            >
               {instance.name}
             </span>
             <Badge variant="accent">{instance.version_id}</Badge>
-            {instance.loader_type && (
-              <Badge variant="muted">{instance.loader_type}</Badge>
-            )}
+            {instance.loader_type && <Badge variant="muted">{instance.loader_type}</Badge>}
           </div>
           <div className={styles.card__meta}>
             <span className={styles.card__metaItem}>
@@ -100,7 +118,14 @@ function InstanceCard({
           </div>
         </div>
         <div className={styles.card__actions}>
-          <Button variant="primary" size="sm" onClick={(e) => { e.stopPropagation(); onLaunch(instance); }}>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onLaunch(instance);
+            }}
+          >
             {'▶ ' + t('home.startBtn')}
           </Button>
         </div>
@@ -216,7 +241,9 @@ function PlayArea({
               <div className={styles.countdownNumber}>{countdown}</div>
             </div>
           ) : isBusy || launchState !== 'idle' ? (
-            <div className={`${styles.playArea__stateText} ${isBusy ? styles['playArea__stateText--busy'] : styles['playArea__stateText--idle']}`}>
+            <div
+              className={`${styles.playArea__stateText} ${isBusy ? styles['playArea__stateText--busy'] : styles['playArea__stateText--idle']}`}
+            >
               {stateLabel[launchState]}
             </div>
           ) : (
@@ -245,7 +272,8 @@ function PlayArea({
                 )}
               </div>
               <div className={styles.playArea__details}>
-                {instance.loader_type ? `${t(`common.${instance.loader_type}`)} . ` : ''}{Math.round(instance.max_memory / 1024)}GB
+                {instance.loader_type ? `${t(`common.${instance.loader_type}`)} . ` : ''}
+                {Math.round(instance.max_memory / 1024)}GB
               </div>
             </div>
           ) : (
@@ -280,7 +308,11 @@ function PlayArea({
       <div className={styles.quickStats}>
         <div className={styles.statCard}>
           <div className={styles.statCard__value}>
-            {instance ? `${Math.round(instance.max_memory / 1024)}GB` : sysInfo ? `${Math.round(sysInfo.total_ram_mb / 1024)}GB` : '—'}
+            {instance
+              ? `${Math.round(instance.max_memory / 1024)}GB`
+              : sysInfo
+                ? `${Math.round(sysInfo.total_ram_mb / 1024)}GB`
+                : '—'}
           </div>
           <div className={styles.statCard__label}>{t('home.playArea.ram')}</div>
         </div>
@@ -291,9 +323,7 @@ function PlayArea({
           <div className={styles.statCard__label}>{t('home.playArea.jdk')}</div>
         </div>
         <div className={styles.statCard}>
-          <div className={styles.statCard__value}>
-            {sysInfo ? `${sysInfo.cpu_count}c` : '—'}
-          </div>
+          <div className={styles.statCard__value}>{sysInfo ? `${sysInfo.cpu_count}c` : '—'}</div>
           <div className={styles.statCard__label}>CPU</div>
         </div>
       </div>
@@ -323,30 +353,68 @@ export default function HomePage() {
   const [instanceCoverImage, setInstanceCoverImage] = useState<string | null>(null);
   const [showWizard, setShowWizard] = useState(false);
   const [newsEntries, setNewsEntries] = useState<MinecraftNewsEntry[]>([]);
-  const [articleUrl, setArticleUrl] = useState('');
-  const [articleTitle, setArticleTitle] = useState('');
-  const [articleImageUrl, setArticleImageUrl] = useState<string | null>(null);
-  const [showArticle, setShowArticle] = useState(false);
 
-  const openArticle = useCallback((url: string, title?: string, imageUrl?: string | null) => {
+  const openArticle = useCallback((url: string) => {
     if (!url) return;
-    setArticleUrl(url);
-    setArticleTitle(title || '');
-    setArticleImageUrl(imageUrl || null);
-    setShowArticle(true);
+    api.openUrl(url).catch(() => {});
   }, []);
 
   const lastDownloadUpdateRef = useRef(0);
   const lastJreUpdateRef = useRef(0);
 
-  const FALLBACK_SLIDES = useMemo(() => [
-    { label: t('home.bannerFeatured'), title: t('home.bannerSlide1Title'), desc: t('home.bannerSlide1Desc'), theme: 1, url: null as string | null, imageUrl: null as string | null },
-    { label: t('home.bannerPerformance'), title: t('home.bannerSlide2Title'), desc: t('home.bannerSlide2Desc'), theme: 2, url: null as string | null, imageUrl: null as string | null },
-    { label: t('home.bannerCommunity'), title: t('home.bannerSlide3Title'), desc: t('home.bannerSlide3Desc'), theme: 3, url: null as string | null, imageUrl: null as string | null },
-    { label: t('home.bannerBonNext'), title: t('home.bannerSlide4Title'), desc: t('home.bannerSlide4Desc'), theme: 4, url: null as string | null, imageUrl: null as string | null },
-    { label: t('home.bannerTechnology'), title: t('home.bannerSlide5Title'), desc: t('home.bannerSlide5Desc'), theme: 5, url: null as string | null, imageUrl: null as string | null },
-    { label: t('home.bannerUpdates'), title: t('home.bannerSlide6Title'), desc: t('home.bannerSlide6Desc'), theme: 6, url: null as string | null, imageUrl: null as string | null },
-  ], [t]);
+  const FALLBACK_SLIDES = useMemo(
+    () => [
+      {
+        label: t('home.bannerFeatured'),
+        title: t('home.bannerSlide1Title'),
+        desc: t('home.bannerSlide1Desc'),
+        theme: 1,
+        url: null as string | null,
+        imageUrl: null as string | null,
+      },
+      {
+        label: t('home.bannerPerformance'),
+        title: t('home.bannerSlide2Title'),
+        desc: t('home.bannerSlide2Desc'),
+        theme: 2,
+        url: null as string | null,
+        imageUrl: null as string | null,
+      },
+      {
+        label: t('home.bannerCommunity'),
+        title: t('home.bannerSlide3Title'),
+        desc: t('home.bannerSlide3Desc'),
+        theme: 3,
+        url: null as string | null,
+        imageUrl: null as string | null,
+      },
+      {
+        label: t('home.bannerBonNext'),
+        title: t('home.bannerSlide4Title'),
+        desc: t('home.bannerSlide4Desc'),
+        theme: 4,
+        url: null as string | null,
+        imageUrl: null as string | null,
+      },
+      {
+        label: t('home.bannerTechnology'),
+        title: t('home.bannerSlide5Title'),
+        desc: t('home.bannerSlide5Desc'),
+        theme: 5,
+        url: null as string | null,
+        imageUrl: null as string | null,
+      },
+      {
+        label: t('home.bannerUpdates'),
+        title: t('home.bannerSlide6Title'),
+        desc: t('home.bannerSlide6Desc'),
+        theme: 6,
+        url: null as string | null,
+        imageUrl: null as string | null,
+      },
+    ],
+    [t],
+  );
 
   const BANNER_SLIDES = useMemo(() => {
     if (newsEntries.length > 0) {
@@ -379,28 +447,29 @@ export default function HomePage() {
     ];
   }, [newsEntries, t]);
 
-  const recentInstances = useMemo(() =>
-    [...instances]
-      .sort((a, b) => {
-        const aTime = a.last_played ? new Date(a.last_played).getTime() : 0;
-        const bTime = b.last_played ? new Date(b.last_played).getTime() : 0;
-        return bTime - aTime;
-      })
-      .slice(0, 3),
-    [instances]
+  const recentInstances = useMemo(
+    () =>
+      [...instances]
+        .sort((a, b) => {
+          const aTime = a.last_played ? new Date(a.last_played).getTime() : 0;
+          const bTime = b.last_played ? new Date(b.last_played).getTime() : 0;
+          return bTime - aTime;
+        })
+        .slice(0, 3),
+    [instances],
   );
 
-  const activeInstance = recentInstances.find((i) => i.id === selectedInstanceId)
-    || (recentInstances.length > 0 ? recentInstances[0] : null);
-  const isBusy = launchState !== 'idle' && launchState !== 'exited' && launchState !== 'crashed' && launchState !== 'error';
+  const activeInstance =
+    recentInstances.find((i) => i.id === selectedInstanceId) ||
+    (recentInstances.length > 0 ? recentInstances[0] : null);
+  const isBusy =
+    launchState !== 'idle' && launchState !== 'exited' && launchState !== 'crashed' && launchState !== 'error';
   const loading = instState.loading;
 
   // Check ready state for all instances
   useEffect(() => {
     const checkAll = async () => {
-      const results = await Promise.allSettled(
-        instances.map(inst => api.checkInstanceReady(inst.id))
-      );
+      const results = await Promise.allSettled(instances.map((inst) => api.checkInstanceReady(inst.id)));
       const states: Record<string, boolean | null> = {};
       results.forEach((result, i) => {
         states[instances[i].id] = result.status === 'fulfilled' ? result.value : null;
@@ -419,7 +488,9 @@ export default function HomePage() {
       }
       if (progress.finished) setTimeout(() => setDownloadProgress(null), 2000);
     });
-    return () => { unlisten.then((fn) => fn()); };
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, []);
 
   useEffect(() => {
@@ -434,21 +505,35 @@ export default function HomePage() {
         setTimeout(() => setJreDownload(null), 3000);
       }
     });
-    return () => { unlisten.then((fn) => fn()); };
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, []);
 
   useEffect(() => {
-    api.findJava().then((path) => api.checkJavaVersion(path).then(setJavaVersion)).catch(() => {});
-    api.getSystemInfo().then(setSysInfo).catch(() => {});
+    api
+      .findJava()
+      .then((path) => api.checkJavaVersion(path).then(setJavaVersion))
+      .catch(() => {});
+    api
+      .getSystemInfo()
+      .then(setSysInfo)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    api.getMinecraftNews().then(setNewsEntries).catch(() => {});
+    api
+      .getMinecraftNews()
+      .then(setNewsEntries)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     if (activeInstance) {
-      api.getInstanceCoverImage(activeInstance.id).then(setInstanceCoverImage).catch(() => setInstanceCoverImage(null));
+      api
+        .getInstanceCoverImage(activeInstance.id)
+        .then(setInstanceCoverImage)
+        .catch(() => setInstanceCoverImage(null));
     } else {
       setInstanceCoverImage(null);
     }
@@ -456,8 +541,8 @@ export default function HomePage() {
 
   useEffect(() => {
     const forceShow = isOnboardingForceShow();
-    const shouldShow = !loading && !isOnboardingSkipped() && !isOnboardingCompleted()
-      && (instances.length === 0 || forceShow);
+    const shouldShow =
+      !loading && !isOnboardingSkipped() && !isOnboardingCompleted() && (instances.length === 0 || forceShow);
     if (shouldShow) {
       if (forceShow) clearForceShow();
       setShowWizard(true);
@@ -477,28 +562,39 @@ export default function HomePage() {
     return () => clearInterval(timer);
   }, [BANNER_SLIDES.length]);
 
-  const handleLaunch = useCallback(async (instance: GameInstance) => {
-    setError('');
-    try {
-      await api.launchGame(
-        instance.version_id, instance.version_url,
-        auth?.username || 'Player', auth?.uuid || '',
-        auth?.access_token || '', instance.max_memory, instance.min_memory,
-        instance.java_path || undefined, instance.jvm_args || undefined,
-        instance.id,
-      );
-      addToast({ type: 'success', title: t('home.gameLaunched'), message: t('instances.isStarting', { name: instance.name }) });
-    } catch (e: any) {
-      const msg = e?.toString() || t('instances.launchFailed');
-      setError(msg);
-      addToast({ type: 'error', title: t('instances.launchFailed'), message: msg });
-      setTimeout(() => setError(''), 8000);
-    }
-  }, [auth, addToast, t]);
+  const handleLaunch = useCallback(
+    async (instance: GameInstance) => {
+      setError('');
+      try {
+        await api.launchGame(
+          instance.version_id,
+          instance.version_url,
+          auth?.username || 'Player',
+          auth?.uuid || '',
+          auth?.access_token || '',
+          instance.max_memory,
+          instance.min_memory,
+          instance.java_path || undefined,
+          instance.jvm_args || undefined,
+          instance.id,
+        );
+        addToast({
+          type: 'success',
+          title: t('home.gameLaunched'),
+          message: t('instances.isStarting', { name: instance.name }),
+        });
+      } catch (e: any) {
+        const msg = e?.toString() || t('instances.launchFailed');
+        setError(msg);
+        addToast({ type: 'error', title: t('instances.launchFailed'), message: msg });
+        setTimeout(() => setError(''), 8000);
+      }
+    },
+    [auth, addToast, t],
+  );
 
   return (
     <div className={styles.page}>
-
       {/* Banner carousel */}
       <div className={styles.bannerCarousel}>
         <div className={styles.bannerTrack} style={{ transform: `translateX(-${bannerIndex * 100}%)` }}>
@@ -507,25 +603,22 @@ export default function HomePage() {
             <div className={styles.bannerAccent} />
             <div className={styles.bannerSlide__leftContent}>
               <div className={styles.bannerLabel}>
-                {activeInstance ? (activeInstance.loader_type ? t(`common.${activeInstance.loader_type}`).toUpperCase() : t('home.bannerVanilla')) : t('home.bannerReady')}
+                {activeInstance
+                  ? activeInstance.loader_type
+                    ? t(`common.${activeInstance.loader_type}`).toUpperCase()
+                    : t('home.bannerVanilla')
+                  : t('home.bannerReady')}
               </div>
-              <div className={styles.bannerTitle}>
-                {activeInstance ? activeInstance.name : t('home.welcomeNew')}
-              </div>
+              <div className={styles.bannerTitle}>{activeInstance ? activeInstance.name : t('home.welcomeNew')}</div>
               <div className={styles.bannerDesc}>
                 {activeInstance
                   ? `${activeInstance.version_id}${activeInstance.loader_version ? ` · ${activeInstance.loader_version}` : ''} · ${Math.round(activeInstance.max_memory / 1024)}GB · ${formatPlaytime(activeInstance.playtime_seconds, t)}`
-                  : t('home.welcomeNewDesc')
-                }
+                  : t('home.welcomeNewDesc')}
               </div>
             </div>
             <div className={styles.bannerSlide__rightCover}>
               {instanceCoverImage ? (
-                <img
-                  src={instanceCoverImage}
-                  alt="World preview"
-                  className={styles.bannerSlide__coverImg}
-                />
+                <img src={instanceCoverImage} alt="World preview" className={styles.bannerSlide__coverImg} />
               ) : (
                 <div className={styles.bannerSlide__coverPlaceholder}>
                   <span className={styles.bannerSlide__coverIcon}>◈</span>
@@ -541,9 +634,13 @@ export default function HomePage() {
               className={`${styles.bannerSlide} ${styles[`bannerSlide--${slide.theme}`]}`}
               style={{
                 cursor: slide.url ? 'pointer' : 'default',
-                ...(slide.imageUrl ? { backgroundImage: `url(${slide.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}),
+                ...(slide.imageUrl
+                  ? { backgroundImage: `url(${slide.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                  : {}),
               }}
-              onClick={() => { if (slide.url) openArticle(slide.url, slide.title, slide.imageUrl); }}
+              onClick={() => {
+                if (slide.url) openArticle(slide.url);
+              }}
             >
               <div className={styles.bannerAccent} />
               <div className={styles.bannerContent}>
@@ -556,11 +653,28 @@ export default function HomePage() {
         </div>
         <div className={styles.bannerDots}>
           {[null, ...BANNER_SLIDES].map((_, i) => (
-            <button key={i} className={`${styles.bannerDot} ${i === bannerIndex ? styles['bannerDot--active'] : ''}`} onClick={() => setBannerIndex(i)} aria-label={`Go to slide ${i + 1}`} />
+            <button
+              key={i}
+              className={`${styles.bannerDot} ${i === bannerIndex ? styles['bannerDot--active'] : ''}`}
+              onClick={() => setBannerIndex(i)}
+              aria-label={`Go to slide ${i + 1}`}
+            />
           ))}
         </div>
-        <button className={`${styles.bannerArrow} ${styles['bannerArrow--left']}`} onClick={() => setBannerIndex((i) => (i - 1 + (BANNER_SLIDES.length + 1)) % (BANNER_SLIDES.length + 1))} aria-label="Previous slide">◀</button>
-        <button className={`${styles.bannerArrow} ${styles['bannerArrow--right']}`} onClick={() => setBannerIndex((i) => (i + 1) % (BANNER_SLIDES.length + 1))} aria-label="Next slide">▶</button>
+        <button
+          className={`${styles.bannerArrow} ${styles['bannerArrow--left']}`}
+          onClick={() => setBannerIndex((i) => (i - 1 + (BANNER_SLIDES.length + 1)) % (BANNER_SLIDES.length + 1))}
+          aria-label="Previous slide"
+        >
+          ◀
+        </button>
+        <button
+          className={`${styles.bannerArrow} ${styles['bannerArrow--right']}`}
+          onClick={() => setBannerIndex((i) => (i + 1) % (BANNER_SLIDES.length + 1))}
+          aria-label="Next slide"
+        >
+          ▶
+        </button>
       </div>
 
       {/* Download overlay */}
@@ -572,7 +686,11 @@ export default function HomePage() {
             </Heading>
             <div style={{ marginTop: 16 }}>
               <ProgressBar
-                progress={downloadProgress.total > 0 ? Math.round((downloadProgress.completed / downloadProgress.total) * 100) : 0}
+                progress={
+                  downloadProgress.total > 0
+                    ? Math.round((downloadProgress.completed / downloadProgress.total) * 100)
+                    : 0
+                }
                 done={false}
               />
             </div>
@@ -581,7 +699,8 @@ export default function HomePage() {
                 <span style={{ fontFamily: 'var(--font-mono)', color: '#FFE600' }}>
                   {downloadProgress.completed}/{downloadProgress.total}
                 </span>
-                {' . '}{downloadProgress.phase}
+                {' . '}
+                {downloadProgress.phase}
               </span>
             </div>
             {downloadProgress.current_url && (
@@ -628,7 +747,9 @@ export default function HomePage() {
           <div className={styles.topBar__stats}>
             <span className={styles.topBar__username}>{auth.username}</span>
             <div className={styles.topBar__statSep} />
-            <span className={styles.topBar__statText}>{instances.length} {t('home.instances')}</span>
+            <span className={styles.topBar__statText}>
+              {instances.length} {t('home.instances')}
+            </span>
           </div>
         </div>
         <div className={styles.topBar__right}>
@@ -642,9 +763,12 @@ export default function HomePage() {
               background: showConsole ? 'rgba(255,230,0,0.1)' : 'transparent',
               border: `1px solid ${showConsole ? 'rgba(255,230,0,0.3)' : '#1F1F1F'}`,
               color: showConsole ? '#FFE600' : '#555',
-              padding: '3px 10px', cursor: 'pointer',
-              fontFamily: 'var(--font-mono)', fontSize: '0.42em',
-              letterSpacing: 1, transition: 'all 0.15s',
+              padding: '3px 10px',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.42em',
+              letterSpacing: 1,
+              transition: 'all 0.15s',
             }}
           >
             {showConsole ? '▲ ' + t('home.console') : '▼ ' + t('home.console')}
@@ -665,23 +789,26 @@ export default function HomePage() {
             <div className={styles.instanceList__header}>
               <div className={styles.instanceList__title}>
                 <SubLabel>{t('home.instancesHeader')}</SubLabel>
-                <span className={styles.instanceList__count}>
-                  {String(recentInstances.length).padStart(2, '0')}
-                </span>
+                <span className={styles.instanceList__count}>{String(recentInstances.length).padStart(2, '0')}</span>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 {instances.length > 3 && (
-                  <Button variant="secondary" size="sm" onClick={() => window.location.hash = '#/instances'}>
+                  <Button variant="secondary" size="sm" onClick={() => (window.location.hash = '#/instances')}>
                     {t('home.viewAll')}
                   </Button>
                 )}
-                <Button variant="primary" size="sm" onClick={() => window.location.hash = '#/instances/new'} data-tour="home-new-instance">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => (window.location.hash = '#/instances/new')}
+                  data-tour="home-new-instance"
+                >
                   + {t('home.newInstance')}
                 </Button>
               </div>
             </div>
 
-            {recentInstances.length > 0 && (
+            {recentInstances.length > 0 &&
               recentInstances.map((inst) => (
                 <InstanceCard
                   key={inst.id}
@@ -692,46 +819,60 @@ export default function HomePage() {
                   onSelect={(inst) => setSelectedInstanceId(inst.id)}
                   t={t}
                 />
-              ))
-            )}
+              ))}
 
             {/* News panel */}
-            <div style={{
-              marginTop: 'auto',
-              background: '#141414',
-              border: '1px solid #1C1C1C',
-              padding: 12,
-            }}>
-              <div style={{
-                fontSize: '0.45em', color: '#555',
-                letterSpacing: 2, fontWeight: 700, marginBottom: 8,
-              }}>
+            <div
+              style={{
+                marginTop: 'auto',
+                background: '#141414',
+                border: '1px solid #1C1C1C',
+                padding: 12,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '0.45em',
+                  color: '#555',
+                  letterSpacing: 2,
+                  fontWeight: 700,
+                  marginBottom: 8,
+                }}
+              >
                 {t('home.news')}
               </div>
               <div
                 className={styles.newsItem}
                 key={newsIndex}
                 style={{
-                  fontSize: '0.55em', color: '#AAA',
-                  lineHeight: 1.5, transition: 'opacity 0.3s ease',
+                  fontSize: '0.55em',
+                  color: '#AAA',
+                  lineHeight: 1.5,
+                  transition: 'opacity 0.3s ease',
                   cursor: NEWS_ITEMS[newsIndex]?.url ? 'pointer' : 'default',
                 }}
                 onClick={() => {
                   const item = NEWS_ITEMS[newsIndex];
-                  if (item?.url) openArticle(item.url, item.title);
+                  if (item?.url) openArticle(item.url);
                 }}
               >
                 <span style={{ color: '#FFE600', marginRight: 6 }}>{'▸'}</span>
                 {NEWS_ITEMS[newsIndex]?.title}
               </div>
-              <div style={{
-                display: 'flex', gap: 4, marginTop: 8, justifyContent: 'center',
-              }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 4,
+                  marginTop: 8,
+                  justifyContent: 'center',
+                }}
+              >
                 {NEWS_ITEMS.map((_, i) => (
                   <div
                     key={i}
                     style={{
-                      width: 4, height: 4,
+                      width: 4,
+                      height: 4,
                       background: i === newsIndex ? '#FFE600' : '#333',
                     }}
                   />
@@ -740,12 +881,14 @@ export default function HomePage() {
             </div>
 
             <div>
-              <Ticker messages={NEWS_ITEMS.map(item => item.title)} />
+              <Ticker messages={NEWS_ITEMS.map((item) => item.title)} />
             </div>
           </div>
 
           {/* Right: PLAY area + quick actions */}
-          <div style={{ flex: 0.7, display: 'flex', flexDirection: 'column', gap: 8, height: '100%', overflow: 'hidden' }}>
+          <div
+            style={{ flex: 0.7, display: 'flex', flexDirection: 'column', gap: 8, height: '100%', overflow: 'hidden' }}
+          >
             <PlayArea
               instance={activeInstance}
               instances={recentInstances}
@@ -760,14 +903,18 @@ export default function HomePage() {
             />
 
             {/* Quick actions */}
-            <div style={{
-              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6,
-            }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 6,
+              }}
+            >
               <Button
                 variant="secondary"
                 size="sm"
                 style={{ justifyContent: 'center', fontSize: '0.55em' }}
-                onClick={() => window.location.hash = '#/instances/new'}
+                onClick={() => (window.location.hash = '#/instances/new')}
               >
                 + {t('home.quickActions.newInstance')}
               </Button>
@@ -775,7 +922,7 @@ export default function HomePage() {
                 variant="secondary"
                 size="sm"
                 style={{ justifyContent: 'center', fontSize: '0.55em' }}
-                onClick={() => window.location.hash = '#/mods'}
+                onClick={() => (window.location.hash = '#/mods')}
               >
                 {'⬇'} {t('home.quickActions.browseMods')}
               </Button>
@@ -783,7 +930,7 @@ export default function HomePage() {
                 variant="secondary"
                 size="sm"
                 style={{ justifyContent: 'center', fontSize: '0.55em' }}
-                onClick={() => window.location.hash = '#/versions'}
+                onClick={() => (window.location.hash = '#/versions')}
               >
                 {'⬡'} {t('home.quickActions.versions')}
               </Button>
@@ -791,7 +938,7 @@ export default function HomePage() {
                 variant="secondary"
                 size="sm"
                 style={{ justifyContent: 'center', fontSize: '0.55em' }}
-                onClick={() => window.location.hash = '#/settings'}
+                onClick={() => (window.location.hash = '#/settings')}
               >
                 {'⚙'} {t('home.quickActions.settings')}
               </Button>
@@ -802,18 +949,7 @@ export default function HomePage() {
 
       <GameConsole visible={showConsole} />
 
-      <OnboardingWizard
-        open={showWizard}
-        onClose={() => setShowWizard(false)}
-      />
-
-      <NewsArticleModal
-        open={showArticle}
-        onClose={() => setShowArticle(false)}
-        articleUrl={articleUrl}
-        articleTitle={articleTitle}
-        articleImageUrl={articleImageUrl}
-      />
+      <OnboardingWizard open={showWizard} onClose={() => setShowWizard(false)} />
     </div>
   );
 }

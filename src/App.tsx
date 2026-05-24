@@ -193,7 +193,9 @@ function AppShell() {
         <Sidebar
           navItems={NAV_ITEMS}
           username={authState.currentUser.username}
-          accountType={authState.currentUser.access_token?.startsWith('offline_') ? 'OFFLINE' : 'MICROSOFT'}
+          accountType={
+            authState.accounts.find((a) => a.id === authState.activeAccountId)?.account_type?.toUpperCase() || 'OFFLINE'
+          }
           playtimeHours={todayPlaytimeHours}
           totalPlaytimeHours={totalPlaytimeHours}
         />

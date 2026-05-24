@@ -1,12 +1,38 @@
 import { useState, useEffect, useMemo } from 'react';
-import { api, type AppConfig, type LoginHistoryEntry, type KeyStatus, type SandboxAvailability, type HardwareProfile, type DiskUsage, type JreSourceInfo, type JreRelease, type JavaInfo } from '../api';
+import {
+  api,
+  type AppConfig,
+  type LoginHistoryEntry,
+  type KeyStatus,
+  type SandboxAvailability,
+  type HardwareProfile,
+  type DiskUsage,
+  type JreSourceInfo,
+  type JreRelease,
+  type JavaInfo,
+  type YggdrasilTexturesValue,
+  type StoredAccount,
+} from '../api';
 import { useAuth } from '../stores/authStore';
 import { useConfig } from '../stores/configStore';
 import { useInstances } from '../stores/instanceStore';
 import { useTheme, type Theme, type AnimationSpeed, UI_SCALE_MIN, UI_SCALE_MAX } from '../stores/themeStore';
 import { useI18n } from '../i18n';
 import { useToast } from '../stores/toastStore';
-import { StatusDot, Badge, Button, TextInput, Select, Checkbox, Slider, SettingsNav, resetOnboarding, SecurityScore, AuditLogViewer } from '../components/ui';
+import {
+  StatusDot,
+  Badge,
+  Button,
+  TextInput,
+  Select,
+  Checkbox,
+  Slider,
+  SettingsNav,
+  resetOnboarding,
+  SecurityScore,
+  AuditLogViewer,
+  SkinViewer3D,
+} from '../components/ui';
 import type { NavCategory } from '../components/ui';
 import { open } from '@tauri-apps/plugin-dialog';
 import styles from './SettingsPage.module.css';
@@ -40,15 +66,26 @@ function SettingRow({ label, children }: { label: string; children: React.ReactN
   );
 }
 
-function getSuitabilityBadge(t: (key: string) => string, suitableFor: string): { label: string; variant: 'success' | 'warning' | 'danger' } {
+function getSuitabilityBadge(
+  t: (key: string) => string,
+  suitableFor: string,
+): { label: string; variant: 'success' | 'warning' | 'danger' } {
   switch (suitableFor) {
-    case 'recommended': return { label: t('settings.recommended'), variant: 'success' };
-    case 'optional': return { label: t('settings.optional'), variant: 'warning' };
-    default: return { label: t('settings.notRecommended'), variant: 'danger' };
+    case 'recommended':
+      return { label: t('settings.recommended'), variant: 'success' };
+    case 'optional':
+      return { label: t('settings.optional'), variant: 'warning' };
+    default:
+      return { label: t('settings.notRecommended'), variant: 'danger' };
   }
 }
 
-function MemorySection({ localConfig, onConfigChange, t, hardwareProfile }: {
+function MemorySection({
+  localConfig,
+  onConfigChange,
+  t,
+  hardwareProfile,
+}: {
   localConfig: AppConfig;
   onConfigChange: (updates: Partial<AppConfig>) => void;
   t: (key: string, params?: Record<string, string>) => string;
@@ -69,7 +106,8 @@ function MemorySection({ localConfig, onConfigChange, t, hardwareProfile }: {
             {memoryGB} {t('common.unit.gb')}
           </span>
           <div style={{ flex: 1 }}>
-            <Slider gradient
+            <Slider
+              gradient
               value={memoryGB}
               min={1}
               max={maxMemoryGB}
@@ -91,7 +129,9 @@ function MemorySection({ localConfig, onConfigChange, t, hardwareProfile }: {
             on={localConfig.force_memory || false}
             onChange={() => onConfigChange({ force_memory: !localConfig.force_memory })}
           />
-          <span className={localConfig.force_memory ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']}>
+          <span
+            className={localConfig.force_memory ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']}
+          >
             {t('settings.forceMemoryDesc')}
           </span>
         </label>
@@ -113,20 +153,29 @@ function MemorySection({ localConfig, onConfigChange, t, hardwareProfile }: {
   );
 }
 
-function ThemeSection({ t }: {
-  t: (key: string, params?: Record<string, string>) => string;
-}) {
-  const { theme, switchThemeWithAnimation, uiScale, setUiScale, animationSpeed, setAnimationSpeed, animationDuration, setAnimationDuration } = useTheme();
+function ThemeSection({ t }: { t: (key: string, params?: Record<string, string>) => string }) {
+  const {
+    theme,
+    switchThemeWithAnimation,
+    uiScale,
+    setUiScale,
+    animationSpeed,
+    setAnimationSpeed,
+    animationDuration,
+    setAnimationDuration,
+  } = useTheme();
 
   return (
     <SectionCard id="sec-theme" title={t('settings.theme')}>
       <SettingRow label={t('settings.theme')}>
         <div style={{ display: 'flex', gap: 4 }}>
-          {([
-            ['dark', t('settings.themeDark')],
-            ['light', t('settings.themeLight')],
-            ['oled', t('settings.themeOled')],
-          ] as [Theme, string][]).map(([val, label]) => (
+          {(
+            [
+              ['dark', t('settings.themeDark')],
+              ['light', t('settings.themeLight')],
+              ['oled', t('settings.themeOled')],
+            ] as [Theme, string][]
+          ).map(([val, label]) => (
             <Button
               key={val}
               variant={theme === val ? 'primary' : 'secondary'}
@@ -144,13 +193,7 @@ function ThemeSection({ t }: {
             {Math.round(uiScale * 100)}%
           </span>
           <div style={{ flex: 1 }}>
-            <Slider gradient
-              value={uiScale}
-              min={UI_SCALE_MIN}
-              max={UI_SCALE_MAX}
-              step={0.05}
-              onChange={setUiScale}
-            />
+            <Slider gradient value={uiScale} min={UI_SCALE_MIN} max={UI_SCALE_MAX} step={0.05} onChange={setUiScale} />
           </div>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.5em', color: '#555' }}>
             {Math.round(UI_SCALE_MIN * 100)}%–{Math.round(UI_SCALE_MAX * 100)}%
@@ -160,12 +203,14 @@ function ThemeSection({ t }: {
 
       <SettingRow label={t('settings.animationSpeed')}>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center', flex: 1 }}>
-          {([
-            ['fast', t('settings.animFast')],
-            ['normal', t('settings.animNormal')],
-            ['smooth', t('settings.animSmooth')],
-            ['custom', t('settings.animCustom')],
-          ] as [AnimationSpeed, string][]).map(([val, label]) => (
+          {(
+            [
+              ['fast', t('settings.animFast')],
+              ['normal', t('settings.animNormal')],
+              ['smooth', t('settings.animSmooth')],
+              ['custom', t('settings.animCustom')],
+            ] as [AnimationSpeed, string][]
+          ).map(([val, label]) => (
             <Button
               key={val}
               variant={animationSpeed === val ? 'primary' : 'secondary'}
@@ -210,18 +255,36 @@ function ThemeSection({ t }: {
   );
 }
 
-function FontCustomizationSection({ t }: {
-  t: (key: string, params?: Record<string, string>) => string;
-}) {
+function FontCustomizationSection({ t }: { t: (key: string, params?: Record<string, string>) => string }) {
   const [fontWeight, setFontWeight] = useState<number>(() => {
-    try { return Number(localStorage.getItem('bonnext_font_weight')) || 400; } catch { return 400; }
+    try {
+      return Number(localStorage.getItem('bonnext_font_weight')) || 400;
+    } catch {
+      return 400;
+    }
   });
   const [fontLineHeight, setFontLineHeight] = useState<number>(() => {
-    try { return Number(localStorage.getItem('bonnext_font_line_height')) || 1.5; } catch { return 1.5; }
+    try {
+      return Number(localStorage.getItem('bonnext_font_line_height')) || 1.5;
+    } catch {
+      return 1.5;
+    }
   });
 
-  useEffect(() => { try { localStorage.setItem('bonnext_font_weight', String(fontWeight)); } catch {} }, [fontWeight]);
-  useEffect(() => { try { localStorage.setItem('bonnext_font_line_height', String(fontLineHeight)); } catch {} }, [fontLineHeight]);
+  useEffect(() => {
+    try {
+      localStorage.setItem('bonnext_font_weight', String(fontWeight));
+    } catch {
+      /* noop */
+    }
+  }, [fontWeight]);
+  useEffect(() => {
+    try {
+      localStorage.setItem('bonnext_font_line_height', String(fontLineHeight));
+    } catch {
+      /* noop */
+    }
+  }, [fontLineHeight]);
   useEffect(() => {
     document.documentElement.style.setProperty('--bonnext-font-weight', String(fontWeight));
     document.documentElement.style.setProperty('--bonnext-line-height', String(fontLineHeight));
@@ -235,13 +298,7 @@ function FontCustomizationSection({ t }: {
             {fontWeight}
           </span>
           <div style={{ flex: 1 }}>
-            <Slider gradient
-              value={fontWeight}
-              min={300}
-              max={700}
-              step={100}
-              onChange={setFontWeight}
-            />
+            <Slider gradient value={fontWeight} min={300} max={700} step={100} onChange={setFontWeight} />
           </div>
         </div>
       </SettingRow>
@@ -251,13 +308,7 @@ function FontCustomizationSection({ t }: {
             {fontLineHeight.toFixed(1)}
           </span>
           <div style={{ flex: 1 }}>
-            <Slider gradient
-              value={fontLineHeight}
-              min={1.2}
-              max={2.0}
-              step={0.1}
-              onChange={setFontLineHeight}
-            />
+            <Slider gradient value={fontLineHeight} min={1.2} max={2.0} step={0.1} onChange={setFontLineHeight} />
           </div>
         </div>
       </SettingRow>
@@ -265,26 +316,42 @@ function FontCustomizationSection({ t }: {
         <div style={{ fontSize: '0.45em', color: 'var(--color-text-muted)', marginBottom: 4 }}>
           {t('settings.fontPreview')}
         </div>
-        <div style={{ fontSize: '0.7em' }}>
-          {t('settings.fontPreviewText')}
-        </div>
+        <div style={{ fontSize: '0.7em' }}>{t('settings.fontPreviewText')}</div>
       </div>
     </SectionCard>
   );
 }
 
-function WindowEffectsSection({ t }: {
-  t: (key: string, params?: Record<string, string>) => string;
-}) {
+function WindowEffectsSection({ t }: { t: (key: string, params?: Record<string, string>) => string }) {
   const [transparency, setTransparency] = useState<number>(() => {
-    try { return Number(localStorage.getItem('bonnext_transparency')) || 1.0; } catch { return 1.0; }
+    try {
+      return Number(localStorage.getItem('bonnext_transparency')) || 1.0;
+    } catch {
+      return 1.0;
+    }
   });
   const [blurStrength, setBlurStrength] = useState<number>(() => {
-    try { return Number(localStorage.getItem('bonnext_blur')) || 0; } catch { return 0; }
+    try {
+      return Number(localStorage.getItem('bonnext_blur')) || 0;
+    } catch {
+      return 0;
+    }
   });
 
-  useEffect(() => { try { localStorage.setItem('bonnext_transparency', String(transparency)); } catch {} }, [transparency]);
-  useEffect(() => { try { localStorage.setItem('bonnext_blur', String(blurStrength)); } catch {} }, [blurStrength]);
+  useEffect(() => {
+    try {
+      localStorage.setItem('bonnext_transparency', String(transparency));
+    } catch {
+      /* noop */
+    }
+  }, [transparency]);
+  useEffect(() => {
+    try {
+      localStorage.setItem('bonnext_blur', String(blurStrength));
+    } catch {
+      /* noop */
+    }
+  }, [blurStrength]);
   useEffect(() => {
     document.documentElement.style.setProperty('--bonnext-transparency', String(transparency));
     document.documentElement.style.setProperty('--bonnext-blur', `${blurStrength}px`);
@@ -298,13 +365,7 @@ function WindowEffectsSection({ t }: {
             {transparency.toFixed(1)}
           </span>
           <div style={{ flex: 1 }}>
-            <Slider gradient
-              value={transparency}
-              min={0.7}
-              max={1.0}
-              step={0.05}
-              onChange={setTransparency}
-            />
+            <Slider gradient value={transparency} min={0.7} max={1.0} step={0.05} onChange={setTransparency} />
           </div>
         </div>
       </SettingRow>
@@ -314,13 +375,7 @@ function WindowEffectsSection({ t }: {
             {blurStrength}px
           </span>
           <div style={{ flex: 1 }}>
-            <Slider gradient
-              value={blurStrength}
-              min={0}
-              max={20}
-              step={1}
-              onChange={setBlurStrength}
-            />
+            <Slider gradient value={blurStrength} min={0} max={20} step={1} onChange={setBlurStrength} />
           </div>
         </div>
       </SettingRow>
@@ -328,18 +383,36 @@ function WindowEffectsSection({ t }: {
   );
 }
 
-function SoundThemesSection({ t }: {
-  t: (key: string, params?: Record<string, string>) => string;
-}) {
+function SoundThemesSection({ t }: { t: (key: string, params?: Record<string, string>) => string }) {
   const [soundTheme, setSoundTheme] = useState<string>(() => {
-    try { return localStorage.getItem('bonnext_sound_theme') || 'cyberpunk'; } catch { return 'cyberpunk'; }
+    try {
+      return localStorage.getItem('bonnext_sound_theme') || 'cyberpunk';
+    } catch {
+      return 'cyberpunk';
+    }
   });
   const [soundVolume, setSoundVolume] = useState<number>(() => {
-    try { return Number(localStorage.getItem('bonnext_sound_volume')) || 50; } catch { return 50; }
+    try {
+      return Number(localStorage.getItem('bonnext_sound_volume')) || 50;
+    } catch {
+      return 50;
+    }
   });
 
-  useEffect(() => { try { localStorage.setItem('bonnext_sound_theme', soundTheme); } catch {} }, [soundTheme]);
-  useEffect(() => { try { localStorage.setItem('bonnext_sound_volume', String(soundVolume)); } catch {} }, [soundVolume]);
+  useEffect(() => {
+    try {
+      localStorage.setItem('bonnext_sound_theme', soundTheme);
+    } catch {
+      /* noop */
+    }
+  }, [soundTheme]);
+  useEffect(() => {
+    try {
+      localStorage.setItem('bonnext_sound_volume', String(soundVolume));
+    } catch {
+      /* noop */
+    }
+  }, [soundVolume]);
 
   return (
     <SectionCard id="sec-sound-themes" title={t('settings.soundThemes')}>
@@ -362,17 +435,24 @@ function SoundThemesSection({ t }: {
             {soundVolume}%
           </span>
           <div style={{ flex: 1 }}>
-            <Slider gradient
-              value={soundVolume}
-              min={0}
-              max={100}
-              onChange={setSoundVolume}
-            />
+            <Slider gradient value={soundVolume} min={0} max={100} onChange={setSoundVolume} />
           </div>
         </div>
       </SettingRow>
       <SettingRow label={t('settings.soundTest')}>
-        <Button variant="secondary" size="sm" onClick={() => { try { const a = new Audio(); a.volume = soundVolume / 100; a.play().catch(() => {}); } catch {} }}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            try {
+              const a = new Audio();
+              a.volume = soundVolume / 100;
+              a.play().catch(() => {});
+            } catch {
+              /* noop */
+            }
+          }}
+        >
           {t('settings.soundTest') || 'Test'}
         </Button>
       </SettingRow>
@@ -380,14 +460,22 @@ function SoundThemesSection({ t }: {
   );
 }
 
-function DynamicBgSection({ t }: {
-  t: (key: string, params?: Record<string, string>) => string;
-}) {
+function DynamicBgSection({ t }: { t: (key: string, params?: Record<string, string>) => string }) {
   const [bgTheme, setBgTheme] = useState<string>(() => {
-    try { return localStorage.getItem('bonnext_bg_theme') || 'minimal'; } catch { return 'minimal'; }
+    try {
+      return localStorage.getItem('bonnext_bg_theme') || 'minimal';
+    } catch {
+      return 'minimal';
+    }
   });
 
-  useEffect(() => { try { localStorage.setItem('bonnext_bg_theme', bgTheme); } catch {} }, [bgTheme]);
+  useEffect(() => {
+    try {
+      localStorage.setItem('bonnext_bg_theme', bgTheme);
+    } catch {
+      /* noop */
+    }
+  }, [bgTheme]);
   useEffect(() => {
     document.documentElement.classList.remove('bg-cyberpunk', 'bg-starfield', 'bg-matrix', 'bg-minimal');
     document.documentElement.classList.add(`bg-${bgTheme}`);
@@ -397,10 +485,30 @@ function DynamicBgSection({ t }: {
     <SectionCard id="sec-dynamic-bg" title={t('settings.dynamicBg')}>
       <div className={styles.bgPresetRow}>
         {[
-          { key: 'cyberpunk', icon: '\u2B21', label: t('settings.dynamicBgCyberpunk'), hint: t('settings.dynamicBgHintCyberpunk') },
-          { key: 'starfield', icon: '\u2726', label: t('settings.dynamicBgStarfield'), hint: t('settings.dynamicBgHintStarfield') },
-          { key: 'matrix', icon: '\u229E', label: t('settings.dynamicBgMatrix'), hint: t('settings.dynamicBgHintMatrix') },
-          { key: 'minimal', icon: '\u25CB', label: t('settings.dynamicBgMinimal'), hint: t('settings.dynamicBgHintMinimal') },
+          {
+            key: 'cyberpunk',
+            icon: '\u2B21',
+            label: t('settings.dynamicBgCyberpunk'),
+            hint: t('settings.dynamicBgHintCyberpunk'),
+          },
+          {
+            key: 'starfield',
+            icon: '\u2726',
+            label: t('settings.dynamicBgStarfield'),
+            hint: t('settings.dynamicBgHintStarfield'),
+          },
+          {
+            key: 'matrix',
+            icon: '\u229E',
+            label: t('settings.dynamicBgMatrix'),
+            hint: t('settings.dynamicBgHintMatrix'),
+          },
+          {
+            key: 'minimal',
+            icon: '\u25CB',
+            label: t('settings.dynamicBgMinimal'),
+            hint: t('settings.dynamicBgHintMinimal'),
+          },
         ].map((preset) => (
           <button
             key={preset.key}
@@ -414,18 +522,23 @@ function DynamicBgSection({ t }: {
         ))}
       </div>
       <div className={styles.bgPresetBtn__hint}>
-        {[
-          { key: 'cyberpunk', hint: t('settings.dynamicBgHintCyberpunk') },
-          { key: 'starfield', hint: t('settings.dynamicBgHintStarfield') },
-          { key: 'matrix', hint: t('settings.dynamicBgHintMatrix') },
-          { key: 'minimal', hint: t('settings.dynamicBgHintMinimal') },
-        ].find((p) => p.key === bgTheme)?.hint}
+        {
+          [
+            { key: 'cyberpunk', hint: t('settings.dynamicBgHintCyberpunk') },
+            { key: 'starfield', hint: t('settings.dynamicBgHintStarfield') },
+            { key: 'matrix', hint: t('settings.dynamicBgHintMatrix') },
+            { key: 'minimal', hint: t('settings.dynamicBgHintMinimal') },
+          ].find((p) => p.key === bgTheme)?.hint
+        }
       </div>
     </SectionCard>
   );
 }
 
-function DownloadSection({ t, addToast }: {
+function DownloadSection({
+  t,
+  addToast,
+}: {
   t: (key: string, params?: Record<string, string>) => string;
   addToast: (toast: { type: 'success' | 'error' | 'info' | 'warning'; title: string; message?: string }) => void;
 }) {
@@ -433,11 +546,17 @@ function DownloadSection({ t, addToast }: {
     try {
       const saved = localStorage.getItem('bonnext_download_config');
       return saved ? JSON.parse(saved) : { maxSpeed: 0, pauseDuringGame: true, priority: 'normal' };
-    } catch { return { maxSpeed: 0, pauseDuringGame: true, priority: 'normal' }; }
+    } catch {
+      return { maxSpeed: 0, pauseDuringGame: true, priority: 'normal' };
+    }
   });
 
   useEffect(() => {
-    try { localStorage.setItem('bonnext_download_config', JSON.stringify(downloadConfig)); } catch {}
+    try {
+      localStorage.setItem('bonnext_download_config', JSON.stringify(downloadConfig));
+    } catch {
+      /* noop */
+    }
   }, [downloadConfig]);
 
   const handleSaveDownloadConfig = async () => {
@@ -489,7 +608,11 @@ function DownloadSection({ t, addToast }: {
             on={downloadConfig.pauseDuringGame}
             onChange={() => setDownloadConfig({ ...downloadConfig, pauseDuringGame: !downloadConfig.pauseDuringGame })}
           />
-          <span className={downloadConfig.pauseDuringGame ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']}>
+          <span
+            className={
+              downloadConfig.pauseDuringGame ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']
+            }
+          >
             {t('settings.downloadPauseDuringGame')}
           </span>
         </label>
@@ -519,14 +642,22 @@ function DownloadSection({ t, addToast }: {
   );
 }
 
-function AccessibilitySection({ t }: {
-  t: (key: string, params?: Record<string, string>) => string;
-}) {
+function AccessibilitySection({ t }: { t: (key: string, params?: Record<string, string>) => string }) {
   const [colorblindMode, setColorblindMode] = useState<string>(() => {
-    try { return localStorage.getItem('bonnext_colorblind_mode') || 'none'; } catch { return 'none'; }
+    try {
+      return localStorage.getItem('bonnext_colorblind_mode') || 'none';
+    } catch {
+      return 'none';
+    }
   });
 
-  useEffect(() => { try { localStorage.setItem('bonnext_colorblind_mode', colorblindMode); } catch {} }, [colorblindMode]);
+  useEffect(() => {
+    try {
+      localStorage.setItem('bonnext_colorblind_mode', colorblindMode);
+    } catch {
+      /* noop */
+    }
+  }, [colorblindMode]);
   useEffect(() => {
     document.documentElement.classList.remove('cb-protanopia', 'cb-deuteranopia', 'cb-tritanopia');
     if (colorblindMode !== 'none') {
@@ -554,22 +685,27 @@ function AccessibilitySection({ t }: {
   );
 }
 
-function MiniModeSection({ t }: {
-  t: (key: string, params?: Record<string, string>) => string;
-}) {
+function MiniModeSection({ t }: { t: (key: string, params?: Record<string, string>) => string }) {
   const [miniMode, setMiniMode] = useState<boolean>(() => {
-    try { return localStorage.getItem('bonnext_mini_mode') === 'true'; } catch { return false; }
+    try {
+      return localStorage.getItem('bonnext_mini_mode') === 'true';
+    } catch {
+      return false;
+    }
   });
 
-  useEffect(() => { try { localStorage.setItem('bonnext_mini_mode', String(miniMode)); } catch {} }, [miniMode]);
+  useEffect(() => {
+    try {
+      localStorage.setItem('bonnext_mini_mode', String(miniMode));
+    } catch {
+      /* noop */
+    }
+  }, [miniMode]);
 
   return (
     <SectionCard id="sec-mini-mode" title={t('settings.miniMode')}>
       <label className={styles.checkboxLabel}>
-        <Checkbox
-          on={miniMode}
-          onChange={setMiniMode}
-        />
+        <Checkbox on={miniMode} onChange={setMiniMode} />
         <span className={styles.checkboxLabel__text}>{t('settings.miniModeToggle')}</span>
       </label>
       <div className={styles.mutedDesc}>{t('settings.miniModeDescNew')}</div>
@@ -577,15 +713,21 @@ function MiniModeSection({ t }: {
   );
 }
 
-function DiscordSection({ t }: {
-  t: (key: string, params?: Record<string, string>) => string;
-}) {
+function DiscordSection({ t }: { t: (key: string, params?: Record<string, string>) => string }) {
   const [discordRpcEnabled, setDiscordRpcEnabled] = useState(() => {
-    try { return localStorage.getItem('bonnext_discord_rpc') === 'true'; } catch { return false; }
+    try {
+      return localStorage.getItem('bonnext_discord_rpc') === 'true';
+    } catch {
+      return false;
+    }
   });
 
   useEffect(() => {
-    try { localStorage.setItem('bonnext_discord_rpc', String(discordRpcEnabled)); } catch {}
+    try {
+      localStorage.setItem('bonnext_discord_rpc', String(discordRpcEnabled));
+    } catch {
+      /* noop */
+    }
   }, [discordRpcEnabled]);
 
   const handleDiscordRpcToggle = async () => {
@@ -597,7 +739,9 @@ function DiscordSection({ t }: {
       } else {
         await api.stopDiscordRpc();
       }
-    } catch {}
+    } catch {
+      /* noop */
+    }
   };
 
   return (
@@ -605,10 +749,7 @@ function DiscordSection({ t }: {
       <SettingRow label={t('settings.discordRpc')}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
           <label className={styles.checkboxLabel}>
-            <Checkbox
-              on={discordRpcEnabled}
-              onChange={handleDiscordRpcToggle}
-            />
+            <Checkbox on={discordRpcEnabled} onChange={handleDiscordRpcToggle} />
             <span className={styles.checkboxLabel__text}>
               {discordRpcEnabled ? t('settings.discordEnabled') : t('settings.discordDisabled')}
             </span>
@@ -622,20 +763,33 @@ function DiscordSection({ t }: {
   );
 }
 
-function BatterySection({ t }: {
-  t: (key: string, params?: Record<string, string>) => string;
-}) {
-  const [batteryStatus, setBatteryStatus] = useState<{ on_battery: boolean; percentage: number; charging: boolean } | null>(null);
+function BatterySection({ t }: { t: (key: string, params?: Record<string, string>) => string }) {
+  const [batteryStatus, setBatteryStatus] = useState<{
+    on_battery: boolean;
+    percentage: number;
+    charging: boolean;
+  } | null>(null);
   const [powerSavingMode, setPowerSavingMode] = useState(() => {
-    try { return localStorage.getItem('bonnext_power_saving') === 'true'; } catch { return false; }
+    try {
+      return localStorage.getItem('bonnext_power_saving') === 'true';
+    } catch {
+      return false;
+    }
   });
 
   useEffect(() => {
-    api.getBatteryStatus().then(setBatteryStatus).catch(() => {});
+    api
+      .getBatteryStatus()
+      .then(setBatteryStatus)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    try { localStorage.setItem('bonnext_power_saving', String(powerSavingMode)); } catch {}
+    try {
+      localStorage.setItem('bonnext_power_saving', String(powerSavingMode));
+    } catch {
+      /* noop */
+    }
   }, [powerSavingMode]);
 
   return (
@@ -663,10 +817,7 @@ function BatterySection({ t }: {
       <SettingRow label={t('settings.batteryPowerSaving')}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
           <label className={styles.checkboxLabel}>
-            <Checkbox
-              on={powerSavingMode}
-              onChange={() => setPowerSavingMode(!powerSavingMode)}
-            />
+            <Checkbox on={powerSavingMode} onChange={() => setPowerSavingMode(!powerSavingMode)} />
             <span className={powerSavingMode ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']}>
               {t('settings.batteryPowerSavingDesc')}
             </span>
@@ -677,10 +828,444 @@ function BatterySection({ t }: {
   );
 }
 
+function SkinStationSection({
+  addToast,
+}: {
+  addToast: (toast: { type: 'success' | 'error' | 'info' | 'warning'; title: string; message?: string }) => void;
+}) {
+  const { t } = useI18n();
+  const { state: authState, yggdrasilLogin, refreshAccounts } = useAuth();
+  const [presets, setPresets] = useState<[string, string][]>([]);
+  const [selectedPreset, setSelectedPreset] = useState('https://littleskin.cn/api/yggdrasil');
+  const [customUrl, setCustomUrl] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const [activeAccount, setActiveAccount] = useState<StoredAccount | null>(null);
+  const [yggdrasilAccount, setYggdrasilAccount] = useState<StoredAccount | null>(null);
+  const [skinUrl, setSkinUrl] = useState<string | null>(null);
+  const [localSkinUrl, setLocalSkinUrl] = useState<string | null>(null);
+  const [capeUrl, setCapeUrl] = useState<string | null>(null);
+  const [skinModel, setSkinModel] = useState<'default' | 'slim'>('default');
+  const [uploading, setUploading] = useState(false);
+  const [authlibStatus, setAuthlibStatus] = useState<'idle' | 'downloading' | 'ready'>('idle');
+
+  const serverUrl = selectedPreset === '' ? customUrl : selectedPreset;
+
+  useEffect(() => {
+    api
+      .getYggdrasilPresets()
+      .then(setPresets)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const acct = authState.accounts.find((a) => a.id === authState.activeAccountId) || null;
+    setActiveAccount(acct);
+    const ygg = authState.accounts.find((a) => a.account_type === 'yggdrasil') || null;
+    setYggdrasilAccount(ygg);
+  }, [authState.accounts, authState.activeAccountId]);
+
+  useEffect(() => {
+    if (activeAccount?.local_skin_path) {
+      api
+        .readSkinFile(activeAccount.local_skin_path)
+        .then((b64) => {
+          setLocalSkinUrl(`data:image/png;base64,${b64}`);
+        })
+        .catch(() => {
+          setLocalSkinUrl(null);
+        });
+      if (activeAccount.local_skin_model === 'slim') {
+        setSkinModel('slim');
+      }
+    } else {
+      setLocalSkinUrl(null);
+    }
+  }, [activeAccount?.local_skin_path, activeAccount?.local_skin_model]);
+
+  useEffect(() => {
+    if (!yggdrasilAccount?.uuid || !yggdrasilAccount?.yggdrasil_server_url || !yggdrasilAccount?.access_token) {
+      setSkinUrl(null);
+      setCapeUrl(null);
+      return;
+    }
+    api
+      .yggdrasilGetProfile(yggdrasilAccount.uuid, yggdrasilAccount.yggdrasil_server_url, yggdrasilAccount.access_token)
+      .then((profile) => {
+        const texturesProp = profile.properties.find((p) => p.name === 'textures');
+        if (texturesProp) {
+          try {
+            const decoded: YggdrasilTexturesValue = JSON.parse(atob(texturesProp.value));
+            if (decoded.textures.SKIN?.url) {
+              setSkinUrl(decoded.textures.SKIN.url);
+            }
+            if (decoded.textures.SKIN?.metadata?.model === 'slim') {
+              setSkinModel('slim');
+            }
+            if (decoded.textures.CAPE?.url) {
+              setCapeUrl(decoded.textures.CAPE.url);
+            }
+          } catch {
+            console.warn('Failed to decode skin textures');
+          }
+        }
+      })
+      .catch((e) => {
+        console.warn('Failed to fetch skin profile:', e);
+      });
+  }, [yggdrasilAccount]);
+
+  const handleLogin = async () => {
+    if (!serverUrl || !email || !password) {
+      setLoginError(t('skinStation.fillAllFields'));
+      return;
+    }
+    setLoggingIn(true);
+    setLoginError('');
+    try {
+      const result = await yggdrasilLogin(serverUrl, email, password);
+      addToast({
+        type: 'success',
+        title: t('skinStation.loginSuccess'),
+        message: t('skinStation.welcome', { name: result.username }),
+      });
+      setPassword('');
+      await refreshAccounts();
+    } catch (e: any) {
+      const raw = e?.toString?.() || '';
+      let msg = raw;
+      if (raw.includes('ForbiddenOperationException')) msg = t('skinStation.errorWrongPassword');
+      else if (raw.includes('RateLimitedException')) msg = t('skinStation.errorRateLimited');
+      else if (raw.includes('ResourceNotFoundException')) msg = t('skinStation.errorServerNotFound');
+      else if (raw.includes('Invalid email or password')) msg = t('skinStation.errorWrongPassword');
+      else if (raw.includes('Session expired')) msg = t('skinStation.errorSessionExpired');
+      else if (raw.includes('No game profile')) msg = t('skinStation.errorNoProfile');
+      else if (raw.includes('connection') || raw.includes('timeout') || raw.includes('network'))
+        msg = t('skinStation.errorNetwork');
+      else if (raw.includes('Authentication failed')) msg = raw.replace('Authentication failed: ', '');
+      setLoginError(msg || t('skinStation.loginFailed'));
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
+  const handleUploadSkin = async () => {
+    if (!yggdrasilAccount) return;
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'Skin Image', extensions: ['png'] }],
+      });
+      if (!selected || typeof selected !== 'string') return;
+
+      setUploading(true);
+      await api.yggdrasilUploadSkin(
+        yggdrasilAccount.uuid,
+        yggdrasilAccount.yggdrasil_server_url!,
+        yggdrasilAccount.access_token,
+        selected,
+        skinModel,
+      );
+      addToast({ type: 'success', title: t('skinStation.uploadSuccess') });
+      await refreshAccounts();
+    } catch (e: any) {
+      addToast({ type: 'error', title: t('skinStation.uploadFailed'), message: e?.toString?.() });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleResetSkin = async () => {
+    if (!yggdrasilAccount) return;
+    try {
+      await api.yggdrasilResetSkin(
+        yggdrasilAccount.uuid,
+        yggdrasilAccount.yggdrasil_server_url!,
+        yggdrasilAccount.access_token,
+      );
+      addToast({ type: 'success', title: t('skinStation.resetSuccess') });
+      setSkinUrl(null);
+      setCapeUrl(null);
+    } catch (e: any) {
+      addToast({ type: 'error', title: t('skinStation.resetFailed'), message: e?.toString?.() });
+    }
+  };
+
+  const handleSelectLocalSkin = async () => {
+    if (!activeAccount) return;
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'Skin Image', extensions: ['png'] }],
+      });
+      if (!selected || typeof selected !== 'string') return;
+
+      try {
+        await api.setLocalSkin(activeAccount.id, selected, skinModel);
+      } catch (e: any) {
+        addToast({ type: 'error', title: '保存失败', message: e?.toString?.() });
+        return;
+      }
+      addToast({ type: 'success', title: t('skinStation.localSkinSet') });
+
+      try {
+        await refreshAccounts();
+      } catch {
+        /* noop */
+      }
+
+      try {
+        const b64 = await api.readSkinFile(selected);
+        setLocalSkinUrl(`data:image/png;base64,${b64}`);
+      } catch (e: any) {
+        setLocalSkinUrl(null);
+      }
+    } catch (e: any) {
+      addToast({ type: 'error', title: t('skinStation.setFailed'), message: e?.toString?.() });
+    }
+  };
+
+  const handleClearLocalSkin = async () => {
+    if (!activeAccount) return;
+    try {
+      await api.setLocalSkin(activeAccount.id, null, null);
+      setLocalSkinUrl(null);
+      addToast({ type: 'success', title: t('skinStation.localSkinCleared') });
+      await refreshAccounts();
+    } catch (e: any) {
+      addToast({ type: 'error', title: t('skinStation.clearFailed'), message: e?.toString?.() });
+    }
+  };
+
+  const handleEnsureAuthlib = async () => {
+    setAuthlibStatus('downloading');
+    try {
+      await api.ensureAuthlibInjector();
+      setAuthlibStatus('ready');
+      addToast({ type: 'success', title: t('skinStation.authlibReadyToast') });
+    } catch (e: any) {
+      setAuthlibStatus('idle');
+      addToast({ type: 'error', title: t('skinStation.downloadFailed'), message: e?.toString?.() });
+    }
+  };
+
+  const previewSkinUrl = localSkinUrl || skinUrl;
+
+  return (
+    <SectionCard id="sec-skin-station" title={t('skinStation.title')}>
+      <div className={styles.skinLayout}>
+        <div className={styles.skinPreview}>
+          <SkinViewer3D
+            skinUrl={previewSkinUrl}
+            capeUrl={capeUrl}
+            model={skinModel === 'slim' ? 'slim' : 'default'}
+            width={140}
+            height={210}
+          />
+          <div className={styles.skinPreview__label}>
+            {previewSkinUrl ? t('skinStation.skinPreview') : t('skinStation.noSkin')}
+          </div>
+        </div>
+
+        <div className={styles.skinControls}>
+          {!yggdrasilAccount && (
+            <div className={styles.skinLoginSection}>
+              <div className={styles.skinSubTitle}>{t('skinStation.onlineLogin')}</div>
+              <div className={styles.skinDesc}>{t('skinStation.desc')}</div>
+              <SettingRow label={t('skinStation.server')}>
+                <div style={{ flex: 1 }}>
+                  <Select
+                    value={selectedPreset}
+                    onChange={(e) => setSelectedPreset(e.target.value)}
+                    options={presets.map(([name, url]) => ({ value: url, label: name }))}
+                  />
+                  {selectedPreset === '' && (
+                    <div style={{ marginTop: 6 }}>
+                      <TextInput
+                        value={customUrl}
+                        onChange={(e) => setCustomUrl(e.target.value)}
+                        placeholder="https://example.com/api/yggdrasil"
+                      />
+                    </div>
+                  )}
+                </div>
+              </SettingRow>
+              <SettingRow label={t('skinStation.email')}>
+                <div style={{ flex: 1 }}>
+                  <TextInput
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                  />
+                </div>
+              </SettingRow>
+              <SettingRow label={t('skinStation.password')}>
+                <div style={{ flex: 1 }}>
+                  <TextInput
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleLogin();
+                    }}
+                  />
+                </div>
+              </SettingRow>
+              {loginError && <div className={styles.skinError}>{loginError}</div>}
+              <div className={styles.actions}>
+                <Button variant="primary" size="sm" disabled={loggingIn} onClick={handleLogin}>
+                  {loggingIn ? t('skinStation.loggingIn') : t('skinStation.loginBtn')}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {yggdrasilAccount && (
+            <>
+              <div className={styles.accountRow}>
+                <StatusDot status="ready" />
+                <span className={styles.accountName}>{yggdrasilAccount.username}</span>
+                <Badge variant="accent">YGGDRASIL</Badge>
+                {yggdrasilAccount.yggdrasil_server_url && (
+                  <span style={{ fontSize: '0.42em', color: 'var(--color-text-muted)', marginLeft: 4 }}>
+                    {yggdrasilAccount.yggdrasil_server_url.replace(/https?:\/\//, '').replace(/\/api\/yggdrasil.*/, '')}
+                  </span>
+                )}
+              </div>
+
+              {yggdrasilAccount.yggdrasil_selected_profile && (
+                <SettingRow label={t('skinStation.currentProfile')}>
+                  <span
+                    style={{ fontSize: '0.5em', fontFamily: 'var(--font-mono)', color: 'var(--color-text-secondary)' }}
+                  >
+                    {yggdrasilAccount.yggdrasil_selected_profile}
+                  </span>
+                </SettingRow>
+              )}
+
+              <SettingRow label={t('skinStation.skinModel')}>
+                <div className={styles.skinModelToggle}>
+                  <Button
+                    variant={skinModel === 'default' ? 'primary' : 'secondary'}
+                    size="sm"
+                    onClick={() => setSkinModel('default')}
+                  >
+                    {t('skinStation.classic')}
+                  </Button>
+                  <Button
+                    variant={skinModel === 'slim' ? 'primary' : 'secondary'}
+                    size="sm"
+                    onClick={() => setSkinModel('slim')}
+                  >
+                    {t('skinStation.slim')}
+                  </Button>
+                </div>
+              </SettingRow>
+
+              <div className={styles.actions}>
+                <Button variant="primary" size="sm" disabled={uploading} onClick={handleUploadSkin}>
+                  {uploading ? t('skinStation.uploading') : t('skinStation.uploadSkin')}
+                </Button>
+                <Button variant="secondary" size="sm" onClick={handleResetSkin}>
+                  {t('skinStation.resetSkin')}
+                </Button>
+              </div>
+
+              {capeUrl && (
+                <div className={styles.skinCapeHint}>
+                  <span className={styles.skinCapeHint__dot} />
+                  {t('skinStation.cape')}: {capeUrl.split('/').pop()}
+                </div>
+              )}
+
+              <div className={styles.skinAuthlibRow}>
+                <StatusDot status={authlibStatus === 'ready' ? 'ready' : 'inactive'} />
+                <span className={styles.skinAuthlibLabel}>
+                  authlib-injector:{' '}
+                  {authlibStatus === 'ready'
+                    ? t('skinStation.authlibReady')
+                    : authlibStatus === 'downloading'
+                      ? t('skinStation.authlibDownloading')
+                      : t('skinStation.authlibNotDownloaded')}
+                </span>
+                {authlibStatus !== 'ready' && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleEnsureAuthlib}
+                    disabled={authlibStatus === 'downloading'}
+                  >
+                    {t('skinStation.download')}
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+
+          {activeAccount && activeAccount.account_type !== 'yggdrasil' && (
+            <>
+              <hr className={styles.skinDivider} />
+              <div className={styles.skinSubTitle}>{t('skinStation.localSkin')}</div>
+              <div className={styles.skinDesc}>
+                {t('skinStation.localSkinDesc', {
+                  type:
+                    activeAccount.account_type === 'offline'
+                      ? t('skinStation.localSkinOffline')
+                      : t('skinStation.localSkinMicrosoft'),
+                })}
+              </div>
+              <SettingRow label={t('skinStation.skinModel')}>
+                <div className={styles.skinModelToggle}>
+                  <Button
+                    variant={skinModel === 'default' ? 'primary' : 'secondary'}
+                    size="sm"
+                    onClick={() => setSkinModel('default')}
+                  >
+                    {t('skinStation.classic')}
+                  </Button>
+                  <Button
+                    variant={skinModel === 'slim' ? 'primary' : 'secondary'}
+                    size="sm"
+                    onClick={() => setSkinModel('slim')}
+                  >
+                    {t('skinStation.slim')}
+                  </Button>
+                </div>
+              </SettingRow>
+              <div className={styles.actions}>
+                <Button variant="primary" size="sm" onClick={handleSelectLocalSkin}>
+                  {t('skinStation.selectLocalSkin')}
+                </Button>
+                {activeAccount.local_skin_path && (
+                  <Button variant="secondary" size="sm" onClick={handleClearLocalSkin}>
+                    {t('skinStation.clearSkin')}
+                  </Button>
+                )}
+              </div>
+              {activeAccount.local_skin_path && (
+                <div className={styles.skinFileHint}>
+                  <span className={styles.skinFileHint__icon}>&#9670;</span>
+                  {activeAccount.local_skin_path.split(/[/\\]/).pop()}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
+
 export default function SettingsPage() {
   const { state: authState, logout, switchAccount } = useAuth();
   const { state: cfgState, saveConfig } = useConfig();
-  const { state: { instances } } = useInstances();
+  const {
+    state: { instances },
+  } = useInstances();
   const { t, lang, setLang } = useI18n();
   const { addToast } = useToast();
   const auth = authState.currentUser;
@@ -698,17 +1283,34 @@ export default function SettingsPage() {
   const [jreDownloading, setJreDownloading] = useState(false);
   const [jreDownloadProgress, setJreDownloadProgress] = useState<{ downloaded: number; total: number } | null>(null);
   const [downloadedJres, setDownloadedJres] = useState<number[]>([]);
-  const [gcRecs, setGcRecs] = useState<Array<{ gc_type: string; heap_size_mb: number; metaspace_mb: number; jvm_args: string[]; description: string; suitable_for: string; reason: string }>>([]);
+  const [gcRecs, setGcRecs] = useState<
+    Array<{
+      gc_type: string;
+      heap_size_mb: number;
+      metaspace_mb: number;
+      jvm_args: string[];
+      description: string;
+      suitable_for: string;
+      reason: string;
+    }>
+  >([]);
   const [gcCopied, setGcCopied] = useState<Record<string, boolean>>({});
   const [screenshotInstanceId, setScreenshotInstanceId] = useState<string>('');
-  const [screenshots, setScreenshots] = useState<Array<{ filename: string; path: string; size_bytes: number; modified: string }>>([]);
+  const [screenshots, setScreenshots] = useState<
+    Array<{ filename: string; path: string; size_bytes: number; modified: string }>
+  >([]);
   const [screenshotsLoading, setScreenshotsLoading] = useState(false);
-  const [installedVersions, setInstalledVersions] = useState<Array<{ version_id: string; size_bytes: number; version_type: string; path: string }>>([]);
+  const [installedVersions, setInstalledVersions] = useState<
+    Array<{ version_id: string; size_bytes: number; version_type: string; path: string }>
+  >([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [deletingVersion, setDeletingVersion] = useState<string | null>(null);
   const [fileManagementGameDir, setFileManagementGameDir] = useState<string>('');
   const [securityScore, setSecurityScore] = useState(40);
-  const [encryptionStatus, setEncryptionStatus] = useState<{ encrypted: boolean; plain: boolean }>({ encrypted: false, plain: false });
+  const [encryptionStatus, setEncryptionStatus] = useState<{ encrypted: boolean; plain: boolean }>({
+    encrypted: false,
+    plain: false,
+  });
   const [cfKeyStatus, setCfKeyStatus] = useState<KeyStatus | null>(null);
   const [sandboxInfo, setSandboxInfo] = useState<SandboxAvailability | null>(null);
   const [loginHistory, setLoginHistory] = useState<LoginHistoryEntry[]>([]);
@@ -718,31 +1320,65 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (config) setLocalConfig(config);
-    api.findAllJava().then(setJavaList).catch(() => {});
-    api.getJreSources().then(setJreSources).catch(() => {});
-    api.listDownloadedJres().then(setDownloadedJres).catch(() => {});
+    api
+      .findAllJava()
+      .then(setJavaList)
+      .catch(() => {});
+    api
+      .getJreSources()
+      .then(setJreSources)
+      .catch(() => {});
+    api
+      .listDownloadedJres()
+      .then(setDownloadedJres)
+      .catch(() => {});
   }, [config]);
 
   useEffect(() => {
-    api.getHardwareProfile().then(setHardwareProfile).catch(() => {});
-    api.getDiskUsage().then(setDiskUsage).catch(() => {});
+    api
+      .getHardwareProfile()
+      .then(setHardwareProfile)
+      .catch(() => {});
+    api
+      .getDiskUsage()
+      .then(setDiskUsage)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    api.getGameDir().then(setFileManagementGameDir).catch(() => {});
+    api
+      .getGameDir()
+      .then(setFileManagementGameDir)
+      .catch(() => {});
     setVersionsLoading(true);
-    api.listInstalledVersions()
+    api
+      .listInstalledVersions()
       .then(setInstalledVersions)
       .catch(() => setInstalledVersions([]))
       .finally(() => setVersionsLoading(false));
   }, []);
 
   useEffect(() => {
-    api.getSecurityScore().then(setSecurityScore).catch(() => {});
-    api.getEncryptionStatus().then(setEncryptionStatus).catch(() => {});
-    api.getApiKeyStatus('cf_api_key').then(setCfKeyStatus).catch(() => {});
-    api.getSandboxAvailability().then(setSandboxInfo).catch(() => {});
-    api.getLoginHistory().then(setLoginHistory).catch(() => {});
+    api
+      .getSecurityScore()
+      .then(setSecurityScore)
+      .catch(() => {});
+    api
+      .getEncryptionStatus()
+      .then(setEncryptionStatus)
+      .catch(() => {});
+    api
+      .getApiKeyStatus('cf_api_key')
+      .then(setCfKeyStatus)
+      .catch(() => {});
+    api
+      .getSandboxAvailability()
+      .then(setSandboxInfo)
+      .catch(() => {});
+    api
+      .getLoginHistory()
+      .then(setLoginHistory)
+      .catch(() => {});
   }, []);
 
   const handleDeleteVersion = async (versionId: string) => {
@@ -751,7 +1387,10 @@ export default function SettingsPage() {
     try {
       await api.deleteVersion(versionId);
       setInstalledVersions((prev) => prev.filter((v) => v.version_id !== versionId));
-      api.getDiskUsage().then(setDiskUsage).catch(() => {});
+      api
+        .getDiskUsage()
+        .then(setDiskUsage)
+        .catch(() => {});
     } catch (e: any) {
       alert(e?.toString() || t('settings.fileMgmt.deleteFailed'));
     } finally {
@@ -763,7 +1402,9 @@ export default function SettingsPage() {
     const unlisten = api.onJreDownloadProgress((p) => {
       setJreDownloadProgress({ downloaded: p.downloaded, total: p.total });
     });
-    return () => { unlisten.then((fn) => fn()).catch(() => {}); };
+    return () => {
+      unlisten.then((fn) => fn()).catch(() => {});
+    };
   }, []);
 
   const handleFetchJreVersions = async (version: number) => {
@@ -781,11 +1422,17 @@ export default function SettingsPage() {
     setJreDownloading(true);
     setJreDownloadProgress(null);
     try {
-      const source = localConfig.java_download_source || 'adoptium';
+      const source = localConfig?.java_download_source || 'adoptium';
       await api.downloadJavaVersion(jreDownloadVersion, source);
       addToast({ type: 'success', title: `Java ${jreDownloadVersion} downloaded` });
-      api.listDownloadedJres().then(setDownloadedJres).catch(() => {});
-      api.findAllJava().then(setJavaList).catch(() => {});
+      api
+        .listDownloadedJres()
+        .then(setDownloadedJres)
+        .catch(() => {});
+      api
+        .findAllJava()
+        .then(setJavaList)
+        .catch(() => {});
     } catch (e: any) {
       addToast({ type: 'error', title: 'Download failed', message: e?.toString() });
     } finally {
@@ -797,7 +1444,10 @@ export default function SettingsPage() {
   useEffect(() => {
     const instId = instances.length > 0 ? instances[0].id : '';
     if (instId) {
-      api.getGcRecommendations(instId).then(setGcRecs).catch(() => {});
+      api
+        .getGcRecommendations(instId)
+        .then(setGcRecs)
+        .catch(() => {});
     }
   }, [instances]);
 
@@ -822,9 +1472,11 @@ export default function SettingsPage() {
         filters: [{ name: 'Java', extensions: ['exe', 'bin', '', '*'] }],
       });
       if (selected && typeof selected === 'string') {
-        setLocalConfig((prev) => prev ? { ...prev, java_path: selected } : prev);
+        setLocalConfig((prev) => (prev ? { ...prev, java_path: selected } : prev));
       }
-    } catch { /* dialog cancelled */ }
+    } catch {
+      /* dialog cancelled */
+    }
   };
 
   const handleCopyGcArgs = async (gcType: string, args: string[]) => {
@@ -832,7 +1484,9 @@ export default function SettingsPage() {
       await navigator.clipboard.writeText(args.join(' '));
       setGcCopied((prev) => ({ ...prev, [gcType]: true }));
       setTimeout(() => setGcCopied((prev) => ({ ...prev, [gcType]: false })), 2000);
-    } catch { /* clipboard fail */ }
+    } catch {
+      /* clipboard fail */
+    }
   };
 
   const handleBrowseGameDir = async () => {
@@ -842,9 +1496,11 @@ export default function SettingsPage() {
         multiple: false,
       });
       if (selected && typeof selected === 'string') {
-        setLocalConfig((prev) => prev ? { ...prev, game_dir: selected } : prev);
+        setLocalConfig((prev) => (prev ? { ...prev, game_dir: selected } : prev));
       }
-    } catch { /* dialog cancelled */ }
+    } catch {
+      /* dialog cancelled */
+    }
   };
 
   const handleConfigChange = (updates: Partial<AppConfig>) => {
@@ -858,58 +1514,71 @@ export default function SettingsPage() {
     });
   };
 
-  if (!localConfig || !auth) return (
-    <div style={{ color: '#555', fontSize: '0.7em', padding: 40, textAlign: 'center' }}>{t('common.loading')}</div>
-  );
+  if (!localConfig || !auth)
+    return (
+      <div style={{ color: '#555', fontSize: '0.7em', padding: 40, textAlign: 'center' }}>{t('common.loading')}</div>
+    );
 
   const formatBytes = (bytes: number): string => {
     if (bytes >= 1_073_741_824) return `${(bytes / 1_073_741_824).toFixed(2)} GB`;
     return `${(bytes / 1_048_576).toFixed(1)} MB`;
   };
 
-  const navCategories: NavCategory[] = useMemo(() => [
-    {
-      id: 'general',
-      label: t('settings.nav.general'),
-      sectionIds: ['sec-account', 'sec-language', 'sec-theme', 'sec-font-custom', 'sec-guide'],
-    },
-    {
-      id: 'performance',
-      label: t('settings.nav.performance'),
-      sectionIds: ['sec-java', 'sec-memory', 'sec-gc-tuning', 'sec-disk-usage', 'sec-file-mgmt'],
-    },
-    {
-      id: 'launch',
-      label: t('settings.nav.launch'),
-      sectionIds: ['sec-launch-behavior', 'sec-data-dir'],
-    },
-    {
-      id: 'appearance',
-      label: t('settings.nav.appearance'),
-      sectionIds: ['sec-dynamic-bg', 'sec-sound-themes', 'sec-window-effects', 'sec-mini-mode'],
-    },
-    {
-      id: 'system',
-      label: t('settings.nav.system'),
-      sectionIds: ['sec-hardware', 'sec-battery', 'sec-download'],
-    },
-    {
-      id: 'social',
-      label: t('settings.nav.social'),
-      sectionIds: ['sec-discord', 'sec-accessibility', 'sec-screenshots'],
-    },
-    {
-      id: 'security',
-      label: '安全',
-      sectionIds: ['sec-security-overview', 'sec-credential-protection', 'sec-network-security', 'sec-launch-security', 'sec-api-key-management', 'sec-security-audit'],
-    },
-  ], [t]);
+  const navCategories: NavCategory[] = useMemo(
+    () => [
+      {
+        id: 'general',
+        label: t('settings.nav.general'),
+        sectionIds: ['sec-account', 'sec-skin-station', 'sec-language', 'sec-theme', 'sec-font-custom', 'sec-guide'],
+      },
+      {
+        id: 'performance',
+        label: t('settings.nav.performance'),
+        sectionIds: ['sec-java', 'sec-memory', 'sec-gc-tuning', 'sec-disk-usage', 'sec-file-mgmt'],
+      },
+      {
+        id: 'launch',
+        label: t('settings.nav.launch'),
+        sectionIds: ['sec-launch-behavior', 'sec-data-dir'],
+      },
+      {
+        id: 'appearance',
+        label: t('settings.nav.appearance'),
+        sectionIds: ['sec-dynamic-bg', 'sec-sound-themes', 'sec-window-effects', 'sec-mini-mode'],
+      },
+      {
+        id: 'system',
+        label: t('settings.nav.system'),
+        sectionIds: ['sec-hardware', 'sec-battery', 'sec-download'],
+      },
+      {
+        id: 'social',
+        label: t('settings.nav.social'),
+        sectionIds: ['sec-discord', 'sec-accessibility', 'sec-screenshots'],
+      },
+      {
+        id: 'security',
+        label: '安全',
+        sectionIds: [
+          'sec-security-overview',
+          'sec-credential-protection',
+          'sec-network-security',
+          'sec-launch-security',
+          'sec-api-key-management',
+          'sec-security-audit',
+        ],
+      },
+    ],
+    [t],
+  );
 
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
         <div className={styles.actions}>
-          <Button variant="secondary" size="sm" onClick={() => setLocalConfig(config)}>{t('settings.reset')}</Button>
+          <Button variant="secondary" size="sm" onClick={() => setLocalConfig(config)}>
+            {t('settings.reset')}
+          </Button>
           <Button variant="primary" size="sm" disabled={saving} onClick={handleSave}>
             {saving ? t('settings.saving') : saved ? '✓ ' + t('settings.saved') : t('settings.save')}
           </Button>
@@ -923,10 +1592,18 @@ export default function SettingsPage() {
           <StatusDot status="ready" />
           <span className={styles.accountName}>{auth.username}</span>
           <Badge variant="default">
-            {auth.access_token?.startsWith('offline_') ? 'OFFLINE' : 'MICROSOFT'}
+            {authState.accounts.find((a) => a.id === authState.activeAccountId)?.account_type?.toUpperCase() ||
+              'OFFLINE'}
           </Badge>
           <div style={{ marginLeft: 'auto' }}>
-            <Button variant="secondary" size="sm" onClick={() => { logout(); window.location.reload(); }}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                logout();
+                window.location.reload();
+              }}
+            >
               {t('settings.logout')}
             </Button>
           </div>
@@ -951,6 +1628,8 @@ export default function SettingsPage() {
         )}
       </SectionCard>
 
+      <SkinStationSection addToast={addToast} />
+
       <SectionCard id="sec-java" title={t('settings.java')}>
         <SettingRow label={t('settings.javaVersion')}>
           <div style={{ flex: 1 }}>
@@ -960,15 +1639,25 @@ export default function SettingsPage() {
                 style={{ padding: '4px 8px', cursor: 'pointer', borderBottom: '1px solid var(--color-border-light)' }}
                 onClick={() => setLocalConfig({ ...localConfig, java_path: null })}
               >
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 8, flex: 1,
-                  color: !localConfig.java_path ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-                }}>
-                  <span style={{
-                    width: 12, height: 12, borderRadius: '50%', flexShrink: 0,
-                    border: `2px solid ${!localConfig.java_path ? 'var(--color-accent)' : 'var(--color-border-mid)'}`,
-                    background: !localConfig.java_path ? 'var(--color-accent)' : 'transparent',
-                  }} />
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    flex: 1,
+                    color: !localConfig.java_path ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: '50%',
+                      flexShrink: 0,
+                      border: `2px solid ${!localConfig.java_path ? 'var(--color-accent)' : 'var(--color-border-mid)'}`,
+                      background: !localConfig.java_path ? 'var(--color-accent)' : 'transparent',
+                    }}
+                  />
                   <span style={{ fontSize: '0.65em' }}>{t('instanceDetail.autoDetect')}</span>
                 </div>
               </label>
@@ -979,56 +1668,90 @@ export default function SettingsPage() {
                   style={{ padding: '4px 8px', cursor: 'pointer' }}
                   onClick={() => setLocalConfig({ ...localConfig, java_path: java.path })}
                 >
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 8, flex: 1,
-                    color: localConfig.java_path === java.path ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-                  }}>
-                    <span style={{
-                      width: 12, height: 12, borderRadius: '50%', flexShrink: 0,
-                      border: `2px solid ${localConfig.java_path === java.path ? 'var(--color-accent)' : 'var(--color-border-mid)'}`,
-                      background: localConfig.java_path === java.path ? 'var(--color-accent)' : 'transparent',
-                    }} />
-                    <span style={{ fontSize: '0.6em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      flex: 1,
+                      color:
+                        localConfig.java_path === java.path ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: '50%',
+                        flexShrink: 0,
+                        border: `2px solid ${localConfig.java_path === java.path ? 'var(--color-accent)' : 'var(--color-border-mid)'}`,
+                        background: localConfig.java_path === java.path ? 'var(--color-accent)' : 'transparent',
+                      }}
+                    />
+                    <span
+                      style={{ fontSize: '0.6em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    >
                       {java.path.split(/[/\\]/).slice(-2).join('/')}
                     </span>
-                    {java.version !== null && (
-                      <Badge variant="accent">
-                        Java {java.version}
-                      </Badge>
-                    )}
+                    {java.version !== null && <Badge variant="accent">Java {java.version}</Badge>}
                     {java.vendor && (
                       <span style={{ fontSize: '0.5em', color: 'var(--color-text-dim)' }}>{java.vendor}</span>
                     )}
                   </div>
                 </label>
               ))}
-              {localConfig.java_path && !javaList.some((j) => j.path === localConfig.java_path) && config?.java_path === localConfig.java_path && (
-                <label
-                  className={styles.checkboxLabel}
-                  style={{ padding: '4px 8px', cursor: 'pointer' }}
-                  onClick={() => setLocalConfig({ ...localConfig, java_path: config?.java_path || null })}
-                >
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 8, flex: 1,
-                    color: localConfig.java_path === config?.java_path ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-                  }}>
-                    <span style={{
-                      width: 12, height: 12, borderRadius: '50%', flexShrink: 0,
-                      border: `2px solid ${localConfig.java_path === config?.java_path ? 'var(--color-accent)' : 'var(--color-border-mid)'}`,
-                      background: localConfig.java_path === config?.java_path ? 'var(--color-accent)' : 'transparent',
-                    }} />
-                    <span style={{ fontSize: '0.6em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {localConfig.java_path.split(/[/\\]/).slice(-2).join('/')}
-                    </span>
-                    <Badge variant="default">{t('settings.saved')}</Badge>
-                  </div>
-                </label>
-              )}
+              {localConfig.java_path &&
+                !javaList.some((j) => j.path === localConfig.java_path) &&
+                config?.java_path === localConfig.java_path && (
+                  <label
+                    className={styles.checkboxLabel}
+                    style={{ padding: '4px 8px', cursor: 'pointer' }}
+                    onClick={() => setLocalConfig({ ...localConfig, java_path: config?.java_path || null })}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        flex: 1,
+                        color:
+                          localConfig.java_path === config?.java_path
+                            ? 'var(--color-accent)'
+                            : 'var(--color-text-secondary)',
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: '50%',
+                          flexShrink: 0,
+                          border: `2px solid ${localConfig.java_path === config?.java_path ? 'var(--color-accent)' : 'var(--color-border-mid)'}`,
+                          background:
+                            localConfig.java_path === config?.java_path ? 'var(--color-accent)' : 'transparent',
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: '0.6em',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {localConfig.java_path.split(/[/\\]/).slice(-2).join('/')}
+                      </span>
+                      <Badge variant="default">{t('settings.saved')}</Badge>
+                    </div>
+                  </label>
+                )}
             </div>
           </div>
         </SettingRow>
         <SettingRow label={t('settings.browse')}>
-          <Button variant="secondary" size="sm" onClick={handleBrowseJava}>{t('settings.browse')}</Button>
+          <Button variant="secondary" size="sm" onClick={handleBrowseJava}>
+            {t('settings.browse')}
+          </Button>
         </SettingRow>
 
         <SettingRow label={t('settings.forceJavaPath')}>
@@ -1037,7 +1760,11 @@ export default function SettingsPage() {
               on={localConfig.force_java_path || false}
               onChange={() => setLocalConfig({ ...localConfig, force_java_path: !localConfig.force_java_path })}
             />
-            <span className={localConfig.force_java_path ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']}>
+            <span
+              className={
+                localConfig.force_java_path ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']
+              }
+            >
               {t('settings.forceJavaPathDesc')}
             </span>
           </label>
@@ -1048,13 +1775,94 @@ export default function SettingsPage() {
             <Select
               value={localConfig.java_download_source || 'adoptium'}
               onChange={(e) => setLocalConfig({ ...localConfig, java_download_source: e.target.value })}
-              options={(jreSources.length > 0 ? jreSources : [
-                { id: 'adoptium', label: 'Eclipse Adoptium (HotSpot)', available: true },
-                { id: 'zulu', label: 'Azul Zulu', available: true },
-                { id: 'microsoft', label: 'Microsoft OpenJDK', available: true },
-                { id: 'corretto', label: 'Amazon Corretto', available: true },
-              ]).map((s) => ({ value: s.id, label: s.label + (s.available ? '' : ` (${t('common.unavailable') || 'Unavailable'})`) }))}
+              options={(jreSources.length > 0
+                ? jreSources
+                : [
+                    { id: 'adoptium', label: 'Eclipse Adoptium (HotSpot)', available: true },
+                    { id: 'zulu', label: 'Azul Zulu', available: true },
+                    { id: 'microsoft', label: 'Microsoft OpenJDK', available: true },
+                    { id: 'corretto', label: 'Amazon Corretto', available: true },
+                  ]
+              ).map((s) => ({
+                value: s.id,
+                label: s.label + (s.available ? '' : ` (${t('common.unavailable') || 'Unavailable'})`),
+              }))}
             />
+          </div>
+        </SettingRow>
+
+        <SettingRow label={t('settings.downloadJavaVersion') || 'Download Java Version'}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {[8, 11, 17, 21, 22, 23, 24].map((v) => (
+                <button
+                  key={v}
+                  onClick={() => handleFetchJreVersions(v)}
+                  style={{
+                    padding: '4px 12px',
+                    fontSize: '0.6em',
+                    fontWeight: jreDownloadVersion === v ? 700 : 500,
+                    fontFamily: 'var(--font-mono)',
+                    color:
+                      jreDownloadVersion === v
+                        ? 'var(--color-bg)'
+                        : downloadedJres.includes(v)
+                          ? 'var(--color-accent)'
+                          : 'var(--color-text-secondary)',
+                    background: jreDownloadVersion === v ? 'var(--color-accent)' : 'var(--color-panel-alt)',
+                    border: `1px solid ${jreDownloadVersion === v ? 'var(--color-accent)' : downloadedJres.includes(v) ? 'var(--color-accent-30)' : 'var(--color-border-light)'}`,
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    letterSpacing: 0.5,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  Java {v}
+                  {downloadedJres.includes(v) ? ' ✓' : ''}
+                </button>
+              ))}
+            </div>
+            {jreAvailableVersions.length > 0 && (
+              <div style={{ marginTop: 8, fontSize: '0.55em', color: 'var(--color-text-muted)' }}>
+                {jreAvailableVersions.length} release{jreAvailableVersions.length !== 1 ? 's' : ''} available (
+                {jreAvailableVersions[0]?.size_mb.toFixed(0)} MB)
+              </div>
+            )}
+            {jreDownloading && jreDownloadProgress && (
+              <div style={{ marginTop: 8 }}>
+                <div
+                  style={{ height: 4, background: 'var(--color-border-light)', borderRadius: 2, overflow: 'hidden' }}
+                >
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${jreDownloadProgress.total > 0 ? (jreDownloadProgress.downloaded / jreDownloadProgress.total) * 100 : 0}%`,
+                      background: 'var(--color-accent)',
+                      borderRadius: 2,
+                      transition: 'width 0.2s ease',
+                    }}
+                  />
+                </div>
+                <div
+                  style={{
+                    marginTop: 4,
+                    fontSize: '0.5em',
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--color-text-muted)',
+                  }}
+                >
+                  {(jreDownloadProgress.downloaded / 1_048_576).toFixed(1)} MB /{' '}
+                  {(jreDownloadProgress.total / 1_048_576).toFixed(1)} MB
+                </div>
+              </div>
+            )}
+            <div style={{ marginTop: 8 }}>
+              <Button variant="primary" size="sm" onClick={handleDownloadJre} disabled={jreDownloading}>
+                {jreDownloading
+                  ? t('common.loading') || 'Downloading...'
+                  : t('settings.downloadJava') || `Download Java ${jreDownloadVersion}`}
+              </Button>
+            </div>
           </div>
         </SettingRow>
 
@@ -1069,7 +1877,12 @@ export default function SettingsPage() {
         </SettingRow>
       </SectionCard>
 
-      <MemorySection localConfig={localConfig} onConfigChange={handleConfigChange} t={t} hardwareProfile={hardwareProfile} />
+      <MemorySection
+        localConfig={localConfig}
+        onConfigChange={handleConfigChange}
+        t={t}
+        hardwareProfile={hardwareProfile}
+      />
 
       <SectionCard id="sec-launch-behavior" title={t('settings.launchBehavior')}>
         <div className={styles.checkboxGroup}>
@@ -1085,7 +1898,11 @@ export default function SettingsPage() {
               on={!localConfig.keep_launcher_open}
               onChange={() => setLocalConfig({ ...localConfig, keep_launcher_open: !localConfig.keep_launcher_open })}
             />
-            <span className={!localConfig.keep_launcher_open ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']}>
+            <span
+              className={
+                !localConfig.keep_launcher_open ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']
+              }
+            >
               {t('settings.autoClose')}
             </span>
           </label>
@@ -1101,7 +1918,11 @@ export default function SettingsPage() {
               on={localConfig.auto_update_java}
               onChange={() => setLocalConfig({ ...localConfig, auto_update_java: !localConfig.auto_update_java })}
             />
-            <span className={localConfig.auto_update_java ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']}>
+            <span
+              className={
+                localConfig.auto_update_java ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']
+              }
+            >
               {t('settings.autoUpdateJava')}
             </span>
           </label>
@@ -1118,7 +1939,9 @@ export default function SettingsPage() {
                 placeholder="~/BonNext/instances/"
               />
             </div>
-            <Button variant="secondary" size="sm" onClick={handleBrowseGameDir}>{t('settings.browse')}</Button>
+            <Button variant="secondary" size="sm" onClick={handleBrowseGameDir}>
+              {t('settings.browse')}
+            </Button>
           </div>
         </SettingRow>
       </SectionCard>
@@ -1128,18 +1951,10 @@ export default function SettingsPage() {
       <SectionCard id="sec-language" title={t('settings.languageSectionTitle')}>
         <SettingRow label={t('settings.language')}>
           <div style={{ display: 'flex', gap: 4 }}>
-            <Button
-              variant={lang === 'zh-CN' ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={() => setLang('zh-CN')}
-            >
+            <Button variant={lang === 'zh-CN' ? 'primary' : 'secondary'} size="sm" onClick={() => setLang('zh-CN')}>
               {t('settings.chinese')}
             </Button>
-            <Button
-              variant={lang === 'en-US' ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={() => setLang('en-US')}
-            >
+            <Button variant={lang === 'en-US' ? 'primary' : 'secondary'} size="sm" onClick={() => setLang('en-US')}>
               {t('settings.english')}
             </Button>
           </div>
@@ -1173,9 +1988,7 @@ export default function SettingsPage() {
             </div>
             <div className={styles.hwItem}>
               <span className={styles.hwItem__label}>{t('settings.totalRam')}</span>
-              <span className={styles.hwItem__value}>
-                {(hardwareProfile.total_ram_mb / 1024).toFixed(1)} GB
-              </span>
+              <span className={styles.hwItem__value}>{(hardwareProfile.total_ram_mb / 1024).toFixed(1)} GB</span>
             </div>
             <div className={styles.hwItem}>
               <span className={styles.hwItem__label}>{t('settings.gpu')}</span>
@@ -1218,13 +2031,17 @@ export default function SettingsPage() {
                     </span>
                   </div>
                   <div className={styles.gcCard__desc}>{rec.description}</div>
-                  <div className={styles.gcCard__desc} style={{ fontSize: '0.55em', color: 'var(--color-text-muted)' }}>{rec.reason}</div>
+                  <div className={styles.gcCard__desc} style={{ fontSize: '0.55em', color: 'var(--color-text-muted)' }}>
+                    {rec.reason}
+                  </div>
                   <div className={styles.gcCard__argsLabel}>
                     {t('settings.jvmArgsLabel')} · Heap {rec.heap_size_mb}MB · Metaspace {rec.metaspace_mb}MB
                   </div>
                   <div className={styles.gcCard__args}>
                     {rec.jvm_args.map((arg, i) => (
-                      <span key={i} className={styles.gcCard__arg}>{arg}</span>
+                      <span key={i} className={styles.gcCard__arg}>
+                        {arg}
+                      </span>
                     ))}
                   </div>
                   <Button
@@ -1252,12 +2069,14 @@ export default function SettingsPage() {
                 { key: 'assets', label: t('settings.diskUsageAssets'), bytes: diskUsage.assets_bytes },
                 { key: 'logs', label: t('settings.diskUsageLogs'), bytes: diskUsage.logs_bytes },
                 { key: 'other', label: t('settings.diskUsageOther'), bytes: diskUsage.other_bytes },
-              ].filter((item) => item.bytes > 0).map((item) => (
-                <div key={item.key} className={styles.diskLegend__item}>
-                  <div className={`${styles.diskLegend__dot} ${styles[`diskLegend__dot--${item.key}`]}`} />
-                  <span className={styles.diskLegend__text}>{item.label}</span>
-                </div>
-              ))}
+              ]
+                .filter((item) => item.bytes > 0)
+                .map((item) => (
+                  <div key={item.key} className={styles.diskLegend__item}>
+                    <div className={`${styles.diskLegend__dot} ${styles[`diskLegend__dot--${item.key}`]}`} />
+                    <span className={styles.diskLegend__text}>{item.label}</span>
+                  </div>
+                ))}
             </div>
             <div className={styles.diskTotal}>
               <div className={styles.diskTotal__bar}>
@@ -1343,18 +2162,16 @@ export default function SettingsPage() {
                 <div key={v.version_id} className={styles.fileMgmtRow}>
                   <div className={styles.fileMgmtRow__info}>
                     <span className={styles.fileMgmtRow__name}>{v.version_id}</span>
-                    <span className={`${styles.fileMgmtRow__badge} ${v.version_type === 'snapshot' ? styles['fileMgmtRow__badge--snapshot'] : styles['fileMgmtRow__badge--release']}`}>
+                    <span
+                      className={`${styles.fileMgmtRow__badge} ${v.version_type === 'snapshot' ? styles['fileMgmtRow__badge--snapshot'] : styles['fileMgmtRow__badge--release']}`}
+                    >
                       {v.version_type}
                     </span>
                   </div>
                   <div className={styles.fileMgmtRow__actions}>
                     <span className={styles.fileMgmtRow__size}>{formatBytes(v.size_bytes)}</span>
                     <div style={{ display: 'flex', gap: 4 }}>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => api.openFolder(v.path)}
-                      >
+                      <Button variant="secondary" size="sm" onClick={() => api.openFolder(v.path)}>
                         {t('common.openFolder')}
                       </Button>
                       <Button
@@ -1381,7 +2198,10 @@ export default function SettingsPage() {
             {fileManagementGameDir && (
               <div className={styles.fileMgmtRow}>
                 <div className={styles.fileMgmtRow__info}>
-                  <span className={styles.fileMgmtRow__name} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55em' }}>
+                  <span
+                    className={styles.fileMgmtRow__name}
+                    style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55em' }}
+                  >
                     {fileManagementGameDir}
                   </span>
                 </div>
@@ -1389,37 +2209,40 @@ export default function SettingsPage() {
                   <span className={styles.fileMgmtRow__size} style={{ color: 'var(--color-accent)' }}>
                     {diskUsage ? formatBytes(diskUsage.total_bytes) : '—'}
                   </span>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => api.openFolder(fileManagementGameDir)}
-                  >
+                  <Button variant="secondary" size="sm" onClick={() => api.openFolder(fileManagementGameDir)}>
                     {t('common.openFolder')}
                   </Button>
                 </div>
               </div>
             )}
 
-            {diskUsage && [
-              { label: t('settings.fileMgmt.instancesDir'), path: 'instances', bytes: diskUsage.instances_bytes },
-              { label: t('settings.fileMgmt.versionsDir'), path: 'shared/versions', bytes: diskUsage.versions_bytes },
-              { label: t('settings.fileMgmt.librariesDir'), path: 'shared/libraries', bytes: diskUsage.libraries_bytes },
-              { label: t('settings.fileMgmt.assetsDir'), path: 'shared/assets', bytes: diskUsage.assets_bytes },
-              { label: t('settings.fileMgmt.logsDir'), path: 'logs', bytes: diskUsage.logs_bytes },
-            ].filter((d) => d.bytes > 0).map((d) => (
-              <div key={d.path} className={styles.fileMgmtSubRow}>
-                <div className={styles.fileMgmtSubRow__dot} />
-                <span className={styles.fileMgmtSubRow__name}>{d.label}</span>
-                <span className={styles.fileMgmtSubRow__size}>{formatBytes(d.bytes)}</span>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => api.openFolder(`${fileManagementGameDir}/${d.path}`)}
-                >
-                  {t('common.openFolder')}
-                </Button>
-              </div>
-            ))}
+            {diskUsage &&
+              [
+                { label: t('settings.fileMgmt.instancesDir'), path: 'instances', bytes: diskUsage.instances_bytes },
+                { label: t('settings.fileMgmt.versionsDir'), path: 'shared/versions', bytes: diskUsage.versions_bytes },
+                {
+                  label: t('settings.fileMgmt.librariesDir'),
+                  path: 'shared/libraries',
+                  bytes: diskUsage.libraries_bytes,
+                },
+                { label: t('settings.fileMgmt.assetsDir'), path: 'shared/assets', bytes: diskUsage.assets_bytes },
+                { label: t('settings.fileMgmt.logsDir'), path: 'logs', bytes: diskUsage.logs_bytes },
+              ]
+                .filter((d) => d.bytes > 0)
+                .map((d) => (
+                  <div key={d.path} className={styles.fileMgmtSubRow}>
+                    <div className={styles.fileMgmtSubRow__dot} />
+                    <span className={styles.fileMgmtSubRow__name}>{d.label}</span>
+                    <span className={styles.fileMgmtSubRow__size}>{formatBytes(d.bytes)}</span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => api.openFolder(`${fileManagementGameDir}/${d.path}`)}
+                    >
+                      {t('common.openFolder')}
+                    </Button>
+                  </div>
+                ))}
           </div>
         </div>
       </SectionCard>
@@ -1442,11 +2265,15 @@ export default function SettingsPage() {
                 setScreenshotInstanceId(id);
                 if (id) {
                   setScreenshotsLoading(true);
-                  api.listScreenshots(id).then((list) => {
-                    setScreenshots(list);
-                  }).catch(() => {
-                    setScreenshots([]);
-                  }).finally(() => setScreenshotsLoading(false));
+                  api
+                    .listScreenshots(id)
+                    .then((list) => {
+                      setScreenshots(list);
+                    })
+                    .catch(() => {
+                      setScreenshots([]);
+                    })
+                    .finally(() => setScreenshotsLoading(false));
                 } else {
                   setScreenshots([]);
                 }
@@ -1458,8 +2285,8 @@ export default function SettingsPage() {
             />
           </div>
         </SettingRow>
-        {screenshotInstanceId && (
-          screenshotsLoading ? (
+        {screenshotInstanceId &&
+          (screenshotsLoading ? (
             <div style={{ fontSize: '0.6em', color: 'var(--color-text-dim)', padding: '8px 0' }}>
               {t('common.loading')}
             </div>
@@ -1477,21 +2304,14 @@ export default function SettingsPage() {
                       ? `${(ss.size_bytes / 1_048_576).toFixed(1)} MB`
                       : `${(ss.size_bytes / 1024).toFixed(1)} KB`}
                   </span>
-                  <span className={styles.screenshotRow__date}>
-                    {new Date(ss.modified).toLocaleDateString()}
-                  </span>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => api.openFolder(ss.path)}
-                  >
+                  <span className={styles.screenshotRow__date}>{new Date(ss.modified).toLocaleDateString()}</span>
+                  <Button variant="secondary" size="sm" onClick={() => api.openFolder(ss.path)}>
                     {t('common.openFolder')}
                   </Button>
                 </div>
               ))}
             </div>
-          )
-        )}
+          ))}
       </SectionCard>
 
       <SectionCard id="sec-security-overview" title="安全概览">
@@ -1519,11 +2339,17 @@ export default function SettingsPage() {
           </div>
         </div>
         <SettingRow label="一键修复">
-          <Button variant="secondary" size="sm" onClick={async () => {
-            await api.fixFilePermissions();
-            const score = await api.getSecurityScore();
-            setSecurityScore(score);
-          }}>修复安全问题</Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={async () => {
+              await api.fixFilePermissions();
+              const score = await api.getSecurityScore();
+              setSecurityScore(score);
+            }}
+          >
+            修复安全问题
+          </Button>
         </SettingRow>
       </SectionCard>
 
@@ -1532,11 +2358,22 @@ export default function SettingsPage() {
           <label className={styles.checkboxLabel}>
             <Checkbox
               on={localConfig.security?.credential_encryption ?? true}
-              onChange={() => handleConfigChange({
-                security: { ...localConfig.security!, credential_encryption: !(localConfig.security?.credential_encryption ?? true) }
-              })}
+              onChange={() =>
+                handleConfigChange({
+                  security: {
+                    ...localConfig.security!,
+                    credential_encryption: !(localConfig.security?.credential_encryption ?? true),
+                  },
+                })
+              }
             />
-            <span className={localConfig.security?.credential_encryption !== false ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']}>
+            <span
+              className={
+                localConfig.security?.credential_encryption !== false
+                  ? styles.checkboxLabel__text
+                  : styles['checkboxLabel__text--muted']
+              }
+            >
               使用 AES-256-GCM 加密存储账户凭据
             </span>
           </label>
@@ -1544,18 +2381,26 @@ export default function SettingsPage() {
         <SettingRow label="加密状态">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5em', fontSize: '0.55em' }}>
             <StatusDot status={encryptionStatus.encrypted ? 'ready' : 'inactive'} />
-            <span>{encryptionStatus.encrypted ? '已加密' : encryptionStatus.plain ? '明文存储（不安全）' : '无凭据'}</span>
+            <span>
+              {encryptionStatus.encrypted ? '已加密' : encryptionStatus.plain ? '明文存储（不安全）' : '无凭据'}
+            </span>
           </div>
         </SettingRow>
         {encryptionStatus.plain && !encryptionStatus.encrypted && (
           <SettingRow label="迁移">
-            <Button variant="primary" size="sm" onClick={async () => {
-              await api.migrateCredentials();
-              const status = await api.getEncryptionStatus();
-              setEncryptionStatus(status);
-              const score = await api.getSecurityScore();
-              setSecurityScore(score);
-            }}>迁移到加密存储</Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={async () => {
+                await api.migrateCredentials();
+                const status = await api.getEncryptionStatus();
+                setEncryptionStatus(status);
+                const score = await api.getSecurityScore();
+                setSecurityScore(score);
+              }}
+            >
+              迁移到加密存储
+            </Button>
           </SettingRow>
         )}
       </SectionCard>
@@ -1565,11 +2410,22 @@ export default function SettingsPage() {
           <label className={styles.checkboxLabel}>
             <Checkbox
               on={localConfig.security?.strict_verification ?? true}
-              onChange={() => handleConfigChange({
-                security: { ...localConfig.security!, strict_verification: !(localConfig.security?.strict_verification ?? true) }
-              })}
+              onChange={() =>
+                handleConfigChange({
+                  security: {
+                    ...localConfig.security!,
+                    strict_verification: !(localConfig.security?.strict_verification ?? true),
+                  },
+                })
+              }
             />
-            <span className={localConfig.security?.strict_verification !== false ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']}>
+            <span
+              className={
+                localConfig.security?.strict_verification !== false
+                  ? styles.checkboxLabel__text
+                  : styles['checkboxLabel__text--muted']
+              }
+            >
               拒绝无 SHA1 哈希的下载
             </span>
           </label>
@@ -1578,11 +2434,19 @@ export default function SettingsPage() {
           <label className={styles.checkboxLabel}>
             <Checkbox
               on={localConfig.security?.enforce_https ?? true}
-              onChange={() => handleConfigChange({
-                security: { ...localConfig.security!, enforce_https: !(localConfig.security?.enforce_https ?? true) }
-              })}
+              onChange={() =>
+                handleConfigChange({
+                  security: { ...localConfig.security!, enforce_https: !(localConfig.security?.enforce_https ?? true) },
+                })
+              }
             />
-            <span className={localConfig.security?.enforce_https !== false ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']}>
+            <span
+              className={
+                localConfig.security?.enforce_https !== false
+                  ? styles.checkboxLabel__text
+                  : styles['checkboxLabel__text--muted']
+              }
+            >
               仅允许 HTTPS 下载源
             </span>
           </label>
@@ -1591,9 +2455,14 @@ export default function SettingsPage() {
           <label className={styles.checkboxLabel}>
             <Checkbox
               on={localConfig.security?.proxy_enabled ?? false}
-              onChange={() => handleConfigChange({
-                security: { ...localConfig.security!, proxy_enabled: !(localConfig.security?.proxy_enabled ?? false) }
-              })}
+              onChange={() =>
+                handleConfigChange({
+                  security: {
+                    ...localConfig.security!,
+                    proxy_enabled: !(localConfig.security?.proxy_enabled ?? false),
+                  },
+                })
+              }
             />
           </label>
         </SettingRow>
@@ -1603,9 +2472,11 @@ export default function SettingsPage() {
         <SettingRow label="JVM 参数模式">
           <Select
             value={localConfig.security?.jvm_args_mode || 'whitelist'}
-            onChange={(e) => handleConfigChange({
-              security: { ...localConfig.security!, jvm_args_mode: e.target.value }
-            })}
+            onChange={(e) =>
+              handleConfigChange({
+                security: { ...localConfig.security!, jvm_args_mode: e.target.value },
+              })
+            }
             options={[
               { value: 'whitelist', label: '白名单（推荐）' },
               { value: 'custom', label: '自定义（不安全）' },
@@ -1615,9 +2486,11 @@ export default function SettingsPage() {
         <SettingRow label="沙箱模式">
           <Select
             value={localConfig.security?.sandbox_mode || 'off'}
-            onChange={(e) => handleConfigChange({
-              security: { ...localConfig.security!, sandbox_mode: e.target.value }
-            })}
+            onChange={(e) =>
+              handleConfigChange({
+                security: { ...localConfig.security!, sandbox_mode: e.target.value },
+              })
+            }
             options={[
               { value: 'off', label: '关闭' },
               { value: 'basic', label: '基础' },
@@ -1634,11 +2507,22 @@ export default function SettingsPage() {
           <label className={styles.checkboxLabel}>
             <Checkbox
               on={localConfig.security?.secure_launch_check ?? true}
-              onChange={() => handleConfigChange({
-                security: { ...localConfig.security!, secure_launch_check: !(localConfig.security?.secure_launch_check ?? true) }
-              })}
+              onChange={() =>
+                handleConfigChange({
+                  security: {
+                    ...localConfig.security!,
+                    secure_launch_check: !(localConfig.security?.secure_launch_check ?? true),
+                  },
+                })
+              }
             />
-            <span className={localConfig.security?.secure_launch_check !== false ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']}>
+            <span
+              className={
+                localConfig.security?.secure_launch_check !== false
+                  ? styles.checkboxLabel__text
+                  : styles['checkboxLabel__text--muted']
+              }
+            >
               启动前检查 Java 完整性和 JVM 参数
             </span>
           </label>
@@ -1659,26 +2543,48 @@ export default function SettingsPage() {
               />
               <button
                 onClick={() => setShowCfKey(!showCfKey)}
-                style={{ position: 'absolute', right: '0.5em', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '0.5em' }}
+                style={{
+                  position: 'absolute',
+                  right: '0.5em',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#888',
+                  cursor: 'pointer',
+                  fontSize: '0.5em',
+                }}
               >
                 {showCfKey ? '隐藏' : '显示'}
               </button>
             </div>
             <div style={{ display: 'flex', gap: '0.3em' }}>
-              <Button variant="primary" size="sm" onClick={async () => {
-                if (cfKeyValue.trim()) {
-                  await api.saveApiKey('cf_api_key', cfKeyValue.trim());
-                  setCfKeyValue('');
-                  const status = await api.getApiKeyStatus('cf_api_key');
-                  setCfKeyStatus(status);
-                }
-              }}>保存</Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={async () => {
+                  if (cfKeyValue.trim()) {
+                    await api.saveApiKey('cf_api_key', cfKeyValue.trim());
+                    setCfKeyValue('');
+                    const status = await api.getApiKeyStatus('cf_api_key');
+                    setCfKeyStatus(status);
+                  }
+                }}
+              >
+                保存
+              </Button>
               {cfKeyStatus?.configured && (
-                <Button variant="secondary" size="sm" onClick={async () => {
-                  await api.deleteApiKey('cf_api_key');
-                  const status = await api.getApiKeyStatus('cf_api_key');
-                  setCfKeyStatus(status);
-                }}>删除</Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={async () => {
+                    await api.deleteApiKey('cf_api_key');
+                    const status = await api.getApiKeyStatus('cf_api_key');
+                    setCfKeyStatus(status);
+                  }}
+                >
+                  删除
+                </Button>
               )}
             </div>
           </div>
@@ -1696,11 +2602,22 @@ export default function SettingsPage() {
           <label className={styles.checkboxLabel}>
             <Checkbox
               on={localConfig.security?.audit_log_enabled ?? true}
-              onChange={() => handleConfigChange({
-                security: { ...localConfig.security!, audit_log_enabled: !(localConfig.security?.audit_log_enabled ?? true) }
-              })}
+              onChange={() =>
+                handleConfigChange({
+                  security: {
+                    ...localConfig.security!,
+                    audit_log_enabled: !(localConfig.security?.audit_log_enabled ?? true),
+                  },
+                })
+              }
             />
-            <span className={localConfig.security?.audit_log_enabled !== false ? styles.checkboxLabel__text : styles['checkboxLabel__text--muted']}>
+            <span
+              className={
+                localConfig.security?.audit_log_enabled !== false
+                  ? styles.checkboxLabel__text
+                  : styles['checkboxLabel__text--muted']
+              }
+            >
               记录安全相关操作日志
             </span>
           </label>
@@ -1712,9 +2629,22 @@ export default function SettingsPage() {
         </SettingRow>
         {loginHistory.length > 0 && (
           <div style={{ marginTop: '0.5em' }}>
-            <div style={{ fontSize: '0.5em', color: '#888', marginBottom: '0.3em', textTransform: 'uppercase', letterSpacing: '0.1em' }}>最近登录</div>
+            <div
+              style={{
+                fontSize: '0.5em',
+                color: '#888',
+                marginBottom: '0.3em',
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+              }}
+            >
+              最近登录
+            </div>
             {loginHistory.slice(0, 5).map((entry, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5em', fontSize: '0.5em', padding: '0.15em 0' }}>
+              <div
+                key={i}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5em', fontSize: '0.5em', padding: '0.15em 0' }}
+              >
                 <StatusDot status={entry.success ? 'ready' : 'error'} />
                 <span style={{ color: '#888' }}>{entry.timestamp.replace('T', ' ').slice(0, 19)}</span>
                 <span>{entry.username}</span>
@@ -1733,14 +2663,14 @@ export default function SettingsPage() {
 
       <div className={styles.footer}>
         <span className={styles.footer__brand}>{t('settings.nowintPresent')}</span>
-          <a
-            href="https://qun.qq.com/universal-share/share?ac=1&authKey=nRLO82GV%2FbYhC6GleAK72oZY%2Fhs4Vz2qh2OcS%2BawOildd0nySW9wLWCJg%2BLpS0%2BG&busi_data=eyJncm91cENvZGUiOiIxMDE2NjQxNjkxIiwidG9rZW4iOiJMQjR0cWZLcGFNcW9nSVJCOVQ3LzZ1Y1o4V0wrd1ljZTJVaWhSdUFUbDRKWGZaNExqSTZSMUdTMk04UUdCc2IvIiwidWluIjoiNjc0MDAwMjQ5In0%3D&data=u5JO0vDgzgicnHsVlwKbrFSyvCXZpH1vmPTkcluZ8ApBfyg1DFU1uQ-SCpXFFvvFWqsr8fHFId9keRmqUjXl1A&svctype=4&tempid=h5_group_info"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.footer__qqBtn}
-          >
-            {t('settings.joinQQGroup') || '加入QQ群'}
-          </a>
+        <a
+          href="https://qun.qq.com/universal-share/share?ac=1&authKey=nRLO82GV%2FbYhC6GleAK72oZY%2Fhs4Vz2qh2OcS%2BawOildd0nySW9wLWCJg%2BLpS0%2BG&busi_data=eyJncm91cENvZGUiOiIxMDE2NjQxNjkxIiwidG9rZW4iOiJMQjR0cWZLcGFNcW9nSVJCOVQ3LzZ1Y1o4V0wrd1ljZTJVaWhSdUFUbDRKWGZaNExqSTZSMUdTMk04UUdCc2IvIiwidWluIjoiNjc0MDAwMjQ5In0%3D&data=u5JO0vDgzgicnHsVlwKbrFSyvCXZpH1vmPTkcluZ8ApBfyg1DFU1uQ-SCpXFFvvFWqsr8fHFId9keRmqUjXl1A&svctype=4&tempid=h5_group_info"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.footer__qqBtn}
+        >
+          {t('settings.joinQQGroup') || '加入QQ群'}
+        </a>
       </div>
     </div>
   );

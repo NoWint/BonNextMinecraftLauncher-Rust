@@ -240,6 +240,7 @@ struct MrPackIndexFile {
     downloads: Vec<String>,
     #[serde(default)]
     sha1: String,
+    #[serde(default)]
     #[serde(rename = "fileSize")]
     file_size: u64,
     #[serde(default)]
@@ -259,7 +260,74 @@ struct MrPackIndex {
     #[serde(rename = "versionId")]
     version_id: Option<String>,
     summary: Option<String>,
+    #[serde(default)]
     files: Vec<MrPackIndexFile>,
+    #[serde(default)]
+    dependencies: std::collections::HashMap<String, String>,
+}
+
+fn is_client_supported(env: &Option<MrPackEnv>) -> bool {
+    match env {
+        Some(e) => {
+            match &e.client {
+                Some(v) => v != "unsupported",
+                None => true,
+            }
+        }
+        None => true,
+    }
+}
+
+fn safe_extract_path(relative: &str) -> Option<std::path::PathBuf> {
+    let safe: std::path::PathBuf = std::path::Path::new(relative)
+        .components()
+        .filter(|c| !matches!(c, std::path::Component::ParentDir | std::path::Component::RootDir))
+        .collect();
+    if safe.as_os_str().is_empty() {
+        return None;
+    }
+    Some(safe)
+}
+
+fn compute_sha1_streaming(path: &std::path::Path) -> Result<String, LauncherError> {
+    use sha1::{Sha1, Digest};
+    let mut hasher = Sha1::new();
+    let mut file = std::fs::File::open(path)?;
+    let mut buf = [0u8; 8192];
+    loop {
+        let n = std::io::Read::read(&mut file, &mut buf)?;
+        if n == 0 { break; }
+        hasher.update(&buf[..n]);
+    }
+    Ok(hex::encode(hasher.finalize()))
+}
+
+fn extract_zip_overrides(
+    archive: &mut zip::ZipArchive<std::fs::File>,
+    prefixes: &[&str],
+    dest_base: &std::path::Path,
+) -> Result<u32, LauncherError> {
+    let mut extracted: u32 = 0;
+    for i in 0..archive.len() {
+        let entry = archive.by_index(i)?;
+        let name = entry.name().to_string();
+        if name.ends_with('/') { continue; }
+        let relative = prefixes.iter()
+            .find_map(|p| name.strip_prefix(p))
+            .unwrap_or("");
+        if relative.is_empty() { continue; }
+        if let Some(safe_relative) = safe_extract_path(relative) {
+            let dest = dest_base.join(&safe_relative);
+            if let Some(parent) = dest.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            let mut entry = entry;
+            let mut out = std::fs::File::create(&dest)?;
+            std::io::copy(&mut entry, &mut out)?;
+            extracted += 1;
+        }
+    }
+    Ok(extracted)
 }
 
 /// Import a .mrpack modpack. Returns the created GameInstance.
@@ -273,7 +341,6 @@ pub async fn import_modpack(path: &str) -> Result<GameInstance, LauncherError> {
     let mut archive = zip::ZipArchive::new(file)
         .map_err(|e| LauncherError::Other(format!("Invalid .mrpack ZIP: {}", e)))?;
 
-    // Parse modrinth.index.json
     let mut index_json = String::new();
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i)?;
@@ -290,7 +357,17 @@ pub async fn import_modpack(path: &str) -> Result<GameInstance, LauncherError> {
     let index: MrPackIndex = serde_json::from_str(&index_json)
         .map_err(|e| LauncherError::Other(format!("Invalid modrinth.index.json: {}", e)))?;
 
-    let version_id = index.version_id.clone().unwrap_or_else(|| "1.21".to_string());
+    let version_id = index.dependencies.get("minecraft")
+        .cloned()
+        .or(index.version_id.clone())
+        .unwrap_or_else(|| "1.21".to_string());
+    let loader_type = index.dependencies.keys()
+        .find(|k| matches!(k.as_str(), "fabric-loader" | "forge" | "neoforge" | "quilt-loader"))
+        .cloned();
+    let loader_version = loader_type.as_ref()
+        .and_then(|lt| index.dependencies.get(lt))
+        .cloned();
+
     let manifest = crate::version::manifest::fetch_versions_sorted().await?;
     let version_entry = manifest.iter().find(|v| v.id == version_id)
         .ok_or_else(|| LauncherError::Other(format!("Version {} not found in manifest", version_id)))?;
@@ -303,36 +380,41 @@ pub async fn import_modpack(path: &str) -> Result<GameInstance, LauncherError> {
         name: index.name.clone(),
         version_id: version_id.clone(),
         version_url,
-        loader_type: None,
-        loader_version: None,
+        loader_type: loader_type.clone(),
+        loader_version,
         description: index.summary.unwrap_or_default(),
         max_memory: 4096,
         min_memory: 512,
         java_path: None,
         jvm_args: None,
-        created_at: now.clone(),
+        created_at: now,
         last_played: None,
         playtime_seconds: 0,
     };
 
     create_instance(&instance)?;
 
-    // Download mod files
     let mods_dir = paths::get_instance_mods_dir(&inst_id);
     std::fs::create_dir_all(&mods_dir)?;
 
     let mut download_tasks: Vec<DownloadTask> = Vec::new();
     for f in &index.files {
+        if !is_client_supported(&f.env) {
+            tracing::debug!("Skipping server-only file: {}", f.path);
+            continue;
+        }
         if let Some(url) = f.downloads.first() {
-            let dest = mods_dir.join(&f.path);
-            if let Some(parent) = dest.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
+            let file_name = std::path::Path::new(&f.path)
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| f.path.clone());
+            let dest = mods_dir.join(&file_name);
             download_tasks.push(DownloadTask::new(url.clone(), dest, f.sha1.clone(), f.file_size));
         }
     }
 
     if !download_tasks.is_empty() {
+        tracing::info!("Downloading {} mod files for modpack '{}'...", download_tasks.len(), index.name);
         let queue = DownloadQueue::new();
         let results = queue.download_all(download_tasks).await?;
         let succeeded = results.iter().filter(|r| r.is_ok()).count();
@@ -342,25 +424,9 @@ pub async fn import_modpack(path: &str) -> Result<GameInstance, LauncherError> {
         }
     }
 
-    // Extract overrides
-    for i in 0..archive.len() {
-        let entry = archive.by_index(i)?;
-        let name = entry.name().to_string();
-        if name.starts_with("overrides/") && !name.ends_with('/') {
-            let relative = name.strip_prefix("overrides/").unwrap_or(&name);
-            let safe_relative: std::path::PathBuf = std::path::Path::new(relative)
-                .components()
-                .filter(|c| !matches!(c, std::path::Component::ParentDir | std::path::Component::RootDir))
-                .collect();
-            let dest = paths::get_instance_minecraft_dir(&inst_id).join(&safe_relative);
-            if let Some(parent) = dest.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            let mut entry = entry;
-            let mut out = std::fs::File::create(&dest)?;
-            std::io::copy(&mut entry, &mut out)?;
-        }
-    }
+    let mc_dir = paths::get_instance_minecraft_dir(&inst_id);
+    let client_count = extract_zip_overrides(&mut archive, &["client-overrides/", "overrides/"], &mc_dir)?;
+    tracing::info!("Extracted {} override files for modpack '{}'", client_count, index.name);
 
     tracing::info!("Modpack '{}' imported as instance '{}'", index.name, inst_id);
     Ok(instance)
@@ -463,12 +529,18 @@ pub async fn import_curseforge_modpack(path: &str) -> Result<GameInstance, Launc
         .ok_or_else(|| LauncherError::Other(format!("Version {} not found in manifest", version_id)))?;
     let version_url = version_entry.url.clone();
 
-    let (loader_type, loader_version) = manifest.minecraft.mod_loaders.first()
+    let (loader_type, loader_version) = manifest.minecraft.mod_loaders.iter()
+        .find(|ml| ml.primary.unwrap_or(true))
+        .or_else(|| manifest.minecraft.mod_loaders.first())
         .map(|ml| {
-            let parts: Vec<&str> = ml.id.split('-').collect();
-            let lt = parts.first().unwrap_or(&"forge").to_string();
-            let lv = parts.get(1).map(|s| s.to_string());
-            (Some(lt), lv)
+            let id = &ml.id;
+            if let Some(dash_pos) = id.find('-') {
+                let lt = id[..dash_pos].to_string();
+                let lv = id[dash_pos + 1..].to_string();
+                (Some(lt), Some(lv))
+            } else {
+                (Some(id.clone()), None)
+            }
         })
         .unwrap_or((None, None));
 
@@ -495,26 +567,75 @@ pub async fn import_curseforge_modpack(path: &str) -> Result<GameInstance, Launc
     create_instance(&instance)?;
 
     let mc_dir = paths::get_instance_minecraft_dir(&inst_id);
-    std::fs::create_dir_all(mc_dir.join("mods"))?;
+    let mods_dir = paths::get_instance_mods_dir(&inst_id);
+    std::fs::create_dir_all(&mods_dir)?;
 
-    for i in 0..archive.len() {
-        let entry = archive.by_index(i)?;
-        let name = entry.name().to_string();
-        if name.starts_with("overrides/") && !name.ends_with('/') {
-            let relative = name.strip_prefix("overrides/").unwrap_or(&name);
-            let safe_relative: std::path::PathBuf = std::path::Path::new(relative)
-                .components()
-                .filter(|c| !matches!(c, std::path::Component::ParentDir | std::path::Component::RootDir))
-                .collect();
-            let dest = mc_dir.join(&safe_relative);
-            if let Some(parent) = dest.parent() {
-                std::fs::create_dir_all(parent)?;
+    let client = crate::http_client::build_client();
+    let mut downloaded: u32 = 0;
+    let mut failed: u32 = 0;
+    for cf_file in &manifest.files {
+        if cf_file.required.unwrap_or(true) == false {
+            tracing::debug!("Skipping optional CF file: project {} file {}", cf_file.project_id, cf_file.file_id);
+            continue;
+        }
+        let file_url = format!(
+            "https://api.curseforge.com/v1/mods/{}/files/{}",
+            cf_file.project_id, cf_file.file_id
+        );
+        match client.get(&file_url).send().await {
+            Ok(resp) => {
+                match resp.json::<serde_json::Value>().await {
+                    Ok(json) => {
+                        if let Some(data) = json.get("data") {
+                            let download_url = data.get("downloadUrl")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let filename = data.get("fileName")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("unknown.jar")
+                                .to_string();
+                            let sha1_hash = data.get("hashes")
+                                .and_then(|h| h.as_array())
+                                .and_then(|arr| arr.iter().find(|h| h.get("algo").and_then(|a| a.as_i64()) == Some(1)))
+                                .and_then(|h| h.get("value"))
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let file_size = data.get("fileLength")
+                                .and_then(|v| v.as_u64())
+                                .unwrap_or(0);
+
+                            if download_url.is_empty() {
+                                tracing::warn!("CF file {} has no download URL, skipping", filename);
+                                failed += 1;
+                                continue;
+                            }
+
+                            let dest = mods_dir.join(&filename);
+                            let task = DownloadTask::new(download_url, dest, sha1_hash, file_size);
+                            let queue = DownloadQueue::new();
+                            match queue.download_single(&task).await {
+                                Ok(_) => downloaded += 1,
+                                Err(e) => {
+                                    tracing::warn!("Failed to download CF mod {}: {}", filename, e);
+                                    failed += 1;
+                                }
+                            }
+                        } else {
+                            failed += 1;
+                        }
+                    }
+                    Err(_) => failed += 1,
+                }
             }
-            let mut entry = entry;
-            let mut out = std::fs::File::create(&dest)?;
-            std::io::copy(&mut entry, &mut out)?;
+            Err(_) => failed += 1,
         }
     }
+    tracing::info!("CF mod download: {} succeeded, {} failed", downloaded, failed);
+
+    let override_count = extract_zip_overrides(&mut archive, &["overrides/"], &mc_dir)?;
+    tracing::info!("Extracted {} override files for CF modpack", override_count);
 
     tracing::info!("CurseForge modpack imported as instance '{}'", inst_id);
     Ok(instance)
@@ -561,36 +682,78 @@ pub async fn export_mrpack(id: &str, output_path: &std::path::Path) -> Result<()
         LauncherError::Other(format!("Instance not found: {}", id))
     })?;
 
-    // Read installed content to build mod list
     let content_path = paths::get_instance_minecraft_dir(id).join("installed_content.json");
+    let mods_dir = paths::get_instance_mods_dir(id);
+
+    let mut tracked_mods: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut mod_files: Vec<MrPackExportFile> = Vec::new();
+
     if content_path.exists() {
         let data = std::fs::read_to_string(&content_path)?;
         if let Ok(content_map) = serde_json::from_str::<std::collections::HashMap<String, crate::content::InstallRecord>>(&data) {
-            let mods_dir = paths::get_instance_mods_dir(id);
             for (filename, entry) in &content_map {
                 if entry.content_type != "mod" { continue; }
                 let mod_path = mods_dir.join(filename);
-                if mod_path.exists() {
-                    let file_size = std::fs::metadata(&mod_path).map(|m| m.len()).unwrap_or(0);
-                    let sha1 = if let Ok(bytes) = std::fs::read(&mod_path) {
-                        use sha1::{Sha1, Digest};
-                        let hash = Sha1::digest(&bytes);
-                        hex::encode(hash)
-                    } else {
-                        String::new()
-                    };
-                    let download_url = format!("https://cdn.modrinth.com/data/{}/versions/{}/{}",
-                        entry.slug, entry.version_id.as_deref().unwrap_or(""), filename);
-                    mod_files.push(MrPackExportFile {
-                        path: format!("mods/{}", filename),
-                        downloads: vec![download_url],
-                        sha1,
-                        file_size,
-                    });
-                }
+                if !mod_path.exists() { continue; }
+
+                let file_size = std::fs::metadata(&mod_path).map(|m| m.len()).unwrap_or(0);
+                let sha1 = compute_sha1_streaming(&mod_path).unwrap_or_default();
+
+                let downloads: Vec<String> = if entry.source == "modrinth" {
+                    vec![format!(
+                        "https://cdn.modrinth.com/data/{}/versions/{}/{}",
+                        entry.slug,
+                        entry.version_id.as_deref().unwrap_or(""),
+                        filename
+                    )]
+                } else if entry.source == "curseforge" {
+                    vec![]
+                } else {
+                    vec![]
+                };
+
+                tracked_mods.insert(filename.clone());
+                mod_files.push(MrPackExportFile {
+                    path: format!("mods/{}", filename),
+                    downloads,
+                    sha1,
+                    file_size,
+                });
             }
         }
+    }
+
+    if mods_dir.exists() {
+        for entry in std::fs::read_dir(&mods_dir)? {
+            let entry = entry?;
+            let filename = entry.file_name().to_string_lossy().to_string();
+            if tracked_mods.contains(&filename) { continue; }
+            let path = entry.path();
+            if !path.is_file() { continue; }
+            let lower = filename.to_lowercase();
+            if !lower.ends_with(".jar") && !lower.ends_with(".jar.disabled") { continue; }
+
+            let file_size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+            let sha1 = compute_sha1_streaming(&path).unwrap_or_default();
+
+            mod_files.push(MrPackExportFile {
+                path: format!("mods/{}", filename),
+                downloads: vec![],
+                sha1,
+                file_size,
+            });
+        }
+    }
+
+    let mut dependencies = std::collections::HashMap::new();
+    dependencies.insert("minecraft".to_string(), instance.version_id.clone());
+    if let Some(ref lt) = instance.loader_type {
+        let dep_key = match lt.as_str() {
+            "fabric" => "fabric-loader",
+            "quilt" => "quilt-loader",
+            other => other,
+        };
+        dependencies.insert(dep_key.to_string(), instance.loader_version.clone().unwrap_or_default());
     }
 
     let manifest = MrPackExportIndex {
@@ -599,14 +762,7 @@ pub async fn export_mrpack(id: &str, output_path: &std::path::Path) -> Result<()
         version_id: instance.version_id.clone(),
         summary: instance.description.clone(),
         files: mod_files,
-        dependencies: {
-            let mut deps = std::collections::HashMap::new();
-            deps.insert("minecraft".to_string(), instance.version_id.clone());
-            if let Some(ref lt) = instance.loader_type {
-                deps.insert(lt.clone(), instance.loader_version.clone().unwrap_or_default());
-            }
-            deps
-        },
+        dependencies,
     };
 
     let file = std::fs::File::create(output_path)
@@ -617,26 +773,23 @@ pub async fn export_mrpack(id: &str, output_path: &std::path::Path) -> Result<()
     #[cfg(unix)]
     { options = options.unix_permissions(0o644); }
 
-    // Write manifest
     zip.start_file("modrinth.index.json", options)
         .map_err(|e| LauncherError::Other(format!("ZIP write error: {}", e)))?;
     let manifest_json = serde_json::to_string_pretty(&manifest)?;
     zip.write_all(manifest_json.as_bytes())
         .map_err(|e| LauncherError::Other(format!("ZIP write error: {}", e)))?;
 
-    // Write overrides/ from instance .minecraft (config, options.txt, etc.)
     let minecraft_dir = paths::get_instance_minecraft_dir(id);
     if minecraft_dir.exists() {
+        let skip_dirs = ["mods", "versions", "libraries", "crash-reports", "logs", "natives", "installed_content.json", ".minecraft"];
         for entry in std::fs::read_dir(&minecraft_dir)? {
             let entry = entry?;
             let path = entry.path();
             let name = entry.file_name().to_string_lossy().to_string();
-            // Skip mods, versions, libraries, crash-reports — these are large and not config
-            if matches!(name.as_str(), "mods" | "versions" | "libraries" | "crash-reports" | "logs" | "natives") {
-                continue;
-            }
+            if skip_dirs.contains(&name.as_str()) { continue; }
             if path.is_file() {
-                zip.start_file(format!("overrides/{}", name), options)
+                let zip_name = format!("overrides/{}", name).replace('\\', "/");
+                zip.start_file(&zip_name, options)
                     .map_err(|e| LauncherError::Other(format!("ZIP write error: {}", e)))?;
                 let mut src = std::fs::File::open(&path)?;
                 std::io::copy(&mut src, &mut zip)

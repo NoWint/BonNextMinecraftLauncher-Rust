@@ -6,6 +6,7 @@ use crate::loader;
 use crate::platform::paths;
 use crate::version;
 use serde::Serialize;
+use tauri::Emitter;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SnapshotInfo {
@@ -76,8 +77,17 @@ pub async fn detect_modpack_format(path: String) -> Result<instance::manager::Mo
 
 #[tauri::command]
 pub async fn import_modpack_auto(app: tauri::AppHandle, path: String) -> Result<instance::manager::GameInstance, LauncherError> {
+    let file_size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+    if file_size == 0 {
+        return Err(LauncherError::Other("Modpack file is empty".into()));
+    }
+    if file_size > 2 * 1024 * 1024 * 1024 {
+        return Err(LauncherError::Other("Modpack file is too large (max 2GB)".into()));
+    }
+    let _ = app.emit("modpack-import-progress", serde_json::json!({"stage": "detecting", "path": path}));
     let result = instance::manager::import_modpack_auto(&path).await?;
     crate::commands::achievement::try_unlock_achievement(&app, "import_modpack");
+    let _ = app.emit("modpack-import-progress", serde_json::json!({"stage": "completed", "instanceId": result.id}));
     Ok(result)
 }
 
@@ -292,4 +302,48 @@ pub fn dir_size(path: &std::path::Path) -> u64 {
         }
     }
     size
+}
+
+#[tauri::command]
+pub async fn detect_launchers() -> Result<Vec<instance::migration::DetectedLauncher>, LauncherError> {
+    instance::migration::detect_installed_launchers()
+}
+
+#[tauri::command]
+pub async fn scan_launcher_instances(
+    launcher_type: String,
+    game_dir: String,
+) -> Result<Vec<instance::migration::MigrateableInstance>, LauncherError> {
+    instance::migration::scan_launcher_instances(&launcher_type, &game_dir)
+}
+
+#[tauri::command]
+pub async fn scan_custom_directory(
+    path: String,
+) -> Result<Vec<instance::migration::MigrateableInstance>, LauncherError> {
+    instance::migration::scan_custom_directory(&path)
+}
+
+#[tauri::command]
+pub async fn migrate_instance(
+    app: tauri::AppHandle,
+    name: String,
+    version_id: String,
+    loader_type: Option<String>,
+    loader_version: Option<String>,
+    source_game_dir: String,
+    launcher_type: String,
+) -> Result<instance::manager::GameInstance, LauncherError> {
+    let _ = app.emit("migration-progress", serde_json::json!({"stage": "migrating", "name": name}));
+    let result = instance::migration::migrate_instance(
+        &name,
+        &version_id,
+        loader_type.as_deref(),
+        loader_version.as_deref(),
+        &source_game_dir,
+        &launcher_type,
+    ).await?;
+    crate::commands::achievement::try_unlock_achievement(&app, "import_modpack");
+    let _ = app.emit("migration-progress", serde_json::json!({"stage": "completed", "instanceId": result.id}));
+    Ok(result)
 }

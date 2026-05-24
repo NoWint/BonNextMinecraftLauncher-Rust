@@ -132,6 +132,25 @@ export interface GameInstance {
   playtime_seconds: number;
 }
 
+export interface DetectedLauncher {
+  launcher_type: string;
+  name: string;
+  game_dir: string;
+  instance_count: number;
+}
+
+export interface MigrateableInstance {
+  name: string;
+  version_id: string;
+  loader_type: string | null;
+  loader_version: string | null;
+  game_dir: string;
+  launcher_type: string;
+  has_mods: boolean;
+  has_saves: boolean;
+  size_mb: number;
+}
+
 export interface OfflineAuthResult {
   username: string;
   uuid: string;
@@ -154,6 +173,41 @@ export interface DeviceCodeResponse {
   message: string;
 }
 
+export interface YggdrasilProfile {
+  id: string;
+  name: string;
+}
+
+export interface YggdrasilAuthResult {
+  username: string;
+  uuid: string;
+  access_token: string;
+  client_token: string;
+  server_url: string;
+  available_profiles: YggdrasilProfile[];
+  selected_profile: YggdrasilProfile | null;
+}
+
+export interface YggdrasilSkinProfile {
+  id: string;
+  name: string;
+  properties: Array<{
+    name: string;
+    value: string;
+    signature: string | null;
+  }>;
+}
+
+export interface YggdrasilTexturesValue {
+  timestamp: number;
+  profile_id: string;
+  profile_name: string;
+  textures: {
+    SKIN?: { url: string | null; metadata?: { model: string } };
+    CAPE?: { url: string | null; metadata?: { model: string } };
+  };
+}
+
 export interface StoredAccount {
   id: string;
   username: string;
@@ -164,6 +218,11 @@ export interface StoredAccount {
   last_used: string;
   expires_at: string | null;
   avatar_url: string | null;
+  yggdrasil_client_token: string | null;
+  yggdrasil_server_url: string | null;
+  yggdrasil_selected_profile: string | null;
+  local_skin_path: string | null;
+  local_skin_model: string | null;
 }
 
 export interface LoaderInstallResult {
@@ -331,8 +390,10 @@ export const api = {
 
   checkJreAvailable: (majorVersion: number) => invoke<boolean>('check_jre_available', { majorVersion }),
   getJreSources: () => invoke<JreSourceInfo[]>('get_jre_sources'),
-  fetchAvailableJreVersions: (majorVersion: number) => invoke<JreRelease[]>('fetch_available_jre_versions', { majorVersion }),
-  downloadJavaVersion: (majorVersion: number, source: string) => invoke<string>('download_java_version', { majorVersion, source }),
+  fetchAvailableJreVersions: (majorVersion: number) =>
+    invoke<JreRelease[]>('fetch_available_jre_versions', { majorVersion }),
+  downloadJavaVersion: (majorVersion: number, source: string) =>
+    invoke<string>('download_java_version', { majorVersion, source }),
   listDownloadedJres: () => invoke<number[]>('list_downloaded_jres'),
 
   getVersions: () => cachedInvoke('versions', () => invoke<VersionEntry[]>('get_versions'), 300_000),
@@ -574,6 +635,27 @@ export const api = {
   exportMrpack: (instanceId: string, outputPath: string) =>
     invoke<void>('export_mrpack', { id: instanceId, outputPath }),
 
+  detectLaunchers: () => invoke<DetectedLauncher[]>('detect_launchers'),
+  scanLauncherInstances: (launcherType: string, gameDir: string) =>
+    invoke<MigrateableInstance[]>('scan_launcher_instances', { launcherType, gameDir }),
+  scanCustomDirectory: (path: string) => invoke<MigrateableInstance[]>('scan_custom_directory', { path }),
+  migrateInstance: (params: {
+    name: string;
+    versionId: string;
+    loaderType: string | null;
+    loaderVersion: string | null;
+    sourceGameDir: string;
+    launcherType: string;
+  }) =>
+    invoke<GameInstance>('migrate_instance', {
+      name: params.name,
+      versionId: params.versionId,
+      loaderType: params.loaderType,
+      loaderVersion: params.loaderVersion,
+      sourceGameDir: params.sourceGameDir,
+      launcherType: params.launcherType,
+    }),
+
   // Snapshots
   createSnapshot: (instanceId: string, name: string) =>
     invoke<{ id: string; name: string; created_at: string; size_bytes: number }>('create_snapshot', {
@@ -750,6 +832,7 @@ export const api = {
   // Minecraft News
   getMinecraftNews: () => invoke<MinecraftNewsEntry[]>('get_minecraft_news'),
   getMinecraftArticle: (url: string) => invoke<MinecraftArticle>('get_minecraft_article', { url }),
+  openUrl: (url: string) => invoke<void>('open_url', { url }),
 
   // Terracotta Multiplayer
   downloadTerracotta: () => invoke<void>('download_terracotta'),
@@ -777,6 +860,23 @@ export const api = {
   validateJvmArgs: (args: string) =>
     invoke<{ valid: boolean; args?: string[]; error?: string; warnings?: string[] }>('validate_jvm_args', { args }),
   getSandboxAvailability: () => invoke<SandboxAvailability>('get_sandbox_availability'),
+
+  yggdrasilLogin: (serverUrl: string, email: string, password: string) =>
+    invoke<YggdrasilAuthResult>('yggdrasil_login', { serverUrl, email, password }),
+  yggdrasilRefreshToken: () => invoke<void>('yggdrasil_refresh_token'),
+  yggdrasilGetProfile: (uuid: string, serverUrl: string, accessToken: string) =>
+    invoke<YggdrasilSkinProfile>('yggdrasil_get_profile', { uuid, serverUrl, accessToken }),
+  yggdrasilUploadSkin: (uuid: string, serverUrl: string, accessToken: string, filePath: string, model: string) =>
+    invoke<void>('yggdrasil_upload_skin', { uuid, serverUrl, accessToken, filePath, model }),
+  yggdrasilResetSkin: (uuid: string, serverUrl: string, accessToken: string) =>
+    invoke<void>('yggdrasil_reset_skin', { uuid, serverUrl, accessToken }),
+  yggdrasilSelectProfile: (accountId: string, profileId: string) =>
+    invoke<void>('yggdrasil_select_profile', { accountId, profileId }),
+  getYggdrasilPresets: () => invoke<[string, string][]>('get_yggdrasil_presets'),
+  ensureAuthlibInjector: () => invoke<string>('ensure_authlib_injector'),
+  setLocalSkin: (accountId: string, skinPath: string | null, skinModel: string | null) =>
+    invoke<void>('set_local_skin', { accountId, skinPath, skinModel }),
+  readSkinFile: (filePath: string) => invoke<string>('read_skin_file', { filePath }),
 };
 export interface SystemInfo {
   total_ram_mb: number;
