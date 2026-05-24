@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::collections::HashSet;
+
 use crate::config;
 use crate::error::LauncherError;
 use crate::instance;
@@ -6,6 +9,79 @@ use crate::platform::paths;
 use crate::security;
 use serde::Deserialize;
 use serde::Serialize;
+
+const SYNONYMS: &[(&str, &[&str])] = &[
+    ("shader", &["shaders", "glsl", "光影", "着色器"]),
+    ("modpack", &["整合包", "modpacks", "pack", "collection"]),
+    ("optimization", &["optimize", "performance", "fps", "优化", "性能", "sodium", "lithium", "starlight"]),
+    ("texture", &["textures", "resourcepack", "材质", "资源包", "rp"]),
+    ("map", &["地图", "world", "adventure", "冒险"]),
+    ("fabric", &["fabricmc", "fabric-loader"]),
+    ("forge", &["minecraftforge", "neoforge", "neo"]),
+    ("pvp", &["combat", "battle", "fighting"]),
+    ("survival", &["生存"]),
+    ("creative", &["创造", "building", "建筑"]),
+    ("redstone", &["红石", "circuit", "logic"]),
+    ("food", &["食物", "cooking", "culinary"]),
+    ("magic", &["魔法", "spell", "wizardry", "sorcery"]),
+    ("tech", &["科技", "technology", "industrial", "machine"]),
+    ("biome", &["生态", "terrain", "worldgen"]),
+];
+
+fn expand_query(query: &str) -> Vec<String> {
+    let query_lower = query.to_lowercase();
+    let mut expanded = vec![query_lower.clone()];
+
+    for (key, synonyms) in SYNONYMS {
+        if query_lower.contains(key) {
+            for syn in *synonyms {
+                if !expanded.contains(&syn.to_string()) {
+                    expanded.push(syn.to_string());
+                }
+            }
+        }
+        for syn in *synonyms {
+            if query_lower.contains(syn) {
+                if !expanded.contains(&key.to_string()) {
+                    expanded.push(key.to_string());
+                }
+                break;
+            }
+        }
+    }
+
+    expanded
+}
+
+fn tokenize(text: &str) -> Vec<String> {
+    text.to_lowercase()
+        .split(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
+        .filter(|s| !s.is_empty() && s.len() > 1)
+        .map(|s| s.to_string())
+        .collect()
+}
+
+fn compute_tf_idf(query_tokens: &[String], doc_tokens: &[String], idf: &HashMap<String, f32>) -> f32 {
+    let query_set: HashSet<_> = query_tokens.iter().collect();
+    let doc_freq: HashMap<&String, usize> = {
+        let mut freq = HashMap::new();
+        for token in doc_tokens {
+            *freq.entry(token).or_insert(0) += 1;
+        }
+        freq
+    };
+    let doc_len = doc_tokens.len().max(1) as f32;
+
+    let mut score = 0.0f32;
+    for (token, &count) in &doc_freq {
+        if query_set.contains(token) {
+            let tf = count as f32 / doc_len;
+            let idf_val = idf.get(*token).copied().unwrap_or(1.0);
+            score += tf * idf_val;
+        }
+    }
+    score
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ConflictInfo {
@@ -406,13 +482,37 @@ pub struct NLPSearchResult {
 
 #[tauri::command]
 pub async fn nlp_search_content(query: String) -> Result<Vec<NLPSearchResult>, LauncherError> {
-    let (results, _total) = modrinth::search_mods(&query, None, None, 10, 0).await?;
-    Ok(results.iter().map(|h| NLPSearchResult {
-        slug: h.slug.clone(),
-        name: h.title.clone(),
-        relevance: 0.9,
-        interpretation: query.clone(),
-    }).collect())
+    let expanded = expand_query(&query);
+    let query_tokens = tokenize(&expanded.join(" "));
+
+    let mut all_results = Vec::new();
+
+    for term in &expanded {
+        if let Ok((results, _total)) = modrinth::search_mods(term, None, None, 20, 0).await {
+            for r in &results {
+                let doc_tokens = tokenize(&format!("{} {} {}", r.title, r.description, r.slug));
+                let mut idf = HashMap::new();
+                for qt in &query_tokens {
+                    idf.entry(qt.clone()).or_insert(2.0f32);
+                }
+                let relevance = compute_tf_idf(&query_tokens, &doc_tokens, &idf);
+
+                if !all_results.iter().any(|existing: &NLPSearchResult| existing.slug == r.slug) {
+                    all_results.push(NLPSearchResult {
+                        slug: r.slug.clone(),
+                        name: r.title.clone(),
+                        relevance: relevance.min(1.0).max(0.0),
+                        interpretation: format!("Matched via: {}", term),
+                    });
+                }
+            }
+        }
+    }
+
+    all_results.sort_by(|a, b| b.relevance.partial_cmp(&a.relevance).unwrap_or(std::cmp::Ordering::Equal));
+    all_results.truncate(20);
+
+    Ok(all_results)
 }
 
 #[derive(Debug, Clone, Serialize)]

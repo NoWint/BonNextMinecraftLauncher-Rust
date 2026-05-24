@@ -2,25 +2,25 @@
    Theme: Dark (default)
    ======================================== */
 .theme-dark {
-  --bg-primary: #0D0D0D;
+  --bg-primary: #0d0d0d;
   --bg-secondary: #141414;
-  --bg-card: #1A1A1A;
-  --text-primary: #FFFFFF;
-  --text-secondary: #AAAAAA;
-  --text-muted: #666666;
-  --accent: #FFE600;
-  --border: #1A1A1A;
-  --border-hover: #2A2A2A;
-  --danger: #FF4444;
-  --success: #00FF88;
+  --bg-card: #1a1a1a;
+  --text-primary: #ffffff;
+  --text-secondary: #aaaaaa;
+  --text-muted: #888888;
+  --accent: #ffe600;
+  --border: #1a1a1a;
+  --border-hover: #2a2a2a;
+  --danger: #ff4444;
+  --success: #00ff88;
 
   /* Derive old token names from new for backward compatibility */
   --color-bg: var(--bg-primary);
   --color-panel: var(--bg-secondary);
   --color-panel-alt: var(--bg-card);
-  --color-sidebar: #0F0F0F;
+  --color-sidebar: #0f0f0f;
   --color-border: var(--border);
-  --color-border-mid: #1F1F1F;
+  --color-border-mid: #1f1f1f;
   --color-border-light: var(--border-hover);
   --color-accent: var(--accent);
   --color-success: var(--success);
@@ -29,32 +29,32 @@
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
   --color-text-tertiary: #888888;
-  --color-text-dim: #555555;
-  --color-text-faint: #444444;
+  --color-text-dim: #777777;
+  --color-text-faint: #666666;
 }
 
 /* ========================================
    Theme: Light
    ======================================== */
 .theme-light {
-  --bg-primary: #FAFAFA;
-  --bg-secondary: #F0F0F0;
-  --bg-card: #FFFFFF;
-  --text-primary: #1A1A1A;
+  --bg-primary: #fafafa;
+  --bg-secondary: #f0f0f0;
+  --bg-card: #ffffff;
+  --text-primary: #1a1a1a;
   --text-secondary: #555555;
-  --text-muted: #888888;
-  --accent: #FFE600;
-  --border: #E5E5E5;
-  --border-hover: #B0B0B0;
-  --danger: #CC2222;
-  --success: #00AA55;
+  --text-muted: #777777;
+  --accent: #ffe600;
+  --border: #e5e5e5;
+  --border-hover: #b0b0b0;
+  --danger: #cc2222;
+  --success: #00aa55;
 
   --color-bg: var(--bg-primary);
   --color-panel: var(--bg-secondary);
   --color-panel-alt: var(--bg-card);
-  --color-sidebar: #F0F0F0;
+  --color-sidebar: #f0f0f0;
   --color-border: var(--border);
-  --color-border-mid: #D0D0D0;
+  --color-border-mid: #d0d0d0;
   --color-border-light: var(--border-hover);
   --color-accent: var(--accent);
   --color-success: var(--success);
@@ -63,11 +63,11 @@
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
   --color-text-tertiary: #999999;
-  --color-text-dim: #BBBBBB;
-  --color-text-faint: #CCCCCC;
+  --color-text-dim: #999999;
+  --color-text-faint: #aaaaaa;
 
-  --color-accent-action: #1A1A1A;
-  --color-accent-action-text: #FFE600;
+  --color-accent-action: #1a1a1a;
+  --color-accent-action-text: #ffe600;
   --color-accent-06: rgba(255, 230, 0, 0.08);
   --color-accent-10: rgba(255, 230, 0, 0.12);
   --color-accent-15: rgba(255, 230, 0, 0.2);
@@ -80,7 +80,7 @@
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.12);
   --selection-bg: rgba(255, 230, 0, 0.25);
-  --selection-color: #1A1A1A;
+  --selection-color: #1a1a1a;
   --scrollbar-thumb-color: rgba(0, 0, 0, 0.2);
   --scrollbar-thumb-hover: rgba(0, 0, 0, 0.35);
 }
@@ -90,16 +90,16 @@
    ======================================== */
 .theme-oled {
   --bg-primary: #000000;
-  --bg-secondary: #0A0A0A;
-  --bg-card: #0F0F0F;
-  --text-primary: #FFFFFF;
-  --text-secondary: #888888;
-  --text-muted: #555555;
-  --accent: #FFE600;
-  --border: #1A1A1A;
+  --bg-secondary: #0a0a0a;
+  --bg-card: #0f0f0f;
+  --text-primary: #ffffff;
+  --text-secondary: #999999;
+  --text-muted: #777777;
+  --accent: #ffe600;
+  --border: #1a1a1a;
   --border-hover: #333333;
-  --danger: #FF4444;
-  --success: #00FF88;
+  --danger: #ff4444;
+  --success: #00ff88;
 
   --color-bg: var(--bg-primary);
   --color-panel: var(--bg-secondary);
@@ -114,7 +114,7 @@
   --color-text: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
-  --color-text-tertiary: #777777;
-  --color-text-dim: #444444;
-  --color-text-faint: #333333;
+  --color-text-tertiary: #888888;
+  --color-text-dim: #666666;
+  --color-text-faint: #555555;
 }
