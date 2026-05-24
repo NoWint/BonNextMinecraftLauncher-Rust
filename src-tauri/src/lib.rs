@@ -17,6 +17,21 @@ mod security;
 mod version;
 mod curseforge;
 mod commands;
+mod web_api;
+
+pub use config::AppConfig;
+pub use config::SecurityConfig;
+pub use error::LauncherError;
+pub use instance::manager::GameInstance;
+pub use security::crypto::EncryptedData;
+pub use security::crypto::decrypt_data;
+pub use security::crypto::encrypt_data;
+pub use security::crypto::encrypt_json;
+pub use security::crypto::decrypt_json;
+pub use version::manifest::VersionEntry;
+pub use version::manifest::VersionManifest;
+pub use version::manifest::LatestVersions;
+pub use web_api::WebApiServer;
 
 use launch::state::LaunchState;
 use parking_lot::Mutex;
@@ -153,6 +168,8 @@ pub fn run() {
             commands::cli::get_battery_status,
             commands::cli::cli_launch,
             commands::network::get_web_api_status,
+            commands::network::start_web_api,
+            commands::network::stop_web_api,
             commands::social::list_friends,
             commands::social::add_friend,
             commands::social::remove_friend,

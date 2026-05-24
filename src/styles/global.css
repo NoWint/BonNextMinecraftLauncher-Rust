@@ -8,7 +8,9 @@
   box-sizing: border-box;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   width: 100%;
   overflow: hidden;
@@ -17,14 +19,20 @@ html, body, #root {
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background 0.3s ease, color 0.3s ease;
+  transition:
+    background 0.3s ease,
+    color 0.3s ease;
   --overlay-enabled: 1;
 }
 
 .theme-transition *,
 .theme-transition *::before,
 .theme-transition *::after {
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease !important;
 }
 
 ::selection {
@@ -51,7 +59,10 @@ html, body, #root {
 
 .noise-overlay {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   opacity: 0.025;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
   pointer-events: none;
@@ -61,14 +72,22 @@ html, body, #root {
 }
 
 @keyframes noise-flicker {
-  0%, 100% { opacity: 0.025; }
-  50%      { opacity: 0.02; }
+  0%,
+  100% {
+    opacity: 0.025;
+  }
+  50% {
+    opacity: 0.02;
+  }
 }
 
 .scanline-overlay {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  opacity: 0.03;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0.02;
   background: repeating-linear-gradient(
     0deg,
     transparent,
@@ -83,8 +102,12 @@ html, body, #root {
 }
 
 @keyframes scanline-scroll {
-  from { background-position: 0 0; }
-  to   { background-position: 0 10px; }
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 10px;
+  }
 }
 
 .theme-light .noise-overlay,
@@ -144,8 +167,14 @@ html, body, #root {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .page-enter {
@@ -240,8 +269,12 @@ body {
 }
 
 @keyframes bg-cyber-drift {
-  from { background-position: 0 0; }
-  to   { background-position: 60px 60px; }
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 60px 60px;
+  }
 }
 
 .bg-cyberpunk body::after {
@@ -280,8 +313,12 @@ body {
 }
 
 @keyframes bg-star-drift {
-  from { background-position: 0 0; }
-  to   { background-position: 500px 400px; }
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 500px 400px;
+  }
 }
 
 /* Matrix — code rain aesthetic */
@@ -291,21 +328,24 @@ body {
   inset: 0;
   pointer-events: none;
   z-index: -1;
-  background-image:
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0, 255, 136, 0.015) 2px,
-      rgba(0, 255, 136, 0.015) 4px
-    );
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 255, 136, 0.015) 2px,
+    rgba(0, 255, 136, 0.015) 4px
+  );
   background-size: 100% 4px;
   animation: bg-matrix-rain 3s linear infinite;
 }
 
 @keyframes bg-matrix-rain {
-  from { background-position: 0 0; }
-  to   { background-position: 0 60px; }
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 60px;
+  }
 }
 
 .bg-matrix body::after {
@@ -323,5 +363,3 @@ body {
     display: none !important;
   }
 }
-
-

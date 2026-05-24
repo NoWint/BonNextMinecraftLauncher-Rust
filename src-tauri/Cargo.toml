@@ -50,6 +50,9 @@ fastnbt = "2"
 clap = { version = "4", features = ["derive"] }
 mdns-sd = "0.13"
 discord-rich-presence = "0.2"
+axum = { version = "0.8", features = ["ws"] }
+tower-http = { version = "0.6", features = ["cors"] }
+rand = "0.8"
 
 [dev-dependencies]
 indoc = "2"
