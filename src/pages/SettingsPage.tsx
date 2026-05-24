@@ -1599,8 +1599,8 @@ export default function SettingsPage() {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => {
-                logout();
+              onClick={async () => {
+                await logout();
                 window.location.reload();
               }}
             >
