@@ -1,6 +1,6 @@
 [package]
 name = "bonnext"
-version = "0.0.4"
+version = "0.0.5"
 description = "A cross-platform Minecraft Java Edition launcher"
 authors = ["you"]
 edition = "2021"
