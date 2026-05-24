@@ -18,6 +18,7 @@ mod version;
 mod curseforge;
 mod commands;
 mod web_api;
+mod terracotta;
 
 pub use config::AppConfig;
 pub use config::SecurityConfig;
@@ -39,6 +40,107 @@ use std::sync::Arc;
 
 struct AppState {
     launch_state: Arc<Mutex<LaunchState>>,
+}
+
+static TERRACOTTA_PORT: Mutex<Option<u16>> = Mutex::new(None);
+
+#[tauri::command]
+async fn download_terracotta() -> Result<(), LauncherError> {
+    terracotta::download_terracotta(|_, _| {}).await
+}
+
+#[tauri::command]
+async fn is_terracotta_installed() -> Result<bool, LauncherError> {
+    Ok(terracotta::is_terracotta_installed())
+}
+
+#[tauri::command]
+async fn start_terracotta() -> Result<u16, LauncherError> {
+    let port = terracotta::find_available_port().await?;
+    let existing_port = *TERRACOTTA_PORT.lock();
+    if let Some(p) = existing_port {
+        let client = crate::http_client::build_client();
+        if client
+            .get(&format!("http://127.0.0.1:{}/state", p))
+            .send()
+            .await
+            .is_ok()
+        {
+            return Ok(p);
+        }
+    }
+
+    let binary = terracotta::get_terracotta_binary_path();
+    if !binary.exists() {
+        return Err(LauncherError::Other(
+            "Terracotta is not installed".to_string(),
+        ));
+    }
+
+    let child = std::process::Command::new(&binary)
+        .arg("--port")
+        .arg(port.to_string())
+        .spawn()?;
+
+    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+    std::mem::forget(child);
+
+    *TERRACOTTA_PORT.lock() = Some(port);
+    Ok(port)
+}
+
+#[tauri::command]
+async fn stop_terracotta() -> Result<(), LauncherError> {
+    let port = {
+        let mut p = TERRACOTTA_PORT.lock();
+        p.take()
+    };
+
+    if let Some(port) = port {
+        terracotta::set_idle(port).await.ok();
+        #[cfg(not(target_os = "windows"))]
+        let _ = std::process::Command::new("pkill")
+            .arg("-f")
+            .arg("terracotta")
+            .output();
+        #[cfg(target_os = "windows")]
+        let _ = std::process::Command::new("taskkill")
+            .args(&["/F", "/IM", "terracotta.exe"])
+            .output();
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_terracotta_state() -> Result<terracotta::TerracottaState, LauncherError> {
+    let port = *TERRACOTTA_PORT.lock();
+    let port = port.ok_or_else(|| LauncherError::Other("Terracotta is not running".to_string()))?;
+    terracotta::get_state(port).await
+}
+
+#[tauri::command]
+async fn terracotta_set_host() -> Result<(), LauncherError> {
+    let port = *TERRACOTTA_PORT.lock();
+    let port = port.ok_or_else(|| LauncherError::Other("Terracotta is not running".to_string()))?;
+    terracotta::set_scanning(port).await?;
+    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+    terracotta::set_hosting(port).await
+}
+
+#[tauri::command]
+async fn terracotta_set_guest(room: String) -> Result<(), LauncherError> {
+    let port = *TERRACOTTA_PORT.lock();
+    let port = port.ok_or_else(|| LauncherError::Other("Terracotta is not running".to_string()))?;
+    terracotta::set_guesting(port, &room).await
+}
+
+#[tauri::command]
+async fn terracotta_set_idle() -> Result<(), LauncherError> {
+    let port = *TERRACOTTA_PORT.lock();
+    let port = port.ok_or_else(|| LauncherError::Other("Terracotta is not running".to_string()))?;
+    terracotta::set_idle(port).await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -198,6 +300,14 @@ pub fn run() {
             commands::misc::fix_file_permissions,
             commands::misc::validate_jvm_args,
             commands::misc::get_sandbox_availability,
+            download_terracotta,
+            is_terracotta_installed,
+            start_terracotta,
+            stop_terracotta,
+            get_terracotta_state,
+            terracotta_set_host,
+            terracotta_set_guest,
+            terracotta_set_idle,
 
         ])
         .setup(|_app| {

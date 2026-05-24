@@ -67,12 +67,15 @@ pub fn find_downloaded_jre(major_version: u32) -> Option<PathBuf> {
     let target_dir = paths::get_game_dir()
         .join("java")
         .join(major_version.to_string());
-    let java_exe = java_executable_path(&target_dir);
-    if java_exe.exists() {
-        tracing::info!("Found downloaded JRE {}: {}", major_version, java_exe.display());
-        Some(java_exe)
-    } else {
-        None
+    if !target_dir.exists() {
+        return None;
+    }
+    match find_java_after_extract(&target_dir) {
+        Ok(java_path) if java_path.exists() => {
+            tracing::info!("Found downloaded JRE {}: {}", major_version, java_path.display());
+            Some(java_path)
+        }
+        _ => None,
     }
 }
 
@@ -148,15 +151,13 @@ pub async fn download_java_with_source(
         .join("java")
         .join(java_version.to_string());
 
-    let java_exe = java_executable_path(&target_dir);
-
-    if java_exe.exists() {
+    if let Some(cached) = find_downloaded_jre(java_version) {
         tracing::info!(
             "Java {} already present at {}",
             java_version,
-            java_exe.display()
+            cached.display()
         );
-        return Ok(java_exe.to_string_lossy().to_string());
+        return Ok(cached.to_string_lossy().to_string());
     }
 
     std::fs::create_dir_all(&target_dir)?;
