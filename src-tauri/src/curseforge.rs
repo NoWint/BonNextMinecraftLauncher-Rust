@@ -20,7 +20,15 @@ fn get_cf_api_key() -> String {
             return key;
         }
     }
+    tracing::warn!(
+        "No CurseForge API key configured. CurseForge features will be unavailable. \
+         Set the BONNEXT_CF_API_KEY environment variable or configure it in Settings > Security > API Keys for full access."
+    );
     String::new()
+}
+
+fn has_cf_api_key() -> bool {
+    !get_cf_api_key().is_empty()
 }
 
 fn cf_headers() -> reqwest::header::HeaderMap {
@@ -291,6 +299,10 @@ pub async fn search_mods(
     limit: u64,
     offset: u64,
 ) -> Result<(Vec<ModResult>, u64), LauncherError> {
+    if !has_cf_api_key() {
+        return Ok((Vec::new(), 0));
+    }
+
     let client = http_client::build_client();
     let mut url = format!("{}/mods/search", CF_API_BASE);
     url.push_str(&format!("?searchFilter={}&gameId=432", urlencoding::encode(query)));
@@ -332,6 +344,10 @@ pub async fn search_mods(
 }
 
 pub async fn get_mod(mod_id: u64) -> Result<ModResult, LauncherError> {
+    if !has_cf_api_key() {
+        return Err(LauncherError::Other("CurseForge API key not configured. Set BONNEXT_CF_API_KEY env var or configure in Settings.".into()));
+    }
+
     let client = http_client::build_client();
     let url = format!("{}/mods/{}", CF_API_BASE, mod_id);
 
@@ -348,6 +364,10 @@ pub async fn get_mod(mod_id: u64) -> Result<ModResult, LauncherError> {
 }
 
 pub async fn get_mod_full(mod_id: u64) -> Result<ModProjectFull, LauncherError> {
+    if !has_cf_api_key() {
+        return Err(LauncherError::Other("CurseForge API key not configured. Set BONNEXT_CF_API_KEY env var or configure in Settings.".into()));
+    }
+
     let client = http_client::build_client();
     let url = format!("{}/mods/{}", CF_API_BASE, mod_id);
 
@@ -364,6 +384,10 @@ pub async fn get_mod_full(mod_id: u64) -> Result<ModProjectFull, LauncherError> 
 }
 
 pub async fn get_mod_versions(mod_id: u64) -> Result<Vec<ModVersion>, LauncherError> {
+    if !has_cf_api_key() {
+        return Ok(Vec::new());
+    }
+
     let client = http_client::build_client();
     let url = format!("{}/mods/{}/files", CF_API_BASE, mod_id);
 
@@ -380,6 +404,10 @@ pub async fn get_mod_versions(mod_id: u64) -> Result<Vec<ModVersion>, LauncherEr
 }
 
 pub async fn get_featured() -> Result<Vec<ModResult>, LauncherError> {
+    if !has_cf_api_key() {
+        return Ok(Vec::new());
+    }
+
     let client = http_client::build_client();
     let url = format!("{}/mods/featured?gameId=432", CF_API_BASE);
 
@@ -398,6 +426,10 @@ pub async fn get_featured() -> Result<Vec<ModResult>, LauncherError> {
 }
 
 pub async fn get_mod_files(mod_id: u64) -> Result<Vec<ModFile>, LauncherError> {
+    if !has_cf_api_key() {
+        return Ok(Vec::new());
+    }
+
     let client = http_client::build_client();
     let url = format!("{}/mods/{}/files", CF_API_BASE, mod_id);
 
