@@ -298,6 +298,45 @@ const commandRegistry: Record<string, AICommand> = {
     },
   },
 
+  install_loader: {
+    name: 'install_loader',
+    description:
+      'Install a mod loader (Fabric, Forge, NeoForge, Quilt) into an existing instance. Use this after creating an instance to set up the loader.',
+    riskLevel: 'high',
+    paramDefs: {
+      instance_id: { type: 'string', description: 'Target instance ID', required: true },
+      loader_type: {
+        type: 'string',
+        description: 'Loader type to install',
+        required: true,
+        enum: ['fabric', 'forge', 'neoforge', 'quilt'],
+      },
+      loader_version: { type: 'string', description: 'Loader version (optional, uses latest stable if omitted)' },
+    },
+    execute: async (params) => {
+      try {
+        const instanceId = String(params.instance_id || '');
+        const loaderType = String(params.loader_type || '');
+        if (!instanceId || !loaderType) return { success: false, error: 'instance_id and loader_type are required' };
+
+        const instances = await api.listInstances();
+        const inst = instances.find((i) => i.id === instanceId);
+        if (!inst) return { success: false, error: `Instance ${instanceId} not found` };
+
+        const result = await api.installLoader(
+          loaderType,
+          inst.version_id,
+          inst.version_url,
+          params.loader_version ? String(params.loader_version) : '',
+          instanceId,
+        );
+        return { success: true, data: result, message: `${loaderType} loader installed on instance ${instanceId}` };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Loader installation failed' };
+      }
+    },
+  },
+
   get_config: {
     name: 'get_config',
     description: 'Get the current launcher configuration settings',
@@ -513,9 +552,9 @@ export function buildOpenAITools(): OpenAITool[] {
 }
 
 export function buildSystemPrompt(): string {
-  return `You are BonNext AI Assistant, an intelligent helper for a Minecraft launcher. You help users manage their game through natural language.
+  return `You are BonNext AI Assistant, an intelligent agent for a Minecraft launcher. You can autonomously execute complex multi-step tasks by chaining tools together.
 
-You have access to tools that can search mods, install mods, launch games, create instances, check instances, view/modify settings, search versions, diagnose crash reports, and apply automatic fixes. Use these tools when the user asks you to perform actions. All tools execute automatically.
+You have access to tools that can search mods, install mods, install loaders, launch games, create instances, check instances, view/modify settings, search versions, diagnose crash reports, and apply automatic fixes. Use these tools when the user asks you to perform actions. All tools execute automatically.
 
 Rules:
 1. Always explain what you're doing before and after calling a tool
@@ -530,7 +569,8 @@ Rules:
    b. Create a new instance with an appropriate name and version
    c. Search for relevant mods on Modrinth based on the theme (4-8 mods)
    d. Install each mod into the new instance
-   e. Summarize what was created and suggest next steps`;
+   e. Summarize what was created and suggest next steps
+9. Agent mode: When asked to set up a complete environment (e.g. "install Fabric 1.20.1", "set me up for Skyblock"), execute the full workflow autonomously in one response — version search, instance creation, loader setup, essential mod installation. Chain as many tool calls as needed. Don't ask for step-by-step confirmation.`;
 }
 
 export function parseToolCallsToCommands(toolCalls: ToolCall[]): ParsedCommand[] {
