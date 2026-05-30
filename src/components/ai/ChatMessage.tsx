@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useI18n } from '../../i18n';
 import type { ChatMessage as ChatMessageType, Task } from '../../ai/types';
 import styles from './ChatMessage.module.css';
@@ -15,13 +15,17 @@ function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+const GLITCH_RATE = 0.12;
+
 export const ChatMessage: React.FC<ChatMessageProps> = ({ message, tasks, onConfirm, onCancel, onRetry }) => {
   const isUser = message.role === 'user';
   const messageTasks = Object.values(tasks).filter((t) => t.messageId === message.id);
 
+  const glitch = useMemo(() => Math.random() < GLITCH_RATE, []);
+
   return (
     <div className={`${styles.message} ${isUser ? styles['message--user'] : styles['message--assistant']}`}>
-      <div className={styles.message__bubble}>
+      <div className={`${styles.message__bubble} ${glitch ? styles['message__bubble--glitch'] : ''}`}>
         {message.content}
         {message.isStreaming && (
           <span className={styles.typingDots}>

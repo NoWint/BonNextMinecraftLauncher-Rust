@@ -1,8 +1,12 @@
+/* ========================================
+   AI Chat Panel — Container
+   ======================================== */
+
 .panel {
   position: fixed;
   top: 0;
   right: 0;
-  width: 360px;
+  width: 380px;
   height: 100vh;
   background: var(--color-panel);
   border-left: 1px solid var(--color-border-light);
@@ -11,17 +15,14 @@
   z-index: 1000;
   transform: translateX(100%);
   opacity: 0;
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 0);
   transition:
     transform 0.35s var(--ease-out-expo),
-    opacity 0.25s ease,
-    clip-path 0.4s var(--ease-out-expo);
+    opacity 0.25s ease;
 }
 
 .panel--open {
   transform: translateX(0);
   opacity: 1;
-  clip-path: polygon(12px 0, 100% 0, 100% 100%, 0 100%, 0 12px);
 }
 
 .panel__header {
@@ -31,14 +32,15 @@
   padding: 0.75em 1em;
   border-bottom: 1px solid var(--color-border-light);
   background: var(--color-panel-alt);
-  clip-path: var(--clip-small);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 4px), calc(100% - 12px) 100%, 0 100%);
 }
 
 .panel__title {
   font-family: var(--font-heading);
   font-size: 1em;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   color: var(--color-accent);
+  text-shadow: 0 0 8px var(--color-accent-15);
 }
 
 .panel__actions {
@@ -51,17 +53,23 @@
   border: 1px solid var(--color-border-light);
   color: var(--color-text-secondary);
   cursor: pointer;
-  padding: 0.25em 0.4em;
-  font-size: 0.6em;
+  padding: 0.25em 0.5em;
+  font-size: 0.55em;
   font-family: var(--font-mono);
+  letter-spacing: 0.04em;
   transition: all var(--transition-fast);
-  clip-path: var(--clip-badge);
-
-  &:hover {
-    color: var(--color-accent);
-    border-color: var(--color-accent);
-  }
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
 }
+
+.panel__actionBtn:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 6px var(--color-accent-10);
+}
+
+/* ========================================
+   Messages Area
+   ======================================== */
 
 .panel__messages {
   flex: 1;
@@ -69,9 +77,10 @@
   padding: 0.75em;
   display: flex;
   flex-direction: column;
-  gap: 0.6em;
+  gap: 0.7em;
 }
 
+/* Empty state */
 .panel__empty {
   flex: 1;
   display: flex;
@@ -84,22 +93,38 @@
 }
 
 .panel__emptyIcon {
-  width: 2.5em;
-  height: 2.5em;
-  border: 2px solid var(--color-border-light);
-  clip-path: var(--clip-diamond);
+  width: 3em;
+  height: 3em;
+  border: 2px solid var(--color-accent-20);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--color-accent);
   font-family: var(--font-heading);
-  font-size: 0.8em;
+  font-size: 0.9em;
+  animation: emptyPulse 3s ease-in-out infinite;
+}
+
+@keyframes emptyPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 var(--color-accent-05);
+  }
+  50% {
+    box-shadow: 0 0 18px var(--color-accent-10);
+  }
 }
 
 .panel__emptyText {
   text-align: center;
-  line-height: 1.5;
+  line-height: 1.6;
+  font-size: 0.9em;
 }
+
+/* ========================================
+   Input Area
+   ======================================== */
 
 .panel__inputArea {
   padding: 0.75em;
@@ -113,70 +138,161 @@
   align-items: flex-end;
 }
 
+/* Input with scanning line */
 .panel__input {
   flex: 1;
   background: var(--color-bg);
   border: 1px solid var(--color-border-light);
   color: var(--color-text);
   font-family: var(--font-body);
-  font-size: 0.7em;
+  font-size: 0.68em;
   padding: 0.5em 0.75em;
   resize: none;
   outline: none;
   min-height: 2.2em;
   max-height: 6em;
-  clip-path: var(--clip-small);
-  transition: border-color var(--transition-fast);
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+  position: relative;
+}
 
-  &:focus {
-    border-color: var(--color-accent);
+.panel__input::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 40%;
+  height: 2px;
+  background: var(--color-accent);
+  animation: scanLine 3s linear infinite;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.panel__input:focus {
+  border-color: var(--color-accent);
+  box-shadow:
+    0 0 12px var(--color-accent-15),
+    inset 0 0 12px var(--color-accent-05);
+}
+
+.panel__input:focus::after {
+  opacity: 1;
+}
+
+.panel__input::placeholder {
+  color: var(--color-text-faint);
+}
+
+@keyframes scanLine {
+  0% {
+    left: 0;
+    width: 30%;
   }
-
-  &::placeholder {
-    color: var(--color-text-faint);
+  25% {
+    left: 70%;
+    width: 30%;
+  }
+  50% {
+    left: 0;
+    width: 60%;
+  }
+  75% {
+    left: 40%;
+    width: 20%;
+  }
+  100% {
+    left: 0;
+    width: 30%;
   }
 }
+
+/* ========================================
+   Send Button — Diamond
+   ======================================== */
 
 .panel__sendBtn {
   background: var(--color-accent);
   color: var(--color-bg);
   border: none;
   cursor: pointer;
-  padding: 0.5em 0.75em;
+  width: 2.5em;
+  height: 2.5em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.7em;
   font-family: var(--font-heading);
-  letter-spacing: 0.05em;
-  clip-path: var(--clip-small);
-  transition: all var(--transition-fast);
-  white-space: nowrap;
+  font-weight: 700;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
 
-  &:hover {
-    filter: brightness(1.1);
-    transform: translateY(-1px);
+.panel__sendBtn:hover:not(:disabled) {
+  transform: rotate(15deg) scale(1.08);
+  box-shadow: 0 0 20px var(--color-accent-30);
+}
+
+.panel__sendBtn:active:not(:disabled) {
+  animation: glitchBtn 0.2s ease;
+}
+
+@keyframes glitchBtn {
+  0% {
+    transform: translateX(0);
   }
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    transform: none;
+  20% {
+    transform: translateX(4px);
+  }
+  40% {
+    transform: translateX(0);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: scale(0.85);
   }
 }
+
+.panel__sendBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ========================================
+   Error
+   ======================================== */
 
 .panel__error {
   font-size: 0.5em;
   color: var(--color-error);
   padding: 0.3em 0.75em;
   font-family: var(--font-mono);
+  border-top: 1px solid rgba(255, 68, 68, 0.15);
 }
+
+/* ========================================
+   Overlay
+   ======================================== */
 
 .panel__overlay {
   position: fixed;
   inset: 0;
-  background: var(--color-overlay-30);
+  background: rgba(0, 0, 0, 0.5);
   z-index: 999;
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--transition-normal);
+  backdrop-filter: blur(2px);
 }
 
 .panel__overlay--visible {

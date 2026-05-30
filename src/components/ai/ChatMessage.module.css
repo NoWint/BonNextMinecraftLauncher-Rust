@@ -1,31 +1,40 @@
+/* ========================================
+   Message Bubbles — ZZZ Neo-Tokyo
+   ======================================== */
+
 .message {
   display: flex;
   flex-direction: column;
-  max-width: 92%;
-  font-size: 0.72em;
+  max-width: 90%;
+  font-size: 0.68em;
   line-height: 1.6;
+  animation: msgEnter 0.28s ease-out;
+}
+
+@keyframes msgEnter {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .message--user {
   align-self: flex-end;
 }
 
-.message--assistant {
-  align-self: flex-start;
-}
-
-.message__bubble {
-  padding: 0.7em 0.9em;
-  border-radius: 2px;
-  word-break: break-word;
-  white-space: pre-wrap;
-}
-
 .message--user .message__bubble {
   background: var(--color-accent-10);
   border: 1px solid var(--color-accent-30);
   color: var(--color-text);
-  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+}
+
+.message--assistant {
+  align-self: flex-start;
 }
 
 .message--assistant .message__bubble {
@@ -35,16 +44,88 @@
   clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px);
 }
 
+.message--assistant:hover {
+  transform: translateX(1px);
+}
+
+.message--user:hover {
+  transform: translateX(-1px);
+}
+
+.message__bubble {
+  padding: 0.65em 0.85em;
+  border-radius: 0;
+  word-break: break-word;
+  white-space: pre-wrap;
+  position: relative;
+}
+
+/* ========================================
+   RGB Chromatic Aberration (15% chance)
+   ======================================== */
+
+.message__bubble::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 0.65em 0.85em;
+  color: transparent;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.3s;
+  display: none; /* hidden by default, JS will toggle */
+}
+
+.message__bubble--glitch::after {
+  display: block;
+  opacity: 0.08;
+  background: inherit;
+  clip-path: inherit;
+  text-shadow:
+    2px 0 #0ff,
+    -2px 0 #f0f;
+  animation: rgbShift 0.15s steps(2);
+}
+
+@keyframes rgbShift {
+  0% {
+    transform: translate(0);
+  }
+  25% {
+    transform: translate(-2px, 1px);
+  }
+  50% {
+    transform: translate(2px, -1px);
+  }
+  75% {
+    transform: translate(0.5px);
+  }
+  100% {
+    transform: translate(0);
+  }
+}
+
+/* ========================================
+   Message Meta
+   ======================================== */
+
 .message__time {
-  font-size: 0.7em;
+  font-size: 0.65em;
   color: var(--color-text-faint);
   font-family: var(--font-mono);
-  margin-top: 0.2em;
+  margin-top: 0.15em;
+  letter-spacing: 0.02em;
 }
 
 .message--user .message__time {
   text-align: right;
 }
+
+/* ========================================
+   Commands Container
+   ======================================== */
 
 .message__commands {
   display: flex;
@@ -61,32 +142,92 @@
 .commandCard {
   background: var(--color-bg);
   border: 1px solid var(--color-border-light);
-  border-radius: 8px;
-  padding: 0.6em 0.75em;
-  font-size: 0.92em;
+  padding: 0.55em 0.7em;
+  font-size: 0.88em;
   width: 100%;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
   transition:
     border-color 0.25s ease,
     box-shadow 0.25s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .commandCard--executing {
   border-color: var(--color-accent-30);
-  box-shadow: 0 0 12px var(--color-accent-06);
+  box-shadow: 0 0 14px var(--color-accent-06);
+}
+
+.commandCard--executing::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -25deg,
+    transparent,
+    transparent 8px,
+    rgba(255, 230, 0, 0.03) 8px,
+    rgba(255, 230, 0, 0.03) 10px
+  );
+  animation: scanDiagonal 1.5s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes scanDiagonal {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
 }
 
 .commandCard--completed {
-  border-color: color-mix(in srgb, var(--color-success) 30%, var(--color-border-light));
+  border-color: color-mix(in srgb, var(--color-success) 35%, var(--color-border-light));
+  animation: glitchResolve 0.2s ease;
+}
+
+@keyframes glitchResolve {
+  0% {
+    transform: translateX(4px);
+  }
+  20% {
+    transform: translateX(-2px);
+  }
+  50% {
+    transform: translateX(1px);
+  }
+  100% {
+    transform: translateX(0);
+  }
 }
 
 .commandCard--failed {
-  border-color: color-mix(in srgb, var(--color-error) 30%, var(--color-border-light));
+  border-right: 2px solid var(--color-error);
+  animation: shakeCard 0.25s ease;
+}
+
+@keyframes shakeCard {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  50% {
+    transform: translateX(3px);
+  }
+  75% {
+    transform: translateX(-1px);
+  }
 }
 
 .commandCard--confirmed {
   border-color: var(--color-border-light);
 }
 
+/* Card layout */
 .commandCard__main {
   display: flex;
   gap: 0.55em;
@@ -94,14 +235,14 @@
 }
 
 .commandCard__iconWrap {
-  width: 1.7em;
-  height: 1.7em;
+  width: 1.6em;
+  height: 1.6em;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: 4px;
   flex-shrink: 0;
-  margin-top: 0.05em;
+  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 3px 100%, 0 calc(100% - 3px));
 }
 
 .commandCard--executing .commandCard__iconWrap {
@@ -120,9 +261,10 @@
   background: var(--color-panel-alt);
 }
 
+/* Status icons */
 .spinner {
-  width: 0.85em;
-  height: 0.85em;
+  width: 0.8em;
+  height: 0.8em;
   border: 2px solid var(--color-accent-20);
   border-top-color: var(--color-accent);
   border-radius: 50%;
@@ -131,23 +273,23 @@
 
 .checkmark {
   color: var(--color-success);
-  font-size: 0.8em;
+  font-size: 0.7em;
   font-weight: 700;
   line-height: 1;
 }
 
 .crossmark {
   color: var(--color-error);
-  font-size: 0.85em;
+  font-size: 0.75em;
   font-weight: 700;
   line-height: 1;
 }
 
 .dot {
-  width: 0.4em;
-  height: 0.4em;
-  border-radius: 50%;
+  width: 0.35em;
+  height: 0.35em;
   background: var(--color-text-muted);
+  clip-path: polygon(0 0, calc(100% - 1px) 0, 100% 1px, 100% 100%, 0 100%);
 }
 
 .commandCard__body {
@@ -157,34 +299,35 @@
 
 .commandCard__label {
   font-family: var(--font-mono);
-  font-size: 0.78em;
+  font-size: 0.72em;
   color: var(--color-text);
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  margin-bottom: 0.2em;
+  margin-bottom: 0.15em;
 }
 
 .commandCard__params {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25em;
-  margin-bottom: 0.25em;
+  margin-bottom: 0.2em;
 }
 
 .commandCard__param {
   display: inline-flex;
   align-items: center;
   gap: 0.15em;
-  font-size: 0.7em;
+  font-size: 0.65em;
   background: var(--color-panel-alt);
-  padding: 0.12em 0.4em;
-  border-radius: 3px;
+  padding: 0.1em 0.4em;
+  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
 }
 
 .commandCard__paramKey {
   color: var(--color-text-muted);
   font-family: var(--font-mono);
+  font-size: 0.9em;
 }
 
 .commandCard__paramVal {
@@ -193,10 +336,12 @@
   font-weight: 500;
 }
 
+/* Status text */
 .commandCard__status {
-  font-size: 0.7em;
+  font-size: 0.65em;
   font-family: var(--font-body);
   line-height: 1.4;
+  letter-spacing: 0.01em;
 }
 
 .commandCard__status--executing {
@@ -215,58 +360,45 @@
   color: var(--color-text-muted);
 }
 
+/* Retry button */
 .commandCard__retryBtn {
-  margin-top: 0.45em;
-  font-family: var(--font-body);
-  font-size: 0.68em;
-  padding: 0.3em 0.8em;
+  margin-top: 0.4em;
+  font-family: var(--font-mono);
+  font-size: 0.62em;
+  padding: 0.25em 0.7em;
   cursor: pointer;
-  border-radius: 4px;
   border: 1px solid var(--color-border-light);
   background: transparent;
   color: var(--color-accent);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   font-weight: 500;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
   transition: all 0.15s ease;
 }
 
 .commandCard__retryBtn:hover {
   background: var(--color-accent-10);
   border-color: var(--color-accent-30);
+  box-shadow: 0 0 10px var(--color-accent-10);
 }
 
 /* ========================================
-   Animations
+   Typing dots — Square
    ======================================== */
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes dotPulse {
-  0%,
-  80%,
-  100% {
-    opacity: 0.3;
-  }
-  40% {
-    opacity: 1;
-  }
-}
 
 .typingDots {
   display: inline-flex;
-  gap: 0.2em;
+  gap: 0.22em;
   margin-left: 0.3em;
+  align-items: center;
+  height: 1em;
 }
 
 .typingDot {
-  width: 0.35em;
-  height: 0.35em;
-  border-radius: 50%;
+  width: 0.3em;
+  height: 0.3em;
   background: var(--color-accent);
+  clip-path: polygon(0 0, calc(100% - 1px) 0, 100% 1px, 100% 100%, 0 100%);
   animation: dotPulse 1.4s infinite ease-in-out;
 }
 
@@ -275,4 +407,27 @@
 }
 .typingDot:nth-child(3) {
   animation-delay: 0.4s;
+}
+
+@keyframes dotPulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+/* ========================================
+   Shared Animations
+   ======================================== */
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
