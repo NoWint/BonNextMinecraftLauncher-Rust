@@ -360,7 +360,7 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
       try {
         let accumulatedContent = '';
 
-        const result = await streamChatCompletion(state.config, apiMessages, tools, (content) => {
+        let result = await streamChatCompletion(state.config, apiMessages, tools, (content) => {
           accumulatedContent += content;
           dispatch({
             type: 'UPDATE_MESSAGE',
@@ -375,7 +375,10 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
           updates: { content: accumulatedContent || result.content, isStreaming: false },
         });
 
-        if (result.toolCalls.length > 0) {
+        // Multi-round tool execution loop: keep calling the model until it stops returning tool calls
+        let maxRounds = 5;
+        while (result.toolCalls.length > 0 && maxRounds > 0) {
+          maxRounds--;
           apiMessages.push({
             role: 'assistant',
             content: result.content || null,
@@ -385,37 +388,36 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
           const toolResults = await executeToolCalls(result.toolCalls, assistantMessageId);
           apiMessages.push(...toolResults);
 
-          if (result.toolCalls.length > 0) {
-            const followUpId = nextMessageId();
-            const followUpMessage: ChatMessageType = {
-              id: followUpId,
-              role: 'assistant',
-              content: '',
-              commands: [],
-              timestamp: Date.now(),
-              isStreaming: true,
-            };
-            dispatch({ type: 'ADD_MESSAGE', message: followUpMessage });
+          // Ask the model to continue with the tool results
+          const followUpId = nextMessageId();
+          const followUpMessage: ChatMessageType = {
+            id: followUpId,
+            role: 'assistant',
+            content: '',
+            commands: [],
+            timestamp: Date.now(),
+            isStreaming: true,
+          };
+          dispatch({ type: 'ADD_MESSAGE', message: followUpMessage });
 
-            let followUpContent = '';
-            const followUpResult = await streamChatCompletion(state.config, apiMessages, tools, (content) => {
-              followUpContent += content;
-              dispatch({
-                type: 'UPDATE_MESSAGE',
-                id: followUpId,
-                updates: { content: followUpContent },
-              });
-            });
-
+          let followUpContent = '';
+          result = await streamChatCompletion(state.config, apiMessages, tools, (content) => {
+            followUpContent += content;
             dispatch({
               type: 'UPDATE_MESSAGE',
               id: followUpId,
-              updates: {
-                content: followUpContent || followUpResult.content,
-                isStreaming: false,
-              },
+              updates: { content: followUpContent },
             });
-          }
+          });
+
+          dispatch({
+            type: 'UPDATE_MESSAGE',
+            id: followUpId,
+            updates: {
+              content: followUpContent || result.content,
+              isStreaming: false,
+            },
+          });
         }
       } catch (e) {
         dispatch({
