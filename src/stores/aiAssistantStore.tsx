@@ -389,35 +389,35 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
           apiMessages.push(...toolResults);
 
           // Ask the model to continue with the tool results
-          const followUpId = nextMessageId();
-          const followUpMessage: ChatMessageType = {
-            id: followUpId,
-            role: 'assistant',
-            content: '',
-            commands: [],
-            timestamp: Date.now(),
-            isStreaming: true,
-          };
-          dispatch({ type: 'ADD_MESSAGE', message: followUpMessage });
-
           let followUpContent = '';
           result = await streamChatCompletion(state.config, apiMessages, tools, (content) => {
             followUpContent += content;
-            dispatch({
-              type: 'UPDATE_MESSAGE',
-              id: followUpId,
-              updates: { content: followUpContent },
-            });
           });
 
-          dispatch({
-            type: 'UPDATE_MESSAGE',
-            id: followUpId,
-            updates: {
-              content: followUpContent || result.content,
-              isStreaming: false,
-            },
-          });
+          // Only add a follow-up message if there's actual content or more tool calls
+          if (followUpContent || result.content || result.toolCalls.length > 0) {
+            const followUpId = nextMessageId();
+            dispatch({
+              type: 'ADD_MESSAGE',
+              message: {
+                id: followUpId,
+                role: 'assistant',
+                content: followUpContent || result.content || '',
+                commands: [],
+                timestamp: Date.now(),
+                isStreaming: result.toolCalls.length === 0,
+              },
+            });
+
+            // If no more tool calls, mark as final
+            if (result.toolCalls.length === 0) {
+              dispatch({
+                type: 'UPDATE_MESSAGE',
+                id: followUpId,
+                updates: { isStreaming: false },
+              });
+            }
+          }
         }
       } catch (e) {
         dispatch({
