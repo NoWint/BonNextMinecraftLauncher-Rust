@@ -53,7 +53,7 @@ function AppShell() {
   const { state: authState } = useAuth();
   const { state: instState } = useInstances();
   const { t } = useI18n();
-  const { togglePanel: toggleAIPanel } = useAIAssistant();
+  const { state, togglePanel: toggleAIPanel } = useAIAssistant();
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
   const [socialOpen, setSocialOpen] = useState(false);
@@ -128,7 +128,7 @@ function AppShell() {
           onSocialToggle={() => setSocialOpen(!socialOpen)}
           onSocialOpen={() => setSocialOpen(true)}
         />
-        <main className="app-main">
+        <main className={`app-main ${state.isOpen ? 'app-main--ai-open' : ''}`}>
           <div className="decorative-rect decorative-rect--top-right" />
           <div className="decorative-rect decorative-rect--bottom-left" />
 

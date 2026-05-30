@@ -119,6 +119,7 @@ body,
   display: flex;
   height: 100%;
   position: relative;
+  perspective: 1500px;
 }
 
 .app-sidebar {
@@ -143,6 +144,18 @@ body,
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transform: perspective(1500px) rotateY(0deg) scale(1) translateZ(0);
+  filter: brightness(1) blur(0);
+  transition:
+    transform 0.7s cubic-bezier(0.2, 0.8, 0.3, 1),
+    filter 0.7s cubic-bezier(0.2, 0.8, 0.3, 1);
+  transform-origin: center center;
+}
+
+.app-main--ai-open {
+  transform: perspective(1500px) rotateY(-3deg) scale(0.88) translateZ(-80px);
+  filter: brightness(0.55) blur(3px);
+  pointer-events: none;
 }
 
 .decorative-rect {
