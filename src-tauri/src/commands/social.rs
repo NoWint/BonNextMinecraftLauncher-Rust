@@ -1,8 +1,10 @@
 use crate::error::LauncherError;
 use crate::platform::paths;
+use crate::social::{identity, discovery, sync};
 use discord_rich_presence::{activity, DiscordIpc, DiscordIpcClient};
 use serde::Deserialize;
 use serde::Serialize;
+use std::sync::OnceLock;
 use std::sync::Mutex as StdMutex;
 
 static DISCORD_CLIENT: std::sync::OnceLock<StdMutex<Option<DiscordIpcClient>>> = std::sync::OnceLock::new();
@@ -55,6 +57,77 @@ pub async fn remove_friend(id: String) -> Result<(), LauncherError> {
     friends.retain(|f| f.id != id);
     std::fs::write(&friends_path, serde_json::to_string_pretty(&friends)?)?;
     Ok(())
+}
+
+static IDENTITY: OnceLock<identity::Identity> = OnceLock::new();
+
+#[tauri::command]
+pub async fn get_my_peer_id() -> Result<String, LauncherError> {
+    let id = IDENTITY.get_or_init(|| identity::get_or_create_identity());
+    Ok(identity::public_key_to_id(&id.verifying_key))
+}
+
+#[tauri::command]
+pub async fn export_identity_key() -> Result<String, LauncherError> {
+    let id = IDENTITY.get_or_init(|| identity::get_or_create_identity());
+    Ok(identity::export_identity(id))
+}
+
+#[tauri::command]
+pub async fn import_identity_key(encoded: String) -> Result<String, LauncherError> {
+    let imported = identity::import_identity(&encoded)
+        .map_err(|e| LauncherError::Other(e))?;
+    let peer_id = identity::public_key_to_id(&imported.verifying_key);
+    let key_path = paths::get_game_dir().join("identity.key");
+    std::fs::write(&key_path, &encoded)
+        .map_err(|e| LauncherError::Other(format!("Failed to save key: {}", e)))?;
+    Ok(peer_id)
+}
+
+#[tauri::command]
+pub async fn start_social_discovery(display_name: String) -> Result<(), LauncherError> {
+    let id = IDENTITY.get_or_init(|| identity::get_or_create_identity());
+    let peer_id = identity::public_key_to_id(&id.verifying_key);
+    discovery::announce(&peer_id, &display_name, 0)
+        .map_err(|e| LauncherError::Other(e))
+}
+
+#[tauri::command]
+pub async fn stop_social_discovery() -> Result<(), LauncherError> {
+    if let Some(id) = IDENTITY.get() {
+        let peer_id = identity::public_key_to_id(&id.verifying_key);
+        discovery::unannounce(&peer_id);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn scan_social_peers() -> Result<Vec<discovery::PeerAnnouncement>, LauncherError> {
+    discovery::scan_peers().map_err(|e| LauncherError::Other(e))
+}
+
+#[tauri::command]
+pub async fn generate_instance_snapshot(
+    instance_id: String,
+    minecraft_version: String,
+    loader_type: Option<String>,
+    loader_version: Option<String>,
+) -> Result<sync::PeerConfigSnapshot, LauncherError> {
+    let instance_dir = paths::get_game_dir().join("instances").join(&instance_id).join(".minecraft");
+    sync::generate_instance_snapshot(
+        &instance_dir,
+        &minecraft_version,
+        loader_type.as_deref(),
+        loader_version.as_deref(),
+    ).map_err(|e| LauncherError::Other(e))
+}
+
+#[tauri::command]
+pub async fn compute_coplay_diff(
+    local: sync::PeerConfigSnapshot,
+    remote: sync::PeerConfigSnapshot,
+) -> Result<sync::ConfigDiff, LauncherError> {
+    Ok(sync::compute_diff(&local, &remote))
 }
 
 #[tauri::command]

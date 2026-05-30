@@ -11,6 +11,7 @@ pub mod collections;
 pub mod system;
 pub mod server;
 pub mod social;
+pub mod chat;
 pub mod network;
 pub mod cli;
 pub mod news;
