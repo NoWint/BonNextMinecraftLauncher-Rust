@@ -14,6 +14,7 @@ mod loader;
 mod modrinth;
 mod platform;
 mod security;
+mod social;
 mod types;
 mod version;
 mod curseforge;
