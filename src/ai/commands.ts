@@ -285,21 +285,25 @@ const commandRegistry: Record<string, AICommand> = {
   analyze_crash: {
     name: 'analyze_crash',
     description:
-      'Analyze a Minecraft crash report file. Provide the full path to the crash report (usually in instances/<name>/.minecraft/crash-reports/crash-*.txt). Returns error type, description, suggestions, severity, and whether an automatic fix is available.',
+      'Automatically find and diagnose the latest Minecraft crash report for an instance. Just provide the instance ID — crash reports are auto-detected. Returns error type, description, suggestions, severity, and whether an automatic fix is available.',
     riskLevel: 'low',
     paramDefs: {
-      report_path: { type: 'string', description: 'Full path to the crash report file', required: true },
+      instance_id: {
+        type: 'string',
+        description: 'The instance ID to analyze (auto-finds latest crash report)',
+        required: true,
+      },
     },
     execute: async (params) => {
       try {
-        const reportPath = String(params.report_path || '');
-        const diagnosis = await crashApi.diagnoseCrash(reportPath);
+        const instanceId = String(params.instance_id || '');
+        const diagnosis = await crashApi.diagnoseInstanceCrash(instanceId);
         return {
           success: true,
           data: diagnosis,
           message: diagnosis.crash_info?.description
             ? `Crash found: ${diagnosis.crash_info.description}`
-            : 'No crash information found in this report',
+            : 'No crash reports found for this instance',
         };
       } catch (e) {
         return { success: false, error: e instanceof Error ? e.message : 'Crash analysis failed' };
@@ -462,7 +466,7 @@ Rules:
 4. Be concise and helpful
 5. When showing search results, highlight the most relevant items
 6. Execute tools promptly based on user intent — don't ask for unnecessary confirmation
-7. When a user reports a crash or game error, immediately use the analyze_crash tool to diagnose the problem. Ask the user for the crash report file path (usually in the instance's .minecraft/crash-reports/ folder). If an auto-fix is available, explain it clearly and offer to apply it using the apply_fix tool.`;
+7. When a user reports a crash or game error, immediately use the analyze_crash tool with the instance ID to automatically diagnose the problem. Crash reports are auto-detected — no need to ask the user for file paths. If an auto-fix is available, explain it clearly and offer to apply it using the apply_fix tool.`;
 }
 
 export function parseToolCallsToCommands(toolCalls: ToolCall[]): ParsedCommand[] {

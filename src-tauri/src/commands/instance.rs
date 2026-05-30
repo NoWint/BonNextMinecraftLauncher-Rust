@@ -283,6 +283,54 @@ pub async fn diagnose_crash(report_path: String) -> Result<crash_parser::CrashDi
 }
 
 #[tauri::command]
+pub async fn diagnose_instance_crash(instance_id: String) -> Result<crash_parser::CrashDiagnosis, LauncherError> {
+    let game_dir = &crate::platform::paths::get_game_dir();
+    let crash_dir = game_dir
+        .join("instances")
+        .join(&instance_id)
+        .join(".minecraft")
+        .join("crash-reports");
+
+    if !crash_dir.exists() {
+        return Ok(crash_parser::CrashDiagnosis {
+            crash_info: crash_parser::CrashInfo {
+                description: "No crash reports directory found".to_string(),
+                suggestion: "The instance may not have crashed yet, or crash reports are in a different location".to_string(),
+                severity: "low".to_string(),
+                error_type: "unknown".to_string(),
+            },
+            additional_findings: vec![],
+            auto_fix_available: false,
+            auto_fix_action: None,
+        });
+    }
+
+    let mut reports: Vec<_> = std::fs::read_dir(&crash_dir)
+        .map_err(|e| LauncherError::Other(format!("Cannot read crash-reports dir: {}", e)))?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_name().to_string_lossy().starts_with("crash-"))
+        .collect();
+
+    if reports.is_empty() {
+        return Ok(crash_parser::CrashDiagnosis {
+            crash_info: crash_parser::CrashInfo {
+                description: "No crash reports found".to_string(),
+                suggestion: "The instance may not have crashed recently".to_string(),
+                severity: "low".to_string(),
+                error_type: "unknown".to_string(),
+            },
+            additional_findings: vec![],
+            auto_fix_available: false,
+            auto_fix_action: None,
+        });
+    }
+
+    reports.sort_by_key(|e| e.file_name());
+    let latest = reports.last().unwrap();
+    crash_parser::diagnose_crash(&latest.path().to_string_lossy())
+}
+
+#[tauri::command]
 pub async fn check_instance_ready(instance_id: String) -> Result<bool, LauncherError> {
     instance::manager::check_instance_ready(&instance_id)
 }

@@ -173,6 +173,7 @@ pub fn run() {
             commands::instance::write_config_file,
             commands::instance::parse_crash_report,
             commands::instance::diagnose_crash,
+            commands::instance::diagnose_instance_crash,
             commands::instance::get_loader_versions,
             commands::instance::install_loader,
             commands::modrinth::search_mods,
