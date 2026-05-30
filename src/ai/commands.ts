@@ -240,6 +240,64 @@ const commandRegistry: Record<string, AICommand> = {
     },
   },
 
+  create_instance: {
+    name: 'create_instance',
+    description:
+      'Create a new Minecraft game instance. Can specify Minecraft version, loader type (vanilla/fabric/forge/neoforge/quilt), and loader version. The AI should search for versions first if unsure about available versions.',
+    riskLevel: 'high',
+    paramDefs: {
+      name: { type: 'string', description: 'Instance name', required: true },
+      version_id: { type: 'string', description: 'Minecraft version ID (e.g. 1.21.1)', required: true },
+      loader_type: {
+        type: 'string',
+        description: 'Loader type',
+        enum: ['vanilla', 'fabric', 'forge', 'neoforge', 'quilt'],
+      },
+      loader_version: { type: 'string', description: 'Loader version (optional, uses latest if omitted)' },
+    },
+    execute: async (params) => {
+      try {
+        const name = String(params.name || '');
+        const versionId = String(params.version_id || '');
+        if (!name || !versionId) return { success: false, error: 'Name and version_id are required' };
+
+        const versions = await api.getVersions();
+        const version = versions.find((v) => v.id === versionId);
+        if (!version)
+          return {
+            success: false,
+            error: `Version ${versionId} not found. Use search_versions to find available versions.`,
+          };
+
+        const instance: Record<string, unknown> = {
+          id: '',
+          name,
+          version_id: versionId,
+          version_url: version.url,
+          loader_type: params.loader_type ? String(params.loader_type) : null,
+          loader_version: params.loader_version ? String(params.loader_version) : null,
+          description: '',
+          max_memory: 4096,
+          min_memory: 512,
+          java_path: null,
+          jvm_args: null,
+          created_at: new Date().toISOString(),
+          last_played: null,
+          playtime_seconds: 0,
+        };
+        await api.createInstance(instance as never);
+        const instances = await api.listInstances();
+        const created = instances.find((i) => i.name === name);
+        const msg = created
+          ? `Instance "${name}" created with ID: ${created.id}`
+          : `Instance "${name}" created successfully`;
+        return { success: true, data: created, message: msg };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Instance creation failed' };
+      }
+    },
+  },
+
   get_config: {
     name: 'get_config',
     description: 'Get the current launcher configuration settings',
@@ -457,7 +515,7 @@ export function buildOpenAITools(): OpenAITool[] {
 export function buildSystemPrompt(): string {
   return `You are BonNext AI Assistant, an intelligent helper for a Minecraft launcher. You help users manage their game through natural language.
 
-You have access to tools that can search mods, install mods, launch games, check instances, view/modify settings, search versions, diagnose crash reports, and apply automatic fixes. Use these tools when the user asks you to perform actions. All tools execute automatically.
+You have access to tools that can search mods, install mods, launch games, create instances, check instances, view/modify settings, search versions, diagnose crash reports, and apply automatic fixes. Use these tools when the user asks you to perform actions. All tools execute automatically.
 
 Rules:
 1. Always explain what you're doing before and after calling a tool
@@ -466,7 +524,13 @@ Rules:
 4. Be concise and helpful
 5. When showing search results, highlight the most relevant items
 6. Execute tools promptly based on user intent — don't ask for unnecessary confirmation
-7. When a user reports a crash or game error, immediately use the analyze_crash tool with the instance ID to automatically diagnose the problem. Crash reports are auto-detected — no need to ask the user for file paths. If an auto-fix is available, explain it clearly and offer to apply it using the apply_fix tool.`;
+7. When a user reports a crash or game error, immediately use the analyze_crash tool with the instance ID to automatically diagnose the problem. Crash reports are auto-detected — no need to ask the user for file paths. If an auto-fix is available, explain it clearly and offer to apply it using the apply_fix tool.
+8. Natural language modpack creation: When a user describes a gameplay style or theme (e.g. "I want a cozy farming experience", "magic adventure pack", "tech automation"), follow this workflow:
+   a. Search for Minecraft versions to find the latest stable release
+   b. Create a new instance with an appropriate name and version
+   c. Search for relevant mods on Modrinth based on the theme (4-8 mods)
+   d. Install each mod into the new instance
+   e. Summarize what was created and suggest next steps`;
 }
 
 export function parseToolCallsToCommands(toolCalls: ToolCall[]): ParsedCommand[] {
