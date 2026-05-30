@@ -5,6 +5,15 @@ import { useAIAssistant } from '../../stores/aiAssistantStore';
 import { ChatMessage } from './ChatMessage';
 import styles from './ChatPanel.module.css';
 
+const SUGGESTIONS = [
+  { text: '我的游戏崩溃了，帮我分析', icon: '🔍' },
+  { text: '帮我装 Fabric 1.21.1', icon: '⚡' },
+  { text: '我想玩养老种田整合包', icon: '🌾' },
+  { text: '推荐一些好用的优化模组', icon: '💡' },
+  { text: '我的世界 TPS 很低怎么办', icon: '🛠️' },
+  { text: '搜索并安装 JEI 和 Sodium', icon: '📦' },
+];
+
 export const ChatPanel: React.FC = () => {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -22,6 +31,11 @@ export const ChatPanel: React.FC = () => {
     const text = input.trim();
     setInput('');
     await sendMessage(text);
+  };
+
+  const handleSuggestionClick = (text: string) => {
+    setInput(text);
+    sendMessage(text);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -82,6 +96,19 @@ export const ChatPanel: React.FC = () => {
                 {t('ai.empty.line1')}
                 <br />
                 {t('ai.empty.line2')}
+              </div>
+              <div className={styles.controlsCard__suggestions}>
+                {SUGGESTIONS.map((s) => (
+                  <button
+                    key={s.text}
+                    className={styles.controlsCard__suggestionChip}
+                    onClick={() => handleSuggestionClick(s.text)}
+                    disabled={state.isLoading || !state.config.enabled}
+                  >
+                    <span className={styles.controlsCard__suggestionIcon}>{s.icon}</span>
+                    {s.text}
+                  </button>
+                ))}
               </div>
             </div>
           )}
