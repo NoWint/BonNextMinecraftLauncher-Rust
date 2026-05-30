@@ -1,5 +1,6 @@
 import type { CommandResult, OpenAITool, ToolCall, ParsedCommand } from './types';
 import { api } from '../api';
+import { crashApi } from '../api/crash';
 
 export interface AICommand {
   name: string;
@@ -277,6 +278,138 @@ const commandRegistry: Record<string, AICommand> = {
         };
       } catch (e) {
         return { success: false, error: e instanceof Error ? e.message : 'Failed to search versions' };
+      }
+    },
+  },
+
+  analyze_crash: {
+    name: 'analyze_crash',
+    description:
+      'Analyze a Minecraft crash report file. Provide the full path to the crash report (usually in instances/<name>/.minecraft/crash-reports/crash-*.txt). Returns error type, description, suggestions, severity, and whether an automatic fix is available.',
+    riskLevel: 'low',
+    paramDefs: {
+      report_path: { type: 'string', description: 'Full path to the crash report file', required: true },
+    },
+    execute: async (params) => {
+      try {
+        const reportPath = String(params.report_path || '');
+        const diagnosis = await crashApi.diagnoseCrash(reportPath);
+        return {
+          success: true,
+          data: diagnosis,
+          message: diagnosis.crash_info?.description
+            ? `Crash found: ${diagnosis.crash_info.description}`
+            : 'No crash information found in this report',
+        };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Crash analysis failed' };
+      }
+    },
+  },
+
+  apply_fix: {
+    name: 'apply_fix',
+    description:
+      'Apply an automatic fix for a diagnosed crash. Requires user confirmation. Available actions: increase_memory, increase_metaspace, reinstall_loader, redownload_version, remove_duplicate_mods, check_java, reset_launch_state, relogin.',
+    riskLevel: 'high',
+    paramDefs: {
+      instance_id: { type: 'string', description: 'The instance ID to apply the fix to', required: true },
+      fix_action: {
+        type: 'string',
+        description: 'The fix action to apply',
+        required: true,
+        enum: [
+          'increase_memory',
+          'increase_metaspace',
+          'reinstall_loader',
+          'redownload_version',
+          'remove_duplicate_mods',
+          'check_java',
+          'reset_launch_state',
+          'relogin',
+        ],
+      },
+    },
+    execute: async (params) => {
+      try {
+        const instanceId = String(params.instance_id || '');
+        const action = String(params.fix_action || '');
+        const instances = await api.listInstances();
+        const instance = instances.find((i) => i.id === instanceId);
+        if (!instance) return { success: false, error: `Instance ${instanceId} not found` };
+
+        switch (action) {
+          case 'increase_memory': {
+            const currentMax = instance.max_memory || 2048;
+            const newMax = Math.min(currentMax * 2, 16384);
+            const config = await api.getConfig();
+            const configObj = config as unknown as Record<string, unknown>;
+            configObj.max_memory = newMax;
+            await api.saveConfig(config);
+            return { success: true, message: `Increased max memory from ${currentMax}MB to ${newMax}MB` };
+          }
+          case 'increase_metaspace': {
+            const currentJvm = instance.jvm_args || '';
+            const newArgs = currentJvm.includes('-XX:MaxMetaspaceSize')
+              ? currentJvm.replace(/-XX:MaxMetaspaceSize=\d+m?/i, '-XX:MaxMetaspaceSize=512m')
+              : `${currentJvm} -XX:MaxMetaspaceSize=512m`.trim();
+            const fullInstance = await api.getInstance(instanceId);
+            if (!fullInstance) return { success: false, error: `Instance ${instanceId} not found` };
+            fullInstance.jvm_args = newArgs;
+            await api.updateInstance(fullInstance);
+            return { success: true, message: 'Increased MaxMetaspaceSize to 512m' };
+          }
+          case 'reinstall_loader': {
+            if (instance.loader_type && instance.loader_version) {
+              await api.installLoader(
+                instance.loader_type,
+                instance.version_id,
+                instance.version_url,
+                instance.loader_version,
+                instanceId,
+              );
+              return { success: true, message: `Reinstalled ${instance.loader_type} ${instance.loader_version}` };
+            }
+            return { success: false, error: 'No loader information found for this instance' };
+          }
+          case 'redownload_version': {
+            await api.downloadVersion(instance.version_id, instance.version_url);
+            return { success: true, message: `Redownloaded Minecraft ${instance.version_id}` };
+          }
+          case 'remove_duplicate_mods': {
+            const mods = await api.listInstanceMods(instanceId);
+            const seen = new Map<string, number>();
+            const duplicates: string[] = [];
+            for (const mod of mods) {
+              const count = seen.get(mod.filename) || 0;
+              if (count > 0) duplicates.push(mod.filename);
+              seen.set(mod.filename, count + 1);
+            }
+            if (duplicates.length === 0) return { success: true, message: 'No duplicate mods found' };
+            return {
+              success: true,
+              message: `Found ${duplicates.length} duplicate mod(s): ${duplicates.join(', ')}. Please remove duplicates manually from the mods folder.`,
+            };
+          }
+          case 'check_java': {
+            const javaList = await api.findAllJava();
+            return { success: true, data: javaList, message: `Found ${javaList.length} Java installation(s)` };
+          }
+          case 'reset_launch_state': {
+            await api.resetLaunchState();
+            return { success: true, message: 'Launch state reset successfully' };
+          }
+          case 'relogin': {
+            return {
+              success: true,
+              message: 'Please log out and log in again from the settings page to refresh your authentication.',
+            };
+          }
+          default:
+            return { success: false, error: `Unknown fix action: ${action}` };
+        }
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Fix application failed' };
       }
     },
   },
