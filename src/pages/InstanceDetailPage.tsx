@@ -66,6 +66,7 @@ function useDetailTabs(t: (key: string) => string, modCount: number) {
     { id: 'fps', label: t('instanceDetail.fps') },
     { id: 'saves', label: t('instanceDetail.saves') },
     { id: 'logs', label: t('instanceDetail.logs') },
+    { id: 'screenshots', label: t('instanceDetail.screenshots') },
     { id: 'snapshots', label: t('instanceDetail.snapshots') },
   ];
 }
@@ -93,6 +94,9 @@ export default function InstanceDetailPage() {
   const [selectedLog, setSelectedLog] = useState<string | null>(null);
   const [logContent, setLogContent] = useState<string>('');
   const [loadingLog, setLoadingLog] = useState(false);
+
+  const [screenshots, setScreenshots] = useState<string[]>([]);
+  const [screenshotLoading, setScreenshotLoading] = useState(false);
 
   const [snapshots, setSnapshots] = useState<SnapshotInfo[]>([]);
   const [snapshotName, setSnapshotName] = useState('');
@@ -202,6 +206,12 @@ export default function InstanceDetailPage() {
         .finally(() => setLoadingLog(false));
     }
   }, [selectedLog, instanceId]);
+
+  useEffect(() => {
+    if (activeTab === 'screenshots' && instanceId) {
+      loadScreenshots();
+    }
+  }, [activeTab, instanceId]);
 
   useEffect(() => {
     if (activeTab === 'snapshots' && instanceId) {
@@ -335,6 +345,17 @@ export default function InstanceDetailPage() {
     } finally {
       setHealthLoading(false);
     }
+  };
+
+  const loadScreenshots = async () => {
+    setScreenshotLoading(true);
+    try {
+      const list = await api.listScreenshots(instanceId);
+      setScreenshots(list.map((s) => s.path));
+    } catch {
+      /* empty */
+    }
+    setScreenshotLoading(false);
   };
 
   const loadSnapshots = async () => {
@@ -1149,6 +1170,34 @@ export default function InstanceDetailPage() {
                   })}
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'screenshots' && (
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          {screenshotLoading ? (
+            <p style={{ color: 'var(--color-text-dim)', fontSize: '0.7em', padding: '1em' }}>Loading...</p>
+          ) : screenshots.length === 0 ? (
+            <p style={{ color: 'var(--color-text-dim)', fontSize: '0.7em', padding: '1em' }}>No screenshots found</p>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+              {screenshots.map((path, i) => (
+                <img
+                  key={i}
+                  src={path}
+                  alt={`Screenshot ${i + 1}`}
+                  style={{
+                    width: '100%',
+                    aspectRatio: '16/10',
+                    objectFit: 'cover',
+                    clipPath: 'var(--clip-small)',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => api.openFolder(path)}
+                />
+              ))}
             </div>
           )}
         </div>
