@@ -379,16 +379,17 @@ const commandRegistry: Record<string, AICommand> = {
           case 'remove_duplicate_mods': {
             const mods = await api.listInstanceMods(instanceId);
             const seen = new Map<string, number>();
-            const duplicates: string[] = [];
+            const dupSet = new Set<string>();
             for (const mod of mods) {
               const count = seen.get(mod.filename) || 0;
-              if (count > 0) duplicates.push(mod.filename);
+              if (count === 1) dupSet.add(mod.filename);
               seen.set(mod.filename, count + 1);
             }
-            if (duplicates.length === 0) return { success: true, message: 'No duplicate mods found' };
+            if (dupSet.size === 0) return { success: true, message: 'No duplicate mods found' };
+            const dupList = Array.from(dupSet);
             return {
               success: true,
-              message: `Found ${duplicates.length} duplicate mod(s): ${duplicates.join(', ')}. Please remove duplicates manually from the mods folder.`,
+              message: `Found ${dupList.length} duplicate mod(s): ${dupList.join(', ')}. Please remove duplicates manually from the mods folder.`,
             };
           }
           case 'check_java': {
