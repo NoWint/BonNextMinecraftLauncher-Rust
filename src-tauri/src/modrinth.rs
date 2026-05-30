@@ -216,7 +216,12 @@ struct ModrinthProjectFull {
     description: String,
     #[serde(default)]
     body: String,
+    #[serde(default)]
     author: String,
+    #[serde(default)]
+    team: String,
+    #[serde(default)]
+    organization: String,
     #[serde(default)]
     categories: Vec<String>,
     downloads: u64,
@@ -242,15 +247,18 @@ struct ModrinthProjectFull {
 #[derive(Debug, Deserialize)]
 struct ModrinthGalleryImage {
     url: String,
+    #[serde(default)]
     featured: bool,
     title: Option<String>,
     description: Option<String>,
+    #[serde(default)]
     created: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct ModrinthLicense {
     id: String,
+    #[serde(default)]
     name: String,
     url: Option<String>,
 }
@@ -526,7 +534,11 @@ pub async fn get_project_full(slug: &str) -> Result<ModProjectFull, LauncherErro
         title: resp.title,
         description: resp.description,
         body: resp.body,
-        author: resp.author,
+        author: if resp.author.is_empty() {
+            if !resp.team.is_empty() { resp.team.clone() }
+            else if !resp.organization.is_empty() { resp.organization.clone() }
+            else { String::new() }
+        } else { resp.author },
         categories: resp.categories,
         downloads: resp.downloads,
         follows: resp.follows,
