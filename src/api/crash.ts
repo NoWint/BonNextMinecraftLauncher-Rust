@@ -4,5 +4,5 @@ import type { CrashDiagnosis, CrashInfo } from './types';
 export const crashApi = {
   parseCrashReport: (reportPath: string) => invoke<CrashInfo>('parse_crash_report', { reportPath }),
 
-  diagnoseCrash: (instanceId: string) => invoke<CrashDiagnosis>('diagnose_crash', { instanceId }),
+  diagnoseCrash: (reportPath: string) => invoke<CrashDiagnosis>('diagnose_crash', { reportPath }),
 };

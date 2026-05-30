@@ -12,6 +12,7 @@ import { invalidateCache } from './cache';
 import { socialApi } from './social';
 import { chatApi } from './chat';
 import { modpackindexApi } from './modpackindex';
+import { crashApi } from './crash';
 
 export type * from './types';
 export { invalidateCache } from './cache';
@@ -267,4 +268,5 @@ export const api = {
   social: socialApi,
   chat: chatApi,
   mpindex: modpackindexApi,
+  crash: crashApi,
 };
