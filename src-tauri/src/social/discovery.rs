@@ -1,5 +1,6 @@
 use mdns_sd::{ServiceDaemon, ServiceInfo};
 use serde::{Serialize, Deserialize};
+use std::collections::HashMap;
 use std::sync::OnceLock;
 
 static MDNS_DAEMON: OnceLock<ServiceDaemon> = OnceLock::new();
@@ -21,20 +22,16 @@ fn get_daemon() -> &'static ServiceDaemon {
 
 pub fn announce(peer_id: &str, display_name: &str, port: u16) -> Result<(), String> {
     let daemon = get_daemon();
-    let properties = [
-        ("peer_id", peer_id.to_string()),
-        ("display_name", display_name.to_string()),
-    ];
-    let properties_ref: Vec<(&str, &str)> = properties.iter()
-        .map(|(k, v)| (k.as_str(), v.as_str()))
-        .collect();
+    let mut properties = HashMap::new();
+    properties.insert("peer_id".to_string(), peer_id.to_string());
+    properties.insert("display_name".to_string(), display_name.to_string());
     let service_info = ServiceInfo::new(
         SERVICE_TYPE,
         peer_id,
         &format!("{}.local.", peer_id),
         "",
         port,
-        &properties_ref[..],
+        properties,
     ).map_err(|e| format!("Failed to create service info: {}", e))?;
     daemon.register(service_info)
         .map_err(|e| format!("Failed to register mDNS service: {}", e))?;
