@@ -119,6 +119,11 @@ export default function InstancesPage() {
   const [mpJoinCode, setMpJoinCode] = useState('');
   const [mpLoading, setMpLoading] = useState(false);
 
+  const [lanWorlds, setLanWorlds] = useState<
+    Array<{ host: string; port: number; motd: string; world_type: string | null }>
+  >([]);
+  const [lanDiscovering, setLanDiscovering] = useState(false);
+
   const [gameDir, setGameDir] = useState<string>('');
   const [iconUrls, setIconUrls] = useState<Record<string, string>>({});
 
@@ -940,6 +945,55 @@ export default function InstancesPage() {
             })
           )}
         </div>
+      </div>
+
+      {/* ---- LAN Discovery ---- */}
+      <div className={styles.serverMonitor} style={{ marginTop: 8 }}>
+        <div className={styles.serverMonitor__header}>
+          <SubLabel>{t('instances.lanDiscovery') || 'LAN Worlds'}</SubLabel>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={async () => {
+            setLanDiscovering(true);
+            try {
+              await api.startLanDiscovery();
+              const worlds = await api.getLanWorlds();
+              setLanWorlds(worlds);
+            } catch {
+              /* empty */
+            }
+            setLanDiscovering(false);
+          }}
+          disabled={lanDiscovering}
+        >
+          {lanDiscovering ? 'Scanning...' : 'Scan for LAN Worlds'}
+        </Button>
+        {lanWorlds.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+            {lanWorlds.map((w, i) => (
+              <div
+                key={i}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '6px 8px',
+                  background: 'var(--color-panel-alt)',
+                  fontSize: '0.55em',
+                }}
+              >
+                <span style={{ color: 'var(--color-success)', fontWeight: 700 }}>ON</span>
+                <span style={{ color: 'var(--color-text)' }}>{w.motd || `${w.host}:${w.port}`}</span>
+                <span style={{ color: 'var(--color-text-dim)', marginLeft: 'auto' }}>{w.world_type || 'unknown'}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {!lanDiscovering && lanWorlds.length === 0 && (
+          <div style={{ fontSize: '0.5em', color: 'var(--color-text-dim)', marginTop: 4 }}>No LAN worlds found</div>
+        )}
       </div>
 
       {/* ---- Terracotta Multiplayer ---- */}
