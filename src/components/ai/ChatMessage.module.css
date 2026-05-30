@@ -1,24 +1,25 @@
 /* ========================================
-   Message Bubbles — ZZZ Neo-Tokyo
+   Apple Intelligence — Message Bubbles
+   Clean, borderless, frosted, spring animation
    ======================================== */
 
 .message {
   display: flex;
   flex-direction: column;
-  max-width: 90%;
-  font-size: 0.68em;
-  line-height: 1.6;
-  animation: msgEnter 0.28s ease-out;
+  max-width: 88%;
+  font-size: 0.7em;
+  line-height: 1.55;
+  animation: msgSpringIn 0.45s cubic-bezier(0.22, 0.8, 0.25, 1);
 }
 
-@keyframes msgEnter {
+@keyframes msgSpringIn {
   from {
     opacity: 0;
-    transform: translateX(-8px);
+    transform: translateY(8px) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -27,10 +28,9 @@
 }
 
 .message--user .message__bubble {
-  background: var(--color-accent-10);
-  border: 1px solid var(--color-accent-30);
-  color: var(--color-text);
-  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+  background: linear-gradient(135deg, rgba(72, 219, 251, 0.18), rgba(84, 160, 255, 0.12));
+  color: rgba(255, 255, 255, 0.92);
+  border-radius: 18px 18px 4px 18px;
 }
 
 .message--assistant {
@@ -38,73 +38,28 @@
 }
 
 .message--assistant .message__bubble {
-  background: var(--color-panel-alt);
-  border: 1px solid var(--color-border-light);
-  color: var(--color-text-secondary);
-  clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px);
-}
-
-.message--assistant:hover {
-  transform: translateX(1px);
-}
-
-.message--user:hover {
-  transform: translateX(-1px);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.78);
+  border-radius: 18px 18px 18px 4px;
 }
 
 .message__bubble {
-  padding: 0.65em 0.85em;
-  border-radius: 0;
+  padding: 10px 14px;
   word-break: break-word;
   white-space: pre-wrap;
-  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  border: 0.5px solid rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: transform 0.15s ease;
 }
 
-/* ========================================
-   RGB Chromatic Aberration (15% chance)
-   ======================================== */
-
-.message__bubble::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  padding: 0.65em 0.85em;
-  color: transparent;
-  pointer-events: none;
-  user-select: none;
-  z-index: 0;
-  opacity: 0;
-  transition: opacity 0.3s;
-  display: none; /* hidden by default, JS will toggle */
+.message--assistant:hover .message__bubble {
+  transform: translateX(1px);
 }
 
-.message__bubble--glitch::after {
-  display: block;
-  opacity: 0.08;
-  background: inherit;
-  clip-path: inherit;
-  text-shadow:
-    2px 0 #0ff,
-    -2px 0 #f0f;
-  animation: rgbShift 0.15s steps(2);
-}
-
-@keyframes rgbShift {
-  0% {
-    transform: translate(0);
-  }
-  25% {
-    transform: translate(-2px, 1px);
-  }
-  50% {
-    transform: translate(2px, -1px);
-  }
-  75% {
-    transform: translate(0.5px);
-  }
-  100% {
-    transform: translate(0);
-  }
+.message--user:hover .message__bubble {
+  transform: translateX(-1px);
 }
 
 /* ========================================
@@ -112,11 +67,12 @@
    ======================================== */
 
 .message__time {
-  font-size: 0.65em;
-  color: var(--color-text-faint);
-  font-family: var(--font-mono);
-  margin-top: 0.15em;
-  letter-spacing: 0.02em;
+  font-size: 0.6em;
+  color: rgba(255, 255, 255, 0.2);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  font-weight: 500;
+  margin-top: 3px;
+  padding: 0 8px;
 }
 
 .message--user .message__time {
@@ -130,166 +86,135 @@
 .message__commands {
   display: flex;
   flex-direction: column;
-  gap: 0.45em;
-  margin-top: 0.5em;
+  gap: 6px;
+  margin-top: 6px;
   width: 100%;
 }
 
 /* ========================================
-   Command Card — Redesigned
+   Command Card — Apple style
    ======================================== */
 
 .commandCard {
-  background: var(--color-bg);
-  border: 1px solid var(--color-border-light);
-  padding: 0.55em 0.7em;
+  background: rgba(255, 255, 255, 0.04);
+  border: 0.5px solid rgba(255, 255, 255, 0.04);
+  border-radius: 14px;
+  padding: 10px 12px;
   font-size: 0.88em;
   width: 100%;
-  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
-  transition:
-    border-color 0.25s ease,
-    box-shadow 0.25s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.25s ease;
   position: relative;
   overflow: hidden;
 }
 
 .commandCard--executing {
-  border-color: var(--color-accent-30);
-  box-shadow: 0 0 14px var(--color-accent-06);
+  background: rgba(72, 219, 251, 0.06);
+  border-color: rgba(72, 219, 251, 0.15);
+  box-shadow: 0 0 16px rgba(72, 219, 251, 0.06);
 }
 
 .commandCard--executing::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: repeating-linear-gradient(
-    -25deg,
-    transparent,
-    transparent 8px,
-    rgba(255, 230, 0, 0.03) 8px,
-    rgba(255, 230, 0, 0.03) 10px
-  );
-  animation: scanDiagonal 1.5s linear infinite;
+  background: linear-gradient(90deg, transparent 0%, rgba(72, 219, 251, 0.03) 50%, transparent 100%);
+  animation: shimmer 2s ease-in-out infinite;
   pointer-events: none;
 }
 
-@keyframes scanDiagonal {
-  from {
+@keyframes shimmer {
+  0%,
+  100% {
     transform: translateX(-100%);
   }
-  to {
+  50% {
     transform: translateX(100%);
   }
 }
 
 .commandCard--completed {
-  border-color: color-mix(in srgb, var(--color-success) 35%, var(--color-border-light));
-  animation: glitchResolve 0.2s ease;
+  border-color: rgba(72, 219, 251, 0.1);
+  animation: cardResolve 0.3s cubic-bezier(0.22, 0.8, 0.25, 1);
 }
 
-@keyframes glitchResolve {
+@keyframes cardResolve {
   0% {
-    transform: translateX(4px);
-  }
-  20% {
-    transform: translateX(-2px);
-  }
-  50% {
-    transform: translateX(1px);
+    transform: scale(1.02);
   }
   100% {
-    transform: translateX(0);
+    transform: scale(1);
   }
 }
 
 .commandCard--failed {
-  border-right: 2px solid var(--color-error);
-  animation: shakeCard 0.25s ease;
-}
-
-@keyframes shakeCard {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(-3px);
-  }
-  50% {
-    transform: translateX(3px);
-  }
-  75% {
-    transform: translateX(-1px);
-  }
-}
-
-.commandCard--confirmed {
-  border-color: var(--color-border-light);
+  border-color: rgba(255, 107, 107, 0.15);
+  background: rgba(255, 107, 107, 0.03);
 }
 
 /* Card layout */
 .commandCard__main {
   display: flex;
-  gap: 0.55em;
+  gap: 10px;
   align-items: flex-start;
 }
 
 .commandCard__iconWrap {
-  width: 1.6em;
-  height: 1.6em;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: 9px;
   flex-shrink: 0;
-  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 3px 100%, 0 calc(100% - 3px));
 }
 
 .commandCard--executing .commandCard__iconWrap {
-  background: var(--color-accent-10);
+  background: rgba(72, 219, 251, 0.12);
 }
 
 .commandCard--completed .commandCard__iconWrap {
-  background: rgba(0, 255, 136, 0.08);
+  background: rgba(72, 219, 251, 0.08);
 }
 
 .commandCard--failed .commandCard__iconWrap {
-  background: rgba(255, 68, 68, 0.08);
+  background: rgba(255, 107, 107, 0.08);
 }
 
 .commandCard--confirmed .commandCard__iconWrap {
-  background: var(--color-panel-alt);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 /* Status icons */
 .spinner {
-  width: 0.8em;
-  height: 0.8em;
-  border: 2px solid var(--color-accent-20);
-  border-top-color: var(--color-accent);
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(72, 219, 251, 0.2);
+  border-top-color: #48dbfb;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
 
 .checkmark {
-  color: var(--color-success);
-  font-size: 0.7em;
+  color: #48dbfb;
+  font-size: 0.65em;
   font-weight: 700;
   line-height: 1;
 }
 
 .crossmark {
-  color: var(--color-error);
-  font-size: 0.75em;
+  color: #ff6b6b;
+  font-size: 0.7em;
   font-weight: 700;
   line-height: 1;
 }
 
 .dot {
-  width: 0.35em;
-  height: 0.35em;
-  background: var(--color-text-muted);
-  clip-path: polygon(0 0, calc(100% - 1px) 0, 100% 1px, 100% 100%, 0 100%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .commandCard__body {
@@ -298,133 +223,121 @@
 }
 
 .commandCard__label {
-  font-family: var(--font-mono);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
   font-size: 0.72em;
-  color: var(--color-text);
+  color: rgba(255, 255, 255, 0.85);
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  margin-bottom: 0.15em;
+  letter-spacing: -0.01em;
+  margin-bottom: 2px;
 }
 
 .commandCard__params {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25em;
-  margin-bottom: 0.2em;
+  gap: 4px;
+  margin-bottom: 4px;
 }
 
 .commandCard__param {
   display: inline-flex;
   align-items: center;
-  gap: 0.15em;
-  font-size: 0.65em;
-  background: var(--color-panel-alt);
-  padding: 0.1em 0.4em;
-  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+  gap: 3px;
+  font-size: 0.62em;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 8px;
+  border-radius: 6px;
 }
 
 .commandCard__paramKey {
-  color: var(--color-text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.9em;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  font-weight: 500;
 }
 
 .commandCard__paramVal {
-  color: var(--color-text-secondary);
-  font-family: var(--font-mono);
+  color: rgba(255, 255, 255, 0.6);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
   font-weight: 500;
 }
 
 /* Status text */
 .commandCard__status {
-  font-size: 0.65em;
-  font-family: var(--font-body);
+  font-size: 0.62em;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
   line-height: 1.4;
-  letter-spacing: 0.01em;
+  font-weight: 500;
 }
 
 .commandCard__status--executing {
-  color: var(--color-accent);
+  color: #48dbfb;
 }
-
 .commandCard__status--completed {
-  color: var(--color-success);
+  color: #48dbfb;
 }
-
 .commandCard__status--failed {
-  color: var(--color-error);
+  color: #ff6b6b;
 }
-
 .commandCard__status--confirmed {
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.25);
 }
 
 /* Retry button */
 .commandCard__retryBtn {
-  margin-top: 0.4em;
-  font-family: var(--font-mono);
-  font-size: 0.62em;
-  padding: 0.25em 0.7em;
-  cursor: pointer;
-  border: 1px solid var(--color-border-light);
-  background: transparent;
-  color: var(--color-accent);
-  letter-spacing: 0.04em;
+  margin-top: 6px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  font-size: 0.6em;
   font-weight: 500;
-  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
-  transition: all 0.15s ease;
+  padding: 4px 12px;
+  cursor: pointer;
+  border: none;
+  background: rgba(255, 107, 107, 0.12);
+  color: #ff6b6b;
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
 .commandCard__retryBtn:hover {
-  background: var(--color-accent-10);
-  border-color: var(--color-accent-30);
-  box-shadow: 0 0 10px var(--color-accent-10);
+  background: rgba(255, 107, 107, 0.18);
 }
 
 /* ========================================
-   Typing dots — Square
+   Typing dots — Apple style
    ======================================== */
 
 .typingDots {
   display: inline-flex;
-  gap: 0.22em;
-  margin-left: 0.3em;
+  gap: 3px;
+  margin-left: 4px;
   align-items: center;
-  height: 1em;
 }
 
 .typingDot {
-  width: 0.3em;
-  height: 0.3em;
-  background: var(--color-accent);
-  clip-path: polygon(0 0, calc(100% - 1px) 0, 100% 1px, 100% 100%, 0 100%);
-  animation: dotPulse 1.4s infinite ease-in-out;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  animation: dotBounce 1.4s infinite ease-in-out;
 }
 
 .typingDot:nth-child(2) {
-  animation-delay: 0.2s;
+  animation-delay: 0.16s;
 }
 .typingDot:nth-child(3) {
-  animation-delay: 0.4s;
+  animation-delay: 0.32s;
 }
 
-@keyframes dotPulse {
+@keyframes dotBounce {
   0%,
-  80%,
+  60%,
   100% {
-    opacity: 0.15;
-    transform: scale(0.8);
+    opacity: 0.2;
+    transform: translateY(0);
   }
-  40% {
+  30% {
     opacity: 1;
-    transform: scale(1.1);
+    transform: translateY(-3px);
   }
 }
-
-/* ========================================
-   Shared Animations
-   ======================================== */
 
 @keyframes spin {
   to {

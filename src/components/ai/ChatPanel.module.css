@@ -1,70 +1,218 @@
 /* ========================================
-   AI Chat Panel — Container
+   Apple Intelligence — Chat Panel
+   Frosted glass, prismatic edge glow, spring motion
    ======================================== */
+
+/* Rainbow edge glow — the Apple Intelligence signature */
+:root {
+  --apple-rainbow-1: #ff6b6b;
+  --apple-rainbow-2: #feca57;
+  --apple-rainbow-3: #48dbfb;
+  --apple-rainbow-4: #ff9ff3;
+  --apple-rainbow-5: #54a0ff;
+  --apple-rainbow-6: #5f27cd;
+  --apple-glass-bg: rgba(28, 28, 30, 0.82);
+  --apple-glass-border: rgba(255, 255, 255, 0.08);
+}
 
 .panel {
   position: fixed;
-  top: 0;
-  right: 0;
-  width: 380px;
-  height: 100vh;
-  background: var(--color-panel);
-  border-left: 1px solid var(--color-border-light);
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: 400px;
   display: flex;
   flex-direction: column;
   z-index: 1000;
-  transform: translateX(100%);
+  transform: translateX(calc(100% + 24px));
   opacity: 0;
+  border-radius: 22px;
+  background: var(--apple-glass-bg);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  box-shadow:
+    0 0 0 0.5px var(--apple-glass-border),
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  overflow: hidden;
   transition:
-    transform 0.35s var(--ease-out-expo),
-    opacity 0.25s ease;
+    transform 0.5s cubic-bezier(0.22, 0.8, 0.25, 1),
+    opacity 0.35s ease;
 }
 
+/* ========================================
+   Rainbow edge glow — right side gradient
+   ======================================== */
+
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 3px;
+  height: 100%;
+  z-index: 2;
+  border-radius: 0 22px 22px 0;
+  background: linear-gradient(
+    180deg,
+    var(--apple-rainbow-1) 0%,
+    var(--apple-rainbow-2) 20%,
+    var(--apple-rainbow-3) 40%,
+    var(--apple-rainbow-4) 60%,
+    var(--apple-rainbow-5) 80%,
+    var(--apple-rainbow-6) 100%
+  );
+  animation: rainbowShift 4s ease-in-out infinite;
+  opacity: 0.8;
+  filter: blur(2px);
+}
+
+@keyframes rainbowShift {
+  0%,
+  100% {
+    background: linear-gradient(
+      180deg,
+      var(--apple-rainbow-1) 0%,
+      var(--apple-rainbow-2) 20%,
+      var(--apple-rainbow-3) 40%,
+      var(--apple-rainbow-4) 60%,
+      var(--apple-rainbow-5) 80%,
+      var(--apple-rainbow-6) 100%
+    );
+  }
+  25% {
+    background: linear-gradient(
+      180deg,
+      var(--apple-rainbow-6) 0%,
+      var(--apple-rainbow-1) 20%,
+      var(--apple-rainbow-2) 40%,
+      var(--apple-rainbow-3) 60%,
+      var(--apple-rainbow-4) 80%,
+      var(--apple-rainbow-5) 100%
+    );
+  }
+  50% {
+    background: linear-gradient(
+      180deg,
+      var(--apple-rainbow-5) 0%,
+      var(--apple-rainbow-6) 20%,
+      var(--apple-rainbow-1) 40%,
+      var(--apple-rainbow-2) 60%,
+      var(--apple-rainbow-3) 80%,
+      var(--apple-rainbow-4) 100%
+    );
+  }
+  75% {
+    background: linear-gradient(
+      180deg,
+      var(--apple-rainbow-4) 0%,
+      var(--apple-rainbow-5) 20%,
+      var(--apple-rainbow-6) 40%,
+      var(--apple-rainbow-1) 60%,
+      var(--apple-rainbow-2) 80%,
+      var(--apple-rainbow-3) 100%
+    );
+  }
+}
+
+/* Gradient blur glow behind the rainbow edge */
+.panel::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -20px;
+  width: 60px;
+  height: 100%;
+  z-index: 1;
+  background: radial-gradient(
+    ellipse at right center,
+    rgba(255, 107, 107, 0.06) 0%,
+    rgba(254, 202, 87, 0.04) 25%,
+    rgba(72, 219, 251, 0.04) 50%,
+    rgba(255, 159, 243, 0.04) 75%,
+    transparent 100%
+  );
+  pointer-events: none;
+  animation: rainbowGlow 4s ease-in-out infinite;
+  filter: blur(15px);
+}
+
+@keyframes rainbowGlow {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Open state — slide from right */
 .panel--open {
   transform: translateX(0);
   opacity: 1;
 }
 
+/* ========================================
+   Header
+   ======================================== */
+
 .panel__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75em 1em;
-  border-bottom: 1px solid var(--color-border-light);
-  background: var(--color-panel-alt);
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 4px), calc(100% - 12px) 100%, 0 100%);
+  padding: 16px 20px;
+  flex-shrink: 0;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .panel__title {
-  font-family: var(--font-heading);
-  font-size: 1em;
-  letter-spacing: 0.12em;
-  color: var(--color-accent);
-  text-shadow: 0 0 8px var(--color-accent-15);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  font-size: 0.95em;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel__title::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--apple-rainbow-3), var(--apple-rainbow-5));
+  box-shadow: 0 0 8px rgba(72, 219, 251, 0.4);
 }
 
 .panel__actions {
   display: flex;
-  gap: 0.5em;
+  gap: 6px;
 }
 
 .panel__actionBtn {
-  background: none;
-  border: 1px solid var(--color-border-light);
-  color: var(--color-text-secondary);
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
   cursor: pointer;
-  padding: 0.25em 0.5em;
-  font-size: 0.55em;
-  font-family: var(--font-mono);
-  letter-spacing: 0.04em;
-  transition: all var(--transition-fast);
-  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6em;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .panel__actionBtn:hover {
-  color: var(--color-accent);
-  border-color: var(--color-accent);
-  box-shadow: 0 0 6px var(--color-accent-10);
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /* ========================================
@@ -74,10 +222,20 @@
 .panel__messages {
   flex: 1;
   overflow-y: auto;
-  padding: 0.75em;
+  padding: 16px 16px;
   display: flex;
   flex-direction: column;
-  gap: 0.7em;
+  gap: 10px;
+  scroll-behavior: smooth;
+}
+
+/* Scrollbar */
+.panel__messages::-webkit-scrollbar {
+  width: 3px;
+}
+.panel__messages::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
 }
 
 /* Empty state */
@@ -87,32 +245,34 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.8em;
-  color: var(--color-text-dim);
-  font-size: 0.65em;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.7em;
 }
 
 .panel__emptyIcon {
-  width: 3em;
-  height: 3em;
-  border: 2px solid var(--color-accent-20);
-  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(72, 219, 251, 0.15), rgba(255, 159, 243, 0.15));
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-accent);
-  font-family: var(--font-heading);
-  font-size: 0.9em;
-  animation: emptyPulse 3s ease-in-out infinite;
+  font-size: 1.2em;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 20px rgba(72, 219, 251, 0.08);
 }
 
 @keyframes emptyPulse {
   0%,
   100% {
-    box-shadow: 0 0 0 var(--color-accent-05);
+    opacity: 0.4;
+    transform: scale(1);
   }
   50% {
-    box-shadow: 0 0 18px var(--color-accent-10);
+    opacity: 0.7;
+    transform: scale(1.03);
   }
 }
 
@@ -120,6 +280,7 @@
   text-align: center;
   line-height: 1.6;
   font-size: 0.9em;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
 }
 
 /* ========================================
@@ -127,142 +288,79 @@
    ======================================== */
 
 .panel__inputArea {
-  padding: 0.75em;
-  border-top: 1px solid var(--color-border-light);
-  background: var(--color-panel-alt);
+  padding: 12px 16px 16px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.1) 100%);
 }
 
 .panel__inputWrapper {
   display: flex;
-  gap: 0.5em;
+  gap: 8px;
   align-items: flex-end;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  padding: 4px 4px 4px 14px;
+  border: 0.5px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.25s ease;
 }
 
-/* Input with scanning line */
+.panel__inputWrapper:focus-within {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 0 3px rgba(72, 219, 251, 0.06);
+}
+
 .panel__input {
   flex: 1;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border-light);
-  color: var(--color-text);
-  font-family: var(--font-body);
-  font-size: 0.68em;
-  padding: 0.5em 0.75em;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  font-size: 0.72em;
+  padding: 6px 0;
   resize: none;
   outline: none;
-  min-height: 2.2em;
-  max-height: 6em;
-  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
-  transition:
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast);
-  position: relative;
-}
-
-.panel__input::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 40%;
-  height: 2px;
-  background: var(--color-accent);
-  animation: scanLine 3s linear infinite;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.panel__input:focus {
-  border-color: var(--color-accent);
-  box-shadow:
-    0 0 12px var(--color-accent-15),
-    inset 0 0 12px var(--color-accent-05);
-}
-
-.panel__input:focus::after {
-  opacity: 1;
+  min-height: 1.4em;
+  max-height: 5em;
+  line-height: 1.4;
 }
 
 .panel__input::placeholder {
-  color: var(--color-text-faint);
+  color: rgba(255, 255, 255, 0.25);
 }
 
-@keyframes scanLine {
-  0% {
-    left: 0;
-    width: 30%;
-  }
-  25% {
-    left: 70%;
-    width: 30%;
-  }
-  50% {
-    left: 0;
-    width: 60%;
-  }
-  75% {
-    left: 40%;
-    width: 20%;
-  }
-  100% {
-    left: 0;
-    width: 30%;
-  }
-}
-
-/* ========================================
-   Send Button — Diamond
-   ======================================== */
-
+/* Send button — pill with gradient */
 .panel__sendBtn {
-  background: var(--color-accent);
-  color: var(--color-bg);
+  background: linear-gradient(135deg, #48dbfb, #54a0ff);
+  color: #fff;
   border: none;
   cursor: pointer;
-  width: 2.5em;
-  height: 2.5em;
+  width: 30px;
+  height: 30px;
+  border-radius: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.7em;
-  font-family: var(--font-heading);
+  font-size: 0.75em;
   font-weight: 700;
-  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
-  transition: all 0.2s ease;
   flex-shrink: 0;
+  transition: all 0.2s cubic-bezier(0.22, 0.8, 0.25, 1);
+  box-shadow: 0 2px 8px rgba(72, 219, 251, 0.2);
 }
 
 .panel__sendBtn:hover:not(:disabled) {
-  transform: rotate(15deg) scale(1.08);
-  box-shadow: 0 0 20px var(--color-accent-30);
+  transform: scale(1.06);
+  box-shadow: 0 4px 16px rgba(72, 219, 251, 0.35);
+  background: linear-gradient(135deg, #5ce0ff, #6ab0ff);
 }
 
 .panel__sendBtn:active:not(:disabled) {
-  animation: glitchBtn 0.2s ease;
-}
-
-@keyframes glitchBtn {
-  0% {
-    transform: translateX(0);
-  }
-  20% {
-    transform: translateX(4px);
-  }
-  40% {
-    transform: translateX(0);
-  }
-  60% {
-    transform: translateX(-2px);
-  }
-  80% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: scale(0.85);
-  }
+  transform: scale(0.94);
+  transition: transform 0.1s ease;
 }
 
 .panel__sendBtn:disabled {
-  opacity: 0.35;
+  opacity: 0.25;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
@@ -273,11 +371,12 @@
    ======================================== */
 
 .panel__error {
-  font-size: 0.5em;
-  color: var(--color-error);
-  padding: 0.3em 0.75em;
-  font-family: var(--font-mono);
-  border-top: 1px solid rgba(255, 68, 68, 0.15);
+  font-size: 0.55em;
+  color: #ff6b6b;
+  padding: 6px 16px 4px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  font-weight: 500;
+  opacity: 0.8;
 }
 
 /* ========================================
@@ -287,12 +386,13 @@
 .panel__overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.25);
   z-index: 999;
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--transition-normal);
-  backdrop-filter: blur(2px);
+  transition: opacity 0.35s ease;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .panel__overlay--visible {
