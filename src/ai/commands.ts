@@ -25,17 +25,31 @@ const commandRegistry: Record<string, AICommand> = {
         const source = String(params.source || 'modrinth');
         if (source === 'curseforge') {
           const results = await api.searchCfMods(query);
+          const arr = Array.isArray(results) ? results.slice(0, 5) : [];
+          const slim = arr.map((m: any) => ({
+            slug: m.slug || m.id || '',
+            title: m.title || m.name || '',
+            description: String(m.description || '').slice(0, 100),
+            downloads: m.downloads || 0,
+          }));
           return {
             success: true,
-            data: results,
-            message: `Found ${Array.isArray(results) ? results.length : 0} mods on CurseForge`,
+            data: slim,
+            message: `Found ${slim.length} mods for "${query}". Call install_mod with the slug to install.`,
           };
         }
         const [mods] = await api.searchMods(query);
+        const arr = Array.isArray(mods) ? mods.slice(0, 5) : [];
+        const slim = arr.map((m: any) => ({
+          slug: m.slug || '',
+          title: m.title || '',
+          description: String(m.description || '').slice(0, 100),
+          downloads: m.downloads || 0,
+        }));
         return {
           success: true,
-          data: mods,
-          message: `Found ${Array.isArray(mods) ? mods.length : 0} mods on Modrinth`,
+          data: slim,
+          message: `Found ${slim.length} mods for "${query}". Call install_mod(slug="<slug>", instance_id="<from create_instance>") for each mod you want.`,
         };
       } catch (e) {
         return { success: false, error: e instanceof Error ? e.message : 'Search failed' };
@@ -289,7 +303,7 @@ const commandRegistry: Record<string, AICommand> = {
         const instances = await api.listInstances();
         const created = instances.find((i) => i.name === name);
         const msg = created
-          ? `Instance "${name}" created with ID: ${created.id}`
+          ? `Instance "${name}" created with ID: ${created.id}. Use this instance_id for all subsequent install_mod and install_loader calls.`
           : `Instance "${name}" created successfully`;
         return { success: true, data: created, message: msg };
       } catch (e) {
@@ -370,8 +384,11 @@ const commandRegistry: Record<string, AICommand> = {
         const filtered = versions.filter((v) => type === 'all' || v.type === type);
         return {
           success: true,
-          data: filtered.slice(0, 20).map((v) => ({ id: v.id, type: v.type, time: v.time })),
-          message: `Found ${filtered.length} version(s)`,
+          data: filtered.slice(0, 10).map((v) => ({ id: v.id, type: v.type })),
+          message: `Latest ${type} versions: ${filtered
+            .slice(0, 5)
+            .map((v) => v.id)
+            .join(', ')}. Use create_instance with one of these version_ids.`,
         };
       } catch (e) {
         return { success: false, error: e instanceof Error ? e.message : 'Failed to search versions' };
@@ -552,25 +569,35 @@ export function buildOpenAITools(): OpenAITool[] {
 }
 
 export function buildSystemPrompt(): string {
-  return `You are BonNext AI Assistant, an intelligent agent for a Minecraft launcher. You can autonomously execute complex multi-step tasks by chaining tools together.
+  return `You are BonNext AI Assistant, a Minecraft launcher agent. Your job is to complete multi-step tasks autonomously by calling tools one after another until the task is DONE.
 
-You have access to tools that can search mods, install mods, install loaders, launch games, create instances, check instances, view/modify settings, search versions, diagnose crash reports, and apply automatic fixes. Use these tools when the user asks you to perform actions. All tools execute automatically. When a request requires multiple steps (e.g. creating a modpack), call as many tools as needed in a single response rather than one at a time.
+IMPORTANT: After each tool result comes back, you MUST call the NEXT tool in the workflow. Do NOT just describe the result — continue executing. Keep going until the full task is complete, then summarize.
 
-Rules:
-1. Always explain what you're doing before and after calling a tool
-2. If a user's request is ambiguous (e.g. "install some mods" without specifying which), ask for clarification
-3. Respond in the same language as the user's message
-4. Be concise and helpful
-5. When showing search results, highlight the most relevant items
-6. Execute tools promptly based on user intent — don't ask for unnecessary confirmation
-7. When a user reports a crash or game error, immediately use the analyze_crash tool with the instance ID to automatically diagnose the problem. Crash reports are auto-detected — no need to ask the user for file paths. If an auto-fix is available, explain it clearly and offer to apply it using the apply_fix tool.
-8. Natural language modpack creation: When a user describes a gameplay style or theme (e.g. "I want a cozy farming experience", "magic adventure pack", "tech automation"), follow this workflow:
-   a. Search for Minecraft versions to find the latest stable release
-   b. Create a new instance with an appropriate name and version
-   c. Search for relevant mods on Modrinth based on the theme (4-8 mods)
-   d. Install each mod into the new instance
-   e. Summarize what was created and suggest next steps
-9. Agent mode: When asked to set up a complete environment (e.g. "install Fabric 1.20.1", "set me up for Skyblock"), execute the full workflow autonomously in one response — version search, instance creation, loader setup, essential mod installation. Chain as many tool calls as needed. Don't ask for step-by-step confirmation.`;
+MODPACK WORKFLOW (for requests like "I want X pack", "make me a Y modpack", etc.):
+Step 1: Call search_versions(type="release") to find the latest Minecraft version.
+Step 2: Call create_instance with a descriptive name and the version from step 1.
+Step 3: Call search_mods with 2-4 relevant search queries based on the user's theme.
+Step 4: For EACH good mod found, call install_mod into the new instance.
+Step 5: Summarize what was built.
+
+SETUP WORKFLOW (for "install Fabric/Forge X.Y.Z"):
+Step 1: Call search_versions to find the requested version.
+Step 2: Call create_instance with the version and loader type.
+Step 3: Call install_loader for the instance.
+Step 4: Call search_mods for essential mods (e.g. "Fabric API", "Sodium").
+Step 5: Call install_mod for the essentials.
+Step 6: Summarize.
+
+CRASH WORKFLOW:
+Step 1: Call analyze_crash with the instance ID. Do NOT ask for file paths.
+Step 2: If auto-fix is available, offer apply_fix.
+
+CRITICAL RULES:
+- NEVER stop after just one tool call. Continue until the workflow is complete.
+- After search_mods returns results, immediately call install_mod for the relevant ones.
+- After create_instance returns the new instance ID, use it for subsequent install calls.
+- Always use the instance ID from create_instance, not an empty string.
+- Be concise. Don't describe what you "will" do — just call the tools.`;
 }
 
 export function parseToolCallsToCommands(toolCalls: ToolCall[]): ParsedCommand[] {
