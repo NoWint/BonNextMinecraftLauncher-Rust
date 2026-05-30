@@ -259,11 +259,17 @@ struct ModrinthLicense {
 struct ModrinthVersion {
     id: String,
     name: String,
+    #[serde(default)]
     version_number: String,
+    #[serde(default)]
     game_versions: Vec<String>,
+    #[serde(default)]
     loaders: Vec<String>,
+    #[serde(default)]
     files: Vec<ModrinthFile>,
+    #[serde(default)]
     dependencies: Vec<ModrinthDependency>,
+    #[serde(default)]
     date_published: String,
 }
 
@@ -271,6 +277,7 @@ struct ModrinthVersion {
 struct ModrinthFile {
     url: String,
     filename: String,
+    #[serde(default)]
     size: u64,
     hashes: ModrinthHashes,
 }
@@ -365,13 +372,20 @@ pub async fn get_mod_versions(
         url.push_str(&params.join("&"));
     }
 
-    let resp: Vec<ModrinthVersion> = client
+    let response = client
         .get(&url)
         .send()
         .await?
-        .error_for_status()?
-        .json()
-        .await?;
+        .error_for_status()
+        .map_err(|e| {
+            tracing::error!("Modrinth versions request failed for {}: {}", slug, e);
+            LauncherError::Http(e)
+        })?;
+
+    let resp: Vec<ModrinthVersion> = response.json().await.map_err(|e| {
+        tracing::error!("Modrinth versions JSON parse failed for {}: {}", slug, e);
+        LauncherError::Http(e)
+    })?;
 
     Ok(resp
         .into_iter()
@@ -492,13 +506,20 @@ pub async fn get_project_full(slug: &str) -> Result<ModProjectFull, LauncherErro
     let client = http_client::build_client();
     let url = format!("{}/project/{}", MODRINTH_API_BASE, slug);
 
-    let resp: ModrinthProjectFull = client
+    let response = client
         .get(&url)
         .send()
         .await?
-        .error_for_status()?
-        .json()
-        .await?;
+        .error_for_status()
+        .map_err(|e| {
+            tracing::error!("Modrinth project request failed for {}: {}", slug, e);
+            LauncherError::Http(e)
+        })?;
+
+    let resp: ModrinthProjectFull = response.json().await.map_err(|e| {
+        tracing::error!("Modrinth project JSON parse failed for {}: {}", slug, e);
+        LauncherError::Http(e)
+    })?;
 
     Ok(ModProjectFull {
         slug: resp.slug,
