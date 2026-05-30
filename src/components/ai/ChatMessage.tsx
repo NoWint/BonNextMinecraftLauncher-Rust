@@ -1,7 +1,6 @@
 import React from 'react';
 import { useI18n } from '../../i18n';
 import type { ChatMessage as ChatMessageType, Task } from '../../ai/types';
-import { Icon } from '../ui/Icon';
 import styles from './ChatMessage.module.css';
 
 interface ChatMessageProps {
@@ -64,89 +63,60 @@ interface CommandCardProps {
   onRetry: (taskId: string) => void;
 }
 
-const CommandCard: React.FC<CommandCardProps> = ({ command, task, onConfirm, onCancel, onRetry }) => {
-  const { t } = useI18n();
-  const riskLevel = command.risk_level;
-  const status = task?.status || 'pending';
+const CMD_LABELS: Record<string, string> = {
+  search_mods: 'Search',
+  install_mod: 'Install',
+  launch_game: 'Launch',
+  update_settings: 'Settings',
+  get_instances: 'Instances',
+  get_config: 'Config',
+  search_versions: 'Versions',
+};
 
-  const statusLabels: Record<string, string> = {
-    pending: t('ai.status.pending'),
-    confirmed: t('ai.status.queued'),
-    executing: t('ai.status.running'),
-    completed: t('ai.status.done'),
-    failed: t('ai.status.failed'),
-  };
+const CommandCard: React.FC<CommandCardProps> = ({ command, task, onRetry }) => {
+  const { t } = useI18n();
+  const status = task?.status || 'pending';
+  const label = CMD_LABELS[command.command] || command.command;
 
   return (
-    <div className={`${styles.commandCard} ${styles[`commandCard--${riskLevel}`]}`}>
-      <div className={styles.commandCard__header}>
-        <div className={styles.commandCard__icon}>
+    <div className={`${styles.commandCard} ${styles[`commandCard--${status}`]}`}>
+      <div className={styles.commandCard__main}>
+        <div className={styles.commandCard__iconWrap}>
           {status === 'executing' ? (
-            <Icon name="hourglass" size={12} />
+            <span className={styles.spinner} />
           ) : status === 'completed' ? (
-            <Icon name="check" size={12} />
+            <span className={styles.checkmark}>✓</span>
           ) : status === 'failed' ? (
-            <Icon name="cross" size={12} />
+            <span className={styles.crossmark}>✗</span>
           ) : (
-            <Icon name="bulletRight" size={10} />
+            <span className={styles.dot} />
           )}
         </div>
-        <span className={styles.commandCard__name}>{command.command}</span>
-        <span className={`${styles.commandCard__risk} ${styles[`commandCard__risk--${riskLevel}`]}`}>
-          {riskLevel === 'high' ? t('ai.risk.high') : t('ai.risk.low')}
-        </span>
+        <div className={styles.commandCard__body}>
+          <div className={styles.commandCard__label}>{label}</div>
+          {Object.keys(command.params).length > 0 && (
+            <div className={styles.commandCard__params}>
+              {Object.entries(command.params).map(([key, val]) => (
+                <span key={key} className={styles.commandCard__param}>
+                  <span className={styles.commandCard__paramKey}>{key}</span>
+                  <span className={styles.commandCard__paramVal}>{String(val)}</span>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className={`${styles.commandCard__status} ${styles[`commandCard__status--${status}`]}`}>
+            {status === 'executing' && (task?.result?.message || t('ai.status.running'))}
+            {status === 'completed' && (task?.result?.message || t('ai.status.done'))}
+            {status === 'failed' && (task?.result?.error || t('ai.status.failed'))}
+            {status === 'confirmed' && t('ai.status.queued')}
+          </div>
+        </div>
       </div>
 
-      <div className={styles.commandCard__params}>
-        {Object.entries(command.params).map(([key, val]) => (
-          <span key={key} className={styles.commandCard__param}>
-            <span className={styles.commandCard__paramKey}>{key}</span>
-            <span className={styles.commandCard__paramVal}>{String(val)}</span>
-          </span>
-        ))}
-      </div>
-
-      {task && (
-        <div className={styles.commandCard__status}>
-          <span className={`${styles.commandCard__statusDot} ${styles[`commandCard__statusDot--${status}`]}`} />
-          <span className={styles.commandCard__statusText}>{statusLabels[status] || status}</span>
-        </div>
-      )}
-
-      {task?.result && (
-        <div
-          className={`${styles.commandCard__result} ${styles[`commandCard__result--${task.result.success ? 'success' : 'error'}`]}`}
-        >
-          {task.result.success ? task.result.message : task.result.error}
-        </div>
-      )}
-
-      {task && status === 'pending' && riskLevel === 'high' && (
-        <div className={styles.commandCard__actions}>
-          <button
-            className={`${styles.commandCard__btn} ${styles['commandCard__btn--confirm']}`}
-            onClick={() => onConfirm(task.id)}
-          >
-            {t('ai.action.confirm')}
-          </button>
-          <button
-            className={`${styles.commandCard__btn} ${styles['commandCard__btn--cancel']}`}
-            onClick={() => onCancel(task.id)}
-          >
-            {t('ai.action.cancel')}
-          </button>
-        </div>
-      )}
-
-      {task && status === 'failed' && (
-        <div className={styles.commandCard__actions}>
-          <button
-            className={`${styles.commandCard__btn} ${styles['commandCard__btn--retry']}`}
-            onClick={() => onRetry(task.id)}
-          >
-            {t('ai.action.retry')}
-          </button>
-        </div>
+      {status === 'failed' && (
+        <button className={styles.commandCard__retryBtn} onClick={() => onRetry(task!.id)}>
+          {t('ai.action.retry')}
+        </button>
       )}
     </div>
   );

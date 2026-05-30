@@ -271,40 +271,36 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
           command: tc.function.name,
           params,
           riskLevel: cmd.riskLevel,
-          status: cmd.riskLevel === 'low' ? 'confirmed' : 'pending',
+          status: 'confirmed',
           messageId: assistantMessageId,
           createdAt: Date.now(),
         };
         dispatch({ type: 'UPDATE_TASK', task });
 
-        if (cmd.riskLevel === 'low') {
-          try {
-            const result = await cmd.execute(params);
-            dispatch({
-              type: 'UPDATE_TASK',
-              task: { ...task, status: result.success ? 'completed' : 'failed', result },
-            });
-            toolMessages.push({
-              role: 'tool',
-              content: JSON.stringify(result),
-              tool_call_id: tc.id,
-            });
-          } catch (e) {
-            const errorResult = { success: false, error: e instanceof Error ? e.message : 'Execution failed' };
-            dispatch({
-              type: 'UPDATE_TASK',
-              task: { ...task, status: 'failed', result: errorResult },
-            });
-            toolMessages.push({
-              role: 'tool',
-              content: JSON.stringify(errorResult),
-              tool_call_id: tc.id,
-            });
-          }
-        } else {
+        try {
+          dispatch({
+            type: 'UPDATE_TASK',
+            task: { ...task, status: 'executing' },
+          });
+          const result = await cmd.execute(params);
+          dispatch({
+            type: 'UPDATE_TASK',
+            task: { ...task, status: result.success ? 'completed' : 'failed', result },
+          });
           toolMessages.push({
             role: 'tool',
-            content: JSON.stringify({ success: false, error: 'Waiting for user confirmation' }),
+            content: JSON.stringify(result),
+            tool_call_id: tc.id,
+          });
+        } catch (e) {
+          const errorResult = { success: false, error: e instanceof Error ? e.message : 'Execution failed' };
+          dispatch({
+            type: 'UPDATE_TASK',
+            task: { ...task, status: 'failed', result: errorResult },
+          });
+          toolMessages.push({
+            role: 'tool',
+            content: JSON.stringify(errorResult),
             tool_call_id: tc.id,
           });
         }
@@ -389,9 +385,7 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
           const toolResults = await executeToolCalls(result.toolCalls, assistantMessageId);
           apiMessages.push(...toolResults);
 
-          const hasOnlyHighRisk = result.toolCalls.every((tc) => getCommand(tc.function.name)?.riskLevel === 'high');
-
-          if (!hasOnlyHighRisk) {
+          if (result.toolCalls.length > 0) {
             const followUpId = nextMessageId();
             const followUpMessage: ChatMessageType = {
               id: followUpId,

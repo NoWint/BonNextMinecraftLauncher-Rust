@@ -49,99 +49,136 @@
 .message__commands {
   display: flex;
   flex-direction: column;
-  gap: 0.4em;
+  gap: 0.45em;
   margin-top: 0.5em;
   width: 100%;
 }
+
+/* ========================================
+   Command Card — Redesigned
+   ======================================== */
 
 .commandCard {
   background: var(--color-bg);
   border: 1px solid var(--color-border-light);
   border-radius: 8px;
-  padding: 0.65em 0.8em;
+  padding: 0.6em 0.75em;
   font-size: 0.92em;
   width: 100%;
-  transition: border-color 0.2s ease;
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
 }
 
-.commandCard--low {
-  border-color: color-mix(in srgb, var(--color-accent) 20%, var(--color-border-light));
+.commandCard--executing {
+  border-color: var(--color-accent-30);
+  box-shadow: 0 0 12px var(--color-accent-06);
 }
 
-.commandCard--high {
-  border-color: color-mix(in srgb, var(--color-error) 25%, var(--color-border-light));
+.commandCard--completed {
+  border-color: color-mix(in srgb, var(--color-success) 30%, var(--color-border-light));
 }
 
-.commandCard__header {
+.commandCard--failed {
+  border-color: color-mix(in srgb, var(--color-error) 30%, var(--color-border-light));
+}
+
+.commandCard--confirmed {
+  border-color: var(--color-border-light);
+}
+
+.commandCard__main {
   display: flex;
-  align-items: center;
-  gap: 0.45em;
-  margin-bottom: 0.35em;
+  gap: 0.55em;
+  align-items: flex-start;
 }
 
-.commandCard__icon {
-  width: 1.4em;
-  height: 1.4em;
+.commandCard__iconWrap {
+  width: 1.7em;
+  height: 1.7em;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.8em;
-  border-radius: 4px;
+  border-radius: 6px;
   flex-shrink: 0;
+  margin-top: 0.05em;
 }
 
-.commandCard--low .commandCard__icon {
+.commandCard--executing .commandCard__iconWrap {
   background: var(--color-accent-10);
-  color: var(--color-accent);
 }
 
-.commandCard--high .commandCard__icon {
-  background: rgba(255, 68, 68, 0.1);
+.commandCard--completed .commandCard__iconWrap {
+  background: rgba(0, 255, 136, 0.08);
+}
+
+.commandCard--failed .commandCard__iconWrap {
+  background: rgba(255, 68, 68, 0.08);
+}
+
+.commandCard--confirmed .commandCard__iconWrap {
+  background: var(--color-panel-alt);
+}
+
+.spinner {
+  width: 0.85em;
+  height: 0.85em;
+  border: 2px solid var(--color-accent-20);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.checkmark {
+  color: var(--color-success);
+  font-size: 0.8em;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.crossmark {
   color: var(--color-error);
+  font-size: 0.85em;
+  font-weight: 700;
+  line-height: 1;
 }
 
-.commandCard__name {
-  font-family: var(--font-mono);
-  font-size: 0.82em;
-  color: var(--color-text);
-  font-weight: 500;
+.dot {
+  width: 0.4em;
+  height: 0.4em;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+}
+
+.commandCard__body {
   flex: 1;
-  letter-spacing: 0.02em;
+  min-width: 0;
 }
 
-.commandCard__risk {
+.commandCard__label {
   font-family: var(--font-mono);
-  font-size: 0.6em;
-  padding: 0.15em 0.45em;
-  border-radius: 3px;
-  letter-spacing: 0.04em;
-  font-weight: 500;
-}
-
-.commandCard__risk--low {
-  background: var(--color-accent-10);
-  color: var(--color-accent);
-}
-
-.commandCard__risk--high {
-  background: rgba(255, 68, 68, 0.1);
-  color: var(--color-error);
+  font-size: 0.78em;
+  color: var(--color-text);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-bottom: 0.2em;
 }
 
 .commandCard__params {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3em;
-  margin-bottom: 0.35em;
+  gap: 0.25em;
+  margin-bottom: 0.25em;
 }
 
 .commandCard__param {
   display: inline-flex;
   align-items: center;
-  gap: 0.2em;
-  font-size: 0.72em;
+  gap: 0.15em;
+  font-size: 0.7em;
   background: var(--color-panel-alt);
-  padding: 0.15em 0.4em;
+  padding: 0.12em 0.4em;
   border-radius: 3px;
 }
 
@@ -157,131 +194,54 @@
 }
 
 .commandCard__status {
-  display: flex;
-  align-items: center;
-  gap: 0.35em;
   font-size: 0.7em;
-  font-family: var(--font-mono);
-  color: var(--color-text-muted);
-}
-
-.commandCard__statusDot {
-  width: 0.5em;
-  height: 0.5em;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.commandCard__statusDot--pending {
-  background: var(--color-text-muted);
-}
-
-.commandCard__statusDot--confirmed {
-  background: var(--color-accent);
-  animation: breathe-yellow 1.5s infinite;
-}
-
-.commandCard__statusDot--executing {
-  background: var(--color-accent);
-  animation: breathe-yellow 1.5s infinite;
-}
-
-.commandCard__statusDot--completed {
-  background: var(--color-success);
-}
-
-.commandCard__statusDot--failed {
-  background: var(--color-error);
-}
-
-.commandCard__statusText {
-  color: var(--color-text-muted);
-}
-
-.commandCard__actions {
-  display: flex;
-  gap: 0.4em;
-  margin-top: 0.45em;
-}
-
-.commandCard__btn {
   font-family: var(--font-body);
-  font-size: 0.72em;
-  padding: 0.4em 1em;
-  cursor: pointer;
-  border-radius: 5px;
-  letter-spacing: 0.02em;
-  transition: all 0.15s ease;
-  font-weight: 500;
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  &--confirm {
-    border: none;
-    background: var(--color-accent);
-    color: var(--color-bg);
-
-    &:hover {
-      filter: brightness(1.1);
-    }
-
-    &:active {
-      filter: brightness(0.95);
-    }
-  }
-
-  &--cancel {
-    border: 1px solid var(--color-border-light);
-    background: transparent;
-    color: var(--color-text-muted);
-
-    &:hover {
-      border-color: var(--color-error);
-      color: var(--color-error);
-    }
-  }
-
-  &--retry {
-    border: 1px solid var(--color-border-light);
-    background: transparent;
-    color: var(--color-text-muted);
-
-    &:hover {
-      border-color: var(--color-accent);
-      color: var(--color-accent);
-    }
-  }
-}
-
-.commandCard__result {
-  font-size: 0.72em;
-  margin-top: 0.35em;
-  padding: 0.3em 0.5em;
-  border-radius: 4px;
   line-height: 1.4;
-  font-family: var(--font-body);
 }
 
-.commandCard__result--success {
-  background: rgba(0, 255, 136, 0.05);
+.commandCard__status--executing {
+  color: var(--color-accent);
+}
+
+.commandCard__status--completed {
   color: var(--color-success);
 }
 
-.commandCard__result--error {
-  background: rgba(255, 68, 68, 0.05);
+.commandCard__status--failed {
   color: var(--color-error);
 }
 
-@keyframes breathe-yellow {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
+.commandCard__status--confirmed {
+  color: var(--color-text-muted);
+}
+
+.commandCard__retryBtn {
+  margin-top: 0.45em;
+  font-family: var(--font-body);
+  font-size: 0.68em;
+  padding: 0.3em 0.8em;
+  cursor: pointer;
+  border-radius: 4px;
+  border: 1px solid var(--color-border-light);
+  background: transparent;
+  color: var(--color-accent);
+  letter-spacing: 0.02em;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.commandCard__retryBtn:hover {
+  background: var(--color-accent-10);
+  border-color: var(--color-accent-30);
+}
+
+/* ========================================
+   Animations
+   ======================================== */
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -308,11 +268,11 @@
   border-radius: 50%;
   background: var(--color-accent);
   animation: dotPulse 1.4s infinite ease-in-out;
+}
 
-  &:nth-child(2) {
-    animation-delay: 0.2s;
-  }
-  &:nth-child(3) {
-    animation-delay: 0.4s;
-  }
+.typingDot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typingDot:nth-child(3) {
+  animation-delay: 0.4s;
 }

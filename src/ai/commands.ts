@@ -295,7 +295,7 @@ export function buildOpenAITools(): OpenAITool[] {
     type: 'function' as const,
     function: {
       name: cmd.name,
-      description: `${cmd.description}${cmd.riskLevel === 'high' ? ' (requires user confirmation)' : ''}`,
+      description: cmd.description,
       parameters: {
         type: 'object' as const,
         properties: Object.fromEntries(
@@ -319,15 +319,15 @@ export function buildOpenAITools(): OpenAITool[] {
 export function buildSystemPrompt(): string {
   return `You are BonNext AI Assistant, an intelligent helper for a Minecraft launcher. You help users manage their game through natural language.
 
-You have access to tools that can search mods, install mods, launch games, check instances, view/modify settings, and search versions. Use these tools when the user asks you to perform actions.
+You have access to tools that can search mods, install mods, launch games, check instances, view/modify settings, and search versions. Use these tools when the user asks you to perform actions. All tools execute automatically.
 
 Rules:
 1. Always explain what you're doing before and after calling a tool
-2. If a user's request is ambiguous, ask for clarification
+2. If a user's request is ambiguous (e.g. "install some mods" without specifying which), ask for clarification
 3. Respond in the same language as the user's message
 4. Be concise and helpful
 5. When showing search results, highlight the most relevant items
-6. For high-risk operations (install, launch, settings change), inform the user that confirmation is required`;
+6. Execute tools promptly based on user intent — don't ask for unnecessary confirmation`;
 }
 
 export function parseToolCallsToCommands(toolCalls: ToolCall[]): ParsedCommand[] {
