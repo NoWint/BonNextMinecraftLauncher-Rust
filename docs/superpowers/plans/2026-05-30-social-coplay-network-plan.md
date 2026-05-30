@@ -62,21 +62,16 @@ src/components/layout/Sidebar.tsx     # 添加好友列表入口
 
 - [ ] **Step 1: 添加加密和 P2P 依赖到 Cargo.toml**
 
-在 `[dependencies]` 的 `keyring = "3"` 之后添加：
+在 `[dependencies]` 的 `keyring = "3"` 之后添加（`hkdf`, `sha2`, `rand` 已存在，无需重复添加）：
 
 ```toml
-# Social networking dependencies
+# Social networking (crypto + P2P + msg store)
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 x25519-dalek = "2"
 chacha20poly1305 = "0.10"
-hkdf = "0.12"
-sha2 = "0.10"
-rand = "0.8"
 bs58 = "0.5"
 rusqlite = { version = "0.31", features = ["bundled"] }
 ```
-
-> 注意：`hkdf`、`sha2`、`rand` 可能已存在，检查是否可复用。`hkdf` 已存在于 Cargo.toml:40，`sha2` 存在于 Cargo.toml:43，`rand` 存在于 Cargo.toml:56。只需添加 `ed25519-dalek`、`x25519-dalek`、`chacha20poly1305`、`bs58`、`rusqlite`。
 
 - [ ] **Step 2: 运行 cargo check 验证依赖解析**
 
