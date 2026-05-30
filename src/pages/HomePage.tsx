@@ -23,6 +23,7 @@ import { Icon } from '../components/ui/Icon';
 import type { IconName } from '../components/ui/Icon';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import GameConsole from '../components/ui/GameConsole';
+import AchievementDisplay from '../components/ui/AchievementDisplay';
 import { relativeTime } from '../utils/time';
 import styles from './HomePage.module.css';
 
@@ -914,6 +915,8 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      <AchievementDisplay />
 
       <GameConsole visible={showConsole} />
     </div>

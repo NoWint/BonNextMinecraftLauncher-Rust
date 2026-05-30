@@ -34,6 +34,8 @@ const InstanceContext = createContext<{
   reloadInstances: () => Promise<void>;
   createInstance: (inst: GameInstance) => Promise<void>;
   deleteInstance: (id: string) => Promise<void>;
+  restoreInstance: (id: string) => Promise<void>;
+  cleanupTrash: () => Promise<void>;
 } | null>(null);
 
 export function InstanceProvider({ children }: { children: React.ReactNode }) {
@@ -64,12 +66,26 @@ export function InstanceProvider({ children }: { children: React.ReactNode }) {
 
   const deleteInstance = useCallback(
     async (id: string) => {
-      await api.deleteInstance(id);
+      await api.softDeleteInstance(id);
       invalidateCache(['instances', 'config', 'active_account']);
       await reloadInstances();
     },
     [reloadInstances],
   );
+
+  const restoreInstance = useCallback(
+    async (id: string) => {
+      await api.restoreInstance(id);
+      invalidateCache(['instances', 'config', 'active_account']);
+      await reloadInstances();
+    },
+    [reloadInstances],
+  );
+
+  const cleanupTrash = useCallback(async () => {
+    await api.cleanupTrash();
+    await reloadInstances();
+  }, [reloadInstances]);
 
   const contextValue = useMemo(
     () => ({
@@ -77,8 +93,10 @@ export function InstanceProvider({ children }: { children: React.ReactNode }) {
       reloadInstances,
       createInstance,
       deleteInstance,
+      restoreInstance,
+      cleanupTrash,
     }),
-    [state, reloadInstances, createInstance, deleteInstance],
+    [state, reloadInstances, createInstance, deleteInstance, restoreInstance, cleanupTrash],
   );
 
   return <InstanceContext.Provider value={contextValue}>{children}</InstanceContext.Provider>;
