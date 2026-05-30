@@ -13,6 +13,8 @@ import { I18nProvider, useI18n } from './i18n';
 import { Sidebar } from './components/layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CommandPalette } from './components/CommandPalette';
+import { SocialProvider } from './stores/socialStore';
+import { ChatProvider } from './stores/chatStore';
 import { SearchPalette } from './components/ui/SearchPalette';
 import { DownloadPanel } from './components/ui/DownloadPanel';
 import { ChatPanel } from './components/ai/ChatPanel';
@@ -167,6 +169,8 @@ const providers = [
   InstanceProvider,
   ToastProvider,
   DownloadProvider,
+  SocialProvider,
+  ChatProvider,
   ContextMenuProvider,
   AIAssistantProvider,
 ];

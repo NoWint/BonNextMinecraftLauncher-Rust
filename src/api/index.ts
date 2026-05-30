@@ -9,6 +9,8 @@ import * as content from './content';
 import * as security from './security';
 import * as system from './system';
 import { invalidateCache } from './cache';
+import { socialApi } from './social';
+import { chatApi } from './chat';
 
 export type * from './types';
 export { invalidateCache } from './cache';
@@ -260,4 +262,7 @@ export const api = {
   getRecommendedConfig: system.getRecommendedConfig,
 
   invalidateCache,
+
+  social: socialApi,
+  chat: chatApi,
 };

@@ -830,6 +830,21 @@ const enUS: Record<string, string> = {
   'settings.security.viewAuditLog': 'View Audit Log',
   'settings.security.openLogViewer': 'Open Log Viewer',
   'settings.security.recentLogins': 'Recent Logins',
+  'social.peerIdLabel': 'My ID',
+  'social.nearby': 'Nearby',
+  'social.startChat': 'Start Chat',
+  'social.inviteCoPlay': 'Invite to Co-Play',
+  'social.coPlayDiff': 'Config Diff',
+  'social.missingFiles': '{count} files to sync ({size})',
+  'social.syncing': 'Syncing...',
+  'social.ready': 'Ready',
+  'social.launchTogether': 'Launch Together',
+  'social.noFriends': 'No friends yet',
+  'social.addFriendHint': 'Add a friend ID to start co-play',
+  'social.mergeInstance': 'Merge into existing instance',
+  'social.createTempInstance': 'Create temp co-play instance',
+  'social.friendRecommendations': 'Friend Recommendations',
+  'social.similarPlaystyle': 'Similar playstyle',
 };
 
 export default enUS;

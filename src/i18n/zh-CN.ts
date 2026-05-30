@@ -828,6 +828,21 @@ const zhCN: Record<string, string> = {
   'settings.security.viewAuditLog': '查看审计日志',
   'settings.security.openLogViewer': '打开日志查看器',
   'settings.security.recentLogins': '最近登录',
+  'social.peerIdLabel': '我的 ID',
+  'social.nearby': '附近',
+  'social.startChat': '开始聊天',
+  'social.inviteCoPlay': '共玩邀请',
+  'social.coPlayDiff': '配置差异',
+  'social.missingFiles': '需要同步 {count} 个文件 ({size})',
+  'social.syncing': '同步中...',
+  'social.ready': '就绪',
+  'social.launchTogether': '一起启动',
+  'social.noFriends': '还没有好友',
+  'social.addFriendHint': '添加好友 ID 开始共玩',
+  'social.mergeInstance': '合并到现有实例',
+  'social.createTempInstance': '创建临时共玩实例',
+  'social.friendRecommendations': '推荐好友',
+  'social.similarPlaystyle': '玩法相似',
 };
 
 export default zhCN;

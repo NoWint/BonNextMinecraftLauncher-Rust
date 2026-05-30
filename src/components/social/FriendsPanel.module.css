@@ -1,0 +1,151 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  padding: 0.75em;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.8em;
+  letter-spacing: 0.05em;
+}
+
+.myId {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.5em;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  padding: 0.2em 0.5em;
+  border-radius: 4px;
+}
+
+.discoverySection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.discoveryBtn {
+  font-size: 0.6em;
+  padding: 0.4em;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  clip-path: var(--clip-small);
+}
+
+.discoveryBtn.active {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.discoveredSection {
+  margin-top: 0.3em;
+}
+
+.sectionLabel {
+  font-size: 0.55em;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.peerItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.6em;
+  padding: 0.3em 0;
+}
+
+.addFriendForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.addFriendForm input {
+  font-size: 0.55em;
+  padding: 0.35em;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.addFriendForm button {
+  font-size: 0.55em;
+  padding: 0.35em;
+}
+
+.friendList {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.empty {
+  font-size: 0.55em;
+  color: var(--color-text-secondary);
+  text-align: center;
+  padding: 1em;
+}
+
+.friendItem {
+  display: flex;
+  flex-direction: column;
+  padding: 0.4em 0;
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.friendStatus {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  font-size: 0.6em;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot.online {
+  background: #4caf50;
+}
+.dot.offline {
+  background: var(--color-text-secondary);
+}
+.dot.busy {
+  background: var(--color-accent);
+}
+.dot.away {
+  background: #ff9800;
+}
+
+.unreadBadge {
+  font-size: 0.5em;
+  background: var(--color-accent);
+  color: #000;
+  padding: 0.1em 0.4em;
+  border-radius: 8px;
+  align-self: flex-start;
+  margin-top: 0.2em;
+}
+
+.currentGame {
+  font-size: 0.5em;
+  color: var(--color-text-secondary);
+  margin-top: 0.15em;
+}
