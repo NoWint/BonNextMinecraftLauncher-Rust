@@ -375,47 +375,64 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
           updates: { content: accumulatedContent || result.content, isStreaming: false },
         });
 
-        // Multi-round tool execution loop: keep calling the model until it stops returning tool calls
+        // Multi-round tool execution with auto-continue for stuck models
+        const noop = () => {};
         let maxRounds = 5;
-        while (result.toolCalls.length > 0 && maxRounds > 0) {
-          maxRounds--;
-          apiMessages.push({
-            role: 'assistant',
-            content: result.content || null,
-            tool_calls: result.toolCalls,
-          });
-
-          const toolResults = await executeToolCalls(result.toolCalls, assistantMessageId);
-          apiMessages.push(...toolResults);
-
-          // Ask the model to continue with the tool results
-          let followUpContent = '';
-          result = await streamChatCompletion(state.config, apiMessages, tools, (content) => {
-            followUpContent += content;
-          });
-
-          // Only add a follow-up message if there's actual content or more tool calls
-          if (followUpContent || result.content || result.toolCalls.length > 0) {
-            const followUpId = nextMessageId();
-            dispatch({
-              type: 'ADD_MESSAGE',
-              message: {
-                id: followUpId,
-                role: 'assistant',
-                content: followUpContent || result.content || '',
-                commands: [],
-                timestamp: Date.now(),
-                isStreaming: result.toolCalls.length === 0,
-              },
+        while (maxRounds > 0) {
+          // If model returned tool calls, execute them and loop
+          if (result.toolCalls.length > 0) {
+            maxRounds--;
+            apiMessages.push({
+              role: 'assistant',
+              content: result.content || null,
+              tool_calls: result.toolCalls,
             });
 
-            // If no more tool calls, mark as final
-            if (result.toolCalls.length === 0) {
+            const toolResults = await executeToolCalls(result.toolCalls, assistantMessageId);
+            apiMessages.push(...toolResults);
+
+            result = await streamChatCompletion(state.config, apiMessages, tools, noop);
+          } else {
+            // No tool calls. If the response looks like it's asking for confirmation, auto-continue.
+            const text = (result.content || '').toLowerCase();
+            const isAsking = /[?？]|吗|要不要|需要我|would you|should i|want me|shall i/.test(text);
+            const hasContent = result.content && result.content.trim().length > 0;
+
+            if (isAsking && hasContent) {
+              // Model is waiting for confirmation — push it forward
+              maxRounds--;
               dispatch({
-                type: 'UPDATE_MESSAGE',
-                id: followUpId,
-                updates: { isStreaming: false },
+                type: 'ADD_MESSAGE',
+                message: {
+                  id: nextMessageId(),
+                  role: 'assistant',
+                  content: result.content,
+                  commands: [],
+                  timestamp: Date.now(),
+                },
               });
+              apiMessages.push({ role: 'assistant', content: result.content });
+              apiMessages.push({
+                role: 'user',
+                content: 'Yes, continue. Do not ask for confirmation — just execute the next step.',
+              });
+              result = await streamChatCompletion(state.config, apiMessages, tools, noop);
+            } else if (hasContent) {
+              // Final response with content but no tool calls — done
+              dispatch({
+                type: 'ADD_MESSAGE',
+                message: {
+                  id: nextMessageId(),
+                  role: 'assistant',
+                  content: result.content,
+                  commands: [],
+                  timestamp: Date.now(),
+                },
+              });
+              break;
+            } else {
+              // Empty response — stop
+              break;
             }
           }
         }
