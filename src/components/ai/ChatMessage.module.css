@@ -1,13 +1,12 @@
 /* ========================================
    Apple Intelligence — Message Bubbles
-   Clean, borderless, frosted, spring animation
    ======================================== */
 
 .message {
   display: flex;
   flex-direction: column;
-  max-width: 88%;
-  font-size: 0.7em;
+  max-width: 85%;
+  font-size: 0.72em;
   line-height: 1.55;
   animation: msgSpringIn 0.45s cubic-bezier(0.22, 0.8, 0.25, 1);
 }
@@ -15,7 +14,7 @@
 @keyframes msgSpringIn {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.96);
+    transform: translateY(6px) scale(0.97);
   }
   to {
     opacity: 1;
@@ -28,7 +27,7 @@
 }
 
 .message--user .message__bubble {
-  background: linear-gradient(135deg, rgba(72, 219, 251, 0.18), rgba(84, 160, 255, 0.12));
+  background: linear-gradient(135deg, rgba(72, 219, 251, 0.2), rgba(84, 160, 255, 0.14));
   color: rgba(255, 255, 255, 0.92);
   border-radius: 18px 18px 4px 18px;
 }
@@ -38,7 +37,7 @@
 }
 
 .message--assistant .message__bubble {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.78);
   border-radius: 18px 18px 18px 4px;
 }
@@ -48,27 +47,13 @@
   word-break: break-word;
   white-space: pre-wrap;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
-  border: 0.5px solid rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  transition: transform 0.15s ease;
 }
-
-.message--assistant:hover .message__bubble {
-  transform: translateX(1px);
-}
-
-.message--user:hover .message__bubble {
-  transform: translateX(-1px);
-}
-
-/* ========================================
-   Message Meta
-   ======================================== */
 
 .message__time {
   font-size: 0.6em;
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.15);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
   font-weight: 500;
   margin-top: 3px;
@@ -80,7 +65,7 @@
 }
 
 /* ========================================
-   Commands Container
+   Commands
    ======================================== */
 
 .message__commands {
@@ -92,34 +77,31 @@
 }
 
 /* ========================================
-   Command Card — Apple style
+   Command Card
    ======================================== */
 
 .commandCard {
-  background: rgba(255, 255, 255, 0.04);
-  border: 0.5px solid rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 14px;
   padding: 10px 12px;
   font-size: 0.88em;
   width: 100%;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  transition: all 0.25s ease;
   position: relative;
   overflow: hidden;
 }
 
 .commandCard--executing {
-  background: rgba(72, 219, 251, 0.06);
-  border-color: rgba(72, 219, 251, 0.15);
-  box-shadow: 0 0 16px rgba(72, 219, 251, 0.06);
+  background: rgba(72, 219, 251, 0.08);
+  box-shadow: 0 0 20px rgba(72, 219, 251, 0.04);
 }
 
 .commandCard--executing::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(72, 219, 251, 0.03) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(72, 219, 251, 0.04) 50%, transparent 100%);
   animation: shimmer 2s ease-in-out infinite;
   pointer-events: none;
 }
@@ -135,7 +117,6 @@
 }
 
 .commandCard--completed {
-  border-color: rgba(72, 219, 251, 0.1);
   animation: cardResolve 0.3s cubic-bezier(0.22, 0.8, 0.25, 1);
 }
 
@@ -149,11 +130,9 @@
 }
 
 .commandCard--failed {
-  border-color: rgba(255, 107, 107, 0.15);
-  background: rgba(255, 107, 107, 0.03);
+  background: rgba(255, 107, 107, 0.05);
 }
 
-/* Card layout */
 .commandCard__main {
   display: flex;
   gap: 10px;
@@ -161,35 +140,31 @@
 }
 
 .commandCard__iconWrap {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 9px;
+  border-radius: 8px;
   flex-shrink: 0;
 }
 
 .commandCard--executing .commandCard__iconWrap {
   background: rgba(72, 219, 251, 0.12);
 }
-
 .commandCard--completed .commandCard__iconWrap {
   background: rgba(72, 219, 251, 0.08);
 }
-
 .commandCard--failed .commandCard__iconWrap {
   background: rgba(255, 107, 107, 0.08);
 }
-
 .commandCard--confirmed .commandCard__iconWrap {
   background: rgba(255, 255, 255, 0.04);
 }
 
-/* Status icons */
 .spinner {
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   border: 2px solid rgba(72, 219, 251, 0.2);
   border-top-color: #48dbfb;
   border-radius: 50%;
@@ -211,8 +186,8 @@
 }
 
 .dot {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.2);
 }
@@ -260,7 +235,6 @@
   font-weight: 500;
 }
 
-/* Status text */
 .commandCard__status {
   font-size: 0.62em;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
@@ -281,7 +255,6 @@
   color: rgba(255, 255, 255, 0.25);
 }
 
-/* Retry button */
 .commandCard__retryBtn {
   margin-top: 6px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
@@ -301,7 +274,7 @@
 }
 
 /* ========================================
-   Typing dots — Apple style
+   Typing dots
    ======================================== */
 
 .typingDots {

@@ -42,6 +42,10 @@ export const ChatPanel: React.FC = () => {
 
   return (
     <>
+      {/* Full-window rainbow edge */}
+      <div className={`${styles.rainbowEdge} ${state.isOpen ? styles['rainbowEdge--visible'] : ''}`} />
+      <div className={`${styles.rainbowGlow} ${state.isOpen ? styles['rainbowGlow--visible'] : ''}`} />
+
       <div
         className={`${styles.panel__overlay} ${state.isOpen ? styles['panel__overlay--visible'] : ''}`}
         onClick={handleClose}
