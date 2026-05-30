@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronRight, User, X, Bot } from 'lucide-react';
+import { ChevronRight, User, X, Bot, Users } from 'lucide-react';
 import { useI18n } from '../../i18n';
 import { StatusDot } from '../ui/Status';
-import { api } from '../../api';
+import { useSocial } from '../../stores/socialStore';
+import { useChat } from '../../stores/chatStore';
 import styles from './Sidebar.module.css';
 
 interface NavItem {
@@ -21,13 +22,8 @@ interface SidebarProps {
   playtimeHours?: number;
   totalPlaytimeHours?: number;
   onAIToggle?: () => void;
-}
-
-interface FriendEntry {
-  id: string;
-  name: string;
-  status: string;
-  current_game: string | null;
+  onSocialToggle?: () => void;
+  onSocialOpen?: () => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -50,9 +46,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   accountType = 'OFFLINE',
   totalPlaytimeHours = 0,
   onAIToggle,
+  onSocialToggle,
+  onSocialOpen,
 }) => {
   const { t } = useI18n();
   const location = useLocation();
+  const { friends, addFriend, removeFriend, load } = useSocial();
+  const { openChat, unreadCounts } = useChat();
   const mainItems = navItems.filter((item) => !['settings'].includes(item.id));
   const settingsItem = navItems.find((item) => item.id === 'settings');
 
@@ -64,33 +64,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return current === path || current.startsWith(path + '/');
   };
 
-  const [friends, setFriends] = useState<FriendEntry[]>([]);
   const [friendsOpen, setFriendsOpen] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newFriendId, setNewFriendId] = useState('');
   const [newFriendName, setNewFriendName] = useState('');
 
-  const loadFriends = useCallback(async () => {
-    try {
-      const list = await api.listFriends();
-      setFriends(list);
-    } catch {
-      // silently fail
-    }
-  }, []);
-
   useEffect(() => {
-    loadFriends();
-  }, [loadFriends]);
+    load();
+  }, [load]);
 
   const handleAddFriend = async () => {
     if (!newFriendId.trim() || !newFriendName.trim()) return;
     try {
-      await api.addFriend(newFriendId.trim(), newFriendName.trim());
+      await addFriend(newFriendId.trim(), newFriendName.trim());
       setNewFriendId('');
       setNewFriendName('');
       setShowAddForm(false);
-      await loadFriends();
     } catch {
       // silently fail
     }
@@ -98,8 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const handleRemoveFriend = async (id: string) => {
     try {
-      await api.removeFriend(id);
-      await loadFriends();
+      await removeFriend(id);
     } catch {
       // silently fail
     }
@@ -182,7 +170,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {friendsOpen && (
           <div className={styles.sidebar__friendsList}>
             {friends.map((friend) => (
-              <div key={friend.id} className={styles.sidebar__friendItem}>
+              <div
+                key={friend.id}
+                className={styles.sidebar__friendItem}
+                onClick={() => {
+                  openChat(friend.id);
+                  onSocialOpen?.();
+                }}
+                title={t('social.startChat')}
+                style={{ cursor: 'pointer' }}
+              >
                 <span
                   className={styles.sidebar__friendDot}
                   style={{ backgroundColor: STATUS_COLORS[friend.status] || STATUS_COLORS.offline }}
@@ -196,9 +193,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </span>
                   )}
                 </div>
+                {unreadCounts[friend.id] > 0 && (
+                  <span className={styles.sidebar__unreadBadge}>{unreadCounts[friend.id]}</span>
+                )}
                 <button
                   className={styles.sidebar__friendRemove}
-                  onClick={() => handleRemoveFriend(friend.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveFriend(friend.id);
+                  }}
                   title={t('sidebar.friendsRemove')}
                   aria-label={t('sidebar.friendsRemove')}
                 >
@@ -257,6 +260,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span className={styles.sidebar__playtimeUnit}>{t('common.unit.hours')}</span>
         </div>
       </div>
+
+      {onSocialToggle && (
+        <button className={styles.sidebar__aiBtn} onClick={onSocialToggle} title="Social Panel">
+          <Users size={14} />
+          <span className={styles.sidebar__aiBtnText}>{t('social.peerIdLabel') || 'SOCIAL'}</span>
+        </button>
+      )}
 
       {onAIToggle && (
         <button className={styles.sidebar__aiBtn} onClick={onAIToggle} title="AI Assistant">

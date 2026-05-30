@@ -18,6 +18,7 @@ import { ChatProvider } from './stores/chatStore';
 import { SearchPalette } from './components/ui/SearchPalette';
 import { DownloadPanel } from './components/ui/DownloadPanel';
 import { ChatPanel } from './components/ai/ChatPanel';
+import FriendsPanel from './components/social/FriendsPanel';
 import { ContextMenuProvider } from './components/ContextMenu';
 import { UpdateNotification } from './components/ui';
 import { useShortcutBindings } from './hooks/useKeyboardShortcuts';
@@ -55,6 +56,7 @@ function AppShell() {
   const { togglePanel: toggleAIPanel } = useAIAssistant();
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [socialOpen, setSocialOpen] = useState(false);
 
   const navigateTo = (id: string) => {
     navigate(PAGE_ID_TO_PATH[id] || `/${id}`);
@@ -123,6 +125,8 @@ function AppShell() {
           accountType={authState.currentUser.access_token?.startsWith('offline_') ? 'OFFLINE' : 'MICROSOFT'}
           playtimeHours={totalPlaytimeHours}
           onAIToggle={toggleAIPanel}
+          onSocialToggle={() => setSocialOpen(!socialOpen)}
+          onSocialOpen={() => setSocialOpen(true)}
         />
         <main className="app-main">
           <div className="decorative-rect decorative-rect--top-right" />
@@ -157,6 +161,7 @@ function AppShell() {
       />
 
       <ChatPanel />
+      <FriendsPanel isOpen={socialOpen} onClose={() => setSocialOpen(false)} />
     </>
   );
 }
