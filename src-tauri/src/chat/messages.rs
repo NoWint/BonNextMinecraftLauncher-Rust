@@ -23,6 +23,7 @@ pub struct AttachmentInfo {
 
 pub struct MessageStore {
     conn: Mutex<Connection>,
+    db_path: PathBuf,
 }
 
 impl MessageStore {
@@ -50,7 +51,11 @@ impl MessageStore {
             "CREATE INDEX IF NOT EXISTS idx_messages_peer ON messages(peer_id, timestamp)",
             [],
         ).map_err(|e| format!("Failed to create index: {}", e))?;
-        Ok(MessageStore { conn: Mutex::new(conn) })
+        Ok(MessageStore { conn: Mutex::new(conn), db_path: db_path.clone() })
+    }
+
+    pub fn clone_store(store: &MessageStore) -> Self {
+        MessageStore::new(&store.db_path).expect("Failed to clone message store")
     }
 
     pub fn insert(&self, msg: &Message) -> Result<i64, String> {

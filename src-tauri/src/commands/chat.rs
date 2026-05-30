@@ -5,7 +5,7 @@ use std::sync::OnceLock;
 
 static MSG_STORE: OnceLock<MessageStore> = OnceLock::new();
 
-fn get_store() -> &'static MessageStore {
+pub fn get_store() -> &'static MessageStore {
     MSG_STORE.get_or_init(|| {
         let db_path = paths::get_game_dir().join("messages.db");
         MessageStore::new(&db_path).expect("Failed to init message store")
