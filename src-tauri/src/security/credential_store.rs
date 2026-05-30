@@ -118,3 +118,44 @@ pub fn save(store: &AccountStore, use_encryption: bool) -> Result<(), LauncherEr
         Ok(())
     }
 }
+
+pub fn save_to_keyring(key: &str, value: &str) -> Result<(), LauncherError> {
+    let entry = keyring::Entry::new("bonnext", key)
+        .map_err(|e| LauncherError::ConfigError(format!("Keyring entry creation failed: {}", e)))?;
+    entry.set_password(value)
+        .map_err(|e| LauncherError::ConfigError(format!("Keyring save failed: {}", e)))?;
+    Ok(())
+}
+
+pub fn load_from_keyring(key: &str) -> Result<Option<String>, LauncherError> {
+    let entry = keyring::Entry::new("bonnext", key)
+        .map_err(|e| LauncherError::ConfigError(format!("Keyring entry creation failed: {}", e)))?;
+    match entry.get_password() {
+        Ok(value) => Ok(Some(value)),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(e) => {
+            tracing::warn!("Keyring load failed for key '{}': {}", key, e);
+            Ok(None)
+        }
+    }
+}
+
+pub fn delete_from_keyring(key: &str) -> Result<(), LauncherError> {
+    let entry = keyring::Entry::new("bonnext", key)
+        .map_err(|e| LauncherError::ConfigError(format!("Keyring entry creation failed: {}", e)))?;
+    entry.delete_credential()
+        .map_err(|e| LauncherError::ConfigError(format!("Keyring delete failed: {}", e)))?;
+    Ok(())
+}
+
+pub fn is_keyring_available() -> bool {
+    let entry = match keyring::Entry::new("bonnext", "__availability_check__") {
+        Ok(e) => e,
+        Err(_) => return false,
+    };
+    match entry.get_password() {
+        Ok(_) => true,
+        Err(keyring::Error::NoEntry) => true,
+        Err(_) => false,
+    }
+}

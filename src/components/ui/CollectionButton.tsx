@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { formatError } from '../../utils/errorMapping';
 import { api } from '../../api';
 import { useToast } from '../../stores/toastStore';
 import { Tooltip } from './Tooltip';
@@ -16,8 +17,15 @@ interface CollectionButtonProps {
 }
 
 export function CollectionButton({
-  slug, title, author, iconUrl, contentType,
-  description, downloads, categories, size = 'sm',
+  slug,
+  title,
+  author,
+  iconUrl,
+  contentType,
+  description,
+  downloads,
+  categories,
+  size = 'sm',
 }: CollectionButtonProps) {
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -25,8 +33,15 @@ export function CollectionButton({
 
   useEffect(() => {
     let cancelled = false;
-    api.isInCollection(slug).then((v) => { if (!cancelled) setSaved(v); }).catch(() => {});
-    return () => { cancelled = true; };
+    api
+      .isInCollection(slug)
+      .then((v) => {
+        if (!cancelled) setSaved(v);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [slug]);
 
   const toggle = async (e: React.MouseEvent) => {
@@ -43,8 +58,8 @@ export function CollectionButton({
         setSaved(true);
         addToast({ type: 'success', title: 'Saved', message: `${title} added to collection` });
       }
-    } catch (e: any) {
-      addToast({ type: 'error', title: 'Failed', message: e?.toString() || '' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: 'Failed', message: formatError(e) });
     } finally {
       setLoading(false);
     }

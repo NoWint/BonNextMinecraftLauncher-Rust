@@ -12,21 +12,16 @@ interface Shortcut {
   description: string;
 }
 
-export function useKeyboardShortcuts(shortcuts: Shortcut[]) {
+export function useKeyBindings(shortcuts: Shortcut[]) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       for (const s of shortcuts) {
         const mod = s.ctrl || s.meta;
-        const ctrlMatch = mod ? (e.ctrlKey || e.metaKey) : true;
+        const ctrlMatch = mod ? e.ctrlKey || e.metaKey : true;
         const shiftMatch = s.shift ? e.shiftKey : !e.shiftKey;
         const altMatch = s.alt ? e.altKey : !e.altKey;
 
-        if (
-          e.key.toLowerCase() === s.key.toLowerCase() &&
-          ctrlMatch &&
-          shiftMatch &&
-          altMatch
-        ) {
+        if (e.key.toLowerCase() === s.key.toLowerCase() && ctrlMatch && shiftMatch && altMatch) {
           // Don't fire shortcuts when typing in inputs
           const tag = (e.target as HTMLElement)?.tagName;
           if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') continue;

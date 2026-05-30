@@ -1,0 +1,67 @@
+html.theme-md3-dark {
+  --md3-primary: #d0bcff;
+  --md3-on-primary: #381e72;
+  --md3-primary-container: #4f378b;
+  --md3-on-primary-container: #eaddff;
+  --md3-secondary: #ccc2dc;
+  --md3-on-secondary: #332d41;
+  --md3-secondary-container: #4a4458;
+  --md3-on-secondary-container: #e8def8;
+  --md3-tertiary: #efb8c8;
+  --md3-on-tertiary: #492532;
+  --md3-tertiary-container: #633b48;
+  --md3-on-tertiary-container: #ffd8e4;
+  --md3-error: #f2b8b5;
+  --md3-on-error: #601410;
+  --md3-error-container: #8c1d18;
+  --md3-on-error-container: #f9dedc;
+  --md3-surface: #141218;
+  --md3-on-surface: #e6e0e9;
+  --md3-surface-variant: #49454f;
+  --md3-on-surface-variant: #cac4d0;
+  --md3-surface-container-lowest: #0f0d13;
+  --md3-surface-container-low: #1d1b20;
+  --md3-surface-container: #211f26;
+  --md3-surface-container-high: #2b2930;
+  --md3-surface-container-highest: #36343b;
+  --md3-outline: #938f99;
+  --md3-outline-variant: #49454f;
+  --md3-inverse-surface: #e6e0e9;
+  --md3-inverse-on-surface: #322f35;
+  --md3-scrim: #000000;
+  --md3-shadow: #000000;
+
+  --bg-primary: #141218;
+  --bg-secondary: #211f26;
+  --bg-card: #2b2930;
+  --text-primary: #e6e0e9;
+  --text-secondary: #cac4d0;
+  --text-muted: #938f99;
+  --accent: #d0bcff;
+  --border: #49454f;
+  --border-hover: #938f99;
+  --danger: #f2b8b5;
+  --success: #efb8c8;
+  --color-sidebar: #1d1b20;
+
+  --color-accent-action: var(--md3-primary);
+  --color-accent-action-text: var(--md3-on-primary);
+  --color-accent-06: rgba(208, 188, 255, 0.06);
+  --color-accent-10: rgba(208, 188, 255, 0.1);
+  --color-accent-15: rgba(208, 188, 255, 0.15);
+  --color-accent-20: rgba(208, 188, 255, 0.2);
+  --color-accent-30: rgba(208, 188, 255, 0.3);
+
+  --color-overlay-30: rgba(0, 0, 0, 0.3);
+  --color-overlay-50: rgba(0, 0, 0, 0.5);
+  --color-overlay-60: rgba(0, 0, 0, 0.6);
+  --color-overlay-80: rgba(0, 0, 0, 0.8);
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px 1px rgba(0, 0, 0, 0.15);
+  --shadow-elevated: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 6px 2px rgba(0, 0, 0, 0.15);
+
+  --selection-bg: rgba(208, 188, 255, 0.3);
+  --selection-color: #e6e0e9;
+  --scrollbar-thumb-color: rgba(255, 255, 255, 0.2);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.35);
+}

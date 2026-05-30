@@ -28,6 +28,7 @@ export function configReducer(state: ConfigState, action: ConfigAction): ConfigS
 const ConfigContext = createContext<{
   state: ConfigState;
   saveConfig: (config: AppConfig) => Promise<void>;
+  updateConfigOptimistic: (updates: Partial<AppConfig>) => Promise<void>;
   reloadConfig: () => Promise<void>;
 } | null>(null);
 
@@ -64,13 +65,34 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     [state.config],
   );
 
+  const updateConfigOptimistic = useCallback(
+    async (updates: Partial<AppConfig>) => {
+      const previousConfig = state.config;
+      if (!previousConfig) return;
+      const newConfig = { ...previousConfig, ...updates };
+      if (updates.security && previousConfig.security) {
+        newConfig.security = { ...previousConfig.security, ...updates.security };
+      }
+      dispatch({ type: 'SET_CONFIG', config: newConfig });
+      try {
+        await api.saveConfig(newConfig);
+      } catch (e) {
+        dispatch({ type: 'SET_CONFIG', config: previousConfig });
+        dispatch({ type: 'SET_ERROR', error: e instanceof Error ? e.message : 'Failed to save config' });
+        throw e;
+      }
+    },
+    [state.config],
+  );
+
   const contextValue = useMemo(
     () => ({
       state,
       saveConfig,
+      updateConfigOptimistic,
       reloadConfig,
     }),
-    [state, saveConfig, reloadConfig],
+    [state, saveConfig, updateConfigOptimistic, reloadConfig],
   );
 
   return <ConfigContext.Provider value={contextValue}>{children}</ConfigContext.Provider>;

@@ -1,14 +1,15 @@
 import { useMemo } from 'react';
+import type { IconName } from '../components/ui/Icon';
 
-const EMOJIS: Record<string, string[]> = {
-  morning: ['🌅', '☀️', '⛏', '🌄'],
-  afternoon: ['🏗', '⚡', '🎯', '🔮'],
-  evening: ['🌙', '🏕', '🌌', '🕯'],
-  night: ['🌃', '🐺', '🦇', '✨'],
+const ICONS: Record<string, IconName[]> = {
+  morning: ['sunrise', 'sun', 'pickaxe', 'sunset'],
+  afternoon: ['construction', 'bolt', 'target', 'crystal'],
+  evening: ['moon', 'tent', 'globe', 'candle'],
+  night: ['night', 'wolf', 'bat', 'sparkles'],
 };
 
 interface Greeting {
-  emoji: string;
+  icon: IconName;
   title: string;
   subtitle: string;
 }
@@ -26,12 +27,10 @@ export function useGreeting(t: (key: string) => string): Greeting {
     const period = getPeriod();
     const idx = Math.floor(Math.random() * 4);
     return {
-      emoji: EMOJIS[period]?.[idx] || '⛏',
+      icon: ICONS[period]?.[idx] || 'pickaxe',
       title: t(`greeting.${period}.${idx}`),
       subtitle: t(`greeting.sub.${period}.${idx}`),
     };
-  // Only re-run when language changes — t function reference is stable per lang
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t]);
 }
 

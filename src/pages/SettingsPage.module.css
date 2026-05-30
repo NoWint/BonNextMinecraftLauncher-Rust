@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  height: 100%;
   overflow-y: auto;
   padding-right: 160px;
 }
@@ -475,6 +476,39 @@
   height: 6px;
   background: var(--color-accent);
   clip-path: var(--clip-diamond);
+}
+
+.skinInputFlex {
+  flex: 1;
+}
+
+.skinInputGap {
+  margin-top: 6px;
+}
+
+.skinServerUrl {
+  font-size: 0.42em;
+  color: var(--color-text-muted);
+  margin-left: 4px;
+}
+
+.skinProfileId {
+  font-size: 0.5em;
+  font-family: var(--font-mono);
+  color: var(--color-text-secondary);
+}
+
+.skinSubTitleGap {
+  margin-top: 8px;
+}
+
+.skinCapeHintGap {
+  margin-top: 4px;
+}
+
+.skinVariantText {
+  font-size: 0.5em;
+  font-family: var(--font-mono);
 }
 
 /* GC Tuning */

@@ -151,6 +151,33 @@
   flex: 1;
 }
 
+.sidebar__aiBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 12px 8px;
+  padding: 5px 10px;
+  background: none;
+  border: 1px solid var(--color-border-light);
+  color: var(--color-text-dim);
+  cursor: pointer;
+  font-family: var(--font-heading);
+  font-size: 0.5em;
+  letter-spacing: 0.15em;
+  clip-path: var(--clip-badge);
+  transition: all var(--transition-normal) var(--ease-out-expo);
+
+  &:hover {
+    border-color: var(--color-accent-30);
+    color: var(--color-accent);
+    background: var(--color-accent-06);
+  }
+}
+
+.sidebar__aiBtnText {
+  font-size: 0.9em;
+}
+
 .sidebar__friends {
   margin: 0 8px 12px;
   padding: 0 8px;

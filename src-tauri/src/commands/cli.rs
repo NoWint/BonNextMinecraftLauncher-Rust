@@ -18,7 +18,7 @@ pub async fn cli_launch(
     instance_id: String,
 ) -> Result<(), LauncherError> {
     let inst = instance::manager::get_instance(&instance_id)?
-        .ok_or_else(|| LauncherError::Other(format!("Instance not found: {}", instance_id)))?;
+        .ok_or_else(|| LauncherError::InstanceNotReady(format!("Instance not found: {}", instance_id)))?;
 
     tracing::info!("CLI launch: {} ({})", inst.name, inst.id);
 
@@ -46,6 +46,7 @@ pub async fn cli_launch(
     crate::commands::launch::launch_game_inner(
         app,
         state.launch_state.clone(),
+        state.running_games.clone(),
         inst.version_id,
         inst.version_url,
         account.username,

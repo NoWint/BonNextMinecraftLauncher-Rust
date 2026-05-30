@@ -178,13 +178,13 @@ fn count_multimc_instances(dir: &std::path::Path) -> u32 {
 pub fn scan_launcher_instances(launcher_type: &str, game_dir: &str) -> Result<Vec<MigrateableInstance>, LauncherError> {
     let dir = PathBuf::from(game_dir);
     if !dir.exists() {
-        return Err(LauncherError::Other(format!("Directory not found: {}", game_dir)));
+        return Err(LauncherError::VersionNotFound(format!("Directory not found: {}", game_dir)));
     }
 
     match launcher_type {
         "vanilla" | "hmcl" | "pcl2" => scan_vanilla_style(&dir, launcher_type),
         "multimc" => scan_multimc_style(&dir),
-        _ => Err(LauncherError::Other(format!("Unsupported launcher: {}", launcher_type))),
+        _ => Err(LauncherError::InvalidConfig(format!("Unsupported launcher: {}", launcher_type))),
     }
 }
 
@@ -296,7 +296,7 @@ fn parse_version_json(path: &std::path::Path, fallback_id: &str) -> (String, Opt
 fn parse_hmcl_profiles(dir: &std::path::Path) -> Result<Vec<MigrateableInstance>, LauncherError> {
     let hmclver_path = dir.join("hmclver.json");
     if !hmclver_path.exists() {
-        return Err(LauncherError::Other("hmclver.json not found".into()));
+        return Err(LauncherError::VersionNotFound("hmclver.json not found".into()));
     }
 
     let data = std::fs::read_to_string(&hmclver_path)?;
@@ -465,7 +465,7 @@ pub async fn migrate_instance(
 ) -> Result<GameInstance, LauncherError> {
     let source_dir = PathBuf::from(source_game_dir);
     if !source_dir.exists() {
-        return Err(LauncherError::Other(format!("Source directory not found: {}", source_game_dir)));
+        return Err(LauncherError::VersionNotFound(format!("Source directory not found: {}", source_game_dir)));
     }
 
     let manifest = crate::version::manifest::fetch_versions_sorted().await?;
@@ -533,7 +533,7 @@ pub async fn migrate_instance(
 pub fn scan_custom_directory(path: &str) -> Result<Vec<MigrateableInstance>, LauncherError> {
     let dir = PathBuf::from(path);
     if !dir.exists() {
-        return Err(LauncherError::Other(format!("Directory not found: {}", path)));
+        return Err(LauncherError::VersionNotFound(format!("Directory not found: {}", path)));
     }
 
     if dir.join("instance.cfg").exists() {

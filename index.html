@@ -2,7 +2,13 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <script src="/tauri-mock.js"></script>
+    <script>
+      if (!window.__TAURI_INTERNALS__) {
+        var s = document.createElement('script');
+        s.src = '/tauri-mock.js';
+        document.head.appendChild(s);
+      }
+    </script>
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BonNext</title>

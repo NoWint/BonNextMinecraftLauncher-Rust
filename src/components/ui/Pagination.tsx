@@ -1,4 +1,5 @@
 import React from 'react';
+import { Icon } from './Icon';
 import styles from './Pagination.module.css';
 
 interface PaginationProps {
@@ -22,12 +23,8 @@ export const Pagination: React.FC<PaginationProps> = ({ current, total, onPage, 
 
   return (
     <div className={`${styles.pagination} ${className}`}>
-      <button
-        className={styles.page}
-        disabled={current <= 1}
-        onClick={() => onPage(current - 1)}
-      >
-        ‹
+      <button className={styles.page} disabled={current <= 1} onClick={() => onPage(current - 1)}>
+        <Icon name="chevronLeft" size={14} />
       </button>
       {pages.map((p) =>
         p === -1 ? (
@@ -44,12 +41,8 @@ export const Pagination: React.FC<PaginationProps> = ({ current, total, onPage, 
           </button>
         ),
       )}
-      <button
-        className={styles.page}
-        disabled={current >= total}
-        onClick={() => onPage(current + 1)}
-      >
-        ›
+      <button className={styles.page} disabled={current >= total} onClick={() => onPage(current + 1)}>
+        <Icon name="chevronRight" size={14} />
       </button>
     </div>
   );

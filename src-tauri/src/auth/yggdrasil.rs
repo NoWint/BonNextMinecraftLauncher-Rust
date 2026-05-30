@@ -5,8 +5,10 @@ use serde::{Deserialize, Serialize};
 
 const AUTHENTICATE_PATH: &str = "/authserver/authenticate";
 const REFRESH_PATH: &str = "/authserver/refresh";
+// Reserved for Yggdrasil token validation
 #[allow(dead_code)]
 const VALIDATE_PATH: &str = "/authserver/validate";
+// Reserved for Yggdrasil sign-out
 #[allow(dead_code)]
 const SIGNOUT_PATH: &str = "/authserver/signout";
 const PROFILE_PATH: &str = "/sessionserver/session/minecraft/profile";
@@ -72,6 +74,7 @@ struct ValidateRequest {
     client_token: String,
 }
 
+// Reserved for Yggdrasil sign-out
 #[allow(dead_code)]
 #[derive(Debug, Serialize)]
 struct SignoutRequest {
@@ -92,6 +95,7 @@ pub struct SkinMetadata {
     pub model: String,
 }
 
+// Reserved for skin texture parsing
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TexturesValue {
@@ -101,6 +105,7 @@ pub struct TexturesValue {
     pub textures: TexturesMap,
 }
 
+// Reserved for skin texture parsing
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TexturesMap {
@@ -220,6 +225,7 @@ pub async fn refresh_token(
     Ok((resp.access_token, resp.client_token, resp.selected_profile))
 }
 
+// Reserved for Yggdrasil token validation
 #[allow(dead_code)]
 pub async fn validate_token(
     server_url: &str,
@@ -263,11 +269,12 @@ pub async fn get_skin_profile(
     Ok(resp)
 }
 
+// Reserved for skin texture parsing
 #[allow(dead_code)]
 pub fn decode_textures_value(value: &str) -> Result<TexturesValue, LauncherError> {
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(value)
-        .map_err(|e| LauncherError::Other(format!("Invalid base64 in textures: {}", e)))?;
+        .map_err(|e| LauncherError::Decryption(format!("Invalid base64 in textures: {}", e)))?;
     let textures: TexturesValue = serde_json::from_slice(&bytes)?;
     Ok(textures)
 }
@@ -295,7 +302,7 @@ pub async fn upload_skin(
     let part = reqwest::multipart::Part::bytes(file_bytes)
         .file_name(file_name)
         .mime_str("image/png")
-        .map_err(|e| LauncherError::Other(format!("MIME error: {}", e)))?;
+        .map_err(|e| LauncherError::InvalidConfig(format!("MIME error: {}", e)))?;
 
     let form = reqwest::multipart::Form::new()
         .text("model", model.to_string())
@@ -338,4 +345,100 @@ pub fn get_presets() -> Vec<(String, String)> {
         ("Blessing Studio".to_string(), "https://bsgchina.cn/api/yggdrasil".to_string()),
         ("自定义".to_string(), String::new()),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn translate_forbidden_operation() {
+        let msg = translate_yggdrasil_error("ForbiddenOperationException", "");
+        assert_eq!(msg, "Invalid email or password");
+    }
+
+    #[test]
+    fn translate_forbidden_with_message() {
+        let msg = translate_yggdrasil_error("ForbiddenOperationException", "Custom error msg");
+        assert_eq!(msg, "Custom error msg");
+    }
+
+    #[test]
+    fn translate_illegal_argument() {
+        let msg = translate_yggdrasil_error("IllegalArgumentException", "");
+        assert_eq!(msg, "Invalid request parameters");
+    }
+
+    #[test]
+    fn translate_rate_limited() {
+        let msg = translate_yggdrasil_error("RateLimitedException", "");
+        assert!(msg.contains("Too many"));
+    }
+
+    #[test]
+    fn translate_resource_not_found() {
+        let msg = translate_yggdrasil_error("ResourceNotFoundException", "");
+        assert!(msg.contains("not found"));
+    }
+
+    #[test]
+    fn translate_unknown_error() {
+        let msg = translate_yggdrasil_error("UnknownError", "");
+        assert!(msg.contains("Login failed"));
+        assert!(msg.contains("UnknownError"));
+    }
+
+    #[test]
+    fn translate_uses_message_when_present() {
+        let msg = translate_yggdrasil_error("AnyError", "Detailed message here");
+        assert_eq!(msg, "Detailed message here");
+    }
+
+    #[test]
+    fn decode_textures_value_valid() {
+        let json = r#"{"timestamp":1234567890,"profile_id":"abc","profile_name":"Test","textures":{"SKIN":{"url":"http://example.com/skin.png"}}}"#;
+        let encoded = base64::engine::general_purpose::STANDARD.encode(json.as_bytes());
+        let result = decode_textures_value(&encoded).unwrap();
+        assert_eq!(result.profile_name, "Test");
+        assert!(result.textures.skin.is_some());
+        assert!(result.textures.cape.is_none());
+    }
+
+    #[test]
+    fn decode_textures_value_invalid_base64() {
+        let result = decode_textures_value("not-valid-base64!!!");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn decode_textures_value_invalid_json() {
+        let encoded = base64::engine::general_purpose::STANDARD.encode(b"not json");
+        let result = decode_textures_value(&encoded);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn get_presets_returns_list() {
+        let presets = get_presets();
+        assert!(!presets.is_empty());
+        assert!(presets.iter().any(|(name, _)| name == "LittleSkin"));
+        assert!(presets.iter().any(|(name, _)| name == "自定义"));
+    }
+
+    #[test]
+    fn yggdrasil_auth_result_serde() {
+        let result = YggdrasilAuthResult {
+            username: "TestUser".to_string(),
+            uuid: "abc123".to_string(),
+            access_token: "token".to_string(),
+            client_token: "client".to_string(),
+            server_url: "https://example.com".to_string(),
+            available_profiles: vec![],
+            selected_profile: None,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let back: YggdrasilAuthResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.username, "TestUser");
+        assert_eq!(back.uuid, "abc123");
+    }
 }

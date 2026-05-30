@@ -67,6 +67,7 @@ pub fn check_sandbox_availability() -> SandboxAvailability {
     }
 }
 
+// Reserved for sandbox launch mode
 #[allow(dead_code)]
 pub fn build_sandbox_command(
     config: &SandboxConfig,

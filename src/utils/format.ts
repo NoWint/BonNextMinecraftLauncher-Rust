@@ -1,18 +1,12 @@
-export function relativeTime(dateStr: string | null): string {
-  if (!dateStr) return 'Never';
-  const diff = Date.now() - new Date(dateStr).getTime();
-  if (diff < 0) return 'Just now';
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mo ago`;
-  const years = Math.floor(days / 365);
-  return `${years}y ago`;
+import type { IconName } from '../components/ui/Icon';
+
+export function formatDate(input: string | Date | number): string {
+  const d = input instanceof Date ? input : new Date(input);
+  if (isNaN(d.getTime())) return String(input);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export function formatPlaytime(seconds: number): string {
@@ -39,14 +33,14 @@ export function formatDownloads(n: number): string {
   return formatNum(n);
 }
 
-export function getLoaderIcon(loader: string | null | undefined): string {
-  if (!loader) return '📦';
+export function getLoaderIcon(loader: string | null | undefined): IconName {
+  if (!loader) return 'vanilla';
   const l = loader.toLowerCase();
-  if (l === 'fabric') return '🧵';
-  if (l === 'forge') return '🔨';
-  if (l === 'quilt') return '🪡';
-  if (l === 'neoforge') return '⚡';
-  return '📦';
+  if (l === 'fabric') return 'fabric';
+  if (l === 'forge') return 'forge';
+  if (l === 'quilt') return 'quilt';
+  if (l === 'neoforge') return 'neoforge';
+  return 'vanilla';
 }
 
 export function getLoaderLabel(loader: string | null | undefined): string {

@@ -5,6 +5,7 @@
 use crate::error::LauncherError;
 use crate::http_client;
 use serde::{Deserialize, Serialize};
+use tauri::Emitter;
 use tokio::io::AsyncWriteExt;
 
 const MODRINTH_API_BASE: &str = "https://api.modrinth.com/v2";
@@ -22,7 +23,6 @@ where
 // ---------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct ModResult {
     pub slug: String,
     pub title: String,
@@ -40,7 +40,6 @@ pub struct ModResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct ModProjectFull {
     pub slug: String,
     pub title: String,
@@ -65,7 +64,6 @@ pub struct ModProjectFull {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct ModGalleryImage {
     pub url: String,
     pub featured: bool,
@@ -82,7 +80,6 @@ pub struct ModLicense {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct ModVersion {
     pub id: String,
     pub name: String,
@@ -95,7 +92,6 @@ pub struct ModVersion {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct ModFile {
     pub url: String,
     pub filename: String,
@@ -110,7 +106,6 @@ pub struct ModHashes {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct ModDependency {
     pub project_id: Option<String>,
     pub dependency_type: String,
@@ -641,6 +636,18 @@ pub async fn download_content_file(
     content_type: &str,
     sha1_hash: Option<&str>,
 ) -> Result<String, LauncherError> {
+    download_content_file_with_progress(file_url, filename, instance_id, content_type, sha1_hash, None, None).await
+}
+
+pub async fn download_content_file_with_progress(
+    file_url: &str,
+    filename: &str,
+    instance_id: &str,
+    content_type: &str,
+    sha1_hash: Option<&str>,
+    slug: Option<&str>,
+    app: Option<&tauri::AppHandle>,
+) -> Result<String, LauncherError> {
     let target_dir = match content_type {
         "resourcepack" => crate::platform::paths::get_instance_resourcepacks_dir(instance_id),
         "shader" => crate::platform::paths::get_instance_shaderpacks_dir(instance_id),
@@ -652,6 +659,13 @@ pub async fn download_content_file(
     let client = http_client::build_download_client();
     let response = client.get(file_url).send().await?.error_for_status()?;
 
+    let total_size: u64 = response
+        .headers()
+        .get("content-length")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0);
+
     if let Some(parent) = target_path.parent() {
         tokio::fs::create_dir_all(parent).await?;
     }
@@ -662,7 +676,9 @@ pub async fn download_content_file(
     use sha1::{Digest, Sha1};
 
     let mut hasher = sha1_hash.map(|_| Sha1::new());
-    let mut _downloaded: u64 = 0;
+    let mut downloaded: u64 = 0;
+    let start_time = std::time::Instant::now();
+    let mut last_emit = std::time::Instant::now();
 
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result?;
@@ -670,10 +686,58 @@ pub async fn download_content_file(
             h.update(&chunk);
         }
         tokio::io::copy(&mut &chunk[..], &mut file).await?;
-        _downloaded += chunk.len() as u64;
+        downloaded += chunk.len() as u64;
+
+        if let Some(app_handle) = app {
+            let now = std::time::Instant::now();
+            if now.duration_since(last_emit).as_millis() >= 200 {
+                let elapsed_secs = start_time.elapsed().as_secs().max(1);
+                let speed = downloaded / elapsed_secs;
+                let eta = if speed > 0 && total_size > downloaded {
+                    (total_size - downloaded) / speed
+                } else {
+                    0
+                };
+                let progress = if total_size > 0 {
+                    ((downloaded as f64 / total_size as f64) * 100.0) as u64
+                } else {
+                    0
+                };
+                let _ = app_handle.emit(
+                    "content-download-progress",
+                    serde_json::json!({
+                        "filename": filename,
+                        "slug": slug.unwrap_or(""),
+                        "bytes_downloaded": downloaded,
+                        "total": total_size,
+                        "speed_bytes_per_sec": speed,
+                        "eta_seconds": eta,
+                        "progress": progress,
+                        "finished": false,
+                    }),
+                );
+                last_emit = now;
+            }
+        }
     }
 
     file.flush().await?;
+
+    if let Some(app_handle) = app {
+        let _ = app_handle.emit(
+            "content-download-progress",
+            serde_json::json!({
+                "filename": filename,
+                "slug": slug.unwrap_or(""),
+                "bytes_downloaded": downloaded,
+                "total": total_size,
+                "speed_bytes_per_sec": 0,
+                "eta_seconds": 0,
+                "progress": 100,
+                "finished": true,
+            }),
+        );
+    }
 
     if let (Some(expected_sha1), Some(h)) = (sha1_hash, hasher) {
         let actual = hex::encode(h.finalize());

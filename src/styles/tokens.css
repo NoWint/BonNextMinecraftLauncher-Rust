@@ -2,7 +2,6 @@
 
 :root {
   --ui-scale: 1;
-  --anim-speed: 1;
   font-size: calc(var(--ui-scale) * 16px);
 
   --color-bg: #0d0d0d;
@@ -18,9 +17,9 @@
   --color-text: #ffffff;
   --color-text-secondary: #aaa;
   --color-text-tertiary: #888;
-  --color-text-muted: #888;
-  --color-text-dim: #777;
-  --color-text-faint: #666;
+  --color-text-muted: #666;
+  --color-text-dim: #555;
+  --color-text-faint: #444;
 
   --color-accent-action: var(--color-accent);
   --color-accent-action-text: #1a1a1a;
@@ -44,7 +43,7 @@
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --font-mono: 'DM Mono', 'SF Mono', 'Fira Code', monospace;
 
-  --sidebar-width: 11.875em;
+  --sidebar-width: 190px;
   --clip-primary: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
   --clip-medium: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
   --clip-small: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
@@ -54,7 +53,6 @@
 
   --transition-fast: 100ms ease;
   --transition-normal: 150ms ease;
-  --transition-medium: 250ms ease-out;
   --transition-slow: 300ms ease-out;
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);

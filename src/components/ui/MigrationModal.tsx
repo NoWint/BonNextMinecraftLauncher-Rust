@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { formatError } from '../../utils/errorMapping';
 import { api, type DetectedLauncher, type MigrateableInstance } from '../../api';
 import { Button } from './Button';
 import { Modal } from './Modal';
+import { Icon } from './Icon';
 import { useI18n } from '../../i18n';
 import { useToast } from '../../stores/toastStore';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -57,8 +59,8 @@ export function MigrationModal({ open: isOpen, onClose, onMigrated }: Props) {
         const insts = await api.scanLauncherInstances(launcher.launcher_type, launcher.game_dir);
         setInstances(insts);
         setStep('select-instances');
-      } catch (e: any) {
-        addToast({ type: 'error', title: t('migration.scanFailed'), message: e?.toString() || '' });
+      } catch (e: unknown) {
+        addToast({ type: 'error', title: t('migration.scanFailed'), message: formatError(e) });
       } finally {
         setScanning(false);
       }
@@ -79,8 +81,8 @@ export function MigrationModal({ open: isOpen, onClose, onMigrated }: Props) {
       }
       setInstances(insts);
       setStep('select-instances');
-    } catch (e: any) {
-      addToast({ type: 'error', title: t('migration.scanFailed'), message: e?.toString() || '' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('migration.scanFailed'), message: formatError(e) });
     } finally {
       setScanning(false);
     }
@@ -121,11 +123,11 @@ export function MigrationModal({ open: isOpen, onClose, onMigrated }: Props) {
         });
         count++;
         setMigratedCount(count);
-      } catch (e: any) {
+      } catch (e: unknown) {
         addToast({
           type: 'error',
           title: t('migration.migrateFailed'),
-          message: `${inst.name}: ${e?.toString() || ''}`,
+          message: `${inst.name}: ${formatError(e)}`,
         });
       }
     }
@@ -146,15 +148,15 @@ export function MigrationModal({ open: isOpen, onClose, onMigrated }: Props) {
   const launcherIcon = (type: string) => {
     switch (type) {
       case 'vanilla':
-        return '🟢';
+        return <Icon name="dotGreen" size={12} />;
       case 'hmcl':
-        return '🔵';
+        return <Icon name="dotBlue" size={12} />;
       case 'pcl2':
-        return '🟣';
+        return <Icon name="dotPurple" size={12} />;
       case 'multimc':
-        return '🟠';
+        return <Icon name="dotOrange" size={12} />;
       default:
-        return '⚪';
+        return <Icon name="dotWhite" size={12} />;
     }
   };
 
@@ -239,7 +241,13 @@ export function MigrationModal({ open: isOpen, onClose, onMigrated }: Props) {
               className={`${styles.instanceCard} ${selectedInstances.has(idx) ? styles['instanceCard--selected'] : ''}`}
               onClick={() => toggleInstance(idx)}
             >
-              <div className={styles.instanceCheck}>{selectedInstances.has(idx) ? '☑' : '☐'}</div>
+              <div className={styles.instanceCheck}>
+                {selectedInstances.has(idx) ? (
+                  <Icon name="checkbox" size={14} />
+                ) : (
+                  <Icon name="checkboxEmpty" size={14} />
+                )}
+              </div>
               <div className={styles.instanceInfo}>
                 <span className={styles.instanceName}>{inst.name}</span>
                 <span className={styles.instanceMeta}>

@@ -24,6 +24,7 @@ pub struct GameInstance {
     pub playtime_seconds: u64,
 }
 
+// Reserved for programmatic instance creation
 #[allow(dead_code)]
 impl GameInstance {
     pub fn new(name: &str, version_id: &str, version_url: &str) -> Self {
@@ -80,7 +81,7 @@ pub fn create_instance(instance: &GameInstance) -> Result<(), LauncherError> {
     let mut instances = list_instances()?;
     // Check for duplicate id
     if instances.iter().any(|i| i.id == instance.id) {
-        return Err(LauncherError::Other(format!(
+        return Err(LauncherError::InstanceNotReady(format!(
             "Instance with id '{}' already exists",
             instance.id
         )));
@@ -134,7 +135,7 @@ pub fn update_playtime(instance_id: &str, seconds: u64) -> Result<(), LauncherEr
 /// Check if an instance's version JAR exists on disk (ready to launch).
 pub fn check_instance_ready(id: &str) -> Result<bool, LauncherError> {
     let instance = get_instance(id)?.ok_or_else(|| {
-        LauncherError::Other(format!("Instance not found: {}", id))
+        LauncherError::InstanceNotReady(format!("Instance not found: {}", id))
     })?;
     let jar_path = paths::get_versions_dir()
         .join(&instance.version_id)
@@ -146,7 +147,7 @@ pub fn check_instance_ready(id: &str) -> Result<bool, LauncherError> {
 pub fn duplicate_instance(id: &str, new_name: &str) -> Result<GameInstance, LauncherError> {
     let instances = list_instances()?;
     let original = instances.iter().find(|i| i.id == id).ok_or_else(|| {
-        LauncherError::Other(format!("Instance not found: {}", id))
+        LauncherError::InstanceNotReady(format!("Instance not found: {}", id))
     })?;
     let new_id = format!("{}_{}", original.version_id, chrono::Utc::now().timestamp_millis());
     let now = chrono::Local::now().to_rfc3339();
@@ -176,18 +177,18 @@ pub fn duplicate_instance(id: &str, new_name: &str) -> Result<GameInstance, Laun
 /// Export an instance directory as a ZIP file.
 pub fn export_instance(id: &str, output_path: &std::path::Path) -> Result<(), LauncherError> {
     let instance = get_instance(id)?.ok_or_else(|| {
-        LauncherError::Other(format!("Instance not found: {}", id))
+        LauncherError::InstanceNotReady(format!("Instance not found: {}", id))
     })?;
     let instance_dir = instance.dir();
     if !instance_dir.exists() {
-        return Err(LauncherError::Other(format!(
+        return Err(LauncherError::InstanceNotReady(format!(
             "Instance directory does not exist: {}",
             instance_dir.display()
         )));
     }
 
     let file = std::fs::File::create(output_path)
-        .map_err(|e| LauncherError::Other(format!("Cannot create export file: {}", e)))?;
+        .map_err(|e| LauncherError::Other(format!("creating {}: {}", output_path.display(), e)))?;
     let mut zip = zip::ZipWriter::new(file);
     let mut options = zip::write::SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated);
@@ -204,27 +205,23 @@ pub fn export_instance(id: &str, output_path: &std::path::Path) -> Result<(), La
             let entry = entry?;
             let path = entry.path();
             let relative = path.strip_prefix(base)
-                .map_err(|e| LauncherError::Other(e.to_string()))?;
+                .map_err(|e| LauncherError::InvalidConfig(e.to_string()))?;
             let name = relative.to_string_lossy().replace('\\', "/");
 
             if path.is_dir() {
-                zip.add_directory(&name, options)
-                    .map_err(|e| LauncherError::Other(format!("ZIP add dir error: {}", e)))?;
+                zip.add_directory(&name, options)?;
                 add_dir_to_zip(zip, base, &path, options)?;
             } else {
-                zip.start_file(&name, options)
-                    .map_err(|e| LauncherError::Other(format!("ZIP start file error: {}", e)))?;
-                let mut src = std::fs::File::open(&path)
-                    .map_err(|e| LauncherError::Other(format!("Cannot open: {}: {}", path.display(), e)))?;
-                std::io::copy(&mut src, zip)
-                    .map_err(|e| LauncherError::Other(format!("ZIP write error: {}", e)))?;
+                zip.start_file(&name, options)?;
+                let mut src = std::fs::File::open(&path)?;
+                std::io::copy(&mut src, zip)?;
             }
         }
         Ok(())
     }
 
     add_dir_to_zip(&mut zip, instance_dir.parent().unwrap_or(&instance_dir), &instance_dir, options)?;
-    zip.finish().map_err(|e| LauncherError::Other(format!("ZIP finish error: {}", e)))?;
+    zip.finish()?;
 
     tracing::info!("Instance '{}' exported to {}", id, output_path.display());
     Ok(())
@@ -334,12 +331,11 @@ fn extract_zip_overrides(
 pub async fn import_modpack(path: &str) -> Result<GameInstance, LauncherError> {
     let zip_path = std::path::Path::new(path);
     if !zip_path.exists() {
-        return Err(LauncherError::Other(format!("File not found: {}", path)));
+        return Err(LauncherError::VersionNotFound(format!("File not found: {}", path)));
     }
 
     let file = std::fs::File::open(zip_path)?;
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|e| LauncherError::Other(format!("Invalid .mrpack ZIP: {}", e)))?;
+    let mut archive = zip::ZipArchive::new(file)?;
 
     let mut index_json = String::new();
     for i in 0..archive.len() {
@@ -351,11 +347,10 @@ pub async fn import_modpack(path: &str) -> Result<GameInstance, LauncherError> {
     }
 
     if index_json.is_empty() {
-        return Err(LauncherError::Other("modrinth.index.json not found in .mrpack".into()));
+        return Err(LauncherError::VersionNotFound("modrinth.index.json not found in .mrpack".into()));
     }
 
-    let index: MrPackIndex = serde_json::from_str(&index_json)
-        .map_err(|e| LauncherError::Other(format!("Invalid modrinth.index.json: {}", e)))?;
+    let index: MrPackIndex = serde_json::from_str(&index_json)?;
 
     let version_id = index.dependencies.get("minecraft")
         .cloned()
@@ -370,7 +365,7 @@ pub async fn import_modpack(path: &str) -> Result<GameInstance, LauncherError> {
 
     let manifest = crate::version::manifest::fetch_versions_sorted().await?;
     let version_entry = manifest.iter().find(|v| v.id == version_id)
-        .ok_or_else(|| LauncherError::Other(format!("Version {} not found in manifest", version_id)))?;
+        .ok_or_else(|| LauncherError::VersionNotFound(format!("Version {} not found in manifest", version_id)))?;
     let version_url = version_entry.url.clone();
 
     let inst_id = format!("mrpack_{}_{}", version_id, chrono::Utc::now().timestamp_millis());
@@ -440,7 +435,6 @@ pub enum ModpackFormat {
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct CfManifest {
     #[serde(rename = "minecraft")]
     minecraft: CfMinecraft,
@@ -461,14 +455,12 @@ struct CfMinecraft {
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct CfModLoader {
     id: String,
     primary: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct CfManifestFile {
     #[serde(rename = "projectID")]
     project_id: u64,
@@ -480,12 +472,11 @@ struct CfManifestFile {
 pub fn detect_modpack_format(path: &str) -> Result<ModpackFormat, LauncherError> {
     let zip_path = std::path::Path::new(path);
     if !zip_path.exists() {
-        return Err(LauncherError::Other(format!("File not found: {}", path)));
+        return Err(LauncherError::VersionNotFound(format!("File not found: {}", path)));
     }
 
     let file = std::fs::File::open(zip_path)?;
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|e| LauncherError::Other(format!("Invalid ZIP: {}", e)))?;
+    let mut archive = zip::ZipArchive::new(file)?;
 
     for i in 0..archive.len() {
         let entry = archive.by_index(i)?;
@@ -504,8 +495,7 @@ pub fn detect_modpack_format(path: &str) -> Result<ModpackFormat, LauncherError>
 pub async fn import_curseforge_modpack(path: &str) -> Result<GameInstance, LauncherError> {
     let zip_path = std::path::Path::new(path);
     let file = std::fs::File::open(zip_path)?;
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|e| LauncherError::Other(format!("Invalid ZIP: {}", e)))?;
+    let mut archive = zip::ZipArchive::new(file)?;
 
     let mut manifest_json = String::new();
     for i in 0..archive.len() {
@@ -517,16 +507,15 @@ pub async fn import_curseforge_modpack(path: &str) -> Result<GameInstance, Launc
     }
 
     if manifest_json.is_empty() {
-        return Err(LauncherError::Other("manifest.json not found in CurseForge modpack".into()));
+        return Err(LauncherError::VersionNotFound("manifest.json not found in CurseForge modpack".into()));
     }
 
-    let manifest: CfManifest = serde_json::from_str(&manifest_json)
-        .map_err(|e| LauncherError::Other(format!("Invalid manifest.json: {}", e)))?;
+    let manifest: CfManifest = serde_json::from_str(&manifest_json)?;
 
     let version_id = manifest.minecraft.version.clone();
     let manifest2 = crate::version::manifest::fetch_versions_sorted().await?;
     let version_entry = manifest2.iter().find(|v| v.id == version_id)
-        .ok_or_else(|| LauncherError::Other(format!("Version {} not found in manifest", version_id)))?;
+        .ok_or_else(|| LauncherError::VersionNotFound(format!("Version {} not found in manifest", version_id)))?;
     let version_url = version_entry.url.clone();
 
     let (loader_type, loader_version) = manifest.minecraft.mod_loaders.iter()
@@ -646,7 +635,7 @@ pub async fn import_modpack_auto(path: &str) -> Result<GameInstance, LauncherErr
     match format {
         ModpackFormat::MrPack => import_modpack(path).await,
         ModpackFormat::CurseForge => import_curseforge_modpack(path).await,
-        ModpackFormat::Unknown => Err(LauncherError::Other(
+        ModpackFormat::Unknown => Err(LauncherError::InvalidConfig(
             "Unknown modpack format. Supported: .mrpack (Modrinth), CurseForge ZIP".into()
         )),
     }
@@ -679,7 +668,7 @@ struct MrPackExportFile {
 /// Export an instance as .mrpack modpack format.
 pub async fn export_mrpack(id: &str, output_path: &std::path::Path) -> Result<(), LauncherError> {
     let instance = get_instance(id)?.ok_or_else(|| {
-        LauncherError::Other(format!("Instance not found: {}", id))
+        LauncherError::InstanceNotReady(format!("Instance not found: {}", id))
     })?;
 
     let content_path = paths::get_instance_minecraft_dir(id).join("installed_content.json");
@@ -763,19 +752,16 @@ pub async fn export_mrpack(id: &str, output_path: &std::path::Path) -> Result<()
         dependencies,
     };
 
-    let file = std::fs::File::create(output_path)
-        .map_err(|e| LauncherError::Other(format!("Cannot create mrpack: {}", e)))?;
+    let file = std::fs::File::create(output_path)?;
     let mut zip = zip::ZipWriter::new(file);
     let mut options = zip::write::SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated);
     #[cfg(unix)]
     { options = options.unix_permissions(0o644); }
 
-    zip.start_file("modrinth.index.json", options)
-        .map_err(|e| LauncherError::Other(format!("ZIP write error: {}", e)))?;
+    zip.start_file("modrinth.index.json", options)?;
     let manifest_json = serde_json::to_string_pretty(&manifest)?;
-    zip.write_all(manifest_json.as_bytes())
-        .map_err(|e| LauncherError::Other(format!("ZIP write error: {}", e)))?;
+    zip.write_all(manifest_json.as_bytes())?;
 
     let minecraft_dir = paths::get_instance_minecraft_dir(id);
     if minecraft_dir.exists() {
@@ -787,18 +773,16 @@ pub async fn export_mrpack(id: &str, output_path: &std::path::Path) -> Result<()
             if skip_dirs.contains(&name.as_str()) { continue; }
             if path.is_file() {
                 let zip_name = format!("overrides/{}", name).replace('\\', "/");
-                zip.start_file(&zip_name, options)
-                    .map_err(|e| LauncherError::Other(format!("ZIP write error: {}", e)))?;
+                zip.start_file(&zip_name, options)?;
                 let mut src = std::fs::File::open(&path)?;
-                std::io::copy(&mut src, &mut zip)
-                    .map_err(|e| LauncherError::Other(format!("ZIP write error: {}", e)))?;
+                std::io::copy(&mut src, &mut zip)?;
             } else if path.is_dir() {
                 add_dir_to_mrpack(&mut zip, &minecraft_dir, &path, options)?;
             }
         }
     }
 
-    zip.finish().map_err(|e| LauncherError::Other(format!("ZIP finish error: {}", e)))?;
+    zip.finish()?;
     tracing::info!("Instance '{}' exported as .mrpack to {}", id, output_path.display());
     Ok(())
 }
@@ -813,19 +797,161 @@ fn add_dir_to_mrpack(
         let entry = entry?;
         let path = entry.path();
         let relative = path.strip_prefix(base)
-            .map_err(|e| LauncherError::Other(e.to_string()))?;
+            .map_err(|e| LauncherError::InvalidConfig(e.to_string()))?;
         let name = format!("overrides/{}", relative.to_string_lossy().replace('\\', "/"));
         if path.is_dir() {
-            zip.add_directory(&name, options)
-                .map_err(|e| LauncherError::Other(format!("ZIP error: {}", e)))?;
+            zip.add_directory(&name, options)?;
             add_dir_to_mrpack(&mut *zip, base, &path, options)?;
         } else {
-            zip.start_file(&name, options)
-                .map_err(|e| LauncherError::Other(format!("ZIP error: {}", e)))?;
+            zip.start_file(&name, options)?;
             let mut src = std::fs::File::open(&path)?;
-            std::io::copy(&mut src, &mut *zip)
-                .map_err(|e| LauncherError::Other(format!("ZIP error: {}", e)))?;
+            std::io::copy(&mut src, &mut *zip)?;
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn game_instance_new() {
+        let inst = GameInstance::new("My World", "1.20.4", "https://example.com/1.20.4.json");
+        assert_eq!(inst.name, "My World");
+        assert_eq!(inst.version_id, "1.20.4");
+        assert_eq!(inst.version_url, "https://example.com/1.20.4.json");
+        assert!(inst.id.contains("1.20.4"));
+        assert!(inst.id.contains("My_World"));
+        assert!(inst.loader_type.is_none());
+        assert!(inst.loader_version.is_none());
+        assert_eq!(inst.max_memory, 2048);
+        assert_eq!(inst.min_memory, 512);
+        assert!(inst.java_path.is_none());
+        assert!(inst.last_played.is_none());
+        assert_eq!(inst.playtime_seconds, 0);
+    }
+
+    #[test]
+    fn game_instance_id_replaces_spaces() {
+        let inst = GameInstance::new("My Cool World", "1.20.4", "https://example.com");
+        assert!(inst.id.contains("My_Cool_World"));
+        assert!(!inst.id.contains(' '));
+    }
+
+    #[test]
+    fn game_instance_serialization() {
+        let inst = GameInstance::new("TestWorld", "1.20.4", "https://example.com");
+        let json = serde_json::to_string(&inst).unwrap();
+        let back: GameInstance = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.id, inst.id);
+        assert_eq!(back.name, "TestWorld");
+        assert_eq!(back.version_id, "1.20.4");
+        assert_eq!(back.max_memory, 2048);
+        assert_eq!(back.min_memory, 512);
+        assert_eq!(back.playtime_seconds, 0);
+    }
+
+    #[test]
+    fn game_instance_with_loader() {
+        let mut inst = GameInstance::new("Fabric World", "1.20.4", "https://example.com");
+        inst.loader_type = Some("fabric".to_string());
+        inst.loader_version = Some("0.15.0".to_string());
+        assert_eq!(inst.loader_type.as_deref(), Some("fabric"));
+        assert_eq!(inst.loader_version.as_deref(), Some("0.15.0"));
+    }
+
+    #[test]
+    fn game_instance_with_custom_memory() {
+        let mut inst = GameInstance::new("Big World", "1.20.4", "https://example.com");
+        inst.max_memory = 8192;
+        inst.min_memory = 1024;
+        assert_eq!(inst.max_memory, 8192);
+        assert_eq!(inst.min_memory, 1024);
+    }
+
+    #[test]
+    fn game_instance_with_java_path() {
+        let mut inst = GameInstance::new("Test", "1.20.4", "https://example.com");
+        inst.java_path = Some("/usr/bin/java".to_string());
+        inst.jvm_args = Some("-XX:+UseG1GC".to_string());
+        assert_eq!(inst.java_path.as_deref(), Some("/usr/bin/java"));
+        assert_eq!(inst.jvm_args.as_deref(), Some("-XX:+UseG1GC"));
+    }
+
+    #[test]
+    fn safe_extract_path_normal() {
+        let result = safe_extract_path("mods/test.jar");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), std::path::PathBuf::from("mods/test.jar"));
+    }
+
+    #[test]
+    fn safe_extract_path_blocks_parent_dir() {
+        let result = safe_extract_path("../../etc/passwd");
+        assert!(result.is_none() || !result.unwrap().starts_with(".."));
+    }
+
+    #[test]
+    fn safe_extract_path_blocks_root() {
+        let result = safe_extract_path("/etc/passwd");
+        assert!(result.is_none() || !result.unwrap().starts_with("/"));
+    }
+
+    #[test]
+    fn safe_extract_path_empty() {
+        let result = safe_extract_path("");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn safe_extract_path_only_parent() {
+        let result = safe_extract_path("..");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn is_client_supported_none_env() {
+        assert!(is_client_supported(&None));
+    }
+
+    #[test]
+    fn is_client_supported_no_client_field() {
+        let env = MrPackEnv { client: None, server: None };
+        assert!(is_client_supported(&Some(env)));
+    }
+
+    #[test]
+    fn is_client_supported_client_required() {
+        let env = MrPackEnv { client: Some("required".to_string()), server: None };
+        assert!(is_client_supported(&Some(env)));
+    }
+
+    #[test]
+    fn is_client_supported_client_unsupported() {
+        let env = MrPackEnv { client: Some("unsupported".to_string()), server: None };
+        assert!(!is_client_supported(&Some(env)));
+    }
+
+    #[test]
+    fn modpack_format_serialization() {
+        let formats = [ModpackFormat::MrPack, ModpackFormat::CurseForge, ModpackFormat::Unknown];
+        for fmt in &formats {
+            let json = serde_json::to_string(fmt).unwrap();
+            let back: ModpackFormat = serde_json::from_str(&json).unwrap();
+            assert_eq!(fmt, &back);
+        }
+    }
+
+    #[test]
+    fn game_instance_playtime_default_zero() {
+        let inst = GameInstance::new("Test", "1.20.4", "https://example.com");
+        assert_eq!(inst.playtime_seconds, 0);
+    }
+
+    #[test]
+    fn game_instance_created_at_is_rfc3339() {
+        let inst = GameInstance::new("Test", "1.20.4", "https://example.com");
+        assert!(chrono::DateTime::parse_from_rfc3339(&inst.created_at).is_ok());
+    }
 }

@@ -113,6 +113,16 @@
   background: var(--color-error);
 }
 
+.task__icon--paused {
+  background: var(--color-accent);
+  opacity: 0.5;
+}
+
+.task__icon--cancelled {
+  background: var(--color-text-dim);
+  opacity: 0.4;
+}
+
 .task__info {
   flex: 1;
   min-width: 0;
@@ -147,6 +157,40 @@
   color: var(--color-error);
 }
 
+.task__status--cancelled {
+  color: var(--color-text-dim);
+  opacity: 0.6;
+}
+
+.task__status--paused {
+  color: var(--color-accent);
+  opacity: 0.7;
+}
+
+.task__progress {
+  display: flex;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.42em;
+  color: var(--color-accent);
+  margin-top: 2px;
+}
+
+.task__bar {
+  margin-top: 4px;
+  height: 3px;
+  background: var(--color-border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.task__bar__fill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
 .task__dismiss {
   background: none;
   border: none;
@@ -160,6 +204,30 @@
 
 .task__dismiss:hover {
   color: var(--color-text-dim);
+}
+
+.task__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.task__control {
+  background: none;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-dim);
+  cursor: pointer;
+  font-size: 0.55em;
+  padding: 2px 4px;
+  line-height: 1;
+  clip-path: var(--clip-small);
+  transition: all var(--transition-fast);
+}
+
+.task__control:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 .empty {

@@ -6,6 +6,7 @@ use crate::error::LauncherError;
 use crate::http_client;
 use crate::modrinth::{ModDependency, ModFile, ModGalleryImage, ModHashes, ModProjectFull, ModResult, ModVersion};
 use serde::Deserialize;
+use tauri::Emitter;
 
 const CF_API_BASE: &str = "https://api.curseforge.com/v1";
 
@@ -345,7 +346,7 @@ pub async fn search_mods(
 
 pub async fn get_mod(mod_id: u64) -> Result<ModResult, LauncherError> {
     if !has_cf_api_key() {
-        return Err(LauncherError::Other("CurseForge API key not configured. Set BONNEXT_CF_API_KEY env var or configure in Settings.".into()));
+        return Err(LauncherError::AuthFailed("CurseForge API key not configured. Set BONNEXT_CF_API_KEY env var or configure in Settings.".into()));
     }
 
     let client = http_client::build_client();
@@ -365,7 +366,7 @@ pub async fn get_mod(mod_id: u64) -> Result<ModResult, LauncherError> {
 
 pub async fn get_mod_full(mod_id: u64) -> Result<ModProjectFull, LauncherError> {
     if !has_cf_api_key() {
-        return Err(LauncherError::Other("CurseForge API key not configured. Set BONNEXT_CF_API_KEY env var or configure in Settings.".into()));
+        return Err(LauncherError::AuthFailed("CurseForge API key not configured. Set BONNEXT_CF_API_KEY env var or configure in Settings.".into()));
     }
 
     let client = http_client::build_client();
@@ -451,7 +452,9 @@ pub async fn download_mod_file(
     instance_id: &str,
     content_type: Option<&str>,
     sha1_hash: Option<&str>,
+    slug: Option<&str>,
+    app: Option<&tauri::AppHandle>,
 ) -> Result<String, LauncherError> {
     let ct = content_type.unwrap_or("mod");
-    crate::modrinth::download_content_file(file_url, filename, instance_id, ct, sha1_hash).await
+    crate::modrinth::download_content_file_with_progress(file_url, filename, instance_id, ct, sha1_hash, slug, app).await
 }

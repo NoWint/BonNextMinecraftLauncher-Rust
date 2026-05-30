@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type GameInstance, type VersionEntry } from '../../api';
 import { useI18n } from '../../i18n';
+import { Icon } from './Icon';
 import styles from './SearchPalette.module.css';
 
 interface SearchResult {
@@ -29,23 +31,89 @@ interface SearchPaletteProps {
 
 function getSettingItems(t: (key: string) => string): Omit<SearchResult, 'action'>[] {
   return [
-    { type: 'setting', id: 'settings_account', title: t('searchPalette.account'), subtitle: t('searchPalette.accountDesc'), icon: 'A' },
-    { type: 'setting', id: 'settings_java', title: t('searchPalette.java'), subtitle: t('searchPalette.javaDesc'), icon: 'J' },
-    { type: 'setting', id: 'settings_memory', title: t('searchPalette.memory'), subtitle: t('searchPalette.memoryDesc'), icon: 'M' },
-    { type: 'setting', id: 'settings_launch', title: t('searchPalette.launch'), subtitle: t('searchPalette.launchDesc'), icon: 'L' },
-    { type: 'setting', id: 'settings_data', title: t('searchPalette.data'), subtitle: t('searchPalette.dataDesc'), icon: 'D' },
-    { type: 'setting', id: 'settings_theme', title: t('searchPalette.theme'), subtitle: t('searchPalette.themeDesc'), icon: 'T' },
+    {
+      type: 'setting',
+      id: 'settings_account',
+      title: t('searchPalette.account'),
+      subtitle: t('searchPalette.accountDesc'),
+      icon: 'A',
+    },
+    {
+      type: 'setting',
+      id: 'settings_java',
+      title: t('searchPalette.java'),
+      subtitle: t('searchPalette.javaDesc'),
+      icon: 'J',
+    },
+    {
+      type: 'setting',
+      id: 'settings_memory',
+      title: t('searchPalette.memory'),
+      subtitle: t('searchPalette.memoryDesc'),
+      icon: 'M',
+    },
+    {
+      type: 'setting',
+      id: 'settings_launch',
+      title: t('searchPalette.launch'),
+      subtitle: t('searchPalette.launchDesc'),
+      icon: 'L',
+    },
+    {
+      type: 'setting',
+      id: 'settings_data',
+      title: t('searchPalette.data'),
+      subtitle: t('searchPalette.dataDesc'),
+      icon: 'D',
+    },
+    {
+      type: 'setting',
+      id: 'settings_theme',
+      title: t('searchPalette.theme'),
+      subtitle: t('searchPalette.themeDesc'),
+      icon: 'T',
+    },
   ];
 }
 
 function getPageItems(t: (key: string) => string): Omit<SearchResult, 'action'>[] {
   return [
     { type: 'page', id: 'nav_home', title: t('searchPalette.home'), subtitle: t('searchPalette.homeDesc'), icon: 'H' },
-    { type: 'page', id: 'nav_instances', title: t('searchPalette.instances'), subtitle: t('searchPalette.instancesDesc'), icon: 'I' },
-    { type: 'page', id: 'nav_versions', title: t('searchPalette.versions'), subtitle: t('searchPalette.versionsDesc'), icon: 'V' },
-    { type: 'page', id: 'nav_mods', title: t('searchPalette.modBrowser'), subtitle: t('searchPalette.modBrowserDesc'), icon: 'M' },
-    { type: 'page', id: 'nav_settings', title: t('searchPalette.settings'), subtitle: t('searchPalette.settingsDesc'), icon: 'S' },
-    { type: 'page', id: 'nav_new', title: t('searchPalette.newInstance'), subtitle: t('searchPalette.newInstanceDesc'), icon: '+' },
+    {
+      type: 'page',
+      id: 'nav_instances',
+      title: t('searchPalette.instances'),
+      subtitle: t('searchPalette.instancesDesc'),
+      icon: 'I',
+    },
+    {
+      type: 'page',
+      id: 'nav_versions',
+      title: t('searchPalette.versions'),
+      subtitle: t('searchPalette.versionsDesc'),
+      icon: 'V',
+    },
+    {
+      type: 'page',
+      id: 'nav_mods',
+      title: t('searchPalette.modBrowser'),
+      subtitle: t('searchPalette.modBrowserDesc'),
+      icon: 'M',
+    },
+    {
+      type: 'page',
+      id: 'nav_settings',
+      title: t('searchPalette.settings'),
+      subtitle: t('searchPalette.settingsDesc'),
+      icon: 'S',
+    },
+    {
+      type: 'page',
+      id: 'nav_new',
+      title: t('searchPalette.newInstance'),
+      subtitle: t('searchPalette.newInstanceDesc'),
+      icon: '+',
+    },
   ];
 }
 
@@ -54,9 +122,10 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
   onClose,
   instances,
   versions,
-  navigate,
+  navigate: navigateTo,
 }) => {
   const { t } = useI18n();
+  const routerNavigate = useNavigate();
   const SETTING_ITEMS = useMemo(() => getSettingItems(t), [t]);
   const PAGE_ITEMS = useMemo(() => getPageItems(t), [t]);
   const [query, setQuery] = useState('');
@@ -120,8 +189,10 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
         subtitle: `${inst.version_id}${inst.loader_type ? ' · ' + inst.loader_type : ''} · ${Math.round(inst.max_memory / 1024)}GB`,
         icon: 'P',
         action: () => {
-          navigate('instances');
-          setTimeout(() => { window.location.hash = `#/instances/${inst.id}`; }, 0);
+          navigateTo('instances');
+          setTimeout(() => {
+            routerNavigate(`/instances/${inst.id}`);
+          }, 0);
         },
       }));
 
@@ -136,40 +207,40 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
         icon: 'V',
         action: () => {
           onClose();
-          navigate('versions');
+          navigateTo('versions');
         },
       }));
 
-    const settingResults: SearchResult[] = SETTING_ITEMS
-      .filter((s) => !q || s.title.toLowerCase().includes(q) || s.subtitle.toLowerCase().includes(q))
-      .map((s) => ({
-        ...s,
-        action: () => {
-          onClose();
-          navigate('settings');
-        },
-      }));
+    const settingResults: SearchResult[] = SETTING_ITEMS.filter(
+      (s) => !q || s.title.toLowerCase().includes(q) || s.subtitle.toLowerCase().includes(q),
+    ).map((s) => ({
+      ...s,
+      action: () => {
+        onClose();
+        navigateTo('settings');
+      },
+    }));
 
-    const pageResults: SearchResult[] = PAGE_ITEMS
-      .filter((p) => !q || p.title.toLowerCase().includes(q) || p.subtitle.toLowerCase().includes(q))
-      .map((p) => ({
-        ...p,
-        action: () => {
-          onClose();
-          const map: Record<string, string> = {
-            nav_home: 'home',
-            nav_instances: 'instances',
-            nav_versions: 'versions',
-            nav_mods: 'mods',
-            nav_settings: 'settings',
-            nav_new: 'new_instance',
-          };
-          navigate(map[p.id]);
-        },
-      }));
+    const pageResults: SearchResult[] = PAGE_ITEMS.filter(
+      (p) => !q || p.title.toLowerCase().includes(q) || p.subtitle.toLowerCase().includes(q),
+    ).map((p) => ({
+      ...p,
+      action: () => {
+        onClose();
+        const map: Record<string, string> = {
+          nav_home: 'home',
+          nav_instances: 'instances',
+          nav_versions: 'versions',
+          nav_mods: 'mods',
+          nav_settings: 'settings',
+          nav_new: 'new_instance',
+        };
+        navigateTo(map[p.id]);
+      },
+    }));
 
     return [...instanceResults, ...versionResults, ...settingResults, ...pageResults];
-  }, [query, instances, versions, navigate, onClose]);
+  }, [query, instances, versions, navigateTo, onClose]);
 
   // Clamp active index
   useEffect(() => {
@@ -205,9 +276,9 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
           e.preventDefault();
           if (activeNlpIndex >= 0 && nlpResults[activeNlpIndex]) {
             onClose();
-            navigate('store');
+            navigateTo('store');
             setTimeout(() => {
-              window.location.hash = `#/store/mod/${nlpResults[activeNlpIndex].slug}`;
+              routerNavigate(`/store/mod/${nlpResults[activeNlpIndex].slug}`);
             }, 0);
           } else if (results[activeIndex]) {
             results[activeIndex].action();
@@ -219,7 +290,7 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
           break;
       }
     },
-    [results, activeIndex, activeNlpIndex, nlpResults, hasNlpResults, navigate, onClose],
+    [results, activeIndex, activeNlpIndex, nlpResults, hasNlpResults, navigateTo, onClose],
   );
 
   // Scroll active item into view
@@ -247,9 +318,7 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
             spellCheck={false}
           />
           {query.trim().length > 15 && (
-            <span className={styles.aiBadge}>
-              {nlpLoading ? '⏳' : 'AI'}
-            </span>
+            <span className={styles.aiBadge}>{nlpLoading ? <Icon name="hourglass" size={12} /> : 'AI'}</span>
           )}
           <span className={styles.shortcutHint}>ESC</span>
         </div>
@@ -266,7 +335,10 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
                   key={result.id}
                   className={`${styles.resultItem} ${idx === activeIndex && activeNlpIndex < 0 ? styles['resultItem--active'] : ''}`}
                   onClick={() => result.action()}
-                  onMouseEnter={() => { setActiveIndex(idx); setActiveNlpIndex(-1); }}
+                  onMouseEnter={() => {
+                    setActiveIndex(idx);
+                    setActiveNlpIndex(-1);
+                  }}
                 >
                   <div className={styles.resultIcon}>{result.icon}</div>
                   <div className={styles.resultInfo}>
@@ -280,7 +352,9 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
               {hasNlpResults && (
                 <>
                   <div className={styles.nlpDivider}>
-                    <span className={styles.nlpDividerLabel}>🤖 {t('searchPalette.aiUnderstanding')}</span>
+                    <span className={styles.nlpDividerLabel}>
+                      <Icon name="bolt" size={14} /> {t('searchPalette.aiUnderstanding')}
+                    </span>
                   </div>
                   {nlpResults.map((nlp, idx) => (
                     <div
@@ -288,14 +362,19 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
                       className={`${styles.resultItem} ${styles.nlpResult} ${idx === activeNlpIndex ? styles['resultItem--active'] : ''}`}
                       onClick={() => {
                         onClose();
-                        navigate('store');
+                        navigateTo('store');
                         setTimeout(() => {
-                          window.location.hash = `#/store/mod/${nlp.slug}`;
+                          routerNavigate(`/store/mod/${nlp.slug}`);
                         }, 0);
                       }}
-                      onMouseEnter={() => { setActiveNlpIndex(idx); setActiveIndex(results.length - 1); }}
+                      onMouseEnter={() => {
+                        setActiveNlpIndex(idx);
+                        setActiveIndex(results.length - 1);
+                      }}
                     >
-                      <div className={styles.nlpIcon}>🧠</div>
+                      <div className={styles.nlpIcon}>
+                        <Icon name="sparkles" size={14} />
+                      </div>
                       <div className={styles.resultInfo}>
                         <div className={styles.resultTitle}>{nlp.name}</div>
                         <div className={styles.nlpInterpretation}>{nlp.interpretation}</div>

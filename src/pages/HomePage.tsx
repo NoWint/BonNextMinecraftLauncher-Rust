@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { formatError } from '../utils/errorMapping';
 import {
   api,
   type DownloadProgressEvent,
   type LaunchState,
+  type RunningGameInfo,
   type GameInstance,
   type SystemInfo,
   type JreDownloadProgress,
@@ -16,51 +19,123 @@ import { useGreeting } from '../hooks/useGreeting';
 import { Heading, SubLabel, AccentCorner, Ticker } from '../components/layout';
 import { StatusDot, Badge, ProgressBar, Tooltip } from '../components/ui';
 import { Button } from '../components/ui';
-import {
-  OnboardingWizard,
-  isOnboardingSkipped,
-  isOnboardingCompleted,
-  isOnboardingForceShow,
-  clearForceShow,
-} from '../components/ui';
+import { Icon } from '../components/ui/Icon';
+import type { IconName } from '../components/ui/Icon';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import GameConsole from '../components/ui/GameConsole';
 import { relativeTime } from '../utils/time';
 import styles from './HomePage.module.css';
 
+const BANNER_SLIDES = [
+  {
+    label: 'Featured',
+    title: 'Minecraft 1.21 Tricky Trials',
+    desc: 'Explore trial chambers, battle the breeze, and craft with new copper blocks.',
+    theme: 1,
+  },
+  {
+    label: 'Performance',
+    title: 'Sodium 0.7 Released',
+    desc: 'Up to 40% FPS improvement. Now on Fabric, Quilt, and NeoForge.',
+    theme: 2,
+  },
+  {
+    label: 'Community',
+    title: 'Create Mod 6.0',
+    desc: 'Mechanical marvels expanded. New logistics, trains, and contraptions.',
+    theme: 3,
+  },
+  {
+    label: 'BonNext',
+    title: 'One Click to Play',
+    desc: 'Auto-detect Java, best version, optimal settings. Zero config needed.',
+    theme: 4,
+  },
+  {
+    label: 'Technology',
+    title: 'VulkanMod for Minecraft',
+    desc: 'Native Vulkan rendering. Smoother frametimes on modern GPUs.',
+    theme: 5,
+  },
+  {
+    label: 'Updates',
+    title: 'Fabric 1.0 Milestone',
+    desc: 'Stable API, better mod compat, 30% faster loader.',
+    theme: 6,
+  },
+];
+
+const NEWS_ITEMS = [
+  'Minecraft Live 2026 . New biome & mob reveal',
+  'Sodium 0.7 released . Up to 40% FPS improvement',
+  'Fabric 1.0 milestone . Stable API for modders',
+  'TerraFirmaCraft returns . Hardcore survival revival',
+  'Complementary Shaders v5 . Ray tracing for all GPUs',
+  'Create Mod 6.0 . Mechanical marvels expanded',
+];
+
 function usePollLaunchState(interval = 2000) {
-  const [s, setS] = useState<LaunchState>('idle');
+  const [runningGames, setRunningGames] = useState<RunningGameInfo[]>([]);
   useEffect(() => {
     const poll = async () => {
-      if (document.hidden) return;
       try {
-        setS(await api.getLaunchState());
+        setRunningGames(await api.getRunningGames());
       } catch {
-        /* poll error */
+        /* empty */
       }
     };
     poll();
     const timer = setInterval(poll, interval);
-    return () => clearInterval(timer);
+
+    let unlisten: (() => void) | null = null;
+    import('@tauri-apps/api/event').then(({ listen }) => {
+      listen<{ state: string; instance_id?: string }>('launch-state-changed', () => {
+        poll();
+      }).then((fn) => {
+        unlisten = fn;
+      });
+    });
+
+    return () => {
+      clearInterval(timer);
+      unlisten?.();
+    };
   }, [interval]);
-  return s;
+  return { runningGames };
 }
 
-function getLoaderIcon(loaderType: string | null): string {
+function getInstanceLaunchState(runningGames: RunningGameInfo[], instanceId: string | null): LaunchState {
+  if (!instanceId) return 'idle';
+  const game = runningGames.find((g) => g.instance_id === instanceId);
+  return game ? game.state : 'idle';
+}
+
+function getLoaderIcon(loaderType: string | null): IconName {
   switch (loaderType) {
     case 'fabric':
-      return '\u{1F9F5}';
+      return 'fabric';
     case 'forge':
-      return '\u{2692}';
+      return 'forge';
     default:
-      return '\u{1F4E6}';
+      return 'vanilla';
   }
 }
 
-function formatPlaytime(seconds: number, t: (key: string, params?: Record<string, string>) => string): string {
-  if (seconds < 60) return t('home.playtimeLessMin');
-  if (seconds < 3600) return t('home.playtimeMinutes', { mins: String(Math.round(seconds / 60)) });
-  return t('home.playtimeHours', { hrs: (seconds / 3600).toFixed(1) });
+function getLoaderLabel(loaderType: string | null): string {
+  switch (loaderType) {
+    case 'fabric':
+      return 'Fabric';
+    case 'forge':
+      return 'Forge';
+    default:
+      return 'Vanilla';
+  }
+}
+
+function formatPlaytime(seconds: number): string {
+  if (seconds < 60) return '< 1m played';
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m played`;
+  return `${(seconds / 3600).toFixed(1)} hrs played`;
 }
 
 function InstanceCard({
@@ -69,17 +144,15 @@ function InstanceCard({
   isReady,
   onLaunch,
   onSelect,
-  t,
 }: {
   instance: GameInstance;
   isActive: boolean;
   isReady: boolean | null;
   onLaunch: (inst: GameInstance) => void;
   onSelect: (inst: GameInstance) => void;
-  t: (key: string, params?: Record<string, string>) => string;
 }) {
-  const loaderLabel = instance.loader_type ? t(`common.${instance.loader_type}`) : t('common.vanilla');
-  const playtimeLabel = formatPlaytime(instance.playtime_seconds, t);
+  const loaderLabel = getLoaderLabel(instance.loader_type);
+  const playtimeLabel = formatPlaytime(instance.playtime_seconds);
 
   return (
     <div
@@ -92,7 +165,7 @@ function InstanceCard({
           <div
             className={`${styles.card__icon} ${isActive ? styles['card__icon--active'] : styles['card__icon--default']}`}
           >
-            {getLoaderIcon(instance.loader_type)}
+            <Icon name={getLoaderIcon(instance.loader_type)} size={12} />
           </div>
         </Tooltip>
         <div className={styles.card__info}>
@@ -106,14 +179,22 @@ function InstanceCard({
             {instance.loader_type && <Badge variant="muted">{instance.loader_type}</Badge>}
           </div>
           <div className={styles.card__meta}>
-            <span className={styles.card__metaItem}>
-              {t('home.lastPlayed')}: {relativeTime(instance.last_played)}
-            </span>
+            <span className={styles.card__metaItem}>Last played: {relativeTime(instance.last_played)}</span>
             <span className={styles.card__metaSep}>.</span>
             <span className={styles.card__metaItem}>{playtimeLabel}</span>
             <span className={styles.card__metaSep}>.</span>
             <span className={styles.card__metaItem}>
-              {isReady === null ? '⏳' : isReady ? '✅ ' + t('home.ready') : '⚠️ ' + t('home.needsDownload')}
+              {isReady === null ? (
+                <Icon name="hourglass" size={12} />
+              ) : isReady ? (
+                <>
+                  <Icon name="checkCircle" size={12} /> Ready
+                </>
+              ) : (
+                <>
+                  <Icon name="warning" size={12} /> Needs download
+                </>
+              )}
             </span>
           </div>
         </div>
@@ -126,7 +207,7 @@ function InstanceCard({
               onLaunch(instance);
             }}
           >
-            {'▶ ' + t('home.startBtn')}
+            <Icon name="play" size={14} /> START
           </Button>
         </div>
       </div>
@@ -136,32 +217,28 @@ function InstanceCard({
 
 function PlayArea({
   instance,
-  instances,
   isBusy,
   launchState,
   javaVersion,
   sysInfo,
   onLaunch,
   onReset,
-  onSelectInstance,
   t,
 }: {
   instance: GameInstance | null;
-  instances: GameInstance[];
   isBusy: boolean;
   launchState: LaunchState;
   javaVersion: number | null;
   sysInfo: SystemInfo | null;
   onLaunch: () => void;
   onReset: () => void;
-  onSelectInstance: (inst: GameInstance) => void;
-  t: (key: string, params?: Record<string, string>) => string;
+  t: (key: string) => string;
 }) {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [showCountdown, setShowCountdown] = useState(false);
-  const [showInstanceSwitcher, setShowInstanceSwitcher] = useState(false);
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Clean up countdown timer
   useEffect(() => {
     return () => {
       if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
@@ -169,15 +246,15 @@ function PlayArea({
   }, []);
 
   const stateLabel: Record<LaunchState, string> = {
-    idle: t('home.playArea.start'),
-    checking: t('home.state.checking'),
-    downloading: t('home.downloading'),
-    validating: t('home.state.validating'),
-    launching: t('home.state.launching'),
-    running: t('home.state.running'),
-    exited: t('home.state.exited'),
-    crashed: t('home.state.crashed'),
-    error: t('home.state.error'),
+    idle: 'START',
+    checking: 'CHECKING',
+    downloading: 'DOWNLOADING',
+    validating: 'VALIDATING',
+    launching: 'LAUNCHING',
+    running: 'RUNNING',
+    exited: 'EXITED',
+    crashed: 'CRASHED',
+    error: 'ERROR',
   };
 
   const isError = launchState === 'crashed' || launchState === 'error';
@@ -189,10 +266,27 @@ function PlayArea({
       onReset();
       setShowCountdown(false);
       setCountdown(null);
+      if (!isBusy && instance) {
+        setShowCountdown(true);
+        setCountdown(3);
+        let tick = 3;
+        countdownTimerRef.current = setInterval(() => {
+          tick -= 1;
+          if (tick <= 0) {
+            clearInterval(countdownTimerRef.current!);
+            countdownTimerRef.current = null;
+            setCountdown(0);
+            setShowCountdown(false);
+            onLaunch();
+          } else {
+            setCountdown(tick);
+          }
+        }, 1000);
+      }
       return;
     }
     if (!isBusy && instance) {
-      setShowInstanceSwitcher(false);
+      // Start countdown animation, then launch
       setShowCountdown(true);
       setCountdown(3);
       let tick = 3;
@@ -211,23 +305,18 @@ function PlayArea({
     }
   };
 
-  const handleInstanceSwitch = (inst: GameInstance) => {
-    onSelectInstance(inst);
-    setShowInstanceSwitcher(false);
-  };
-
   return (
     <div className={styles.playArea}>
       <div
         className={`${styles.playArea__panel} ${canClick ? styles['playArea__panel--clickable'] : ''} ${isError ? styles['playArea__panel--error'] : ''} ${showCountdown ? styles['playArea__panel--countdown'] : ''}`}
         onClick={handleClick}
-        data-tour="home-play"
       >
         <AccentCorner position="topRight" />
         <AccentCorner position="bottomLeft" />
         <div className={styles.playArea__inner} />
         <div className={styles.playArea__decorLine} />
 
+        {/* Countdown ring animation */}
         {showCountdown && (
           <div className={styles.countdownRing}>
             <div className={styles.countdownRingInner} />
@@ -237,7 +326,7 @@ function PlayArea({
         <div className={styles.playArea__content}>
           {showCountdown ? (
             <div className={styles.countdownText}>
-              <div className={styles.countdownLabel}>{t('home.launchingIn')}</div>
+              <div className={styles.countdownLabel}>LAUNCHING IN</div>
               <div className={styles.countdownNumber}>{countdown}</div>
             </div>
           ) : isBusy || launchState !== 'idle' ? (
@@ -248,7 +337,9 @@ function PlayArea({
             </div>
           ) : (
             <>
-              <div className={`${styles.playArea__playIcon} play-pulse`}>▶</div>
+              <div className={`${styles.playArea__playIcon} play-pulse`}>
+                <Icon name="play" size={14} />
+              </div>
               <div className={styles.playArea__startWord}>{t('home.playArea.start')}</div>
               <div className={styles.playArea__startWord}>{t('home.playArea.game')}</div>
             </>
@@ -256,23 +347,9 @@ function PlayArea({
 
           {instance ? (
             <div className={styles.playArea__instanceInfo}>
-              <div className={styles.playArea__instanceRow}>
-                <div className={styles.playArea__version}>{instance.version_id}</div>
-                {instances.length > 1 && !isBusy && !showCountdown && (
-                  <button
-                    className={styles.playArea__switchBtn}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowInstanceSwitcher((v) => !v);
-                    }}
-                    title="Switch instance"
-                  >
-                    ▾
-                  </button>
-                )}
-              </div>
+              <div className={styles.playArea__version}>{instance.version_id}</div>
               <div className={styles.playArea__details}>
-                {instance.loader_type ? `${t(`common.${instance.loader_type}`)} . ` : ''}
+                {instance.loader_type ? `${getLoaderLabel(instance.loader_type)} . ` : ''}
                 {Math.round(instance.max_memory / 1024)}GB
               </div>
             </div>
@@ -287,22 +364,6 @@ function PlayArea({
             </span>
           </div>
         </div>
-
-        {showInstanceSwitcher && instances.length > 1 && (
-          <div className={styles.instanceSwitcher} onClick={(e) => e.stopPropagation()}>
-            {instances.map((inst) => (
-              <button
-                key={inst.id}
-                className={`${styles.instanceSwitcher__item} ${inst.id === instance?.id ? styles['instanceSwitcher__item--active'] : ''}`}
-                onClick={() => handleInstanceSwitch(inst)}
-              >
-                <span className={styles.instanceSwitcher__icon}>{getLoaderIcon(inst.loader_type)}</span>
-                <span className={styles.instanceSwitcher__name}>{inst.name}</span>
-                <span className={styles.instanceSwitcher__version}>{inst.version_id}</span>
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className={styles.quickStats}>
@@ -332,160 +393,82 @@ function PlayArea({
 }
 
 export default function HomePage() {
+  const navigate = useNavigate();
   const { state: authState } = useAuth();
   const { state: instState } = useInstances();
   const { addToast } = useToast();
   const { t } = useI18n();
   const greeting = useGreeting(t);
-  const auth = authState.currentUser!;
+  const auth = authState.currentUser;
   const instances = instState.instances;
-  const launchState = usePollLaunchState();
+  const recentInstances = useMemo(
+    () =>
+      [...instances]
+        .sort((a, b) => {
+          if (!a.last_played && !b.last_played) return 0;
+          if (!a.last_played) return 1;
+          if (!b.last_played) return -1;
+          return b.last_played.localeCompare(a.last_played);
+        })
+        .slice(0, 3),
+    [instances],
+  );
+  const { runningGames } = usePollLaunchState();
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgressEvent | null>(null);
   const [jreDownload, setJreDownload] = useState<JreDownloadProgress | null>(null);
   const [javaVersion, setJavaVersion] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [newsIndex, setNewsIndex] = useState(0);
   const [bannerIndex, setBannerIndex] = useState(0);
+  const [newsEntries, setNewsEntries] = useState<MinecraftNewsEntry[]>([]);
   const [readyStates, setReadyStates] = useState<Record<string, boolean | null>>({});
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
   const [showConsole, setShowConsole] = useState(false);
-  const [instanceCoverImage, setInstanceCoverImage] = useState<string | null>(null);
-  const [showWizard, setShowWizard] = useState(false);
-  const [newsEntries, setNewsEntries] = useState<MinecraftNewsEntry[]>([]);
-
-  const openArticle = useCallback((url: string) => {
-    if (!url) return;
-    api.openUrl(url).catch(() => {});
-  }, []);
-
-  const lastDownloadUpdateRef = useRef(0);
-  const lastJreUpdateRef = useRef(0);
-
-  const FALLBACK_SLIDES = useMemo(
-    () => [
-      {
-        label: t('home.bannerFeatured'),
-        title: t('home.bannerSlide1Title'),
-        desc: t('home.bannerSlide1Desc'),
-        theme: 1,
-        url: null as string | null,
-        imageUrl: null as string | null,
-      },
-      {
-        label: t('home.bannerPerformance'),
-        title: t('home.bannerSlide2Title'),
-        desc: t('home.bannerSlide2Desc'),
-        theme: 2,
-        url: null as string | null,
-        imageUrl: null as string | null,
-      },
-      {
-        label: t('home.bannerCommunity'),
-        title: t('home.bannerSlide3Title'),
-        desc: t('home.bannerSlide3Desc'),
-        theme: 3,
-        url: null as string | null,
-        imageUrl: null as string | null,
-      },
-      {
-        label: t('home.bannerBonNext'),
-        title: t('home.bannerSlide4Title'),
-        desc: t('home.bannerSlide4Desc'),
-        theme: 4,
-        url: null as string | null,
-        imageUrl: null as string | null,
-      },
-      {
-        label: t('home.bannerTechnology'),
-        title: t('home.bannerSlide5Title'),
-        desc: t('home.bannerSlide5Desc'),
-        theme: 5,
-        url: null as string | null,
-        imageUrl: null as string | null,
-      },
-      {
-        label: t('home.bannerUpdates'),
-        title: t('home.bannerSlide6Title'),
-        desc: t('home.bannerSlide6Desc'),
-        theme: 6,
-        url: null as string | null,
-        imageUrl: null as string | null,
-      },
-    ],
-    [t],
-  );
-
-  const BANNER_SLIDES = useMemo(() => {
-    if (newsEntries.length > 0) {
-      return newsEntries.slice(0, 6).map((entry, i) => ({
-        label: entry.tag || entry.category,
-        title: entry.title,
-        desc: entry.text,
-        theme: (i % 6) + 1,
-        url: entry.read_more_link,
-        imageUrl: entry.image_url,
-      }));
-    }
-    return FALLBACK_SLIDES;
-  }, [newsEntries, FALLBACK_SLIDES]);
-
-  const NEWS_ITEMS = useMemo(() => {
-    if (newsEntries.length > 0) {
-      return newsEntries.slice(0, 6).map((entry) => ({
-        title: entry.title,
-        url: entry.read_more_link,
-      }));
-    }
-    return [
-      { title: t('home.news1'), url: null },
-      { title: t('home.news2'), url: null },
-      { title: t('home.news3'), url: null },
-      { title: t('home.news4'), url: null },
-      { title: t('home.news5'), url: null },
-      { title: t('home.news6'), url: null },
-    ];
-  }, [newsEntries, t]);
-
-  const recentInstances = useMemo(
-    () =>
-      [...instances]
-        .sort((a, b) => {
-          const aTime = a.last_played ? new Date(a.last_played).getTime() : 0;
-          const bTime = b.last_played ? new Date(b.last_played).getTime() : 0;
-          return bTime - aTime;
-        })
-        .slice(0, 3),
-    [instances],
-  );
-
   const activeInstance =
     recentInstances.find((i) => i.id === selectedInstanceId) ||
     (recentInstances.length > 0 ? recentInstances[0] : null);
-  const isBusy =
-    launchState !== 'idle' && launchState !== 'exited' && launchState !== 'crashed' && launchState !== 'error';
+  const launchState = getInstanceLaunchState(runningGames, activeInstance?.id ?? null);
+  const activeInstanceRunning = activeInstance
+    ? runningGames.some(
+        (g) =>
+          g.instance_id === activeInstance.id &&
+          g.state !== 'exited' &&
+          g.state !== 'crashed' &&
+          g.state !== 'error' &&
+          g.state !== 'idle',
+      )
+    : false;
+  const isBusy = activeInstanceRunning;
+  const anyGameRunning = runningGames.some(
+    (g) =>
+      g.state === 'running' ||
+      g.state === 'launching' ||
+      g.state === 'checking' ||
+      g.state === 'downloading' ||
+      g.state === 'validating',
+  );
   const loading = instState.loading;
 
-  // Check ready state for all instances
+  // Check ready state for recent instances
   useEffect(() => {
     const checkAll = async () => {
-      const results = await Promise.allSettled(instances.map((inst) => api.checkInstanceReady(inst.id)));
       const states: Record<string, boolean | null> = {};
-      results.forEach((result, i) => {
-        states[instances[i].id] = result.status === 'fulfilled' ? result.value : null;
-      });
+      for (const inst of recentInstances) {
+        try {
+          states[inst.id] = await api.checkInstanceReady(inst.id);
+        } catch {
+          states[inst.id] = null;
+        }
+      }
       setReadyStates(states);
     };
-    if (instances.length > 0) checkAll();
-  }, [instances]);
+    if (recentInstances.length > 0) checkAll();
+  }, [recentInstances]);
 
   useEffect(() => {
     const unlisten = api.onDownloadProgress((progress) => {
-      const now = Date.now();
-      if (progress.finished || now - lastDownloadUpdateRef.current >= 200) {
-        lastDownloadUpdateRef.current = now;
-        setDownloadProgress(progress);
-      }
+      setDownloadProgress(progress);
       if (progress.finished) setTimeout(() => setDownloadProgress(null), 2000);
     });
     return () => {
@@ -495,13 +478,8 @@ export default function HomePage() {
 
   useEffect(() => {
     const unlisten = api.onJreDownloadProgress((p) => {
-      const now = Date.now();
-      const isDone = p.downloaded >= p.total && p.total > 0;
-      if (isDone || now - lastJreUpdateRef.current >= 200) {
-        lastJreUpdateRef.current = now;
-        setJreDownload(p);
-      }
-      if (isDone) {
+      setJreDownload(p);
+      if (p.downloaded >= p.total && p.total > 0) {
         setTimeout(() => setJreDownload(null), 3000);
       }
     });
@@ -521,6 +499,7 @@ export default function HomePage() {
       .catch(() => {});
   }, []);
 
+  // Fetch Minecraft news
   useEffect(() => {
     api
       .getMinecraftNews()
@@ -528,39 +507,19 @@ export default function HomePage() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    if (activeInstance) {
-      api
-        .getInstanceCoverImage(activeInstance.id)
-        .then(setInstanceCoverImage)
-        .catch(() => setInstanceCoverImage(null));
-    } else {
-      setInstanceCoverImage(null);
-    }
-  }, [activeInstance]);
-
-  useEffect(() => {
-    const forceShow = isOnboardingForceShow();
-    const shouldShow =
-      !loading && !isOnboardingSkipped() && !isOnboardingCompleted() && (instances.length === 0 || forceShow);
-    if (shouldShow) {
-      if (forceShow) clearForceShow();
-      setShowWizard(true);
-    }
-  }, [loading, instances.length]);
-
   // Rotate news items
   useEffect(() => {
-    const timer = setInterval(() => setNewsIndex((i) => (i + 1) % NEWS_ITEMS.length), 5000);
+    const count = newsEntries.length > 0 ? newsEntries.length : NEWS_ITEMS.length;
+    const timer = setInterval(() => setNewsIndex((i) => (i + 1) % count), 5000);
     return () => clearInterval(timer);
-  }, [NEWS_ITEMS.length]);
+  }, [newsEntries.length]);
 
   // Rotate banner carousel
   useEffect(() => {
-    const total = BANNER_SLIDES.length + 1;
-    const timer = setInterval(() => setBannerIndex((i) => (i + 1) % total), 6000);
+    const count = newsEntries.length > 0 ? newsEntries.length : BANNER_SLIDES.length;
+    const timer = setInterval(() => setBannerIndex((i) => (i + 1) % count), 6000);
     return () => clearInterval(timer);
-  }, [BANNER_SLIDES.length]);
+  }, [newsEntries.length]);
 
   const handleLaunch = useCallback(
     async (instance: GameInstance) => {
@@ -578,102 +537,133 @@ export default function HomePage() {
           instance.jvm_args || undefined,
           instance.id,
         );
-        addToast({
-          type: 'success',
-          title: t('home.gameLaunched'),
-          message: t('instances.isStarting', { name: instance.name }),
-        });
-      } catch (e: any) {
-        const msg = e?.toString() || t('instances.launchFailed');
+        addToast({ type: 'success', title: 'Game launched', message: `${instance.name} is starting...` });
+      } catch (e: unknown) {
+        const msg = formatError(e) || 'Launch failed';
         setError(msg);
-        addToast({ type: 'error', title: t('instances.launchFailed'), message: msg });
+        addToast({ type: 'error', title: 'Launch failed', message: msg });
         setTimeout(() => setError(''), 8000);
       }
     },
-    [auth, addToast, t],
+    [auth, addToast],
   );
 
+  const handleQuickStart = useCallback(async () => {
+    setError('');
+    try {
+      await api.quickStart();
+      addToast({ type: 'success', title: 'Quick start', message: 'Launching latest Minecraft...' });
+    } catch (e: unknown) {
+      const msg = formatError(e) || 'Quick start failed';
+      setError(msg);
+      addToast({ type: 'error', title: 'Quick start failed', message: msg });
+    }
+  }, [addToast]);
+
   return (
-    <div className={styles.page}>
+    <div className={`page-enter ${styles.page}`}>
+      {/* New user hero */}
+      {instances.length === 0 && !loading && (
+        <div className={styles.emptyHero}>
+          <div className={styles.emptyHero__glimmer} />
+          <div className={styles.emptyHero__content}>
+            <h2 className={styles.emptyHero__title}>{t('home.welcomeNew')}</h2>
+            <p className={styles.emptyHero__desc}>{t('home.welcomeNewDesc')}</p>
+            <div className={styles.emptyHero__actions}>
+              <Button variant="primary" size="lg" onClick={handleQuickStart} disabled={isBusy}>
+                {isBusy ? (
+                  'DOWNLOADING...'
+                ) : (
+                  <>
+                    <Icon name="bolt" size={14} /> {t('home.quickStart')}
+                  </>
+                )}
+              </Button>
+              <Button variant="secondary-highlight" size="lg" onClick={() => navigate('/instances/new')}>
+                + {t('home.newInstance')}
+              </Button>
+            </div>
+            <p className={styles.emptyHero__hint}>{t('home.welcomeNewHint')}</p>
+          </div>
+        </div>
+      )}
+
       {/* Banner carousel */}
       <div className={styles.bannerCarousel}>
         <div className={styles.bannerTrack} style={{ transform: `translateX(-${bannerIndex * 100}%)` }}>
-          {/* First slide: instance cover */}
-          <div className={`${styles.bannerSlide} ${styles['bannerSlide--instance']}`}>
-            <div className={styles.bannerAccent} />
-            <div className={styles.bannerSlide__leftContent}>
-              <div className={styles.bannerLabel}>
-                {activeInstance
-                  ? activeInstance.loader_type
-                    ? t(`common.${activeInstance.loader_type}`).toUpperCase()
-                    : t('home.bannerVanilla')
-                  : t('home.bannerReady')}
-              </div>
-              <div className={styles.bannerTitle}>{activeInstance ? activeInstance.name : t('home.welcomeNew')}</div>
-              <div className={styles.bannerDesc}>
-                {activeInstance
-                  ? `${activeInstance.version_id}${activeInstance.loader_version ? ` · ${activeInstance.loader_version}` : ''} · ${Math.round(activeInstance.max_memory / 1024)}GB · ${formatPlaytime(activeInstance.playtime_seconds, t)}`
-                  : t('home.welcomeNewDesc')}
-              </div>
-            </div>
-            <div className={styles.bannerSlide__rightCover}>
-              {instanceCoverImage ? (
-                <img src={instanceCoverImage} alt="World preview" className={styles.bannerSlide__coverImg} />
-              ) : (
-                <div className={styles.bannerSlide__coverPlaceholder}>
-                  <span className={styles.bannerSlide__coverIcon}>◈</span>
+          {newsEntries.length > 0
+            ? newsEntries.map((news, i) => (
+                <div key={news.id || i} className={`${styles.bannerSlide} ${styles[`bannerSlide--${(i % 6) + 1}`]}`}>
+                  <div className={styles.bannerAccent} />
+                  <div className={styles.bannerContent}>
+                    <div className={styles.bannerLabel}>{news.category || 'Minecraft'}</div>
+                    <div className={styles.bannerTitle}>{news.title}</div>
+                    <div className={styles.bannerDesc}>{news.text}</div>
+                  </div>
+                  {news.image_url ? (
+                    <div className={styles.bannerSlide__rightCover}>
+                      <img
+                        src={news.image_url}
+                        alt={news.title}
+                        className={styles.bannerSlide__coverImg}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className={styles.bannerSlide__rightCover}>
+                      <div className={styles.bannerSlide__coverPlaceholder}>
+                        <span className={styles.bannerSlide__coverIcon}>&#9670;</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Other slides */}
-          {BANNER_SLIDES.map((slide, i) => (
-            <div
-              key={i}
-              className={`${styles.bannerSlide} ${styles[`bannerSlide--${slide.theme}`]}`}
-              style={{
-                cursor: slide.url ? 'pointer' : 'default',
-                ...(slide.imageUrl
-                  ? { backgroundImage: `url(${slide.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-                  : {}),
-              }}
-              onClick={() => {
-                if (slide.url) openArticle(slide.url);
-              }}
-            >
-              <div className={styles.bannerAccent} />
-              <div className={styles.bannerContent}>
-                <div className={styles.bannerLabel}>{slide.label}</div>
-                <div className={styles.bannerTitle}>{slide.title}</div>
-                <div className={styles.bannerDesc}>{slide.desc}</div>
-              </div>
-            </div>
-          ))}
+              ))
+            : BANNER_SLIDES.map((slide, i) => (
+                <div key={i} className={`${styles.bannerSlide} ${styles[`bannerSlide--${slide.theme}`]}`}>
+                  <div className={styles.bannerAccent} />
+                  <div className={styles.bannerContent}>
+                    <div className={styles.bannerLabel}>{slide.label}</div>
+                    <div className={styles.bannerTitle}>{slide.title}</div>
+                    <div className={styles.bannerDesc}>{slide.desc}</div>
+                  </div>
+                  <div className={styles.bannerSlide__rightCover}>
+                    <div className={styles.bannerSlide__coverPlaceholder}>
+                      <span className={styles.bannerSlide__coverIcon}>&#9670;</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
         </div>
         <div className={styles.bannerDots}>
-          {[null, ...BANNER_SLIDES].map((_, i) => (
+          {(newsEntries.length > 0 ? newsEntries : BANNER_SLIDES).map((_, i) => (
             <button
               key={i}
               className={`${styles.bannerDot} ${i === bannerIndex ? styles['bannerDot--active'] : ''}`}
               onClick={() => setBannerIndex(i)}
-              aria-label={`Go to slide ${i + 1}`}
             />
           ))}
         </div>
         <button
           className={`${styles.bannerArrow} ${styles['bannerArrow--left']}`}
-          onClick={() => setBannerIndex((i) => (i - 1 + (BANNER_SLIDES.length + 1)) % (BANNER_SLIDES.length + 1))}
-          aria-label="Previous slide"
+          onClick={() =>
+            setBannerIndex(
+              (i) =>
+                (i - 1 + (newsEntries.length > 0 ? newsEntries.length : BANNER_SLIDES.length)) %
+                (newsEntries.length > 0 ? newsEntries.length : BANNER_SLIDES.length),
+            )
+          }
         >
-          ◀
+          <Icon name="chevronLeft" size={14} />
         </button>
         <button
           className={`${styles.bannerArrow} ${styles['bannerArrow--right']}`}
-          onClick={() => setBannerIndex((i) => (i + 1) % (BANNER_SLIDES.length + 1))}
-          aria-label="Next slide"
+          onClick={() =>
+            setBannerIndex((i) => (i + 1) % (newsEntries.length > 0 ? newsEntries.length : BANNER_SLIDES.length))
+          }
         >
-          ▶
+          <Icon name="play" size={14} />
         </button>
       </div>
 
@@ -716,9 +706,9 @@ export default function HomePage() {
       {jreDownload && jreDownload.downloaded < jreDownload.total && (
         <div className={styles.downloadOverlay}>
           <div className={styles.downloadPanel}>
-            <Heading level="md">{t('home.downloadingJava')}</Heading>
+            <Heading level="md">DOWNLOADING JAVA RUNTIME</Heading>
             <div style={{ marginTop: 8, fontSize: '0.6em', color: '#888' }}>
-              {t('home.javaFromAdoptium', { version: String(jreDownload.version) })}
+              Java {jreDownload.version} from Adoptium
             </div>
             <div style={{ marginTop: 16 }}>
               <ProgressBar
@@ -745,7 +735,7 @@ export default function HomePage() {
         <div>
           <Heading level="xl">{greeting.title}</Heading>
           <div className={styles.topBar__stats}>
-            <span className={styles.topBar__username}>{auth.username}</span>
+            <span className={styles.topBar__username}>{auth?.username}</span>
             <div className={styles.topBar__statSep} />
             <span className={styles.topBar__statText}>
               {instances.length} {t('home.instances')}
@@ -754,15 +744,19 @@ export default function HomePage() {
         </div>
         <div className={styles.topBar__right}>
           <div className={styles.topBar__sysStatus}>
-            <StatusDot status={isBusy ? 'processing' : 'ready'} />
-            <span className={styles.topBar__sysText}>{launchState.toUpperCase()}</span>
+            <StatusDot status={isBusy ? 'processing' : anyGameRunning ? 'processing' : 'ready'} />
+            <span className={styles.topBar__sysText}>
+              {anyGameRunning
+                ? `${runningGames.filter((g) => g.state === 'running').length} RUNNING`
+                : launchState.toUpperCase()}
+            </span>
           </div>
           <button
             onClick={() => setShowConsole((v) => !v)}
             style={{
-              background: showConsole ? 'rgba(255,230,0,0.1)' : 'transparent',
-              border: `1px solid ${showConsole ? 'rgba(255,230,0,0.3)' : '#1F1F1F'}`,
-              color: showConsole ? '#FFE600' : '#555',
+              background: showConsole ? 'var(--color-accent-10)' : 'transparent',
+              border: `1px solid ${showConsole ? 'var(--color-accent-30)' : 'var(--color-border)'}`,
+              color: showConsole ? 'var(--color-accent)' : 'var(--color-text-dim)',
               padding: '3px 10px',
               cursor: 'pointer',
               fontFamily: 'var(--font-mono)',
@@ -771,7 +765,15 @@ export default function HomePage() {
               transition: 'all 0.15s',
             }}
           >
-            {showConsole ? '▲ ' + t('home.console') : '▼ ' + t('home.console')}
+            {showConsole ? (
+              <>
+                <Icon name="chevronUp" size={12} /> CONSOLE
+              </>
+            ) : (
+              <>
+                <Icon name="chevronDown" size={12} /> CONSOLE
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -784,31 +786,28 @@ export default function HomePage() {
         </div>
       ) : (
         <div className={styles.mainGrid}>
-          {/* Left: recent instances */}
+          {/* Left: instance list */}
           <div className={styles.instanceList}>
             <div className={styles.instanceList__header}>
               <div className={styles.instanceList__title}>
                 <SubLabel>{t('home.instancesHeader')}</SubLabel>
-                <span className={styles.instanceList__count}>{String(recentInstances.length).padStart(2, '0')}</span>
+                <span className={styles.instanceList__count}>{String(instances.length).padStart(2, '0')}</span>
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {instances.length > 3 && (
-                  <Button variant="secondary" size="sm" onClick={() => (window.location.hash = '#/instances')}>
-                    {t('home.viewAll')}
-                  </Button>
-                )}
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => (window.location.hash = '#/instances/new')}
-                  data-tour="home-new-instance"
-                >
+              <Button variant="primary" size="sm" onClick={() => navigate('/instances/new')}>
+                + {t('home.newInstance')}
+              </Button>
+            </div>
+
+            {instances.length === 0 ? (
+              <div className={styles.emptyState}>
+                <div className={styles.emptyState__bar} />
+                <div className={styles.emptyState__title}>{t('home.noInstancesTitle')}</div>
+                <div className={styles.emptyState__desc}>{t('home.noInstancesDesc')}</div>
+                <Button variant="primary" size="md" onClick={() => navigate('/instances/new')}>
                   + {t('home.newInstance')}
                 </Button>
               </div>
-            </div>
-
-            {recentInstances.length > 0 &&
+            ) : (
               recentInstances.map((inst) => (
                 <InstanceCard
                   key={inst.id}
@@ -817,88 +816,57 @@ export default function HomePage() {
                   isReady={readyStates[inst.id] ?? null}
                   onLaunch={handleLaunch}
                   onSelect={(inst) => setSelectedInstanceId(inst.id)}
-                  t={t}
                 />
-              ))}
+              ))
+            )}
 
             {/* News panel */}
-            <div
-              style={{
-                marginTop: 'auto',
-                background: '#141414',
-                border: '1px solid #1C1C1C',
-                padding: 12,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '0.45em',
-                  color: '#555',
-                  letterSpacing: 2,
-                  fontWeight: 700,
-                  marginBottom: 8,
-                }}
-              >
-                {t('home.news')}
+            <div className={styles.newsPanel}>
+              <div className={styles.newsPanel__label}>{t('home.news')}</div>
+              <div className={styles.newsItem} key={newsIndex}>
+                <span className={styles.newsItem__bullet}>
+                  <Icon name="bulletRight" size={10} />
+                </span>
+                {newsEntries.length > 0 ? newsEntries[newsIndex]?.title : NEWS_ITEMS[newsIndex]}
               </div>
-              <div
-                className={styles.newsItem}
-                key={newsIndex}
-                style={{
-                  fontSize: '0.55em',
-                  color: '#AAA',
-                  lineHeight: 1.5,
-                  transition: 'opacity 0.3s ease',
-                  cursor: NEWS_ITEMS[newsIndex]?.url ? 'pointer' : 'default',
-                }}
-                onClick={() => {
-                  const item = NEWS_ITEMS[newsIndex];
-                  if (item?.url) openArticle(item.url);
-                }}
-              >
-                <span style={{ color: '#FFE600', marginRight: 6 }}>{'▸'}</span>
-                {NEWS_ITEMS[newsIndex]?.title}
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 4,
-                  marginTop: 8,
-                  justifyContent: 'center',
-                }}
-              >
-                {NEWS_ITEMS.map((_, i) => (
+              <div className={styles.newsPanel__dots}>
+                {(newsEntries.length > 0 ? newsEntries : NEWS_ITEMS).map((_, i) => (
                   <div
                     key={i}
-                    style={{
-                      width: 4,
-                      height: 4,
-                      background: i === newsIndex ? '#FFE600' : '#333',
-                    }}
+                    className={`${styles.newsPanel__dot} ${i === newsIndex ? styles['newsPanel__dot--active'] : ''}`}
                   />
                 ))}
               </div>
             </div>
 
             <div>
-              <Ticker messages={NEWS_ITEMS.map((item) => item.title)} />
+              <Ticker messages={NEWS_ITEMS} />
             </div>
           </div>
 
           {/* Right: PLAY area + quick actions */}
           <div
-            style={{ flex: 0.7, display: 'flex', flexDirection: 'column', gap: 8, height: '100%', overflow: 'hidden' }}
+            style={{
+              flex: 0.7,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              height: '100%',
+              minHeight: 0,
+              minWidth: 0,
+              overflowY: 'auto',
+            }}
           >
             <PlayArea
               instance={activeInstance}
-              instances={recentInstances}
               isBusy={isBusy}
               launchState={launchState}
               javaVersion={javaVersion}
               sysInfo={sysInfo}
               onLaunch={() => activeInstance && handleLaunch(activeInstance)}
-              onReset={() => api.resetLaunchState()}
-              onSelectInstance={(inst) => setSelectedInstanceId(inst.id)}
+              onReset={() =>
+                activeInstance ? api.resetInstanceLaunchState(activeInstance.id) : api.resetLaunchState()
+              }
               t={t}
             />
 
@@ -924,7 +892,7 @@ export default function HomePage() {
                 style={{ justifyContent: 'center', fontSize: '0.55em' }}
                 onClick={() => (window.location.hash = '#/mods')}
               >
-                {'⬇'} {t('home.quickActions.browseMods')}
+                <Icon name="download" size={14} /> {t('home.quickActions.browseMods')}
               </Button>
               <Button
                 variant="secondary"
@@ -932,7 +900,7 @@ export default function HomePage() {
                 style={{ justifyContent: 'center', fontSize: '0.55em' }}
                 onClick={() => (window.location.hash = '#/versions')}
               >
-                {'⬡'} {t('home.quickActions.versions')}
+                <Icon name="hexagon" size={14} /> {t('home.quickActions.versions')}
               </Button>
               <Button
                 variant="secondary"
@@ -940,7 +908,7 @@ export default function HomePage() {
                 style={{ justifyContent: 'center', fontSize: '0.55em' }}
                 onClick={() => (window.location.hash = '#/settings')}
               >
-                {'⚙'} {t('home.quickActions.settings')}
+                <Icon name="settings" size={14} /> {t('home.quickActions.settings')}
               </Button>
             </div>
           </div>
@@ -948,8 +916,6 @@ export default function HomePage() {
       )}
 
       <GameConsole visible={showConsole} />
-
-      <OnboardingWizard open={showWizard} onClose={() => setShowWizard(false)} />
     </div>
   );
 }

@@ -1,0 +1,12 @@
+html[class*='theme-md3'] [class*='card'] {
+  border-radius: var(--md3-shape-corner-medium, 12px);
+  clip-path: none;
+  background: var(--md3-surface-container);
+  box-shadow: var(--md3-elevation-0);
+  border: 1px solid var(--md3-outline-variant);
+}
+
+html[class*='theme-md3'] [class*='card']:hover {
+  box-shadow: var(--md3-elevation-1);
+  border-color: var(--md3-outline);
+}

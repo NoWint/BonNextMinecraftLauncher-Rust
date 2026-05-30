@@ -135,11 +135,14 @@ body,
 
 .app-main {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   padding: 24px 28px;
   position: relative;
   z-index: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .decorative-rect {

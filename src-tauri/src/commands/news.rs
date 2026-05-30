@@ -8,9 +8,9 @@ use std::collections::HashSet;
 pub async fn open_url(url: String) -> Result<(), LauncherError> {
     let url_lower = url.to_lowercase();
     if !url_lower.starts_with("http://") && !url_lower.starts_with("https://") {
-        return Err(LauncherError::Other("Only http/https URLs are allowed".into()));
+        return Err(LauncherError::SecurityValidation("Only http/https URLs are allowed".into()));
     }
-    webbrowser::open(&url).map_err(|e| LauncherError::Other(format!("Failed to open URL: {}", e)))
+    webbrowser::open(&url).map_err(|e| LauncherError::Other(format!("opening URL {}: {}", url, e)))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -142,6 +142,10 @@ pub async fn get_minecraft_news() -> Result<Vec<MinecraftNewsEntry>, LauncherErr
             let image_url = entry.news_page_image.and_then(|img| {
                 if img.url.is_empty() {
                     None
+                } else if img.url.starts_with("http://") || img.url.starts_with("https://") {
+                    Some(img.url)
+                } else if img.url.starts_with("//") {
+                    Some(format!("https:{}", img.url))
                 } else {
                     Some(format!("https://launchercontent.mojang.com{}", img.url))
                 }

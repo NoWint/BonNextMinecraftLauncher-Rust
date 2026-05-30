@@ -1,3 +1,5 @@
+import type { IconName } from '../ui/Icon';
+
 export type ContentType = 'mod' | 'modpack' | 'resourcepack' | 'shader' | 'datapack' | 'plugin';
 export type DataSource = 'modrinth' | 'curseforge';
 export type SubView = 'discover' | 'results';
@@ -31,19 +33,33 @@ export type MarketplaceAction =
   | { type: 'CLEAR_FILTERS' }
   | { type: 'SEARCH_TRIGGERED' };
 
-export const CONTENT_TYPE_TABS: { id: ContentType; label: string; icon: string }[] = [
-  { id: 'mod', label: 'MODS', icon: '🧵' },
-  { id: 'modpack', label: 'MODPACKS', icon: '📦' },
-  { id: 'resourcepack', label: 'RESOURCE PACKS', icon: '🎨' },
-  { id: 'shader', label: 'SHADERS', icon: '✨' },
-  { id: 'datapack', label: 'DATA PACKS', icon: '💿' },
-  { id: 'plugin', label: 'PLUGINS', icon: '⚙' },
+export const CONTENT_TYPE_TABS: { id: ContentType; label: string; icon: IconName }[] = [
+  { id: 'mod', label: 'MODS', icon: 'fabric' },
+  { id: 'modpack', label: 'MODPACKS', icon: 'cube' },
+  { id: 'resourcepack', label: 'RESOURCE PACKS', icon: 'palette' },
+  { id: 'shader', label: 'SHADERS', icon: 'sparkles' },
+  { id: 'datapack', label: 'DATA PACKS', icon: 'disc' },
+  { id: 'plugin', label: 'PLUGINS', icon: 'settings' },
 ];
 
 export const GAME_VERSIONS = [
-  '', '1.21.5', '1.21.4', '1.21.3', '1.21.2', '1.21.1', '1.21',
-  '1.20.6', '1.20.4', '1.20.2', '1.20.1', '1.20',
-  '1.19.4', '1.19.2', '1.19', '1.18.2', '1.16.5',
+  '',
+  '1.21.5',
+  '1.21.4',
+  '1.21.3',
+  '1.21.2',
+  '1.21.1',
+  '1.21',
+  '1.20.6',
+  '1.20.4',
+  '1.20.2',
+  '1.20.1',
+  '1.20',
+  '1.19.4',
+  '1.19.2',
+  '1.19',
+  '1.18.2',
+  '1.16.5',
 ];
 
 export const LOADER_OPTIONS = [

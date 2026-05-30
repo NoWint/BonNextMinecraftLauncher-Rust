@@ -74,7 +74,7 @@ describe('instanceReducer', () => {
   });
 
   it('should return current state for unknown action type', () => {
-    const next = instanceReducer(initialState, { type: 'UNKNOWN' } as any);
+    const next = instanceReducer(initialState, { type: 'UNKNOWN' } as unknown as Parameters<typeof instanceReducer>[1]);
     expect(next).toEqual(initialState);
   });
 });

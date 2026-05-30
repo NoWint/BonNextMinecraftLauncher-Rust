@@ -5,9 +5,15 @@ import FilterBar from '../components/marketplace/FilterBar';
 import SubViewSwitch from '../components/marketplace/SubViewSwitch';
 import DiscoverView from '../components/marketplace/DiscoverView';
 import ResultsView from '../components/marketplace/ResultsView';
+import { Skeleton } from '../components/ui/Skeleton';
 import {
-  marketplaceReducer, INITIAL_STATE, PAGE_SIZE,
-  type ContentType, type DataSource, type SubView, type ViewMode,
+  marketplaceReducer,
+  INITIAL_STATE,
+  PAGE_SIZE,
+  type ContentType,
+  type DataSource,
+  type SubView,
+  type ViewMode,
 } from '../components/marketplace/types';
 import { useConfig } from '../stores/configStore';
 import { useInstances } from '../stores/instanceStore';
@@ -26,6 +32,7 @@ export default function MarketplacePage() {
   const [state, dispatch] = useReducer(marketplaceReducer, INITIAL_STATE);
   const [totalHits, setTotalHits] = useReducer((_s: number, a: number) => a, 0);
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
+  const [recsLoading, setRecsLoading] = useState(true);
   const { state: configState } = useConfig();
   const { state: instanceState } = useInstances();
 
@@ -34,10 +41,21 @@ export default function MarketplacePage() {
   useEffect(() => {
     if (!instanceId) return;
     let cancelled = false;
-    api.getRecommendations(instanceId).then((recs) => {
-      if (!cancelled) setRecommendations(recs);
-    }).catch(() => {});
-    return () => { cancelled = true; };
+    setRecsLoading(true);
+    api
+      .getRecommendations(instanceId)
+      .then((recs) => {
+        if (!cancelled) {
+          setRecommendations(recs);
+          setRecsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setRecsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [instanceId]);
 
   const handleTabChange = useCallback((tab: ContentType) => {
@@ -88,36 +106,49 @@ export default function MarketplacePage() {
     dispatch({ type: 'SET_VIEW_MODE', payload: mode });
   }, []);
 
-  const handleNavigate = useCallback((slug: string) => {
-    const sourceParam = state.source === 'curseforge' ? '?source=curseforge' : '';
-    window.location.hash = `#/store/${state.activeTab}/${slug}${sourceParam}`;
-  }, [state.source, state.activeTab]);
+  const handleNavigate = useCallback(
+    (slug: string) => {
+      const sourceParam = state.source === 'curseforge' ? '?source=curseforge' : '';
+      window.location.hash = `#/store/${state.activeTab}/${slug}${sourceParam}`;
+    },
+    [state.source, state.activeTab],
+  );
 
   return (
     <div className={styles.page}>
       <SectionHeader title="MARKETPLACE" subtitle="Discover and install Minecraft content" />
 
-      {recommendations.length > 0 && (
+      {(recsLoading || recommendations.length > 0) && (
         <div className={styles.recommendations}>
           <div className={styles.recommendations__header}>
             <span className={styles.recommendations__title}>RECOMMENDED FOR YOU</span>
           </div>
           <div className={styles.recommendations__row}>
-            {recommendations.map((rec) => (
-              <button
-                key={rec.slug}
-                className={styles.recommendations__card}
-                onClick={() => {
-                  window.location.hash = `#/store/mod/${rec.slug}`;
-                }}
-              >
-                <div className={styles.recommendations__cardName}>{rec.name}</div>
-                <div className={styles.recommendations__cardReason}>{rec.reason}</div>
-                <span className={`${badgeStyles.badge} ${badgeStyles['badge--accent']} ${styles.recommendations__cardBadge}`}>
-                  {rec.category}
-                </span>
-              </button>
-            ))}
+            {recsLoading
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className={styles.recommendations__card}>
+                    <Skeleton variant="title" />
+                    <Skeleton variant="text" width="80%" />
+                    <Skeleton variant="text" width="50px" />
+                  </div>
+                ))
+              : recommendations.map((rec) => (
+                  <button
+                    key={rec.slug}
+                    className={styles.recommendations__card}
+                    onClick={() => {
+                      window.location.hash = `#/store/mod/${rec.slug}`;
+                    }}
+                  >
+                    <div className={styles.recommendations__cardName}>{rec.name}</div>
+                    <div className={styles.recommendations__cardReason}>{rec.reason}</div>
+                    <span
+                      className={`${badgeStyles.badge} ${badgeStyles['badge--accent']} ${styles.recommendations__cardBadge}`}
+                    >
+                      {rec.category}
+                    </span>
+                  </button>
+                ))}
           </div>
         </div>
       )}
@@ -153,11 +184,7 @@ export default function MarketplacePage() {
       />
 
       {state.subView === 'discover' ? (
-        <DiscoverView
-          contentType={state.activeTab}
-          source={state.source}
-          onNavigate={handleNavigate}
-        />
+        <DiscoverView contentType={state.activeTab} source={state.source} onNavigate={handleNavigate} />
       ) : (
         <ResultsView
           contentType={state.activeTab}

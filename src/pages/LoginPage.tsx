@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { formatError } from '../utils/errorMapping';
 import { api, type DeviceCodeResponse } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useI18n } from '../i18n';
 import { SubLabel } from '../components/layout';
 import { StatusDot, ProgressBar, Button, TextInput } from '../components/ui';
+import { Icon } from '../components/ui/Icon';
 import { useGreeting, getRandomLoadingMessage } from '../hooks/useGreeting';
 import { useConfetti } from '../hooks/useConfetti';
 import styles from './LoginPage.module.css';
@@ -49,8 +51,8 @@ export default function LoginPage() {
       await offlineLogin(username.trim());
       fireConfetti();
       window.location.hash = '#/home';
-    } catch (e: any) {
-      setError(e?.toString() || t('login.error.default'));
+    } catch (e: unknown) {
+      setError(formatError(e) || t('login.error.default'));
       setShakeInput(true);
       setTimeout(() => setShakeInput(false), 500);
     } finally {
@@ -64,8 +66,8 @@ export default function LoginPage() {
     try {
       const code = await api.startMicrosoftAuth();
       setDeviceCode(code);
-    } catch (e: any) {
-      setMsError(e?.toString() || 'Failed to start Microsoft login');
+    } catch (e: unknown) {
+      setMsError(formatError(e) || 'Failed to start Microsoft login');
       setMsLoading(false);
     }
   };
@@ -81,8 +83,8 @@ export default function LoginPage() {
           fireConfetti();
           window.location.reload();
         }
-      } catch (e: any) {
-        const msg = e?.toString() || '';
+      } catch (e: unknown) {
+        const msg = formatError(e);
         if (
           msg.includes('timed out') ||
           msg.includes('expired') ||
@@ -113,8 +115,8 @@ export default function LoginPage() {
       await offlineLogin('Guest_' + Math.random().toString(36).slice(2, 8));
       fireConfetti();
       window.location.hash = '#/home';
-    } catch (e: any) {
-      setError(e?.toString() || t('login.error.default'));
+    } catch (e: unknown) {
+      setError(formatError(e) || t('login.error.default'));
     } finally {
       setGuestLoading(false);
     }
@@ -145,7 +147,7 @@ export default function LoginPage() {
             marginBottom: 8,
           }}
         >
-          {greeting.emoji} {greeting.subtitle}
+          <Icon name={greeting.icon} size={20} /> {greeting.subtitle}
         </div>
 
         <div className={styles.tagline}>{t('login.title')}</div>
@@ -255,7 +257,14 @@ export default function LoginPage() {
             onClick={handleGuestLogin}
             style={{ width: '100%', justifyContent: 'center', fontSize: '0.65em', padding: '8px 20px' }}
           >
-            {guestLoading ? `${loadingMsg}${'.'.repeat(dots)}` : '👤 ' + t('login.guest')}
+            {guestLoading ? (
+              `${loadingMsg}${'.'.repeat(dots)}`
+            ) : (
+              <>
+                {' '}
+                <Icon name="user" size={14} /> {t('login.guest')}
+              </>
+            )}
           </Button>
         </div>
 

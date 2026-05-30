@@ -29,6 +29,7 @@ struct FabricLoaderInfo {
 }
 
 #[derive(Debug, Deserialize)]
+// Deserialization type for Fabric API responses
 #[allow(dead_code)]
 struct FabricLoaderDetail {
     version: String,
@@ -36,6 +37,7 @@ struct FabricLoaderDetail {
 }
 
 #[derive(Debug, Deserialize)]
+// Deserialization type for Fabric API responses
 #[allow(dead_code)]
 struct FabricLauncherMeta {
     version: u32,

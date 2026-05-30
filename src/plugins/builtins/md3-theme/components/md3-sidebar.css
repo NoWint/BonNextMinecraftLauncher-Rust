@@ -1,0 +1,15 @@
+html[class*='theme-md3'] [class*='sidebar'] {
+  background: var(--md3-surface);
+  border-right: 1px solid var(--md3-outline-variant);
+}
+
+html[class*='theme-md3'] [class*='sidebar__navItem'] {
+  border-radius: var(--md3-shape-corner-full, 9999px);
+  clip-path: none;
+}
+
+html[class*='theme-md3'] [class*='sidebar__navItem--active'],
+html[class*='theme-md3'] [class*='navItem--active'] {
+  background: var(--color-accent-15);
+  color: var(--md3-primary);
+}

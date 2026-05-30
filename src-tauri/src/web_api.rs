@@ -7,7 +7,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tower_http::cors::CorsLayer;
 
 #[derive(Debug, Clone, Serialize)]
 struct ApiStatus {
@@ -24,18 +23,21 @@ struct InstanceInfo {
     loader_type: Option<String>,
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-struct AuthHeader {
-    authorization: String,
-}
-
+// Reserved for typed auth extraction in future API routes
 struct WebAppState {
     auth_token: String,
 }
 
 fn verify_token(state: &WebAppState, auth: &str) -> bool {
-    auth == format!("Bearer {}", state.auth_token)
+    let expected = format!("Bearer {}", state.auth_token);
+    if auth.len() != expected.len() {
+        return false;
+    }
+    let mut result: u8 = 0;
+    for (a, b) in auth.bytes().zip(expected.bytes()) {
+        result |= a ^ b;
+    }
+    result == 0
 }
 
 async fn get_status(
@@ -101,7 +103,6 @@ impl WebApiServer {
         let app = Router::new()
             .route("/api/status", get(get_status))
             .route("/api/instances", get(list_instances_handler))
-            .layer(CorsLayer::permissive())
             .with_state(state);
 
         let addr = std::net::SocketAddr::from(([127, 0, 0, 1], self.port));

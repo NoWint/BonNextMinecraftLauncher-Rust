@@ -3,10 +3,184 @@ use crate::download::queue::DownloadQueue;
 use crate::error::LauncherError;
 use crate::instance;
 use crate::loader;
+use crate::platform;
 use crate::platform::paths;
+use crate::security::sanitizer;
 use crate::version;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::Emitter;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HealthCheckItem {
+    pub name: String,
+    pub status: String,
+    pub message: String,
+    pub suggestion: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct HealthCheckReport {
+    pub instance_id: String,
+    pub items: Vec<HealthCheckItem>,
+    pub overall: String,
+}
+
+#[tauri::command]
+pub async fn health_check(instance_id: String) -> Result<HealthCheckReport, LauncherError> {
+    let inst = instance::manager::get_instance(&instance_id)?
+        .ok_or_else(|| LauncherError::InstanceNotReady(instance_id.clone()))?;
+
+    let mut items: Vec<HealthCheckItem> = Vec::new();
+
+    let libraries_dir = paths::get_instance_libraries_dir(&instance_id);
+    if libraries_dir.exists() {
+        let jar_count = std::fs::read_dir(&libraries_dir)
+            .map(|d| d.filter_map(|e| e.ok()).count())
+            .unwrap_or(0);
+        if jar_count > 0 {
+            items.push(HealthCheckItem {
+                name: "libraries".into(),
+                status: "pass".into(),
+                message: format!("{} library files present", jar_count),
+                suggestion: None,
+            });
+        } else {
+            items.push(HealthCheckItem {
+                name: "libraries".into(),
+                status: "warn".into(),
+                message: "Library directory is empty".into(),
+                suggestion: Some("Re-download the version to populate libraries".into()),
+            });
+        }
+    } else {
+        items.push(HealthCheckItem {
+            name: "libraries".into(),
+            status: "fail".into(),
+            message: "Library directory does not exist".into(),
+            suggestion: Some("Re-download the version to create library directory".into()),
+        });
+    }
+
+    let java_path = inst.java_path.as_deref().unwrap_or("java");
+    let java_path_buf = std::path::PathBuf::from(java_path);
+    let java_ver = platform::java::check_java_version(&java_path_buf);
+    let required_java = version::resolver::resolve_version_with_parents(&inst.version_id, &inst.version_url)
+        .await
+        .map(|v| v.java_version.major_version)
+        .ok();
+
+    match (java_ver, required_java) {
+        (Some(current), Some(required)) => {
+            if current >= required {
+                items.push(HealthCheckItem {
+                    name: "jre_compatibility".into(),
+                    status: "pass".into(),
+                    message: format!("Java {} meets requirement (Java {})", current, required),
+                    suggestion: None,
+                });
+            } else {
+                items.push(HealthCheckItem {
+                    name: "jre_compatibility".into(),
+                    status: "fail".into(),
+                    message: format!("Java {} is below required Java {}", current, required),
+                    suggestion: Some("Update Java or let BonNext auto-download a compatible JRE".into()),
+                });
+            }
+        }
+        (Some(current), None) => {
+            items.push(HealthCheckItem {
+                name: "jre_compatibility".into(),
+                status: "pass".into(),
+                message: format!("Java {} detected (version requirement unknown)", current),
+                suggestion: None,
+            });
+        }
+        (None, _) => {
+            items.push(HealthCheckItem {
+                name: "jre_compatibility".into(),
+                status: "warn".into(),
+                message: "Java not found at configured path".into(),
+                suggestion: Some("Install Java or configure the path in Settings".into()),
+            });
+        }
+    }
+
+    let game_dir = paths::get_game_dir();
+    let available_mb = {
+        let disks = sysinfo::Disks::new_with_refreshed_list();
+        let mount = game_dir.canonicalize().unwrap_or_else(|_| game_dir.clone());
+        disks
+            .iter()
+            .filter(|d: &&sysinfo::Disk| mount.starts_with(d.mount_point()))
+            .max_by_key(|d: &&sysinfo::Disk| d.mount_point().components().count())
+            .map(|d: &sysinfo::Disk| d.available_space() / 1_048_576)
+            .unwrap_or(0)
+    };
+    let required_mb = (inst.max_memory as u64) + 512;
+    if available_mb >= required_mb {
+        items.push(HealthCheckItem {
+            name: "disk_space".into(),
+            status: "pass".into(),
+            message: format!("{}MB available (need ~{}MB)", available_mb, required_mb),
+            suggestion: None,
+        });
+    } else if available_mb > 256 {
+        items.push(HealthCheckItem {
+            name: "disk_space".into(),
+            status: "warn".into(),
+            message: format!("Only {}MB available (recommended {}MB)", available_mb, required_mb),
+            suggestion: Some("Free up disk space to avoid launch issues".into()),
+        });
+    } else {
+        items.push(HealthCheckItem {
+            name: "disk_space".into(),
+            status: "fail".into(),
+            message: format!("Only {}MB available, game may not launch", available_mb),
+            suggestion: Some("Free up disk space immediately".into()),
+        });
+    }
+
+    let version_jar = paths::get_instance_versions_dir(&instance_id)
+        .join(&inst.version_id)
+        .join(format!("{}.jar", inst.version_id));
+    if version_jar.exists() {
+        items.push(HealthCheckItem {
+            name: "version_jar".into(),
+            status: "pass".into(),
+            message: format!("Version JAR exists: {}.jar", inst.version_id),
+            suggestion: None,
+        });
+    } else {
+        let shared_jar = paths::get_versions_dir()
+            .join(&inst.version_id)
+            .join(format!("{}.jar", inst.version_id));
+        if shared_jar.exists() {
+            items.push(HealthCheckItem {
+                name: "version_jar".into(),
+                status: "pass".into(),
+                message: format!("Version JAR exists in shared dir: {}.jar", inst.version_id),
+                suggestion: None,
+            });
+        } else {
+            items.push(HealthCheckItem {
+                name: "version_jar".into(),
+                status: "fail".into(),
+                message: format!("Version JAR missing: {}.jar", inst.version_id),
+                suggestion: Some("Re-download this version to get the client JAR".into()),
+            });
+        }
+    }
+
+    let has_fail = items.iter().any(|i| i.status == "fail");
+    let has_warn = items.iter().any(|i| i.status == "warn");
+    let overall = if has_fail { "fail" } else if has_warn { "warn" } else { "pass" };
+
+    Ok(HealthCheckReport {
+        instance_id,
+        items,
+        overall: overall.to_string(),
+    })
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SnapshotInfo {
@@ -79,10 +253,10 @@ pub async fn detect_modpack_format(path: String) -> Result<instance::manager::Mo
 pub async fn import_modpack_auto(app: tauri::AppHandle, path: String) -> Result<instance::manager::GameInstance, LauncherError> {
     let file_size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
     if file_size == 0 {
-        return Err(LauncherError::Other("Modpack file is empty".into()));
+        return Err(LauncherError::InvalidConfig("Modpack file is empty".into()));
     }
     if file_size > 2 * 1024 * 1024 * 1024 {
-        return Err(LauncherError::Other("Modpack file is too large (max 2GB)".into()));
+        return Err(LauncherError::InvalidConfig("Modpack file is too large (max 2GB)".into()));
     }
     let _ = app.emit("modpack-import-progress", serde_json::json!({"stage": "detecting", "path": path}));
     let result = instance::manager::import_modpack_auto(&path).await?;
@@ -117,9 +291,9 @@ pub async fn check_instance_ready(instance_id: String) -> Result<bool, LauncherE
 pub async fn open_folder(path: String) -> Result<(), LauncherError> {
     let p = std::path::PathBuf::from(&path);
     if !p.exists() {
-        return Err(LauncherError::Other(format!("Path does not exist: {}", path)));
+        return Err(LauncherError::VersionNotFound(format!("Path does not exist: {}", path)));
     }
-    let canonical = p.canonicalize().map_err(|e| LauncherError::Other(format!("Invalid path: {}", e)))?;
+    let canonical = p.canonicalize()?;
     let game_dir = paths::get_game_dir().canonicalize().unwrap_or_else(|_| paths::get_game_dir());
     let config_dir = paths::get_config_dir().canonicalize().unwrap_or_else(|_| paths::get_config_dir());
     let default_game_dir = paths::get_default_game_dir().canonicalize().unwrap_or_else(|_| paths::get_default_game_dir());
@@ -127,7 +301,7 @@ pub async fn open_folder(path: String) -> Result<(), LauncherError> {
         || canonical.starts_with(&config_dir)
         || canonical.starts_with(&default_game_dir);
     if !is_allowed {
-        return Err(LauncherError::Other("Access denied: path outside allowed directories".into()));
+        return Err(LauncherError::SecurityValidation("Access denied: path outside allowed directories".into()));
     }
     let cmd = if cfg!(target_os = "windows") {
         "explorer"
@@ -139,14 +313,14 @@ pub async fn open_folder(path: String) -> Result<(), LauncherError> {
     std::process::Command::new(cmd)
         .arg(&p)
         .spawn()
-        .map_err(|e| LauncherError::Other(e.to_string()))?;
+        .map_err(|e| LauncherError::Other(format!("spawning process for {}: {}", p.display(), e)))?;
     Ok(())
 }
 
 #[tauri::command]
 pub async fn get_loader_versions(loader_type: String) -> Result<Vec<String>, LauncherError> {
     let lt = loader::LoaderType::from_str(&loader_type)
-        .ok_or_else(|| LauncherError::Other(format!("Unknown loader: {}", loader_type)))?;
+        .ok_or_else(|| LauncherError::InvalidConfig(format!("Unknown loader: {}", loader_type)))?;
     loader::fetch_loader_versions(&lt).await
 }
 
@@ -160,7 +334,7 @@ pub async fn install_loader(
     instance_id: String,
 ) -> Result<loader::LoaderInstallResult, LauncherError> {
     let lt = loader::LoaderType::from_str(&loader_type)
-        .ok_or_else(|| LauncherError::Other(format!("Unknown loader: {}", loader_type)))?;
+        .ok_or_else(|| LauncherError::InvalidConfig(format!("Unknown loader: {}", loader_type)))?;
     let details = version::resolver::resolve_version_with_parents(&version_id, &version_url).await?;
     let result = loader::install_loader(&lt, &details, &loader_version, &instance_id).await?;
 
@@ -185,7 +359,7 @@ pub async fn install_loader(
 pub async fn create_snapshot(app: tauri::AppHandle, instance_id: String, name: String) -> Result<SnapshotInfo, LauncherError> {
     let instance_dir = paths::get_instance_dir(&instance_id);
     if !instance_dir.exists() {
-        return Err(LauncherError::Other(format!("Instance not found: {}", instance_id)));
+        return Err(LauncherError::InstanceNotReady(format!("Instance not found: {}", instance_id)));
     }
 
     let snapshots_dir = instance_dir.join(".snapshots");
@@ -247,7 +421,7 @@ pub async fn list_snapshots(instance_id: String) -> Result<Vec<SnapshotInfo>, La
 pub async fn restore_snapshot(instance_id: String, snapshot_id: String) -> Result<(), LauncherError> {
     let snap_dir = paths::get_instance_dir(&instance_id).join(".snapshots").join(&snapshot_id);
     if !snap_dir.exists() {
-        return Err(LauncherError::Other(format!("Snapshot not found: {}", snapshot_id)));
+        return Err(LauncherError::InstanceNotReady(format!("Snapshot not found: {}", snapshot_id)));
     }
 
     let mc_dir = paths::get_instance_minecraft_dir(&instance_id);
@@ -305,6 +479,32 @@ pub fn dir_size(path: &std::path::Path) -> u64 {
 }
 
 #[tauri::command]
+pub async fn toggle_mod(instance_id: String, filename: String) -> Result<bool, LauncherError> {
+    let dir = paths::get_instance_mods_dir(&instance_id);
+    let current_path = dir.join(&filename);
+
+    if !current_path.exists() {
+        return Err(LauncherError::Other(format!("File not found: {}", filename)));
+    }
+
+    let (src, dst, new_enabled) = if filename.ends_with(".disabled") {
+        let enabled_name = &filename[..filename.len() - ".disabled".len()];
+        (current_path, dir.join(enabled_name), true)
+    } else {
+        (current_path, dir.join(format!("{}.disabled", filename)), false)
+    };
+
+    tokio::fs::rename(&src, &dst).await?;
+    tracing::info!(
+        "Toggled mod: {} -> {} for instance {}",
+        filename,
+        if new_enabled { "enabled" } else { "disabled" },
+        instance_id
+    );
+    Ok(new_enabled)
+}
+
+#[tauri::command]
 pub async fn detect_launchers() -> Result<Vec<instance::migration::DetectedLauncher>, LauncherError> {
     instance::migration::detect_installed_launchers()
 }
@@ -346,4 +546,86 @@ pub async fn migrate_instance(
     crate::commands::achievement::try_unlock_achievement(&app, "import_modpack");
     let _ = app.emit("migration-progress", serde_json::json!({"stage": "completed", "instanceId": result.id}));
     Ok(result)
+}
+
+#[tauri::command]
+pub async fn read_config_file(instance_id: String, relative_path: String) -> Result<String, LauncherError> {
+    let _ = sanitizer::sanitize_id(&instance_id)?;
+    let safe_path = sanitizer::sanitize_path(&relative_path)?;
+
+    let instance_dir = paths::get_instance_dir(&instance_id);
+    if !instance_dir.exists() {
+        return Err(LauncherError::InstanceNotReady(format!("Instance not found: {}", instance_id)));
+    }
+
+    let file_path = instance_dir.join(&safe_path);
+    let canonical_instance = instance_dir.canonicalize().unwrap_or_else(|_| instance_dir.clone());
+    let canonical_file = file_path.canonicalize().map_err(|_| {
+        LauncherError::InvalidConfig(format!("File not found: {}", relative_path))
+    })?;
+
+    if !canonical_file.starts_with(&canonical_instance) {
+        return Err(LauncherError::SecurityValidation("Path traversal denied".into()));
+    }
+
+    if !file_path.exists() {
+        return Err(LauncherError::InvalidConfig(format!("File not found: {}", relative_path)));
+    }
+
+    let metadata = std::fs::metadata(&file_path)?;
+    if metadata.len() > 10 * 1024 * 1024 {
+        return Err(LauncherError::InvalidConfig("File too large for text editing (max 10MB)".into()));
+    }
+
+    let bytes = std::fs::read(&file_path)?;
+    let is_binary = bytes.iter().any(|&b| b == 0);
+    if is_binary {
+        return Err(LauncherError::InvalidConfig("Binary file - read-only mode".into()));
+    }
+
+    String::from_utf8(bytes).map_err(|_| LauncherError::InvalidConfig("File is not valid UTF-8".into()))
+}
+
+#[tauri::command]
+pub async fn write_config_file(instance_id: String, relative_path: String, content: String) -> Result<(), LauncherError> {
+    let _ = sanitizer::sanitize_id(&instance_id)?;
+    let safe_path = sanitizer::sanitize_path(&relative_path)?;
+
+    let instance_dir = paths::get_instance_dir(&instance_id);
+    if !instance_dir.exists() {
+        return Err(LauncherError::InstanceNotReady(format!("Instance not found: {}", instance_id)));
+    }
+
+    let file_path = instance_dir.join(&safe_path);
+    let canonical_instance = instance_dir.canonicalize().unwrap_or_else(|_| instance_dir.clone());
+
+    if file_path.exists() {
+        let canonical_file = file_path.canonicalize().map_err(|_| {
+            LauncherError::InvalidConfig(format!("File not found: {}", relative_path))
+        })?;
+        if !canonical_file.starts_with(&canonical_instance) {
+            return Err(LauncherError::SecurityValidation("Path traversal denied".into()));
+        }
+    } else {
+        let parent = file_path.parent().ok_or_else(|| {
+            LauncherError::InvalidConfig("Invalid file path".into())
+        })?;
+        let canonical_parent = parent.canonicalize().map_err(|_| {
+            LauncherError::InvalidConfig("Parent directory not found".into())
+        })?;
+        if !canonical_parent.starts_with(&canonical_instance) {
+            return Err(LauncherError::SecurityValidation("Path traversal denied".into()));
+        }
+    }
+
+    if content.len() > 10 * 1024 * 1024 {
+        return Err(LauncherError::InvalidConfig("Content too large (max 10MB)".into()));
+    }
+
+    if let Some(parent) = file_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    std::fs::write(&file_path, &content)?;
+    Ok(())
 }

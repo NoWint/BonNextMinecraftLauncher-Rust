@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronRight, User, X } from 'lucide-react';
+import { ChevronRight, User, X, Bot } from 'lucide-react';
 import { useI18n } from '../../i18n';
 import { StatusDot } from '../ui/Status';
 import { api } from '../../api';
@@ -11,6 +11,7 @@ interface NavItem {
   id: string;
   label: string;
   shortcut?: string;
+  path: string;
 }
 
 interface SidebarProps {
@@ -19,27 +20,7 @@ interface SidebarProps {
   accountType?: string;
   playtimeHours?: number;
   totalPlaytimeHours?: number;
-}
-
-const NAV_ID_TO_PATH: Record<string, string> = {
-  home: '/home',
-  marketplace: '/store',
-  collections: '/collections',
-  instances: '/instances',
-  library: '/library',
-  versions: '/versions',
-  settings: '/settings',
-};
-
-function getActiveNavId(pathname: string): string {
-  if (pathname === '/home' || pathname === '/') return 'home';
-  if (pathname.startsWith('/store') || pathname === '/mods') return 'marketplace';
-  if (pathname.startsWith('/instances')) return 'instances';
-  if (pathname === '/collections') return 'collections';
-  if (pathname === '/library') return 'library';
-  if (pathname === '/versions') return 'versions';
-  if (pathname === '/settings') return 'settings';
-  return 'home';
+  onAIToggle?: () => void;
 }
 
 interface FriendEntry {
@@ -67,15 +48,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
   navItems,
   username = 'Player',
   accountType = 'OFFLINE',
-  playtimeHours = 0,
   totalPlaytimeHours = 0,
+  onAIToggle,
 }) => {
   const { t } = useI18n();
   const location = useLocation();
-  const navigate = useNavigate();
-  const activeId = getActiveNavId(location.pathname);
   const mainItems = navItems.filter((item) => !['settings'].includes(item.id));
   const settingsItem = navItems.find((item) => item.id === 'settings');
+
+  const getIsActive = (path: string) => {
+    const current = location.pathname;
+    if (path === '/store' || path === '/mods') {
+      return current === '/store' || current === '/mods' || current.startsWith('/store/');
+    }
+    return current === path || current.startsWith(path + '/');
+  };
 
   const [friends, setFriends] = useState<FriendEntry[]>([]);
   const [friendsOpen, setFriendsOpen] = useState(false);
@@ -132,37 +119,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       <nav className={styles.sidebar__nav} aria-label="Main navigation">
-        {mainItems.map((item) => (
-          <button
-            key={item.id}
-            className={`${styles.sidebar__navItem} ${activeId === item.id ? styles['sidebar__navItem--active'] : ''}`}
-            onClick={() => navigate(NAV_ID_TO_PATH[item.id] || `/${item.id}`)}
-            title={item.shortcut ? `Ctrl+${item.shortcut}` : undefined}
-            aria-current={activeId === item.id ? 'page' : undefined}
-          >
-            {activeId === item.id && (
-              <motion.div
-                className={styles.sidebar__activeIndicator}
-                layoutId="sidebar-active-indicator"
-                transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-              />
-            )}
-            <span>{item.label}</span>
-            {item.shortcut && <span className={styles.sidebar__navShortcut}>^{item.shortcut}</span>}
-          </button>
-        ))}
+        {mainItems.map((item) => {
+          const isActive = getIsActive(item.path);
+          return (
+            <NavLink
+              key={item.id}
+              to={item.path}
+              className={`${styles.sidebar__navItem} ${isActive ? styles['sidebar__navItem--active'] : ''}`}
+              title={item.shortcut ? `Ctrl+${item.shortcut}` : undefined}
+              aria-current={isActive ? 'page' : undefined}
+            >
+              {isActive && (
+                <motion.div
+                  className={styles.sidebar__activeIndicator}
+                  layoutId="sidebar-active-indicator"
+                  transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                />
+              )}
+              <span>{item.label}</span>
+              {item.shortcut && <span className={styles.sidebar__navShortcut}>^{item.shortcut}</span>}
+            </NavLink>
+          );
+        })}
 
         {settingsItem && (
           <>
             <div className={styles.sidebar__navDivider} />
-            <button
+            <NavLink
+              to={settingsItem.path}
               className={`${styles.sidebar__navItem} ${
-                activeId === settingsItem.id ? styles['sidebar__navItem--active'] : ''
+                getIsActive(settingsItem.path) ? styles['sidebar__navItem--active'] : ''
               }`}
-              onClick={() => navigate(NAV_ID_TO_PATH[settingsItem.id] || `/${settingsItem.id}`)}
               title={settingsItem.shortcut ? `Ctrl+${settingsItem.shortcut}` : undefined}
             >
-              {activeId === settingsItem.id && (
+              {getIsActive(settingsItem.path) && (
                 <motion.div
                   className={styles.sidebar__activeIndicator}
                   layoutId="sidebar-active-indicator"
@@ -171,7 +161,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
               <span>{settingsItem.label}</span>
               {settingsItem.shortcut && <span className={styles.sidebar__navShortcut}>^{settingsItem.shortcut}</span>}
-            </button>
+            </NavLink>
           </>
         )}
       </nav>
@@ -261,23 +251,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       <div className={styles.sidebar__playtime}>
-        <div className={styles.sidebar__playtimeLabel}>{t('sidebar.today')}</div>
-        <div>
-          <span className={styles.sidebar__playtimeValue}>{playtimeHours.toFixed(1)}</span>
-          <span className={styles.sidebar__playtimeUnit}>{t('common.unit.hours')}</span>
-        </div>
-        <div className={styles.sidebar__playtimeLabel} style={{ marginTop: 8 }}>
-          {t('sidebar.total')}
-        </div>
+        <div className={styles.sidebar__playtimeLabel}>{t('sidebar.total')}</div>
         <div>
           <span className={styles.sidebar__playtimeValue}>{totalPlaytimeHours.toFixed(1)}</span>
           <span className={styles.sidebar__playtimeUnit}>{t('common.unit.hours')}</span>
         </div>
       </div>
 
+      {onAIToggle && (
+        <button className={styles.sidebar__aiBtn} onClick={onAIToggle} title="AI Assistant">
+          <Bot size={14} />
+          <span className={styles.sidebar__aiBtnText}>AI ASSISTANT</span>
+        </button>
+      )}
+
       <div className={styles.sidebar__bottom}>
         <div className={styles.sidebar__user}>
-          <div className={styles.sidebar__userAvatar}><User size={14} /></div>
+          <div className={styles.sidebar__userAvatar}>
+            <User size={14} />
+          </div>
           <div>
             <div className={styles.sidebar__userName}>{username}</div>
             <div className={styles.sidebar__userType}>{accountType}</div>

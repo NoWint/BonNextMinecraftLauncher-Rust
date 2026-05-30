@@ -14,6 +14,7 @@ mod loader;
 mod modrinth;
 mod platform;
 mod security;
+mod types;
 mod version;
 mod curseforge;
 mod commands;
@@ -36,110 +37,60 @@ pub use web_api::WebApiServer;
 
 use launch::state::LaunchState;
 use parking_lot::Mutex;
+use std::collections::HashMap;
 use std::sync::Arc;
+
+pub struct RunningGame {
+    pub state: Arc<Mutex<LaunchState>>,
+    pub pid: u32,
+    pub instance_id: String,
+    pub started_at: std::time::Instant,
+}
 
 struct AppState {
     launch_state: Arc<Mutex<LaunchState>>,
+    running_games: Arc<Mutex<HashMap<String, RunningGame>>>,
 }
 
-static TERRACOTTA_PORT: Mutex<Option<u16>> = Mutex::new(None);
+pub struct TerracottaState {
+    pub port: tokio::sync::Mutex<Option<u16>>,
+    pub child: tokio::sync::Mutex<Option<std::process::Child>>,
+}
 
-#[tauri::command]
-async fn download_terracotta() -> Result<(), LauncherError> {
-    terracotta::download_terracotta(|_, _| {}).await
+#[derive(serde::Serialize)]
+pub struct UpdateInfo {
+    pub version: String,
+    pub date: String,
+    pub body: Option<String>,
 }
 
 #[tauri::command]
-async fn is_terracotta_installed() -> Result<bool, LauncherError> {
-    Ok(terracotta::is_terracotta_installed())
+async fn check_for_updates(app: tauri::AppHandle) -> Result<Option<UpdateInfo>, LauncherError> {
+    use tauri_plugin_updater::UpdaterExt;
+    let updater = app.updater().map_err(|e| LauncherError::Other(format!("Updater init failed: {}", e)))?;
+    let update = updater.check().await.map_err(|e| LauncherError::Other(format!("Update check failed: {}", e)))?;
+    match update {
+        Some(update) => Ok(Some(UpdateInfo {
+            version: update.version.clone(),
+            date: update.date.clone().map(|d| d.to_string()).unwrap_or_default(),
+            body: update.body.clone(),
+        })),
+        None => Ok(None),
+    }
 }
 
 #[tauri::command]
-async fn start_terracotta() -> Result<u16, LauncherError> {
-    let existing_port = *TERRACOTTA_PORT.lock();
-    if let Some(p) = existing_port {
-        let client = crate::http_client::build_client();
-        if client
-            .get(format!("http://127.0.0.1:{}/state", p))
-            .send()
-            .await
-            .is_ok()
-        {
-            return Ok(p);
+async fn install_update(app: tauri::AppHandle) -> Result<(), LauncherError> {
+    use tauri_plugin_updater::UpdaterExt;
+    let updater = app.updater().map_err(|e| LauncherError::Other(format!("Updater init failed: {}", e)))?;
+    let update = updater.check().await.map_err(|e| LauncherError::Other(format!("Update check failed: {}", e)))?;
+    match update {
+        Some(update) => {
+            update.download_and_install(|_, _| {}, || {}).await.map_err(|e| LauncherError::Other(format!("Update install failed: {}", e)))?;
+            Ok(())
         }
+        None => Err(LauncherError::Other("No update available".to_string())),
     }
-
-    let binary = terracotta::get_terracotta_binary_path();
-    if !binary.exists() {
-        return Err(LauncherError::Other(
-            "Terracotta is not installed".to_string(),
-        ));
-    }
-
-    let child = std::process::Command::new(&binary)
-        .arg("--daemon")
-        .stderr(std::process::Stdio::piped())
-        .spawn()?;
-
-    let port = terracotta::discover_terracotta_port(10).await?;
-
-    std::mem::forget(child);
-
-    *TERRACOTTA_PORT.lock() = Some(port);
-    Ok(port)
-}
-
-#[tauri::command]
-async fn stop_terracotta() -> Result<(), LauncherError> {
-    let port = {
-        let mut p = TERRACOTTA_PORT.lock();
-        p.take()
-    };
-
-    if let Some(port) = port {
-        terracotta::set_idle(port).await.ok();
-        #[cfg(not(target_os = "windows"))]
-        let _ = std::process::Command::new("pkill")
-            .arg("-f")
-            .arg("terracotta")
-            .output();
-        #[cfg(target_os = "windows")]
-        let _ = std::process::Command::new("taskkill")
-            .args(&["/F", "/IM", "terracotta.exe"])
-            .output();
-    }
-
-    Ok(())
-}
-
-#[tauri::command]
-async fn get_terracotta_state() -> Result<terracotta::TerracottaState, LauncherError> {
-    let port = *TERRACOTTA_PORT.lock();
-    let port = port.ok_or_else(|| LauncherError::Other("Terracotta is not running".to_string()))?;
-    terracotta::get_state(port).await
-}
-
-#[tauri::command]
-async fn terracotta_set_host() -> Result<(), LauncherError> {
-    let port = *TERRACOTTA_PORT.lock();
-    let port = port.ok_or_else(|| LauncherError::Other("Terracotta is not running".to_string()))?;
-    terracotta::set_scanning(port).await?;
-    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-    terracotta::set_hosting(port).await
-}
-
-#[tauri::command]
-async fn terracotta_set_guest(room: String) -> Result<(), LauncherError> {
-    let port = *TERRACOTTA_PORT.lock();
-    let port = port.ok_or_else(|| LauncherError::Other("Terracotta is not running".to_string()))?;
-    terracotta::set_guesting(port, &room).await
-}
-
-#[tauri::command]
-async fn terracotta_set_idle() -> Result<(), LauncherError> {
-    let port = *TERRACOTTA_PORT.lock();
-    let port = port.ok_or_else(|| LauncherError::Other("Terracotta is not running".to_string()))?;
-    terracotta::set_idle(port).await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -154,12 +105,19 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .manage(AppState { launch_state: Arc::new(Mutex::new(LaunchState::Idle)) })
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(AppState { launch_state: Arc::new(Mutex::new(LaunchState::Idle)), running_games: Arc::new(Mutex::new(HashMap::new())) })
+        .manage(download::queue::DownloadControlState::new())
         .manage(cache::ApiCache::new())
+        .manage(TerracottaState { port: tokio::sync::Mutex::new(None), child: tokio::sync::Mutex::new(None) })
         .invoke_handler(tauri::generate_handler![
             commands::version::get_versions,
             commands::launch::get_launch_state,
+            commands::launch::get_instance_launch_state,
+            commands::launch::get_running_games,
             commands::launch::reset_launch_state,
+            commands::launch::reset_instance_launch_state,
+            commands::launch::pre_launch_check,
             commands::config::get_config,
             commands::config::save_config,
             commands::misc::find_java,
@@ -179,6 +137,10 @@ pub fn run() {
             commands::auth::remove_account,
             commands::auth::refresh_auth_token,
             commands::launch::download_version,
+            commands::download::pause_download,
+            commands::download::resume_download,
+            commands::download::cancel_download,
+            commands::download::is_download_paused,
             commands::launch::launch_game,
             commands::instance::get_game_dir,
             commands::instance::get_default_game_dir,
@@ -198,7 +160,11 @@ pub fn run() {
             commands::instance::scan_custom_directory,
             commands::instance::migrate_instance,
             commands::instance::check_instance_ready,
+            commands::instance::toggle_mod,
+            commands::instance::health_check,
             commands::instance::open_folder,
+            commands::instance::read_config_file,
+            commands::instance::write_config_file,
             commands::instance::parse_crash_report,
             commands::instance::diagnose_crash,
             commands::instance::get_loader_versions,
@@ -222,10 +188,15 @@ pub fn run() {
             commands::world::list_instance_saves,
             commands::world::list_instance_logs,
             commands::world::read_log_file,
+            commands::world::get_recent_logs,
             commands::content::remove_installed_mod,
             commands::content::get_content_counts,
             commands::content::check_content_updates,
             commands::content::bulk_update_content,
+            commands::content::pin_mod,
+            commands::content::unpin_mod,
+            commands::content::is_mod_pinned,
+            commands::content::atomic_install_content,
             commands::curseforge::search_cf_mods,
             commands::curseforge::get_cf_mod,
             commands::curseforge::get_cf_project_details,
@@ -307,14 +278,14 @@ pub fn run() {
             commands::misc::fix_file_permissions,
             commands::misc::validate_jvm_args,
             commands::misc::get_sandbox_availability,
-            download_terracotta,
-            is_terracotta_installed,
-            start_terracotta,
-            stop_terracotta,
-            get_terracotta_state,
-            terracotta_set_host,
-            terracotta_set_guest,
-            terracotta_set_idle,
+            commands::terracotta::download_terracotta,
+            commands::terracotta::is_terracotta_installed,
+            commands::terracotta::start_terracotta,
+            commands::terracotta::stop_terracotta,
+            commands::terracotta::get_terracotta_state,
+            commands::terracotta::terracotta_set_host,
+            commands::terracotta::terracotta_set_guest,
+            commands::terracotta::terracotta_set_idle,
             commands::auth::yggdrasil_login,
             commands::auth::yggdrasil_refresh_token,
             commands::auth::yggdrasil_get_profile,
@@ -325,7 +296,17 @@ pub fn run() {
             commands::auth::ensure_authlib_injector,
             commands::auth::set_local_skin,
             commands::auth::read_skin_file,
+            commands::auth::validate_skin_file,
+            commands::auth::microsoft_get_skin_profile,
+            commands::auth::microsoft_upload_skin,
+            commands::auth::microsoft_delete_skin,
+            commands::auth::check_authlib_injector,
 
+            check_for_updates,
+            install_update,
+            commands::misc::auto_select_jre,
+            commands::misc::download_jre_version_cmd,
+            commands::misc::list_jre_versions,
         ])
         .setup(|_app| {
             let audit_enabled = config::load_config()
@@ -339,6 +320,13 @@ pub fn run() {
                     tracing::warn!("Failed to migrate credentials to encrypted storage: {}", e);
                 }
             }
+            tauri::async_runtime::spawn(async {
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                match crate::version::manifest::fetch_version_manifest().await {
+                    Ok(_) => tracing::info!("Version manifest preloaded"),
+                    Err(e) => tracing::warn!("Version manifest preload failed: {}", e),
+                }
+            });
             Ok(())
         })
         .run(tauri::generate_context!())

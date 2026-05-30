@@ -4,12 +4,21 @@ use crate::modrinth;
 use crate::platform::paths;
 use serde::Deserialize;
 use serde::Serialize;
+use tauri::Emitter;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InstalledModInfo {
     pub filename: String,
     pub size: u64,
     pub installed_at: String,
+    #[serde(default)]
+    pub pinned: bool,
+    #[serde(default = "default_enabled")]
+    pub enabled: bool,
+}
+
+fn default_enabled() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,6 +33,7 @@ pub struct ContentCounts {
 pub struct BulkUpdateResult {
     pub succeeded: u32,
     pub failed: u32,
+    pub skipped_pinned: u32,
     pub errors: Vec<String>,
 }
 
@@ -54,36 +64,47 @@ pub async fn list_instance_mods(instance_id: String) -> Result<Vec<InstalledModI
         return Ok(Vec::new());
     }
 
+    let metadata = content::load_metadata(&instance_id).unwrap_or_default();
+
     let mut mods = Vec::new();
     if let Ok(entries) = std::fs::read_dir(&dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_file() {
-                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                    if ext == "jar" || ext == "zip" {
-                        let filename = path.file_name()
-                            .map(|n| n.to_string_lossy().to_string())
-                            .unwrap_or_default();
-                        let size = std::fs::metadata(&path)
-                            .map(|m| m.len())
-                            .unwrap_or(0);
-                        let installed_at = std::fs::metadata(&path)
-                            .ok()
-                            .and_then(|m| m.modified().ok())
-                            .map(|t| {
-                                let duration = t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
-                                chrono::DateTime::from_timestamp(
-                                    duration.as_secs() as i64,
-                                    duration.subsec_nanos(),
-                                )
-                                .map(|dt| dt.to_rfc3339())
-                                .unwrap_or_default()
-                            })
-                            .unwrap_or_default();
+                let filename = path.file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
 
-                        mods.push(InstalledModInfo { filename, size, installed_at });
-                    }
+                let is_mod = filename.ends_with(".jar")
+                    || filename.ends_with(".zip")
+                    || filename.ends_with(".jar.disabled")
+                    || filename.ends_with(".zip.disabled");
+
+                if !is_mod {
+                    continue;
                 }
+
+                let enabled = !filename.ends_with(".disabled");
+                let size = std::fs::metadata(&path)
+                    .map(|m| m.len())
+                    .unwrap_or(0);
+                let installed_at = std::fs::metadata(&path)
+                    .ok()
+                    .and_then(|m| m.modified().ok())
+                    .map(|t| {
+                        let duration = t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+                        chrono::DateTime::from_timestamp(
+                            duration.as_secs() as i64,
+                            duration.subsec_nanos(),
+                        )
+                        .map(|dt| dt.to_rfc3339())
+                        .unwrap_or_default()
+                    })
+                    .unwrap_or_default();
+
+                let pinned = metadata.get(&filename).map(|r| r.pinned).unwrap_or(false);
+
+                mods.push(InstalledModInfo { filename, size, installed_at, pinned, enabled });
             }
         }
     }
@@ -163,19 +184,45 @@ pub async fn check_content_updates(instance_id: String) -> Result<Vec<content::U
 }
 
 #[tauri::command]
+pub async fn pin_mod(instance_id: String, slug: String) -> Result<bool, LauncherError> {
+    content::pin_mod(&instance_id, &slug)
+}
+
+#[tauri::command]
+pub async fn unpin_mod(instance_id: String, slug: String) -> Result<bool, LauncherError> {
+    content::unpin_mod(&instance_id, &slug)
+}
+
+#[tauri::command]
+pub async fn is_mod_pinned(instance_id: String, slug: String) -> Result<bool, LauncherError> {
+    content::is_pinned(&instance_id, &slug)
+}
+
+#[tauri::command]
 pub async fn bulk_update_content(instance_id: String) -> Result<BulkUpdateResult, LauncherError> {
     let updates = content::check_updates(&instance_id).await?;
     let mods_dir = paths::get_instance_mods_dir(&instance_id);
     let backup_dir = paths::get_instance_minecraft_dir(&instance_id).join("mods_backup");
     let mut succeeded = 0u32;
     let mut failed = 0u32;
+    let mut skipped_pinned = 0u32;
     let mut errors: Vec<String> = Vec::new();
 
-    if !updates.is_empty() {
+    let updatable: Vec<_> = updates.into_iter().filter(|u| {
+        if u.pinned {
+            skipped_pinned += 1;
+            tracing::info!("Skipping pinned mod: {} ({})", u.slug, u.filename);
+            false
+        } else {
+            true
+        }
+    }).collect();
+
+    if !updatable.is_empty() {
         if !backup_dir.exists() {
             std::fs::create_dir_all(&backup_dir)?;
         }
-        for update in &updates {
+        for update in &updatable {
             let src = mods_dir.join(&update.filename);
             if src.exists() {
                 let backup_path = backup_dir.join(&update.filename);
@@ -186,7 +233,7 @@ pub async fn bulk_update_content(instance_id: String) -> Result<BulkUpdateResult
         }
     }
 
-    for update in &updates {
+    for update in &updatable {
         let slug = update.slug.clone();
         let result = modrinth::get_mod_versions(&slug, None, None).await;
         match result {
@@ -232,7 +279,7 @@ pub async fn bulk_update_content(instance_id: String) -> Result<BulkUpdateResult
         }
     }
 
-    Ok(BulkUpdateResult { succeeded, failed, errors })
+    Ok(BulkUpdateResult { succeeded, failed, skipped_pinned, errors })
 }
 
 #[tauri::command]
@@ -263,4 +310,120 @@ pub async fn get_content_counts(instance_id: String) -> Result<ContentCounts, La
             }
         },
     })
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AtomicInstallResult {
+    pub session_id: String,
+    pub installed_files: Vec<String>,
+    pub rolled_back: bool,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn atomic_install_content(
+    app: tauri::AppHandle,
+    instance_id: String,
+    files: Vec<AtomicInstallFile>,
+) -> Result<AtomicInstallResult, LauncherError> {
+    let session_id = format!("inst_{}", chrono::Utc::now().timestamp_millis());
+    let mut installer = content::AtomicInstaller::new(&instance_id, &session_id);
+    installer.prepare()?;
+
+    let mods_dir = paths::get_instance_mods_dir(&instance_id);
+    let mut installed_files: Vec<String> = Vec::new();
+
+    for (i, file_spec) in files.iter().enumerate() {
+        let target_path = mods_dir.join(&file_spec.filename);
+        installer.backup_existing(&target_path)?;
+
+        let temp_path = installer.temp_path_for(&file_spec.filename);
+        let queue = crate::download::queue::DownloadQueue::new();
+        let task = crate::download::queue::DownloadTask::new(
+            &file_spec.url,
+            &temp_path,
+            file_spec.sha1.as_deref().unwrap_or(""),
+            file_spec.size,
+        );
+
+        match queue.download_all(vec![task]).await {
+            Ok(results) => {
+                if results.iter().any(|r| r.is_err()) {
+                    let err_msg = format!("Download failed for {}", file_spec.filename);
+                    tracing::error!("{}", err_msg);
+                    let _ = installer.rollback();
+                    return Ok(AtomicInstallResult {
+                        session_id,
+                        installed_files,
+                        rolled_back: true,
+                        error: Some(err_msg),
+                    });
+                }
+                installed_files.push(file_spec.filename.clone());
+                let _ = app.emit("install-session-progress", serde_json::json!({
+                    "session_id": session_id,
+                    "instance_id": instance_id,
+                    "phase": "downloading",
+                    "total_files": files.len(),
+                    "completed_files": i + 1,
+                }));
+            }
+            Err(e) => {
+                let err_msg = format!("Download error for {}: {}", file_spec.filename, e);
+                tracing::error!("{}", err_msg);
+                let _ = installer.rollback();
+                return Ok(AtomicInstallResult {
+                    session_id,
+                    installed_files,
+                    rolled_back: true,
+                    error: Some(err_msg),
+                });
+            }
+        }
+    }
+
+    match installer.commit() {
+        Ok(()) => {
+            for file_spec in &files {
+                if let Some(ref slug) = file_spec.slug {
+                    if let Err(e) = content::record_install(
+                        &instance_id,
+                        &file_spec.filename,
+                        slug,
+                        file_spec.version_id.as_deref(),
+                        file_spec.content_type.as_deref().unwrap_or("mod"),
+                        file_spec.source.as_deref().unwrap_or("modrinth"),
+                    ) {
+                        tracing::warn!("Failed to record install metadata: {}", e);
+                    }
+                }
+            }
+            Ok(AtomicInstallResult {
+                session_id,
+                installed_files,
+                rolled_back: false,
+                error: None,
+            })
+        }
+        Err(e) => {
+            Ok(AtomicInstallResult {
+                session_id,
+                installed_files,
+                rolled_back: true,
+                error: Some(format!("Commit failed: {}", e)),
+            })
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AtomicInstallFile {
+    pub url: String,
+    pub filename: String,
+    pub sha1: Option<String>,
+    pub size: u64,
+    pub slug: Option<String>,
+    pub version_id: Option<String>,
+    pub content_type: Option<String>,
+    pub source: Option<String>,
 }

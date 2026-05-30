@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wiki Design Options</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a0c10;
+      color: #e8eaf0;
+      padding: 40px;
+    }
+    h1 { font-size: 24px; margin-bottom: 8px; }
+    .subtitle { color: #6b7280; margin-bottom: 40px; }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .option-card {
+      background: #141720;
+      border: 1px solid #252a3a;
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .option-card:hover {
+      border-color: #ffe600;
+      transform: translateY(-2px);
+    }
+    .option-card.selected {
+      border-color: #ffe600;
+      box-shadow: 0 0 0 2px rgba(255, 230, 0, 0.2);
+    }
+
+    .option-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #252a3a;
+    }
+    .option-header h2 {
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+    .option-header p {
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    .option-preview {
+      height: 320px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Option A: Apple-style minimal */
+    .preview-a {
+      background: #ffffff;
+      color: #1d1d1f;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .preview-a .a-sidebar {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 180px;
+      background: #f5f5f7;
+      border-right: 1px solid #d2d2d7;
+      padding: 16px;
+    }
+    .preview-a .a-logo {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .preview-a .a-item {
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-bottom: 2px;
+    }
+    .preview-a .a-item.active {
+      background: #0071e3;
+      color: white;
+    }
+    .preview-a .a-content {
+      position: absolute;
+      left: 180px; right: 0; top: 0; bottom: 0;
+      padding: 24px;
+    }
+    .preview-a .a-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .preview-a .a-text {
+      font-size: 12px;
+      line-height: 1.6;
+      color: #86868b;
+    }
+
+    /* Option B: Notion-style */
+    .preview-b {
+      background: #ffffff;
+      color: #37352f;
+      font-family: -apple-system, sans-serif;
+    }
+    .preview-b .b-sidebar {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 200px;
+      background: #f7f6f3;
+      padding: 16px;
+    }
+    .preview-b .b-logo {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .preview-b .b-emoji { font-size: 16px; }
+    .preview-b .b-item {
+      padding: 5px 8px;
+      border-radius: 4px;
+      font-size: 13px;
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .preview-b .b-item:hover { background: #ebebea; }
+    .preview-b .b-content {
+      position: absolute;
+      left: 200px; right: 0; top: 0; bottom: 0;
+      padding: 80px 40px;
+    }
+    .preview-b .b-title {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .preview-b .b-text {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #6b6b6b;
+    }
+
+    /* Option C: Cyberpunk / ZZZ */
+    .preview-c {
+      background: #0d0f14;
+      color: #e8eaf0;
+      font-family: 'Inter', sans-serif;
+    }
+    .preview-c .c-sidebar {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 200px;
+      background: #141720;
+      border-right: 1px solid #252a3a;
+      padding: 16px;
+    }
+    .preview-c .c-logo {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #ffe600;
+    }
+    .preview-c .c-item {
+      padding: 6px 10px;
+      border-left: 2px solid transparent;
+      font-size: 12px;
+      margin-bottom: 2px;
+    }
+    .preview-c .c-item.active {
+      background: #1a1e2a;
+      border-left-color: #ffe600;
+    }
+    .preview-c .c-content {
+      position: absolute;
+      left: 200px; right: 0; top: 0; bottom: 0;
+      padding: 24px;
+    }
+    .preview-c .c-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #ffe600;
+    }
+    .preview-c .c-text {
+      font-size: 12px;
+      line-height: 1.6;
+      color: #9ca3b4;
+    }
+    .preview-c .c-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      background: rgba(255,230,0,0.1);
+      color: #ffe600;
+      border-radius: 3px;
+      font-size: 10px;
+      margin-bottom: 8px;
+    }
+
+    .select-btn {
+      width: 100%;
+      padding: 12px;
+      background: #1a1e2a;
+      border: none;
+      border-top: 1px solid #252a3a;
+      color: #e8eaf0;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .select-btn:hover {
+      background: #252a3a;
+    }
+    .option-card.selected .select-btn {
+      background: #ffe600;
+      color: #000;
+      font-weight: 600;
+    }
+
+    .features {
+      padding: 12px 20px;
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .features li {
+      margin-bottom: 4px;
+      list-style: none;
+    }
+    .features li::before {
+      content: "✓ ";
+      color: #10b981;
+    }
+  </style>
+</head>
+<body>
+  <h1>Wiki 设计方向选择</h1>
+  <p class="subtitle">点击卡片选择你喜欢的设计风格</p>
+
+  <div class="options-grid">
+    <!-- Option A: Apple Minimal -->
+    <div class="option-card" data-option="a" onclick="selectOption('a')">
+      <div class="option-header">
+        <h2>A. Apple 极简风</h2>
+        <p>干净、留白、精致</p>
+      </div>
+      <div class="option-preview preview-a">
+        <div class="a-sidebar">
+          <div class="a-logo">Wiki</div>
+          <div class="a-item active">项目简介</div>
+          <div class="a-item">快速开始</div>
+          <div class="a-item">架构设计</div>
+        </div>
+        <div class="a-content">
+          <div class="a-title">项目简介</div>
+          <div class="a-text">BonNext 是一款基于 Tauri v2 构建的跨平台 Minecraft Java Edition 启动器...</div>
+        </div>
+      </div>
+      <ul class="features">
+        <li>大量留白，呼吸感强</li>
+        <li>浅色主题，阅读舒适</li>
+        <li>圆角、阴影、微交互</li>
+        <li>适合技术文档/产品手册</li>
+      </ul>
+      <button class="select-btn" id="btn-a">选择此风格</button>
+    </div>
+
+    <!-- Option B: Notion -->
+    <div class="option-card" data-option="b" onclick="selectOption('b')">
+      <div class="option-header">
+        <h2>B. Notion 知识库风</h2>
+        <p>结构化、层级、灵活</p>
+      </div>
+      <div class="option-preview preview-b">
+        <div class="b-sidebar">
+          <div class="b-logo"><span class="b-emoji">📖</span> BonNext Wiki</div>
+          <div class="b-item">📄 项目简介</div>
+          <div class="b-item">🚀 快速开始</div>
+          <div class="b-item">🏗️ 架构设计</div>
+        </div>
+        <div class="b-content">
+          <div class="b-title">项目简介</div>
+          <div class="b-text">BonNext 是一款基于 Tauri v2 构建的跨平台 Minecraft Java Edition 启动器...</div>
+        </div>
+      </div>
+      <ul class="features">
+        <li>树形层级导航</li>
+        <li>Emoji 图标系统</li>
+        <li>块级编辑器体验</li>
+        <li>适合知识库/团队协作</li>
+      </ul>
+      <button class="select-btn" id="btn-b">选择此风格</button>
+    </div>
+
+    <!-- Option C: Cyberpunk ZZZ -->
+    <div class="option-card" data-option="c" onclick="selectOption('c')">
+      <div class="option-header">
+        <h2>C. 赛博朋克 / ZZZ</h2>
+        <p>暗黑、霓虹、未来感</p>
+      </div>
+      <div class="option-preview preview-c">
+        <div class="c-sidebar">
+          <div class="c-logo">BonNext Wiki</div>
+          <div class="c-item active">项目简介</div>
+          <div class="c-item">快速开始</div>
+          <div class="c-item">架构设计</div>
+        </div>
+        <div class="c-content">
+          <div class="c-badge">概述</div>
+          <div class="c-title">项目简介</div>
+          <div class="c-text">BonNext 是一款基于 Tauri v2 构建的跨平台 Minecraft Java Edition 启动器...</div>
+        </div>
+      </div>
+      <ul class="features">
+        <li>深色主题，沉浸感强</li>
+        <li>霓虹黄强调色</li>
+        <li>clip-path 切角元素</li>
+        <li>与 BonNext 主项目一致</li>
+      </ul>
+      <button class="select-btn" id="btn-c">选择此风格</button>
+    </div>
+  </div>
+
+  <script>
+    function selectOption(opt) {
+      document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+      document.querySelector('[data-option="' + opt + '"]').classList.add('selected');
+      document.querySelectorAll('.select-btn').forEach(b => b.textContent = '选择此风格');
+      document.getElementById('btn-' + opt).textContent = '✓ 已选择';
+    }
+  </script>
+</body>
+</html>

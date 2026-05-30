@@ -70,6 +70,51 @@ impl DownloadSource for BmclapiSource {
 }
 
 // ---------------------------------------------------------------
+// MCBBS mirror (China, alternative)
+// ---------------------------------------------------------------
+pub struct McbbsSource;
+
+impl DownloadSource for McbbsSource {
+    fn name(&self) -> &'static str { "mcbbs" }
+    fn version_manifest_url(&self) -> &'static str {
+        "https://download.mcbbs.net/mc/game/version_manifest_v2.json"
+    }
+    fn transform_url(&self, original: &str) -> String {
+        if original.starts_with("https://libraries.minecraft.net/") {
+            return original.replace(
+                "https://libraries.minecraft.net/",
+                "https://download.mcbbs.net/libraries/",
+            );
+        }
+        if original.starts_with("https://resources.download.minecraft.net/") {
+            return original.replace(
+                "https://resources.download.minecraft.net/",
+                "https://download.mcbbs.net/assets/",
+            );
+        }
+        if original.starts_with("https://piston-meta.mojang.com/") {
+            return original.replace(
+                "https://piston-meta.mojang.com/",
+                "https://download.mcbbs.net/",
+            );
+        }
+        if original.starts_with("https://launcher.mojang.com/") {
+            return original.replace(
+                "https://launcher.mojang.com/",
+                "https://download.mcbbs.net/",
+            );
+        }
+        if original.starts_with("https://launchermeta.mojang.com/") {
+            return original.replace(
+                "https://launchermeta.mojang.com/",
+                "https://download.mcbbs.net/",
+            );
+        }
+        original.to_string()
+    }
+}
+
+// ---------------------------------------------------------------
 // Global source manager
 // ---------------------------------------------------------------
 use std::sync::OnceLock;
@@ -89,6 +134,7 @@ impl SourceManager {
         let sources: Vec<Box<dyn DownloadSource>> = vec![
             Box::new(OfficialSource),
             Box::new(BmclapiSource),
+            Box::new(McbbsSource),
         ];
         let active_index = Self::resolve_active_index(&sources);
         SourceManager { sources, active_index }
@@ -102,6 +148,7 @@ impl SourceManager {
             .unwrap_or(0)
     }
 
+    // Reserved for source management UI
     #[allow(dead_code)]
 pub fn active_source_name() -> String {
         let mgr = source_manager().read().unwrap();
@@ -148,21 +195,11 @@ pub fn version_manifest_url() -> String {
 }
 
 // Legacy-compatible functions (used by other modules)
-#[allow(dead_code)]
-pub fn current_source_name() -> String {
-    config::get_download_source_name()
-}
-
-/// Transform file download URLs through the active mirror.
-/// Version manifests and version JSONs should NOT go through this —
-/// they always come from Mojang's official servers.
+// Reserved for source management UI
 pub fn transform_url(original: &str) -> String {
     SourceManager::transform_url(original)
 }
 
-/// Version manifest is always fetched from Mojang official.
-/// Mirrors can return broken/redirected version detail URLs.
-#[allow(dead_code)]
 pub fn version_manifest_url() -> String {
     OfficialSource.version_manifest_url().to_string()
 }
@@ -218,7 +255,7 @@ mod tests {
     #[test]
     fn asset_local_path_structure() {
         let p = asset_local_path(std::path::Path::new("/assets"), "ab1234");
-        assert!(p.to_string_lossy().contains("objects"));
-        assert!(p.ends_with("ab1234"));
+        assert!(p.to_string_lossy().contains("/objects/"));
+        assert!(p.to_string_lossy().contains("/ab/"));
     }
 }

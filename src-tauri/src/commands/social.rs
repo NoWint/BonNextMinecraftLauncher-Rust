@@ -60,7 +60,7 @@ pub async fn remove_friend(id: String) -> Result<(), LauncherError> {
 #[tauri::command]
 pub async fn start_discord_rpc() -> Result<(), LauncherError> {
     let mut client = DiscordIpcClient::new(DISCORD_APP_ID)
-        .map_err(|e| LauncherError::Other(format!("Failed to create Discord IPC client: {}", e)))?;
+        .map_err(|e| LauncherError::LaunchFailed(format!("Failed to create Discord IPC client: {}", e)))?;
     match client.connect() {
         Ok(_) => {
             let lock = DISCORD_CLIENT.get_or_init(|| StdMutex::new(None));
@@ -71,7 +71,7 @@ pub async fn start_discord_rpc() -> Result<(), LauncherError> {
         }
         Err(e) => {
             tracing::warn!("Discord RPC connection failed: {}", e);
-            Err(LauncherError::Other(format!("Failed to connect to Discord: {}", e)))
+            Err(LauncherError::LaunchFailed(format!("Failed to connect to Discord: {}", e)))
         }
     }
 }
@@ -105,12 +105,12 @@ pub async fn update_discord_presence(details: String, state: String) -> Result<(
                     tracing::debug!("Discord presence updated");
                     Ok(())
                 }
-                Err(e) => Err(LauncherError::Other(format!("Failed to update presence: {}", e))),
+                Err(e) => Err(LauncherError::LaunchFailed(format!("Failed to update presence: {}", e))),
             }
         } else {
-            Err(LauncherError::Other("Discord RPC not connected".to_string()))
+            Err(LauncherError::LaunchFailed("Discord RPC not connected".to_string()))
         }
     } else {
-        Err(LauncherError::Other("Discord RPC not started".to_string()))
+        Err(LauncherError::LaunchFailed("Discord RPC not started".to_string()))
     }
 }

@@ -63,14 +63,11 @@ pub async fn get_lan_worlds() -> Result<Vec<LanWorldInfo>, LauncherError> {
         return Ok(Vec::new());
     }
 
-    let socket = UdpSocket::bind("0.0.0.0:4445")
-        .map_err(|e| LauncherError::Other(format!("Failed to bind UDP socket: {}", e)))?;
+    let socket = UdpSocket::bind("0.0.0.0:4445")?;
     socket
-        .set_read_timeout(Some(Duration::from_millis(500)))
-        .map_err(|e| LauncherError::Other(format!("Failed to set read timeout: {}", e)))?;
+        .set_read_timeout(Some(Duration::from_millis(500)))?;
     socket
-        .set_broadcast(true)
-        .map_err(|e| LauncherError::Other(format!("Failed to set broadcast: {}", e)))?;
+        .set_broadcast(true)?;
 
     let multicast_addr = Ipv4Addr::new(224, 0, 2, 60);
     if let Err(e) = socket.join_multicast_v4(&multicast_addr, &Ipv4Addr::UNSPECIFIED) {
@@ -129,11 +126,11 @@ pub async fn scan_p2p_peers() -> Result<Vec<P2PPeer>, LauncherError> {
     let service_type = "_bonnext._tcp.local.";
 
     let daemon = mdns_sd::ServiceDaemon::new()
-        .map_err(|e| LauncherError::Other(format!("mDNS init failed: {}", e)))?;
+        .map_err(|e| LauncherError::LaunchFailed(format!("mDNS init failed: {}", e)))?;
 
     let receiver = daemon
         .browse(service_type)
-        .map_err(|e| LauncherError::Other(format!("mDNS browse failed: {}", e)))?;
+        .map_err(|e| LauncherError::LaunchFailed(format!("mDNS browse failed: {}", e)))?;
 
     let mut peers = Vec::new();
     let timeout = Duration::from_secs(3);
@@ -178,37 +175,32 @@ pub async fn send_file_p2p(
     use std::io::{Read, Write};
     use std::net::TcpStream;
 
-    let file = std::fs::File::open(&file_path).map_err(LauncherError::Io)?;
+    let file = std::fs::File::open(&file_path).map_err(|e| LauncherError::Other(format!("opening {}: {}", file_path, e)))?;
     let file_size = file.metadata().map(|m| m.len()).unwrap_or(0);
     let file_name = std::path::Path::new(&file_path)
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_default();
 
-    let mut stream = TcpStream::connect(&peer_address)
-        .map_err(|e| LauncherError::Other(format!("Failed to connect to peer: {}", e)))?;
+    let mut stream = TcpStream::connect(&peer_address)?;
 
     let name_bytes = file_name.as_bytes();
     stream
-        .write_all(&(name_bytes.len() as u64).to_le_bytes())
-        .map_err(|e| LauncherError::Other(format!("Write failed: {}", e)))?;
+        .write_all(&(name_bytes.len() as u64).to_le_bytes())?;
     stream
-        .write_all(name_bytes)
-        .map_err(|e| LauncherError::Other(format!("Write failed: {}", e)))?;
+        .write_all(name_bytes)?;
     stream
-        .write_all(&file_size.to_le_bytes())
-        .map_err(|e| LauncherError::Other(format!("Write failed: {}", e)))?;
+        .write_all(&file_size.to_le_bytes())?;
 
     let mut reader = std::io::BufReader::new(file);
     let mut buffer = [0u8; 8192];
     loop {
-        let bytes_read = reader.read(&mut buffer).map_err(LauncherError::Io)?;
+        let bytes_read = reader.read(&mut buffer).map_err(|e| LauncherError::Other(format!("reading {}: {}", file_path, e)))?;
         if bytes_read == 0 {
             break;
         }
         stream
-            .write_all(&buffer[..bytes_read])
-            .map_err(|e| LauncherError::Other(format!("Write failed: {}", e)))?;
+            .write_all(&buffer[..bytes_read])?;
     }
 
     tracing::info!(

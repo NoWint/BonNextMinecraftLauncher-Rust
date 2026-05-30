@@ -1,27 +1,9 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useMemo } from 'react';
-import { api, type OfflineAuthResult, type StoredAccount, type YggdrasilAuthResult } from '../api';
+import { api } from '../api';
+import { formatError } from '../utils/errorMapping';
+import type { AuthState, AuthAction, DeviceCodeResponse } from './auth/authTypes';
 
-interface AuthState {
-  currentUser: OfflineAuthResult | null;
-  accounts: StoredAccount[];
-  activeAccountId: string | null;
-  loading: boolean;
-  error: string;
-}
-
-type AuthAction =
-  | { type: 'LOGIN'; user: OfflineAuthResult }
-  | { type: 'LOGOUT' }
-  | { type: 'SET_ACCOUNTS'; accounts: StoredAccount[] }
-  | { type: 'SET_ACTIVE'; id: string }
-  | { type: 'SET_ERROR'; error: string }
-  | { type: 'SET_LOADING'; loading: boolean }
-  | {
-      type: 'SET_ALL';
-      accounts: StoredAccount[];
-      activeAccountId: string | null;
-      currentUser: OfflineAuthResult | null;
-    };
+export type { AuthState, AuthAction, DeviceCodeResponse } from './auth/authTypes';
 
 export function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
@@ -51,19 +33,11 @@ export function authReducer(state: AuthState, action: AuthAction): AuthState {
   }
 }
 
-interface DeviceCodeResponse {
-  device_code: string;
-  user_code: string;
-  verification_uri: string;
-  expires_in: number;
-  interval: number;
-}
-
 const AuthContext = createContext<{
   state: AuthState;
   offlineLogin: (username: string) => Promise<void>;
   microsoftLogin: () => Promise<DeviceCodeResponse | undefined>;
-  yggdrasilLogin: (serverUrl: string, email: string, password: string) => Promise<YggdrasilAuthResult>;
+  yggdrasilLogin: (serverUrl: string, email: string, password: string) => Promise<import('../api').YggdrasilAuthResult>;
   logout: () => Promise<void>;
   switchAccount: (id: string) => Promise<void>;
   refreshAccounts: () => Promise<void>;
@@ -130,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const yggdrasilLogin = useCallback(
-    async (serverUrl: string, email: string, password: string): Promise<YggdrasilAuthResult> => {
+    async (serverUrl: string, email: string, password: string): Promise<import('../api').YggdrasilAuthResult> => {
       dispatch({ type: 'SET_LOADING', loading: true });
       try {
         const result = await api.yggdrasilLogin(serverUrl, email, password);
@@ -141,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await refreshAccounts();
         return result;
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
+        const msg = formatError(e);
         dispatch({ type: 'SET_ERROR', error: msg });
         dispatch({ type: 'SET_LOADING', loading: false });
         throw e;

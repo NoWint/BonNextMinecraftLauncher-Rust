@@ -3,7 +3,10 @@ use std::collections::HashMap;
 
 use crate::error::LauncherError;
 
-const CLIENT_ID: &str = "00000000402b5328";
+const CLIENT_ID: &str = match option_env!("BONNEXT_MS_CLIENT_ID") {
+    Some(id) => id,
+    None => "00000000402b5328",
+};
 const DEVICE_CODE_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode";
 const TOKEN_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
 const XBL_URL: &str = "https://user.auth.xboxlive.com/user/authenticate";
@@ -80,7 +83,7 @@ pub async fn poll_device_auth(device_code: &str) -> Result<MicrosoftAuthResult, 
                 .ok_or_else(|| LauncherError::AuthFailed("Missing access_token".to_string()))?;
             let refresh_token = body["refresh_token"]
                 .as_str()
-                .unwrap_or("")
+                .ok_or_else(|| LauncherError::AuthFailed("Missing refresh_token in OAuth response".to_string()))?
                 .to_string();
 
             let result = complete_auth(client, ms_access_token, &refresh_token).await?;
@@ -100,7 +103,7 @@ pub async fn poll_device_auth(device_code: &str) -> Result<MicrosoftAuthResult, 
             }
             "expired_token" => {
                 let _ = crate::security::audit::record_login("microsoft", false, "").ok();
-                return Err(LauncherError::AuthFailed("Device code expired".to_string()));
+                return Err(LauncherError::AuthExpired("Device code expired".to_string()));
             }
             "access_denied" => {
                 let _ = crate::security::audit::record_login("microsoft", false, "").ok();
@@ -211,6 +214,7 @@ async fn auth_xsts(
         .json(&body)
         .send()
         .await?
+        .error_for_status()?
         .json()
         .await?;
 
@@ -254,10 +258,34 @@ async fn auth_minecraft(
         .ok_or_else(|| LauncherError::AuthFailed("Missing MC access token".to_string()))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct McProfile {
     id: String,
     name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McSkinInfo {
+    pub id: String,
+    pub state: String,
+    pub url: String,
+    pub variant: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McCapeInfo {
+    pub id: String,
+    pub state: String,
+    pub url: String,
+    pub alias: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McSkinProfile {
+    pub id: String,
+    pub name: String,
+    pub skins: Vec<McSkinInfo>,
+    pub capes: Vec<McCapeInfo>,
 }
 
 async fn get_mc_profile(
@@ -274,4 +302,55 @@ async fn get_mc_profile(
         .await?;
 
     Ok(profile)
+}
+
+pub async fn get_skin_profile(mc_token: &str) -> Result<McSkinProfile, LauncherError> {
+    let client = crate::http_client::build_client();
+    let profile: McSkinProfile = client
+        .get(MC_PROFILE_URL)
+        .header("Authorization", format!("Bearer {}", mc_token))
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    Ok(profile)
+}
+
+pub async fn upload_skin(mc_token: &str, file_path: &str, variant: &str) -> Result<(), LauncherError> {
+    let client = crate::http_client::build_client();
+    let file_bytes = std::fs::read(file_path)?;
+    let file_name = std::path::Path::new(file_path)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "skin.png".to_string());
+
+    let part = reqwest::multipart::Part::bytes(file_bytes)
+        .file_name(file_name)
+        .mime_str("image/png")
+        .map_err(|e| LauncherError::Other(format!("MIME error: {}", e)))?;
+
+    let form = reqwest::multipart::Form::new()
+        .text("variant", variant.to_string())
+        .part("file", part);
+
+    client
+        .post(format!("{}/skins", MC_PROFILE_URL))
+        .header("Authorization", format!("Bearer {}", mc_token))
+        .multipart(form)
+        .send()
+        .await?
+        .error_for_status()?;
+    Ok(())
+}
+
+pub async fn delete_skin(mc_token: &str, skin_id: &str) -> Result<(), LauncherError> {
+    let client = crate::http_client::build_client();
+    client
+        .delete(format!("{}/skins/{}", MC_PROFILE_URL, skin_id))
+        .header("Authorization", format!("Bearer {}", mc_token))
+        .send()
+        .await?
+        .error_for_status()?;
+    Ok(())
 }

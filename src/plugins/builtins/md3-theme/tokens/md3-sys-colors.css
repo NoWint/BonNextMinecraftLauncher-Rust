@@ -1,0 +1,36 @@
+html[class*='theme-md3'] {
+  --md-sys-color-primary: var(--md3-primary);
+  --md-sys-color-on-primary: var(--md3-on-primary);
+  --md-sys-color-primary-container: var(--md3-primary-container);
+  --md-sys-color-on-primary-container: var(--md3-on-primary-container);
+  --md-sys-color-secondary: var(--md3-secondary);
+  --md-sys-color-on-secondary: var(--md3-on-secondary);
+  --md-sys-color-secondary-container: var(--md3-secondary-container);
+  --md-sys-color-on-secondary-container: var(--md3-on-secondary-container);
+  --md-sys-color-tertiary: var(--md3-tertiary);
+  --md-sys-color-on-tertiary: var(--md3-on-tertiary);
+  --md-sys-color-tertiary-container: var(--md3-tertiary-container);
+  --md-sys-color-on-tertiary-container: var(--md3-on-tertiary-container);
+  --md-sys-color-error: var(--md3-error);
+  --md-sys-color-on-error: var(--md3-on-error);
+  --md-sys-color-error-container: var(--md3-error-container);
+  --md-sys-color-on-error-container: var(--md3-on-error-container);
+  --md-sys-color-background: var(--md3-background);
+  --md-sys-color-on-background: var(--md3-on-background);
+  --md-sys-color-surface: var(--md3-surface);
+  --md-sys-color-on-surface: var(--md3-on-surface);
+  --md-sys-color-surface-variant: var(--md3-surface-variant);
+  --md-sys-color-on-surface-variant: var(--md3-on-surface-variant);
+  --md-sys-color-outline: var(--md3-outline);
+  --md-sys-color-outline-variant: var(--md3-outline-variant);
+  --md-sys-color-inverse-surface: var(--md3-inverse-surface);
+  --md-sys-color-inverse-on-surface: var(--md3-inverse-on-surface);
+  --md-sys-color-inverse-primary: var(--md3-inverse-primary);
+  --md-sys-color-shadow: var(--md3-shadow);
+  --md-sys-color-scrim: var(--md3-scrim);
+  --md-sys-color-surface-container-lowest: var(--md3-surface-container-lowest);
+  --md-sys-color-surface-container-low: var(--md3-surface-container-low);
+  --md-sys-color-surface-container: var(--md3-surface-container);
+  --md-sys-color-surface-container-high: var(--md3-surface-container-high);
+  --md-sys-color-surface-container-highest: var(--md3-surface-container-highest);
+}

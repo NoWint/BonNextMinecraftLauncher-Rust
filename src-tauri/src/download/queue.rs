@@ -5,6 +5,7 @@ use crate::error::LauncherError;
 use crate::platform::paths;
 use futures_util::StreamExt;
 use serde::Serialize;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
@@ -57,19 +58,61 @@ impl DownloadTask {
     }
 }
 
+pub struct DownloadControlState {
+    pub paused: Arc<std::sync::atomic::AtomicBool>,
+    pub cancelled_urls: Arc<parking_lot::Mutex<HashSet<String>>>,
+}
+
+impl DownloadControlState {
+    pub fn new() -> Self {
+        DownloadControlState {
+            paused: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            cancelled_urls: Arc::new(parking_lot::Mutex::new(HashSet::new())),
+        }
+    }
+
+    pub fn pause(&self) {
+        self.paused.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    pub fn resume(&self) {
+        self.paused.store(false, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    pub fn is_paused(&self) -> bool {
+        self.paused.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    pub fn cancel(&self, url: &str) {
+        self.cancelled_urls.lock().insert(url.to_string());
+    }
+
+    pub fn clear_cancelled(&self, url: &str) {
+        self.cancelled_urls.lock().remove(url);
+    }
+}
+
 pub struct DownloadQueue {
-    client: &'static reqwest::Client,
+    client: reqwest::Client,
     semaphore: Arc<Semaphore>,
     event_callback: Option<Arc<dyn Fn(DownloadProgress) + Send + Sync>>,
+    paused: Arc<std::sync::atomic::AtomicBool>,
+    cancelled_urls: Arc<parking_lot::Mutex<HashSet<String>>>,
 }
 
 impl DownloadQueue {
     pub fn new() -> Self {
+        Self::with_control(DownloadControlState::new())
+    }
+
+    pub fn with_control(control: DownloadControlState) -> Self {
         let max_concurrent = config::get_max_concurrent_downloads();
         DownloadQueue {
-            client: crate::http_client::build_download_client(),
+            client: crate::http_client::build_download_client().clone(),
             semaphore: Arc::new(Semaphore::new(max_concurrent)),
             event_callback: None,
+            paused: control.paused,
+            cancelled_urls: control.cancelled_urls,
         }
     }
 
@@ -87,7 +130,41 @@ impl DownloadQueue {
         }
     }
 
+    pub fn pause(&self) {
+        self.paused.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    pub fn resume(&self) {
+        self.paused.store(false, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    pub fn is_paused(&self) -> bool {
+        self.paused.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    pub fn cancel(&self, url: &str) {
+        self.cancelled_urls.lock().insert(url.to_string());
+    }
+
+    pub fn is_cancelled(&self, url: &str) -> bool {
+        self.cancelled_urls.lock().contains(url)
+    }
+
+    pub fn clear_cancelled(&self, url: &str) {
+        self.cancelled_urls.lock().remove(url);
+    }
+
+    async fn wait_while_paused(&self) {
+        while self.paused.load(std::sync::atomic::Ordering::SeqCst) {
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+    }
+
     pub async fn download_single(&self, task: &DownloadTask) -> Result<(), LauncherError> {
+        if self.is_cancelled(&task.url) {
+            return Err(LauncherError::DownloadFailed("cancelled".to_string()));
+        }
+
         if task.is_already_valid() {
             self.emit_progress(DownloadProgress {
                 url: task.url.clone(),
@@ -106,6 +183,13 @@ impl DownloadQueue {
 
         for (source_name, transformed_url) in &fallback_urls {
             for attempt in 0..=MAX_RETRIES {
+                self.wait_while_paused().await;
+
+                if self.is_cancelled(&task.url) {
+                    let _ = std::fs::remove_file(&task.target_path);
+                    return Err(LauncherError::DownloadFailed("cancelled".to_string()));
+                }
+
                 if attempt > 0 {
                     let delay = RETRY_BASE_DELAY_MS * 2u64.pow(attempt - 1);
                     tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
@@ -120,9 +204,7 @@ impl DownloadQueue {
                 match self.do_download(transformed_url, &task.target_path, task.size).await {
                     Ok(downloaded) => {
                         if !task.sha1.is_empty() {
-                            let target_path = task.target_path.clone();
-                            let sha1 = task.sha1.clone();
-                            if let Err(e) = verifier::verify_file_sha1_async(target_path, sha1).await {
+                            if let Err(e) = verifier::verify_file_sha1(&task.target_path, &task.sha1) {
                                 tracing::error!("SHA1 verification failed: {}", e);
                                 let _ = tokio::fs::remove_file(&task.target_path).await;
                                 last_error = Some(e.to_string());
@@ -188,6 +270,14 @@ impl DownloadQueue {
         let start_time = std::time::Instant::now();
 
         while let Some(chunk_result) = stream.next().await {
+            self.wait_while_paused().await;
+
+            if self.is_cancelled(url) {
+                drop(file);
+                let _ = tokio::fs::remove_file(target_path).await;
+                return Err(LauncherError::DownloadFailed("cancelled".to_string()));
+            }
+
             let chunk = chunk_result?;
             tokio::io::copy(&mut &chunk[..], &mut file).await?;
             downloaded += chunk.len() as u64;
@@ -224,9 +314,11 @@ impl DownloadQueue {
 
         for (index, task) in tasks.into_iter().enumerate() {
             let permit = self.semaphore.clone().acquire_owned().await?;
-            let client = self.client;
+            let client = self.client.clone();
             let callback = self.event_callback.clone();
             let semaphore = self.semaphore.clone();
+            let paused = self.paused.clone();
+            let cancelled_urls = self.cancelled_urls.clone();
 
             let handle = tokio::spawn(async move {
                 let _permit = permit;
@@ -234,6 +326,8 @@ impl DownloadQueue {
                     client,
                     semaphore,
                     event_callback: callback,
+                    paused,
+                    cancelled_urls,
                 };
                 let result = queue.download_single(&task).await;
                 if let Some(ref cb) = queue.event_callback {
@@ -340,23 +434,19 @@ pub async fn build_asset_object_tasks(
     let index_path = assets_dir.join("indexes").join(format!("{}.json", asset_index_id));
 
     if !index_path.exists() {
-        return Err(LauncherError::Other(format!(
+        return Err(LauncherError::AssetIndexNotFound(format!(
             "Asset index file not found: {}",
             index_path.display()
         )));
     }
 
-    let index_path_clone = index_path.clone();
-    let index = tokio::task::spawn_blocking(move || -> Result<serde_json::Value, LauncherError> {
-        let content = std::fs::read_to_string(&index_path_clone)?;
-        let index: serde_json::Value = serde_json::from_str(&content)?;
-        Ok(index)
-    }).await??;
+    let content = std::fs::read_to_string(&index_path)?;
+    let index: serde_json::Value = serde_json::from_str(&content)?;
 
     let objects = index
         .get("objects")
         .and_then(|o| o.as_object())
-        .ok_or_else(|| LauncherError::Other("Invalid asset index format".to_string()))?;
+        .ok_or_else(|| LauncherError::AssetIndexNotFound("Invalid asset index format".to_string()))?;
 
     let mut tasks = Vec::new();
 
@@ -383,4 +473,124 @@ pub async fn build_asset_object_tasks(
     }
 
     Ok(tasks)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn compute_speed_eta_zero_downloaded() {
+        let (speed, eta) = compute_speed_eta(0, 1000, std::time::Duration::from_secs(1));
+        assert_eq!(speed, 0);
+        assert_eq!(eta, 0);
+    }
+
+    #[test]
+    fn compute_speed_eta_short_elapsed() {
+        let (speed, eta) = compute_speed_eta(500, 1000, std::time::Duration::from_millis(50));
+        assert_eq!(speed, 0);
+        assert_eq!(eta, 0);
+    }
+
+    #[test]
+    fn compute_speed_eta_normal() {
+        let (speed, eta) = compute_speed_eta(500, 1000, std::time::Duration::from_secs(1));
+        assert_eq!(speed, 500);
+        assert_eq!(eta, 1);
+    }
+
+    #[test]
+    fn compute_speed_eta_complete() {
+        let (speed, eta) = compute_speed_eta(1000, 1000, std::time::Duration::from_secs(2));
+        assert_eq!(speed, 500);
+        assert_eq!(eta, 0);
+    }
+
+    #[test]
+    fn compute_speed_eta_partial() {
+        let (speed, eta) = compute_speed_eta(750, 1000, std::time::Duration::from_secs(3));
+        assert_eq!(speed, 250);
+        assert_eq!(eta, 1);
+    }
+
+    #[test]
+    fn download_task_new() {
+        let task = DownloadTask::new(
+            "https://example.com/file.jar",
+            "/tmp/file.jar",
+            "abc123",
+            1024,
+        );
+        assert_eq!(task.url, "https://example.com/file.jar");
+        assert_eq!(task.target_path, std::path::PathBuf::from("/tmp/file.jar"));
+        assert_eq!(task.sha1, "abc123");
+        assert_eq!(task.size, 1024);
+    }
+
+    #[test]
+    fn download_progress_serializes() {
+        let progress = DownloadProgress {
+            url: "https://example.com/file.jar".to_string(),
+            downloaded: 500,
+            total: 1000,
+            finished: false,
+            error: None,
+            bytes_per_second: 500,
+            eta_seconds: 1,
+        };
+        let json = serde_json::to_string(&progress).unwrap();
+        assert!(json.contains("\"url\""));
+        assert!(json.contains("\"downloaded\":500"));
+        assert!(json.contains("\"total\":1000"));
+        assert!(json.contains("\"finished\":false"));
+    }
+
+    #[test]
+    fn download_progress_with_error_serializes() {
+        let progress = DownloadProgress {
+            url: "https://example.com/file.jar".to_string(),
+            downloaded: 0,
+            total: 1000,
+            finished: true,
+            error: Some("connection timeout".to_string()),
+            bytes_per_second: 0,
+            eta_seconds: 0,
+        };
+        let json = serde_json::to_string(&progress).unwrap();
+        assert!(json.contains("\"error\":[\"connection timeout\"]"));
+    }
+
+    #[test]
+    fn retry_constants_sensible() {
+        assert!(MAX_RETRIES >= 1, "Should have at least 1 retry");
+        assert!(RETRY_BASE_DELAY_MS > 0, "Base delay should be positive");
+        let delay_1 = RETRY_BASE_DELAY_MS * 2u64.pow(0);
+        let delay_2 = RETRY_BASE_DELAY_MS * 2u64.pow(1);
+        let delay_3 = RETRY_BASE_DELAY_MS * 2u64.pow(2);
+        assert!(delay_1 < delay_2);
+        assert!(delay_2 < delay_3);
+    }
+
+    #[test]
+    fn download_task_is_already_valid_nonexistent() {
+        let task = DownloadTask::new(
+            "https://example.com/file.jar",
+            "/tmp/nonexistent_test_file_12345.jar",
+            "abc123",
+            1024,
+        );
+        assert!(!task.is_already_valid());
+    }
+
+    #[test]
+    fn download_task_empty_sha1_nonexistent_file() {
+        let task = DownloadTask::new(
+            "https://example.com/file.jar",
+            "/tmp/nonexistent_test_file_12345.jar",
+            "",
+            0,
+        );
+        assert!(!task.is_already_valid());
+    }
 }

@@ -1,0 +1,13 @@
+{
+  "name": "bonnext-wiki",
+  "version": "1.0.0",
+  "description": "BonNext project wiki - static site generator",
+  "scripts": {
+    "build": "node build.js",
+    "watch": "node build.js --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "marked": "^12.0.0"
+  }
+}

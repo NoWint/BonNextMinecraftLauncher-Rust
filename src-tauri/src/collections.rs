@@ -7,7 +7,6 @@ use std::path::PathBuf;
 static COLLECTION_LOCK: parking_lot::Mutex<()> = parking_lot::Mutex::new(());
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct CollectionItem {
     pub slug: String,
     pub title: String,

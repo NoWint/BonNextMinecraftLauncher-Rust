@@ -1,0 +1,59 @@
+html[class*='theme-md3'] [class*='button--primary'] {
+  border-radius: 20px;
+  clip-path: none;
+  background: var(--md3-primary);
+  color: var(--md3-on-primary);
+  box-shadow: var(--md3-elevation-0);
+  font-family: var(--font-body);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+html[class*='theme-md3'] [class*='button--primary']:hover:not(:disabled) {
+  box-shadow: var(--md3-elevation-1);
+  filter: none;
+}
+
+html[class*='theme-md3'] [class*='button--primary']:active:not(:disabled) {
+  box-shadow: var(--md3-elevation-0);
+  filter: none;
+  transform: scale(0.98);
+}
+
+html[class*='theme-md3'] [class*='button--secondary'] {
+  border-radius: 20px;
+  clip-path: none;
+  border: 1px solid var(--md3-outline);
+  background: transparent;
+  color: var(--md3-primary);
+}
+
+html[class*='theme-md3'] [class*='button--secondary']:hover:not(:disabled) {
+  background: var(--color-accent-06);
+  border-color: var(--md3-outline);
+  color: var(--md3-primary);
+}
+
+html[class*='theme-md3'] [class*='button--icon'] {
+  border-radius: 50%;
+  clip-path: none;
+}
+
+html[class*='theme-md3'] [class*='button--danger'] {
+  border-radius: 20px;
+  clip-path: none;
+  background: var(--md3-error);
+  color: var(--md3-on-error);
+}
+
+html[class*='theme-md3'] [class*='button--secondary-highlight'] {
+  border-radius: 20px;
+  clip-path: none;
+  border: 1px solid var(--md3-primary);
+  color: var(--md3-primary);
+}
+
+html[class*='theme-md3'] [class*='button--secondary-highlight']:hover:not(:disabled) {
+  background: var(--color-accent-06);
+}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useI18n } from '../../i18n';
+import { Icon } from './Icon';
 import { SpotlightOverlay } from './SpotlightOverlay';
 import type { TourStep } from './SpotlightOverlay';
 import styles from './OnboardingWizard.module.css';
@@ -9,27 +10,51 @@ const ONBOARDING_COMPLETED_KEY = 'bonnext_onboarding_completed';
 const ONBOARDING_FORCE_SHOW_KEY = 'bonnext_onboarding_force_show';
 
 export function isOnboardingSkipped(): boolean {
-  try { return localStorage.getItem(ONBOARDING_SKIPPED_KEY) === '1'; } catch { return false; }
+  try {
+    return localStorage.getItem(ONBOARDING_SKIPPED_KEY) === '1';
+  } catch {
+    return false;
+  }
 }
 
 export function isOnboardingCompleted(): boolean {
-  try { return localStorage.getItem(ONBOARDING_COMPLETED_KEY) === '1'; } catch { return false; }
+  try {
+    return localStorage.getItem(ONBOARDING_COMPLETED_KEY) === '1';
+  } catch {
+    return false;
+  }
 }
 
 export function isOnboardingForceShow(): boolean {
-  try { return localStorage.getItem(ONBOARDING_FORCE_SHOW_KEY) === '1'; } catch { return false; }
+  try {
+    return localStorage.getItem(ONBOARDING_FORCE_SHOW_KEY) === '1';
+  } catch {
+    return false;
+  }
 }
 
 export function clearForceShow() {
-  try { localStorage.removeItem(ONBOARDING_FORCE_SHOW_KEY); } catch {}
+  try {
+    localStorage.removeItem(ONBOARDING_FORCE_SHOW_KEY);
+  } catch {
+    /* empty */
+  }
 }
 
 function markSkipped() {
-  try { localStorage.setItem(ONBOARDING_SKIPPED_KEY, '1'); } catch {}
+  try {
+    localStorage.setItem(ONBOARDING_SKIPPED_KEY, '1');
+  } catch {
+    /* empty */
+  }
 }
 
 function markCompleted() {
-  try { localStorage.setItem(ONBOARDING_COMPLETED_KEY, '1'); } catch {}
+  try {
+    localStorage.setItem(ONBOARDING_COMPLETED_KEY, '1');
+  } catch {
+    /* empty */
+  }
 }
 
 export function resetOnboarding() {
@@ -37,7 +62,9 @@ export function resetOnboarding() {
     localStorage.removeItem(ONBOARDING_SKIPPED_KEY);
     localStorage.removeItem(ONBOARDING_COMPLETED_KEY);
     localStorage.setItem(ONBOARDING_FORCE_SHOW_KEY, '1');
-  } catch {}
+  } catch {
+    /* empty */
+  }
 }
 
 type TourMode = 'select' | 'quick' | 'detailed';
@@ -108,25 +135,32 @@ export default function OnboardingWizard({ open, onClose }: Props) {
     {
       page: 'home',
       title: t('onboarding.detailTitle') || 'Welcome to BonNext',
-      description: t('onboarding.detailHome') || 'HomePage is your launch center. Quick start game, manage instances, and see news.',
+      description:
+        t('onboarding.detailHome') ||
+        'HomePage is your launch center. Quick start game, manage instances, and see news.',
       highlight: t('onboarding.detailHomeHighlight') || 'Play area · Instance list · News ticker',
     },
     {
       page: 'instances',
       title: t('onboarding.detailInstancesTitle') || 'Instances',
-      description: t('onboarding.detailInstances') || 'Each instance is an independent Minecraft world with its own mods, settings, and saves.',
+      description:
+        t('onboarding.detailInstances') ||
+        'Each instance is an independent Minecraft world with its own mods, settings, and saves.',
       highlight: t('onboarding.detailInstancesHighlight') || 'Create · Launch · Delete · Snapshots',
     },
     {
       page: 'store',
       title: t('onboarding.detailMarketTitle') || 'Marketplace',
-      description: t('onboarding.detailMarket') || 'Browse thousands of mods, modpacks, shaders, and resource packs. Install with one click.',
+      description:
+        t('onboarding.detailMarket') ||
+        'Browse thousands of mods, modpacks, shaders, and resource packs. Install with one click.',
       highlight: t('onboarding.detailMarketHighlight') || 'Search · Filter · Install · Collections',
     },
     {
       page: 'settings',
       title: t('onboarding.detailSettingsTitle') || 'Settings',
-      description: t('onboarding.detailSettings') || 'Customize Java path, memory, theme, language, and more. Find it all here.',
+      description:
+        t('onboarding.detailSettings') || 'Customize Java path, memory, theme, language, and more. Find it all here.',
       highlight: t('onboarding.detailSettingsHighlight') || 'Memory · Java · Theme · Language',
     },
   ];
@@ -165,7 +199,7 @@ export default function OnboardingWizard({ open, onClose }: Props) {
   };
 
   const handleDetailedNext = useCallback(() => {
-    setDetailedStep(prev => {
+    setDetailedStep((prev) => {
       const next = prev + 1;
       if (next >= detailedSteps.length) {
         markCompleted();
@@ -193,19 +227,17 @@ export default function OnboardingWizard({ open, onClose }: Props) {
               {t('onboarding.skip') || 'Skip'}
             </button>
 
-            <div className={styles.modeTitle}>
-              {t('onboarding.welcome') || 'Welcome to BonNext'}
-            </div>
+            <div className={styles.modeTitle}>{t('onboarding.welcome') || 'Welcome to BonNext'}</div>
             <div className={styles.modeSubtitle}>
-              {t('onboarding.chooseMode') || 'Choose how you\'d like to get started'}
+              {t('onboarding.chooseMode') || "Choose how you'd like to get started"}
             </div>
 
             <div className={styles.modeCards}>
               <button className={styles.modeCard} onClick={handleQuickStart}>
-                <div className={styles.modeCardIcon}>⚡</div>
-                <div className={styles.modeCardTitle}>
-                  {t('onboarding.quickMode') || 'Quick Start'}
+                <div className={styles.modeCardIcon}>
+                  <Icon name="bolt" size={16} />
                 </div>
+                <div className={styles.modeCardTitle}>{t('onboarding.quickMode') || 'Quick Start'}</div>
                 <div className={styles.modeCardDesc}>
                   {t('onboarding.quickModeDesc') || 'Step-by-step guide on the real interface. Learn by doing.'}
                 </div>
@@ -215,10 +247,10 @@ export default function OnboardingWizard({ open, onClose }: Props) {
               </button>
 
               <button className={styles.modeCard} onClick={handleDetailedStart}>
-                <div className={styles.modeCardIcon}>📖</div>
-                <div className={styles.modeCardTitle}>
-                  {t('onboarding.detailedMode') || 'Detailed Tour'}
+                <div className={styles.modeCardIcon}>
+                  <Icon name="book" size={16} />
                 </div>
+                <div className={styles.modeCardTitle}>{t('onboarding.detailedMode') || 'Detailed Tour'}</div>
                 <div className={styles.modeCardDesc}>
                   {t('onboarding.detailedModeDesc') || 'Explore every feature page-by-page with full explanations.'}
                 </div>
@@ -232,12 +264,7 @@ export default function OnboardingWizard({ open, onClose }: Props) {
       )}
 
       {mode === 'quick' && (
-        <SpotlightOverlay
-          step={quickStep}
-          steps={quickSteps}
-          onNext={handleQuickNext}
-          onSkip={handleSkip}
-        />
+        <SpotlightOverlay step={quickStep} steps={quickSteps} onNext={handleQuickNext} onSkip={handleSkip} />
       )}
 
       {mode === 'detailed' && (
@@ -252,28 +279,24 @@ export default function OnboardingWizard({ open, onClose }: Props) {
                 <div
                   key={i}
                   className={`${styles.detailDot} ${
-                    i < detailedStep ? styles.detailDotDone
-                    : i === detailedStep ? styles.detailDotActive
-                    : styles.detailDotPending
+                    i < detailedStep
+                      ? styles.detailDotDone
+                      : i === detailedStep
+                        ? styles.detailDotActive
+                        : styles.detailDotPending
                   }`}
                 />
               ))}
             </div>
 
-            <div className={styles.detailTitle}>
-              {detailedSteps[detailedStep].title}
-            </div>
-            <div className={styles.detailDesc}>
-              {detailedSteps[detailedStep].description}
-            </div>
+            <div className={styles.detailTitle}>{detailedSteps[detailedStep].title}</div>
+            <div className={styles.detailDesc}>{detailedSteps[detailedStep].description}</div>
 
             <div className={styles.detailHighlight}>
               <span className={styles.detailHighlightLabel}>
                 {t('onboarding.detailHighlightLabel') || 'KEY FEATURES'}
               </span>
-              <span className={styles.detailHighlightText}>
-                {detailedSteps[detailedStep].highlight}
-              </span>
+              <span className={styles.detailHighlightText}>{detailedSteps[detailedStep].highlight}</span>
             </div>
 
             <div className={styles.detailFooter}>
@@ -281,9 +304,13 @@ export default function OnboardingWizard({ open, onClose }: Props) {
                 {detailedStep + 1} / {detailedSteps.length}
               </span>
               <button className={styles.detailNextBtn} onClick={handleDetailedNext}>
-                {detailedStep >= detailedSteps.length - 1
-                  ? (t('onboarding.launch') || 'FINISH')
-                  : (t('onboarding.next') || 'Next') + ' →'}
+                {detailedStep >= detailedSteps.length - 1 ? (
+                  t('onboarding.launch') || 'FINISH'
+                ) : (
+                  <>
+                    {t('onboarding.next') || 'Next'} <Icon name="arrowRight" size={14} />
+                  </>
+                )}
               </button>
             </div>
           </div>

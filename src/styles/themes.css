@@ -42,8 +42,8 @@
   --bg-card: #ffffff;
   --text-primary: #1a1a1a;
   --text-secondary: #555555;
-  --text-muted: #777777;
-  --accent: #ffe600;
+  --text-muted: #5a5a5a;
+  --accent: #6b5f00;
   --border: #e5e5e5;
   --border-hover: #b0b0b0;
   --danger: #cc2222;
@@ -64,23 +64,23 @@
   --color-text-muted: var(--text-muted);
   --color-text-tertiary: #999999;
   --color-text-dim: #999999;
-  --color-text-faint: #aaaaaa;
+  --color-text-faint: #767676;
 
-  --color-accent-action: #1a1a1a;
-  --color-accent-action-text: #ffe600;
-  --color-accent-06: rgba(255, 230, 0, 0.08);
-  --color-accent-10: rgba(255, 230, 0, 0.12);
-  --color-accent-15: rgba(255, 230, 0, 0.2);
-  --color-accent-20: rgba(255, 230, 0, 0.25);
-  --color-accent-30: rgba(255, 230, 0, 0.35);
+  --color-accent-action: #6b5f00;
+  --color-accent-action-text: #ffffff;
+  --color-accent-06: rgba(107, 95, 0, 0.15);
+  --color-accent-10: rgba(107, 95, 0, 0.2);
+  --color-accent-15: rgba(107, 95, 0, 0.2);
+  --color-accent-20: rgba(107, 95, 0, 0.25);
+  --color-accent-30: rgba(107, 95, 0, 0.35);
   --color-overlay-30: rgba(0, 0, 0, 0.15);
   --color-overlay-50: rgba(0, 0, 0, 0.3);
   --color-overlay-60: rgba(0, 0, 0, 0.4);
   --color-overlay-80: rgba(0, 0, 0, 0.6);
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.12);
-  --selection-bg: rgba(255, 230, 0, 0.25);
-  --selection-color: #1a1a1a;
+  --selection-bg: rgba(107, 95, 0, 0.25);
+  --selection-color: #ffffff;
   --scrollbar-thumb-color: rgba(0, 0, 0, 0.2);
   --scrollbar-thumb-hover: rgba(0, 0, 0, 0.35);
 }

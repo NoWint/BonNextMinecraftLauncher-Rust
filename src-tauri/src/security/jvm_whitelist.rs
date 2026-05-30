@@ -37,11 +37,38 @@ const ALLOWED_PREFIXES: &[&str] = &[
     "-Dsun.java2d.d3d=",
     "-Dsun.java2d.opengl=",
     "-Djava.net.preferIPv4Stack=",
+    "-Dminecraft.applet.TargetDirectory=",
+    "-Djava.library.path=",
+    "-Dorg.lwjgl.librarypath=",
+    "-Dorg.lwjgl.util.NoChecks=",
+    "-Dfml.ignoreInvalidMinecraftCertificates=",
+    "-Dfml.coreMods.load=",
+    "-Dmixin.debug.verbose=",
+    "-Dmixin.debug.export=",
+    "-agentlib:jdwp",
+];
+
+const BLOCKED_PREFIXES: &[&str] = &[
+    "-agentpath:",
+    "-agentlib:",
+    "-Xrunjdwp:",
+    "-javaagent:",
+    "-Djava.security.policy=",
+    "-Djava.rmi.server.",
+    "-Djavax.net.ssl.",
+    "-Djdk.http.auth.",
 ];
 
 pub fn validate_jvm_args(args: &[String]) -> Result<Vec<String>, LauncherError> {
     let mut valid = Vec::new();
     for arg in args {
+        let is_blocked = BLOCKED_PREFIXES.iter().any(|prefix| arg.starts_with(prefix));
+        if is_blocked {
+            return Err(LauncherError::SecurityValidation(format!(
+                "JVM argument blocked for security: {}",
+                arg
+            )));
+        }
         let is_allowed = ALLOWED_PREFIXES.iter().any(|prefix| arg.starts_with(prefix));
         if is_allowed {
             valid.push(arg.clone());
@@ -59,6 +86,11 @@ pub fn validate_jvm_args_custom(args: &[String]) -> (Vec<String>, Vec<String>) {
     let mut valid = Vec::new();
     let mut invalid = Vec::new();
     for arg in args {
+        let is_blocked = BLOCKED_PREFIXES.iter().any(|prefix| arg.starts_with(prefix));
+        if is_blocked {
+            invalid.push(arg.clone());
+            continue;
+        }
         let is_allowed = ALLOWED_PREFIXES.iter().any(|prefix| arg.starts_with(prefix));
         if is_allowed {
             valid.push(arg.clone());
@@ -69,6 +101,7 @@ pub fn validate_jvm_args_custom(args: &[String]) -> (Vec<String>, Vec<String>) {
     (valid, invalid)
 }
 
+// Used in tests only
 #[allow(dead_code)]
 pub fn get_whitelist_entries() -> Vec<&'static str> {
     ALLOWED_PREFIXES.to_vec()
@@ -112,5 +145,43 @@ mod tests {
         let entries = get_whitelist_entries();
         assert!(!entries.is_empty());
         assert!(entries.contains(&"-Xmx"));
+    }
+
+    #[test]
+    fn reject_agent_path() {
+        let args = vec!["-agentpath:/tmp/evil.so".to_string()];
+        assert!(validate_jvm_args(&args).is_err());
+    }
+
+    #[test]
+    fn reject_javaagent() {
+        let args = vec!["-javaagent:evil.jar".to_string()];
+        assert!(validate_jvm_args(&args).is_err());
+    }
+
+    #[test]
+    fn reject_security_policy() {
+        let args = vec!["-Djava.security.policy=/tmp/policy".to_string()];
+        assert!(validate_jvm_args(&args).is_err());
+    }
+
+    #[test]
+    fn allow_minecraft_properties() {
+        let args = vec![
+            "-Dminecraft.applet.TargetDirectory=/game".to_string(),
+            "-Djava.library.path=/lib".to_string(),
+        ];
+        assert!(validate_jvm_args(&args).is_ok());
+    }
+
+    #[test]
+    fn custom_validation_blocks_agents() {
+        let args = vec![
+            "-Xmx4G".to_string(),
+            "-agentpath:evil.so".to_string(),
+        ];
+        let (valid, invalid) = validate_jvm_args_custom(&args);
+        assert_eq!(valid, vec!["-Xmx4G"]);
+        assert_eq!(invalid, vec!["-agentpath:evil.so"]);
     }
 }

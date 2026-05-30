@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
 import {
   api,
   type GameInstance,
@@ -8,6 +7,9 @@ import {
   type LogFileInfo,
   type OptimizationPreset,
   type VersionEntry,
+  type RunningGameInfo,
+  type PreLaunchReport,
+  type HealthCheckReport,
 } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useInstances } from '../stores/instanceStore';
@@ -16,7 +18,9 @@ import { useI18n } from '../i18n';
 import { Badge, Tabs, Modal, Breadcrumb as BreadcrumbComp, TextInput, Tooltip } from '../components/ui';
 import { Button } from '../components/ui';
 import GameConsole from '../components/ui/GameConsole';
+import LogViewer from '../components/ui/LogViewer';
 import { relativeTime } from '../utils/time';
+import { formatError } from '../utils/errorMapping';
 import { open } from '@tauri-apps/plugin-dialog';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import styles from './InstanceDetailPage.module.css';
@@ -70,7 +74,7 @@ export default function InstanceDetailPage() {
   const { state, deleteInstance, reloadInstances } = useInstances();
   const { addToast } = useToast();
   const { t } = useI18n();
-  const { id: routeId } = useParams<{ id: string }>();
+  const { id: routeId = '' } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const auth = authState.currentUser;
   const [instance, setInstance] = useState<GameInstance | null>(null);
@@ -131,6 +135,16 @@ export default function InstanceDetailPage() {
     analysis: string;
   } | null>(null);
   const [loadingFps, setLoadingFps] = useState(false);
+
+  const [healthReport, setHealthReport] = useState<HealthCheckReport | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [healthModalOpen, setHealthModalOpen] = useState(false);
+
+  const [showLogViewer, setShowLogViewer] = useState(false);
+  const [runningGames, setRunningGames] = useState<RunningGameInfo[]>([]);
+  const [preLaunchReport, setPreLaunchReport] = useState<PreLaunchReport | null>(null);
+  const [showPreLaunchModal, setShowPreLaunchModal] = useState(false);
+  const [checkingPreLaunch, setCheckingPreLaunch] = useState(false);
 
   const instanceId = routeId || '';
 
@@ -236,6 +250,20 @@ export default function InstanceDetailPage() {
     }
   }, [activeTab, instanceId, fpsData]);
 
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const games = await api.getRunningGames();
+        setRunningGames(games);
+      } catch {
+        setRunningGames([]);
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleApplyPreset = async (presetId: string) => {
     if (!instanceId) return;
     setApplyingPreset(presetId);
@@ -251,8 +279,8 @@ export default function InstanceDetailPage() {
         .listInstanceMods(instanceId)
         .then(setInstalledMods)
         .catch(() => {});
-    } catch (e: any) {
-      addToast({ type: 'error', title: 'Apply Failed', message: e?.toString() || 'Failed to apply preset' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: 'Apply Failed', message: formatError(e) || 'Failed to apply preset' });
     } finally {
       setApplyingPreset(null);
     }
@@ -265,11 +293,11 @@ export default function InstanceDetailPage() {
     try {
       const results = await api.checkMigrationReadiness(instanceId, migrationTarget);
       setMigrationResults(results);
-    } catch (e: any) {
+    } catch (e: unknown) {
       addToast({
         type: 'error',
         title: 'Migration Check Failed',
-        message: e?.toString() || 'Failed to check migration',
+        message: formatError(e) || 'Failed to check migration',
       });
     } finally {
       setCheckingMigration(false);
@@ -282,10 +310,29 @@ export default function InstanceDetailPage() {
     try {
       const mem = await api.smartTuneMemory(instanceId);
       setSmartMemory(mem);
-    } catch (e: any) {
-      addToast({ type: 'error', title: 'Smart Tune Failed', message: e?.toString() || 'Failed to tune memory' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: 'Smart Tune Failed', message: formatError(e) || 'Failed to tune memory' });
     } finally {
       setTuningMemory(false);
+    }
+  };
+
+  const handleHealthCheck = async () => {
+    if (!instanceId) return;
+    setHealthLoading(true);
+    setHealthReport(null);
+    try {
+      const report = await api.healthCheck(instanceId);
+      setHealthReport(report);
+      setHealthModalOpen(true);
+    } catch (e: unknown) {
+      addToast({
+        type: 'error',
+        title: 'Health Check Failed',
+        message: formatError(e) || 'Failed to run health check',
+      });
+    } finally {
+      setHealthLoading(false);
     }
   };
 
@@ -309,8 +356,8 @@ export default function InstanceDetailPage() {
       setSnapshotName('');
       await loadSnapshots();
       addToast({ type: 'success', title: 'Snapshot created', message: name });
-    } catch (e: any) {
-      addToast({ type: 'error', title: 'Snapshot failed', message: e?.toString() || 'Failed to create snapshot' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: 'Snapshot failed', message: formatError(e) || 'Failed to create snapshot' });
     } finally {
       setSnapshotLoading(false);
     }
@@ -323,8 +370,8 @@ export default function InstanceDetailPage() {
       await api.restoreSnapshot(instanceId, snapshotId);
       await loadSnapshots();
       addToast({ type: 'success', title: 'Restored', message: `Snapshot "${name}" restored` });
-    } catch (e: any) {
-      addToast({ type: 'error', title: 'Restore failed', message: e?.toString() || 'Failed to restore snapshot' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: 'Restore failed', message: formatError(e) || 'Failed to restore snapshot' });
     }
   };
 
@@ -335,14 +382,40 @@ export default function InstanceDetailPage() {
       await api.deleteSnapshot(instanceId, snapshotId);
       await loadSnapshots();
       addToast({ type: 'success', title: 'Deleted', message: `Snapshot "${name}" deleted` });
-    } catch (e: any) {
-      addToast({ type: 'error', title: 'Delete failed', message: e?.toString() || 'Failed to delete snapshot' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: 'Delete failed', message: formatError(e) || 'Failed to delete snapshot' });
     }
   };
 
   const handleLaunch = useCallback(async () => {
     if (!instance) return;
     setError('');
+    setCheckingPreLaunch(true);
+    try {
+      const report = await api.preLaunchCheck(instance.id);
+      setPreLaunchReport(report);
+      const hasFail = report.items.some((i) => i.status === 'fail');
+      if (hasFail) {
+        setShowPreLaunchModal(true);
+        return;
+      }
+      const hasWarn = report.items.some((i) => i.status === 'warn');
+      if (hasWarn) {
+        setShowPreLaunchModal(true);
+        return;
+      }
+    } catch {
+      /* empty */
+    } finally {
+      setCheckingPreLaunch(false);
+    }
+    await doLaunch();
+  }, [instance, auth, addToast, t]);
+
+  const doLaunch = useCallback(async () => {
+    if (!instance) return;
+    setError('');
+    setShowPreLaunchModal(false);
     try {
       await api.launchGame(
         instance.version_id,
@@ -361,12 +434,12 @@ export default function InstanceDetailPage() {
         title: t('instances.launching'),
         message: t('instances.isStarting', { name: instance.name }),
       });
-    } catch (e: any) {
-      setError(e?.toString() || t('instances.launchFailed'));
+    } catch (e: unknown) {
+      setError(formatError(e) || t('instances.launchFailed'));
       addToast({
         type: 'error',
         title: t('instances.launchFailed'),
-        message: e?.toString() || t('instances.launchFailed'),
+        message: formatError(e) || t('instances.launchFailed'),
       });
       setTimeout(() => setError(''), 8000);
     }
@@ -386,18 +459,22 @@ export default function InstanceDetailPage() {
         addToast({ type: 'success', title: 'Icon Updated', message: 'Instance icon has been set' });
         setTimeout(() => setIconStatus('idle'), 2500);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       setIconStatus('error');
-      addToast({ type: 'error', title: 'Icon Failed', message: e?.toString() || 'Failed to set icon' });
+      addToast({ type: 'error', title: 'Icon Failed', message: formatError(e) || 'Failed to set icon' });
       setTimeout(() => setIconStatus('idle'), 2500);
     }
   };
 
   const handleDelete = async () => {
     if (!instance) return;
-    await deleteInstance(instance.id);
-    addToast({ type: 'success', title: 'Deleted', message: `Instance "${instance.name}" deleted` });
-    navigate('/instances');
+    try {
+      await deleteInstance(instance.id);
+      addToast({ type: 'success', title: 'Deleted', message: `Instance "${instance.name}" deleted` });
+      navigate('/instances');
+    } catch (e) {
+      addToast({ type: 'error', title: 'Delete failed', message: formatError(e) });
+    }
   };
 
   const handleDuplicate = async () => {
@@ -414,8 +491,8 @@ export default function InstanceDetailPage() {
       setDuplicateOpen(false);
       await reloadInstances();
       navigate('/instances');
-    } catch (e: any) {
-      addToast({ type: 'error', title: 'Duplicate failed', message: e?.toString() || 'Failed to duplicate' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: 'Duplicate failed', message: formatError(e) || 'Failed to duplicate' });
     }
   };
 
@@ -433,8 +510,8 @@ export default function InstanceDetailPage() {
         await api.exportMrpack(instance.id, path);
         addToast({ type: 'success', title: t('instances.exportAsMrpack') || 'Exported' });
       }
-    } catch (e: any) {
-      addToast({ type: 'error', title: t('instances.exportFailed') || 'Export failed', message: e?.toString() || '' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instances.exportFailed') || 'Export failed', message: formatError(e) || '' });
     } finally {
       setExporting(false);
     }
@@ -447,8 +524,8 @@ export default function InstanceDetailPage() {
         const updated = { ...instance, ...updates };
         await api.updateInstance(updated);
         setInstance(updated);
-      } catch (e: any) {
-        addToast({ type: 'error', title: 'Update failed', message: e?.toString() || 'Failed to update instance' });
+      } catch (e: unknown) {
+        addToast({ type: 'error', title: 'Update failed', message: formatError(e) || 'Failed to update instance' });
       }
     },
     [instance, addToast],
@@ -473,7 +550,7 @@ export default function InstanceDetailPage() {
 
   return (
     <div className={styles.page}>
-      <BreadcrumbComp items={[{ label: t('instances.title'), href: '#/instances' }, { label: instance.name }]} />
+      <BreadcrumbComp items={[{ label: t('instances.title'), href: '/instances' }, { label: instance.name }]} />
 
       {/* Top info bar */}
       <div className={styles.topBar}>
@@ -512,9 +589,21 @@ export default function InstanceDetailPage() {
           </div>
         </div>
         <div className={styles.topBarActions}>
+          {runningGames.some((g) => g.instance_id === instanceId && g.state === 'running') && (
+            <Tooltip content="View Logs">
+              <Button variant="secondary" size="sm" onClick={() => setShowLogViewer(true)}>
+                📋 Logs
+              </Button>
+            </Tooltip>
+          )}
           <Tooltip content={t('common.launch')}>
-            <Button variant="primary" size="md" onClick={handleLaunch}>
+            <Button variant="primary" size="md" onClick={handleLaunch} disabled={checkingPreLaunch}>
               ▶ {t('instanceDetail.launch')}
+            </Button>
+          </Tooltip>
+          <Tooltip content="Health Check">
+            <Button variant="secondary" size="sm" onClick={handleHealthCheck} disabled={healthLoading}>
+              🏥 {healthLoading ? 'Checking...' : 'Health Check'}
             </Button>
           </Tooltip>
           <Tooltip content={t('instances.exportAsMrpack')}>
@@ -1170,6 +1259,133 @@ export default function InstanceDetailPage() {
             autoFocus
           />
         </div>
+      </Modal>
+
+      {/* Log Viewer modal */}
+      <Modal
+        open={showLogViewer}
+        onClose={() => setShowLogViewer(false)}
+        title="GAME LOG VIEWER"
+        actions={
+          <Button variant="secondary" size="sm" onClick={() => setShowLogViewer(false)}>
+            {t('common.cancel') || 'Close'}
+          </Button>
+        }
+      >
+        <div style={{ height: 400 }}>
+          <LogViewer instanceId={instanceId} visible={showLogViewer} />
+        </div>
+      </Modal>
+
+      {/* Pre-launch check modal */}
+      <Modal
+        open={showPreLaunchModal}
+        onClose={() => setShowPreLaunchModal(false)}
+        title="PRE-LAUNCH CHECK"
+        actions={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setShowPreLaunchModal(false)}>
+              Cancel
+            </Button>
+            {preLaunchReport && preLaunchReport.can_launch && (
+              <Button variant="primary" size="sm" onClick={doLaunch}>
+                Launch Anyway
+              </Button>
+            )}
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {preLaunchReport?.items.map((item, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '8px 12px',
+                background: '#141414',
+                border: '1px solid #1C1C1C',
+                fontSize: '0.55em',
+              }}
+            >
+              <span
+                style={{
+                  fontWeight: 700,
+                  minWidth: 40,
+                  color: item.status === 'pass' ? '#00FF88' : item.status === 'warn' ? '#FFE600' : '#FF6B6B',
+                }}
+              >
+                {item.status.toUpperCase()}
+              </span>
+              <span style={{ color: '#AAA', flex: 1 }}>{item.message}</span>
+            </div>
+          ))}
+          {preLaunchReport && !preLaunchReport.can_launch && (
+            <div style={{ fontSize: '0.55em', color: '#FF6B6B', marginTop: 8 }}>
+              Cannot launch — fix the issues above before proceeding.
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      <Modal
+        open={healthModalOpen}
+        onClose={() => setHealthModalOpen(false)}
+        title="HEALTH CHECK"
+        actions={
+          <Button variant="primary" size="sm" onClick={() => setHealthModalOpen(false)}>
+            OK
+          </Button>
+        }
+      >
+        {healthReport && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.8em' }}>
+                Overall: {healthReport.overall === 'pass' ? '✅' : healthReport.overall === 'warn' ? '⚠️' : '❌'}
+              </span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55em', color: 'var(--color-text-dim)' }}>
+                {healthReport.instance_id}
+              </span>
+            </div>
+            {healthReport.items.map((item, i) => (
+              <div
+                key={i}
+                style={{
+                  background: 'var(--color-panel-alt)',
+                  border: '1px solid var(--color-border)',
+                  padding: '8px 12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6em', color: '#FFF' }}>{item.name}</span>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-heading)',
+                      fontSize: '0.55em',
+                      color:
+                        item.status === 'pass'
+                          ? 'var(--color-success)'
+                          : item.status === 'warn'
+                            ? 'var(--color-accent)'
+                            : 'var(--color-error)',
+                    }}
+                  >
+                    {item.status.toUpperCase()}
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.5em', color: 'var(--color-text-secondary)' }}>{item.message}</span>
+                {item.suggestion && (
+                  <span style={{ fontSize: '0.5em', color: 'var(--color-accent)' }}>💡 {item.suggestion}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </Modal>
     </div>
   );

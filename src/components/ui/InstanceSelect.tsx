@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { type GameInstance } from '../../api';
+import { Icon } from './Icon';
 import { Badge } from './Status';
 import styles from './InstanceSelect.module.css';
 
@@ -13,19 +14,16 @@ interface InstanceSelectProps {
 
 function getLoaderLabel(loaderType: string | null): string {
   switch (loaderType) {
-    case 'fabric': return 'Fabric';
-    case 'forge': return 'Forge';
-    default: return 'Vanilla';
+    case 'fabric':
+      return 'Fabric';
+    case 'forge':
+      return 'Forge';
+    default:
+      return 'Vanilla';
   }
 }
 
-export function InstanceSelect({
-  value,
-  onChange,
-  instances,
-  filterVersion,
-  filterLoader,
-}: InstanceSelectProps) {
+export function InstanceSelect({ value, onChange, instances, filterVersion, filterLoader }: InstanceSelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -49,18 +47,16 @@ export function InstanceSelect({
 
   return (
     <div className={styles.select} ref={ref}>
-      <button
-        type="button"
-        className={styles.select__trigger}
-        onClick={() => setOpen(!open)}
-      >
+      <button type="button" className={styles.select__trigger} onClick={() => setOpen(!open)}>
         <div className={styles.select__icon}>
-          {selected?.loader_type === 'fabric' ? '\u{1F9F5}' : selected?.loader_type === 'forge' ? '\u{2692}' : '\u{1F4E6}'}
+          {selected?.loader_type === 'fabric'
+            ? '\u{1F9F5}'
+            : selected?.loader_type === 'forge'
+              ? '\u{2692}'
+              : '\u{1F4E6}'}
         </div>
         <div className={styles.select__info}>
-          <span className={styles.select__name}>
-            {selected?.name || 'Select instance...'}
-          </span>
+          <span className={styles.select__name}>{selected?.name || 'Select instance...'}</span>
           {selected && (
             <>
               <Badge variant="accent">{selected.version_id}</Badge>
@@ -68,7 +64,9 @@ export function InstanceSelect({
             </>
           )}
         </div>
-        <span className={styles.select__arrow}>{open ? '▲' : '▼'}</span>
+        <span className={styles.select__arrow}>
+          {open ? <Icon name="chevronUp" size={10} /> : <Icon name="chevronDown" size={10} />}
+        </span>
       </button>
 
       <div className={`${styles.select__dropdown} ${open ? styles['select__dropdown--open'] : ''}`}>
@@ -79,7 +77,10 @@ export function InstanceSelect({
             <div
               key={inst.id}
               className={`${styles.select__option} ${inst.id === value ? styles['select__option--active'] : ''}`}
-              onClick={() => { onChange(inst.id); setOpen(false); }}
+              onClick={() => {
+                onChange(inst.id);
+                setOpen(false);
+              }}
             >
               {inst.name}
               <span style={{ marginLeft: 8 }}>

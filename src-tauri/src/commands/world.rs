@@ -235,13 +235,13 @@ pub async fn list_instance_logs(instance_id: String) -> Result<Vec<LogFileInfo>,
 #[tauri::command]
 pub async fn read_log_file(instance_id: String, filename: String, max_lines: Option<usize>) -> Result<String, LauncherError> {
     if filename.contains("..") || filename.contains('/') || filename.contains('\\') {
-        return Err(LauncherError::Other("Invalid filename".into()));
+        return Err(LauncherError::SecurityValidation("Invalid filename".into()));
     }
     let mc_dir = paths::get_instance_minecraft_dir(&instance_id);
     let log_path = mc_dir.join("logs").join(&filename);
 
     if !log_path.exists() {
-        return Err(LauncherError::Other(format!("Log file not found: {}", filename)));
+        return Err(LauncherError::VersionNotFound(format!("Log file not found: {}", filename)));
     }
 
     let content = std::fs::read_to_string(&log_path)?;
@@ -252,4 +252,47 @@ pub async fn read_log_file(instance_id: String, filename: String, max_lines: Opt
     } else {
         Ok(lines[lines.len() - limit..].join("\n"))
     }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RecentLogLine {
+    pub line: String,
+    pub level: String,
+}
+
+#[tauri::command]
+pub async fn get_recent_logs(instance_id: String, lines: Option<usize>) -> Result<Vec<RecentLogLine>, LauncherError> {
+    let limit = lines.unwrap_or(200);
+    let mc_dir = paths::get_instance_minecraft_dir(&instance_id);
+    let latest_log = mc_dir.join("logs").join("latest.log");
+
+    if !latest_log.exists() {
+        let debug_log = mc_dir.join("logs").join("debug.log");
+        if debug_log.exists() {
+            return read_log_tail(&debug_log, limit);
+        }
+        return Ok(Vec::new());
+    }
+
+    read_log_tail(&latest_log, limit)
+}
+
+fn read_log_tail(path: &std::path::Path, limit: usize) -> Result<Vec<RecentLogLine>, LauncherError> {
+    let content = std::fs::read_to_string(path)?;
+    let all_lines: Vec<&str> = content.lines().collect();
+    let start = if all_lines.len() > limit { all_lines.len() - limit } else { 0 };
+    let tail = &all_lines[start..];
+
+    Ok(tail.iter().map(|l| {
+        let level = if l.contains("ERROR") || l.contains("FATAL") || l.contains("Exception") || l.contains("SEVERE") {
+            "ERROR".to_string()
+        } else if l.contains("WARN") || l.contains("WARNING") {
+            "WARN".to_string()
+        } else if l.contains("DEBUG") || l.contains("TRACE") || l.contains("FINE") {
+            "DEBUG".to_string()
+        } else {
+            "INFO".to_string()
+        };
+        RecentLogLine { line: l.to_string(), level }
+    }).collect())
 }

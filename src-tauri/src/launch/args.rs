@@ -23,6 +23,8 @@ pub struct LaunchContext {
     pub fullscreen: bool,
     pub user_type: String,
     pub extra_jvm_args: Option<String>,
+    pub debug_mode: bool,
+    pub debug_port: u16,
 }
 
 pub struct InstanceSettings {
@@ -32,6 +34,8 @@ pub struct InstanceSettings {
     pub java_path: Option<String>,
     pub jvm_args: Option<String>,
     pub user_type: Option<String>,
+    pub debug_mode: Option<bool>,
+    pub debug_port: Option<u16>,
 }
 
 impl LaunchContext {
@@ -114,6 +118,9 @@ impl LaunchContext {
         let extra_jvm_args = instance.as_ref().and_then(|i| i.jvm_args.clone())
             .or_else(|| cfg.jvm_args.clone());
 
+        let debug_mode = instance.as_ref().and_then(|i| i.debug_mode).unwrap_or(false);
+        let debug_port = instance.as_ref().and_then(|i| i.debug_port).unwrap_or(5005);
+
         Ok(LaunchContext {
             version,
             username,
@@ -131,11 +138,13 @@ impl LaunchContext {
             fullscreen: cfg.fullscreen,
             user_type,
             extra_jvm_args,
+            debug_mode,
+            debug_port,
         })
     }
 }
 
-pub fn build_launch_command(ctx: &LaunchContext) -> Result<Vec<String>, LauncherError> {
+pub async fn build_launch_command(ctx: &LaunchContext) -> Result<Vec<String>, LauncherError> {
     let mut cmd = Vec::new();
 
     cmd.push(paths::path_to_string(&ctx.java_path)?);
@@ -143,16 +152,94 @@ pub fn build_launch_command(ctx: &LaunchContext) -> Result<Vec<String>, Launcher
     cmd.push(format!("-Xms{}m", ctx.min_memory));
     cmd.push(format!("-Xmx{}m", ctx.max_memory));
 
+    if ctx.debug_mode {
+        cmd.push(format!("-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:{}", ctx.debug_port));
+    }
+
     let active_account = crate::auth::token_store::AccountStore::load().ok().and_then(|s| s.get_active().cloned());
     if let Some(ref acct) = active_account {
-        if acct.account_type == "yggdrasil" {
-            if let Some(ref server_url) = acct.yggdrasil_server_url {
-                let jar_path = crate::platform::paths::get_game_dir().join("shared").join("authlib-injector.jar");
-                if jar_path.exists() {
-                    let agent_arg = format!("-javaagent:{}={}", jar_path.to_string_lossy(), server_url);
-                    cmd.push(agent_arg);
+        let jar_path = crate::platform::paths::get_game_dir().join("shared").join("authlib-injector.jar");
+        let jar_valid = jar_path.exists() && std::fs::read(&jar_path).map(|data| data.len() > 4 && &data[0..4] == b"PK\x03\x04").unwrap_or(false);
+        if jar_valid {
+            if acct.account_type == "yggdrasil" {
+                if let Some(ref server_url) = acct.yggdrasil_server_url {
+                    if let Some(ref skin_path) = acct.local_skin_path {
+                        if std::path::Path::new(skin_path).exists() {
+                            match crate::auth::skin_server::start_skin_server(
+                                &acct.uuid,
+                                &acct.username,
+                                skin_path,
+                                acct.local_skin_model.as_deref().unwrap_or("default"),
+                                None,
+                            ).await {
+                                Ok(handle) => {
+                                    let server_url_local = format!("http://127.0.0.1:{}", handle.port);
+                                    let agent_arg = format!("-javaagent:{}={}", jar_path.to_string_lossy(), server_url_local);
+                                    cmd.push(agent_arg);
+                                    crate::auth::skin_server::set_active_handle(handle);
+                                }
+                                Err(e) => {
+                                    tracing::warn!("Failed to start local skin server for yggdrasil account: {}", e);
+                                    let agent_arg = format!("-javaagent:{}={}", jar_path.to_string_lossy(), server_url);
+                                    cmd.push(agent_arg);
+                                }
+                            }
+                        } else {
+                            let agent_arg = format!("-javaagent:{}={}", jar_path.to_string_lossy(), server_url);
+                            cmd.push(agent_arg);
+                        }
+                    } else {
+                        let agent_arg = format!("-javaagent:{}={}", jar_path.to_string_lossy(), server_url);
+                        cmd.push(agent_arg);
+                    }
+                }
+            } else if acct.account_type == "offline" {
+                if let Some(ref skin_path) = acct.local_skin_path {
+                    if std::path::Path::new(skin_path).exists() {
+                        match crate::auth::skin_server::start_skin_server(
+                            &acct.uuid,
+                            &acct.username,
+                            skin_path,
+                            acct.local_skin_model.as_deref().unwrap_or("default"),
+                            None,
+                        ).await {
+                            Ok(handle) => {
+                                let server_url = format!("http://127.0.0.1:{}", handle.port);
+                                let agent_arg = format!("-javaagent:{}={}", jar_path.to_string_lossy(), server_url);
+                                cmd.push(agent_arg);
+                                crate::auth::skin_server::set_active_handle(handle);
+                            }
+                            Err(e) => {
+                                tracing::warn!("Failed to start local skin server: {}", e);
+                            }
+                        }
+                    }
+                }
+            } else if acct.account_type == "microsoft" {
+                if let Some(ref skin_path) = acct.local_skin_path {
+                    if std::path::Path::new(skin_path).exists() {
+                        match crate::auth::skin_server::start_skin_server(
+                            &acct.uuid,
+                            &acct.username,
+                            skin_path,
+                            acct.local_skin_model.as_deref().unwrap_or("default"),
+                            None,
+                        ).await {
+                            Ok(handle) => {
+                                let server_url = format!("http://127.0.0.1:{}", handle.port);
+                                let agent_arg = format!("-javaagent:{}={}", jar_path.to_string_lossy(), server_url);
+                                cmd.push(agent_arg);
+                                crate::auth::skin_server::set_active_handle(handle);
+                            }
+                            Err(e) => {
+                                tracing::warn!("Failed to start local skin server: {}", e);
+                            }
+                        }
+                    }
                 }
             }
+        } else {
+            tracing::warn!("authlib-injector.jar not found at {:?}", jar_path);
         }
     }
 

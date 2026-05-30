@@ -3,6 +3,7 @@
   flex-direction: column;
   gap: 14px;
   height: 100%;
+  overflow-y: auto;
 }
 
 /* Summary */
@@ -264,8 +265,13 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
 /* Loading */

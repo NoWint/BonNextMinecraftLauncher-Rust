@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod config;
+pub mod download;
 pub mod instance;
 pub mod launch;
 pub mod version;
@@ -18,3 +19,4 @@ pub mod optimization;
 pub mod achievement;
 pub mod search;
 pub mod misc;
+pub mod terracotta;

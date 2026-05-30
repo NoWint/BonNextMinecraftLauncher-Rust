@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api, type AuditEntry } from '../../api';
+import { Icon } from './Icon';
 import styles from './AuditLogViewer.module.css';
 
 interface AuditLogViewerProps {
@@ -17,7 +18,8 @@ export default function AuditLogViewer({ open, onClose }: AuditLogViewerProps) {
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    api.getAuditLog(category === 'ALL' ? undefined : category, 100)
+    api
+      .getAuditLog(category === 'ALL' ? undefined : category, 100)
       .then(setEntries)
       .catch(() => setEntries([]))
       .finally(() => setLoading(false));
@@ -30,16 +32,16 @@ export default function AuditLogViewer({ open, onClose }: AuditLogViewerProps) {
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <h3 className={styles.title}>安全审计日志</h3>
-          <button className={styles.closeBtn} onClick={onClose} aria-label="Close audit log">✕</button>
+          <button className={styles.closeBtn} onClick={onClose} aria-label="Close audit log">
+            <Icon name="cross" size={14} />
+          </button>
         </div>
         <div className={styles.filter}>
-          <select
-            className={styles.select}
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          >
-            {CATEGORIES.map(c => (
-              <option key={c} value={c}>{c}</option>
+          <select className={styles.select} value={category} onChange={(e) => setCategory(e.target.value)}>
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
             ))}
           </select>
         </div>
@@ -60,7 +62,9 @@ export default function AuditLogViewer({ open, onClose }: AuditLogViewerProps) {
           )}
         </div>
         <div className={styles.footer}>
-          <button className={styles.closeFooterBtn} onClick={onClose}>关闭</button>
+          <button className={styles.closeFooterBtn} onClick={onClose}>
+            关闭
+          </button>
         </div>
       </div>
     </div>

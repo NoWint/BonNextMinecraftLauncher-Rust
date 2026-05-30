@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { formatError } from '../../utils/errorMapping';
 import { api } from '../../api';
 import { useToast } from '../../stores/toastStore';
 import { useDownloads } from '../../stores/downloadStore';
+import type { DownloadTask } from '../../stores/downloadStore';
 import { Button } from './Button';
 
 interface InstallButtonProps {
@@ -25,21 +27,40 @@ async function downloadSingle(
   contentType: string,
   versionId: string,
   sha1: string | undefined,
-  addTask: (t: any) => void,
-  updateTask: (id: string, status: any, err?: string) => void,
+  addTask: (t: DownloadTask) => void,
+  updateTask: (
+    id: string,
+    status: DownloadTask['status'],
+    err?: string,
+    progress?: number,
+    speed?: number,
+    eta?: number,
+  ) => void,
   source: string,
 ) {
   const taskId = `${slug}-${Date.now()}`;
   addTask({ id: taskId, title, filename, status: 'pending', startedAt: Date.now() });
   updateTask(taskId, 'downloading');
 
-  if (source === 'curseforge') {
-    await api.downloadCfMod(fileUrl, filename, instanceId, contentType, sha1, slug, versionId);
-  } else {
-    await api.installContent(fileUrl, filename, instanceId, contentType, sha1, slug, versionId, source);
-  }
+  const unlisten = await api.onContentDownloadProgress((p) => {
+    if (p.slug === slug && p.filename === filename) {
+      updateTask(taskId, 'downloading', undefined, p.progress, p.speed_bytes_per_sec, p.eta_seconds);
+    }
+  });
 
-  updateTask(taskId, 'complete');
+  try {
+    if (source === 'curseforge') {
+      await api.downloadCfMod(fileUrl, filename, instanceId, contentType, sha1, slug, versionId);
+    } else {
+      await api.installContent(fileUrl, filename, instanceId, contentType, sha1, slug, versionId, source);
+    }
+    updateTask(taskId, 'complete');
+  } catch (e) {
+    updateTask(taskId, 'failed', e instanceof Error ? e.message : String(e));
+    throw e;
+  } finally {
+    unlisten();
+  }
 }
 
 export function InstallButton({
@@ -67,19 +88,23 @@ export function InstallButton({
     const ct = contentType || 'mod';
 
     try {
-      const versions = source === 'curseforge'
-        ? await api.getCfModVersions(parseInt(contentSlug, 10))
-        : await api.getModVersions(contentSlug, gameVersion, loader || undefined);
+      const versions =
+        source === 'curseforge'
+          ? await api.getCfModVersions(parseInt(contentSlug, 10))
+          : await api.getModVersions(contentSlug, gameVersion, loader || undefined);
       if (versions.length === 0) {
-        addToast({ type: 'error', title: 'No compatible version', message: `${contentTitle} has no version for your config.` });
+        addToast({
+          type: 'error',
+          title: 'No compatible version',
+          message: `${contentTitle} has no version for your config.`,
+        });
         setInstalling(false);
         return;
       }
 
       const latest = versions[0];
-      const primaryFile = latest.files.find(
-        (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
-      ) || latest.files[0];
+      const primaryFile =
+        latest.files.find((f) => !f.filename.includes('sources') && !f.filename.includes('javadoc')) || latest.files[0];
 
       // Resolve required dependencies
       const requiredDeps = latest.dependencies.filter((d) => d.dependency_type === 'required');
@@ -95,9 +120,9 @@ export function InstallButton({
                 api.getVersionById(dep.version_id),
                 api.getModDetails(dep.project_id),
               ]);
-              const file = version.files.find(
-                (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
-              ) || version.files[0];
+              const file =
+                version.files.find((f) => !f.filename.includes('sources') && !f.filename.includes('javadoc')) ||
+                version.files[0];
               return { project, version, file };
             } catch {
               return null;
@@ -123,23 +148,36 @@ export function InstallButton({
               source,
             );
             depCount++;
-          } catch (e: any) {
-            addToast({ type: 'error', title: 'Dep failed', message: `${dep.project.title}: ${e?.toString()}` });
+          } catch (e: unknown) {
+            addToast({ type: 'error', title: 'Dep failed', message: `${dep.project.title}: ${formatError(e)}` });
           }
         }
       }
 
       // Install main item
-      await downloadSingle(contentSlug, contentTitle, primaryFile.url, primaryFile.filename, instanceId, ct, latest.id, primaryFile.hashes.sha1 || undefined, addTask, updateTask, source);
+      await downloadSingle(
+        contentSlug,
+        contentTitle,
+        primaryFile.url,
+        primaryFile.filename,
+        instanceId,
+        ct,
+        latest.id,
+        primaryFile.hashes.sha1 || undefined,
+        addTask,
+        updateTask,
+        source,
+      );
 
-      const msg = depCount > 0
-        ? `${contentTitle} ${latest.version_number} + ${depCount} dependencies`
-        : `${contentTitle} ${latest.version_number}`;
+      const msg =
+        depCount > 0
+          ? `${contentTitle} ${latest.version_number} + ${depCount} dependencies`
+          : `${contentTitle} ${latest.version_number}`;
 
       addToast({ type: 'success', title: 'Installed', message: msg });
       onInstalled?.();
-    } catch (e: any) {
-      addToast({ type: 'error', title: 'Install failed', message: e?.toString() || 'Unknown error' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: 'Install failed', message: formatError(e) || 'Unknown error' });
     } finally {
       setInstalling(false);
     }

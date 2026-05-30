@@ -15,8 +15,11 @@ function detectBrowserLang(): Lang {
   try {
     const stored = localStorage.getItem(LANG_STORAGE_KEY);
     if (stored === 'zh-CN' || stored === 'en-US') return stored;
-  } catch {}
-  const navLang = navigator.language || (navigator as any).userLanguage || '';
+  } catch {
+    /* empty */
+  }
+  const navLang =
+    navigator.language || ((navigator as unknown as Record<string, unknown>).userLanguage as string) || '';
   if (navLang.startsWith('zh')) return 'zh-CN';
   return 'en-US';
 }
@@ -36,7 +39,9 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     setLangState(l);
     try {
       localStorage.setItem(LANG_STORAGE_KEY, l);
-    } catch {}
+    } catch {
+      /* empty */
+    }
   }, []);
 
   const t = useCallback(
@@ -57,11 +62,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     [lang],
   );
 
-  return (
-    <I18nContext.Provider value={{ lang, setLang, t }}>
-      {children}
-    </I18nContext.Provider>
-  );
+  return <I18nContext.Provider value={{ lang, setLang, t }}>{children}</I18nContext.Provider>;
 }
 
 export function useI18n(): I18nContextValue {

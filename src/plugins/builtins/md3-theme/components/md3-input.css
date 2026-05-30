@@ -1,0 +1,16 @@
+html[class*='theme-md3'] [class*='textInput'] {
+  border-radius: var(--md3-shape-corner-extra-small, 4px);
+  clip-path: none;
+  border: none;
+  border-bottom: 2px solid var(--md3-on-surface-variant);
+  background: var(--md3-surface-container-highest);
+}
+
+html[class*='theme-md3'] [class*='textInput']:focus {
+  border-bottom-color: var(--md3-primary);
+}
+
+html[class*='theme-md3'] [class*='select'] {
+  border-radius: var(--md3-shape-corner-extra-small, 4px);
+  clip-path: none;
+}

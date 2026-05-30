@@ -104,7 +104,7 @@ describe('authReducer', () => {
   });
 
   it('should return current state for unknown action type', () => {
-    const next = authReducer(initialState, { type: 'UNKNOWN' } as any);
+    const next = authReducer(initialState, { type: 'UNKNOWN' } as unknown as Parameters<typeof authReducer>[1]);
     expect(next).toEqual(initialState);
   });
 });

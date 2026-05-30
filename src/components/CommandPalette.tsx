@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Icon } from './ui/Icon';
 import styles from './CommandPalette.module.css';
 
 interface Command {
@@ -10,27 +12,80 @@ interface Command {
   action: () => void;
 }
 
-const COMMANDS: Command[] = [
-  { id: 'home', label: 'Home', description: 'Go to dashboard', shortcut: 'Ctrl+H', category: 'Navigation', action: () => window.location.hash = '#/home' },
-  { id: 'instances', label: 'Instances', description: 'Manage instances', shortcut: 'Ctrl+I', category: 'Navigation', action: () => window.location.hash = '#/instances' },
-  { id: 'mods', label: 'Mod Browser', description: 'Browse and install mods', shortcut: 'Ctrl+M', category: 'Navigation', action: () => window.location.hash = '#/mods' },
-  { id: 'versions', label: 'Versions', description: 'Browse Minecraft versions', shortcut: 'Ctrl+V', category: 'Navigation', action: () => window.location.hash = '#/versions' },
-  { id: 'settings', label: 'Settings', description: 'Configure launcher', shortcut: 'Ctrl+,', category: 'Navigation', action: () => window.location.hash = '#/settings' },
-  { id: 'new-instance', label: 'New Instance', description: 'Create a new game instance', shortcut: 'Ctrl+N', category: 'Instance', action: () => window.location.hash = '#/instances/new' },
-  { id: 'quick-start', label: 'Quick Start', description: 'Launch latest version instantly', category: 'Game', action: () => {} },
-];
+function useCommands() {
+  const navigate = useNavigate();
+  return [
+    {
+      id: 'home',
+      label: 'Home',
+      description: 'Go to dashboard',
+      shortcut: 'Ctrl+H',
+      category: 'Navigation',
+      action: () => navigate('/home'),
+    },
+    {
+      id: 'instances',
+      label: 'Instances',
+      description: 'Manage instances',
+      shortcut: 'Ctrl+I',
+      category: 'Navigation',
+      action: () => navigate('/instances'),
+    },
+    {
+      id: 'mods',
+      label: 'Mod Browser',
+      description: 'Browse and install mods',
+      shortcut: 'Ctrl+M',
+      category: 'Navigation',
+      action: () => navigate('/mods'),
+    },
+    {
+      id: 'versions',
+      label: 'Versions',
+      description: 'Browse Minecraft versions',
+      shortcut: 'Ctrl+V',
+      category: 'Navigation',
+      action: () => navigate('/versions'),
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      description: 'Configure launcher',
+      shortcut: 'Ctrl+,',
+      category: 'Navigation',
+      action: () => navigate('/settings'),
+    },
+    {
+      id: 'new-instance',
+      label: 'New Instance',
+      description: 'Create a new game instance',
+      shortcut: 'Ctrl+N',
+      category: 'Instance',
+      action: () => navigate('/instances/new'),
+    },
+    {
+      id: 'quick-start',
+      label: 'Quick Start',
+      description: 'Launch latest version instantly',
+      category: 'Game',
+      action: () => {},
+    },
+  ];
+}
 
 export function CommandPalette() {
+  const COMMANDS = useCommands();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const filtered = query.trim()
-    ? COMMANDS.filter((c) =>
-        c.label.toLowerCase().includes(query.toLowerCase()) ||
-        c.description.toLowerCase().includes(query.toLowerCase()) ||
-        c.category.toLowerCase().includes(query.toLowerCase()),
+    ? COMMANDS.filter(
+        (c) =>
+          c.label.toLowerCase().includes(query.toLowerCase()) ||
+          c.description.toLowerCase().includes(query.toLowerCase()) ||
+          c.category.toLowerCase().includes(query.toLowerCase()),
       )
     : COMMANDS;
 
@@ -84,7 +139,9 @@ export function CommandPalette() {
     <div className={styles.overlay} onClick={() => setOpen(false)}>
       <div className={styles.palette} onClick={(e) => e.stopPropagation()}>
         <div className={styles.searchRow}>
-          <span className={styles.searchIcon}>⌘</span>
+          <span className={styles.searchIcon}>
+            <Icon name="command" size={14} />
+          </span>
           <input
             ref={inputRef}
             className={styles.searchInput}

@@ -304,15 +304,15 @@ pub async fn list_screenshots(instance_id: String) -> Result<Vec<ScreenshotInfo>
 pub async fn set_instance_icon(instance_id: String, icon_path: String) -> Result<(), LauncherError> {
     let src = std::path::Path::new(&icon_path);
     if !src.exists() {
-        return Err(LauncherError::Other(format!("Icon file not found: {}", icon_path)));
+        return Err(LauncherError::VersionNotFound(format!("Icon file not found: {}", icon_path)));
     }
     let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
     if !["png", "jpg", "jpeg", "gif", "webp", "bmp"].contains(&ext.as_str()) {
-        return Err(LauncherError::Other("Icon must be an image file (png, jpg, gif, webp, bmp)".into()));
+        return Err(LauncherError::InvalidConfig("Icon must be an image file (png, jpg, gif, webp, bmp)".into()));
     }
     let metadata = std::fs::metadata(src)?;
     if metadata.len() > 5 * 1024 * 1024 {
-        return Err(LauncherError::Other("Icon file too large (max 5MB)".into()));
+        return Err(LauncherError::InvalidConfig("Icon file too large (max 5MB)".into()));
     }
 
     let dest_dir = paths::get_instance_dir(&instance_id);
@@ -553,7 +553,7 @@ pub struct FrameTimeData {
 #[tauri::command]
 pub async fn get_frame_time_data(instance_id: String) -> Result<FrameTimeData, LauncherError> {
     let instance = crate::instance::manager::get_instance(&instance_id)?
-        .ok_or_else(|| LauncherError::Other(format!("Instance not found: {}", instance_id)))?;
+        .ok_or_else(|| LauncherError::InstanceNotReady(format!("Instance not found: {}", instance_id)))?;
 
     let game_dir = crate::platform::paths::get_instance_minecraft_dir(&instance.id);
     let log_path = game_dir.join("logs").join("latest.log");
@@ -570,7 +570,7 @@ pub async fn get_frame_time_data(instance_id: String) -> Result<FrameTimeData, L
     }
 
     let content = std::fs::read_to_string(&log_path)
-        .map_err(LauncherError::Io)?;
+        .map_err(|e| LauncherError::Other(format!("reading {}: {}", log_path.display(), e)))?;
 
     let mut fps_values: Vec<f32> = Vec::new();
     for line in content.lines().rev().take(1000) {
@@ -779,7 +779,7 @@ pub async fn record_playtime(instance_id: String, seconds: u64) -> Result<(), La
 #[tauri::command]
 pub async fn export_instance_config(instance_id: String) -> Result<String, LauncherError> {
     let instance = instance::manager::get_instance(&instance_id)?
-        .ok_or_else(|| LauncherError::Other(format!("Instance not found: {}", instance_id)))?;
+        .ok_or_else(|| LauncherError::InstanceNotReady(format!("Instance not found: {}", instance_id)))?;
 
     let config = serde_json::json!({
         "name": instance.name,
@@ -801,14 +801,14 @@ pub async fn export_instance_config(instance_id: String) -> Result<String, Launc
 pub async fn import_instance_config(config_code: String) -> Result<instance::manager::GameInstance, LauncherError> {
     use base64::Engine;
     let json_bytes = base64::engine::general_purpose::STANDARD.decode(&config_code)
-        .map_err(|e| LauncherError::Other(format!("Invalid config code: {}", e)))?;
+        .map_err(|e| LauncherError::InvalidConfig(format!("Invalid config code: {}", e)))?;
     let config: serde_json::Value = serde_json::from_slice(&json_bytes)
-        .map_err(|e| LauncherError::Other(format!("Invalid config JSON: {}", e)))?;
+        .map_err(|e| LauncherError::InvalidConfig(format!("Invalid config JSON: {}", e)))?;
 
     let version_id = config["version_id"].as_str().unwrap_or("1.21").to_string();
     let manifest = crate::version::manifest::fetch_versions_sorted().await?;
     let version_entry = manifest.iter().find(|v| v.id == version_id)
-        .ok_or_else(|| LauncherError::Other(format!("Version {} not found", version_id)))?;
+        .ok_or_else(|| LauncherError::VersionNotFound(format!("Version {} not found", version_id)))?;
 
     let inst_id = format!("shared_{}", chrono::Utc::now().timestamp_millis());
     let now = chrono::Local::now().to_rfc3339();
@@ -993,4 +993,157 @@ pub async fn validate_jvm_args(args: String) -> Result<serde_json::Value, Launch
 #[tauri::command]
 pub async fn get_sandbox_availability() -> Result<security::sandbox::SandboxAvailability, LauncherError> {
     Ok(security::sandbox::check_sandbox_availability())
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct JreVersionInfo {
+    pub major_version: u32,
+    pub path: Option<String>,
+    pub installed: bool,
+    pub required_for: Vec<String>,
+}
+
+fn required_java_version(mc_version: &str) -> u32 {
+    let version_str = mc_version
+        .trim_start_matches('v')
+        .split('-')
+        .next()
+        .unwrap_or(mc_version);
+    let parts: Vec<&str> = version_str.split('.').collect();
+    let major: u32 = parts.first().and_then(|s| s.parse().ok()).unwrap_or(1);
+    let minor: u32 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+    let patch: u32 = parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
+
+    if major > 1 || (major == 1 && minor > 20) || (major == 1 && minor == 20 && patch >= 5) {
+        21
+    } else if major == 1 && minor >= 17 {
+        17
+    } else {
+        8
+    }
+}
+
+#[tauri::command]
+pub async fn auto_select_jre(instance_id: String) -> Result<serde_json::Value, LauncherError> {
+    let instance = instance::manager::get_instance(&instance_id)?
+        .ok_or_else(|| LauncherError::InstanceNotReady(format!("Instance not found: {}", instance_id)))?;
+
+    if let Some(ref java_path) = instance.java_path {
+        if !java_path.is_empty() {
+            let path = std::path::PathBuf::from(java_path);
+            if path.exists() {
+                let version = crate::platform::java::check_java_version(&path);
+                return Ok(serde_json::json!({
+                    "java_version": version.unwrap_or(0),
+                    "java_path": java_path,
+                    "needs_download": false,
+                }));
+            }
+        }
+    }
+
+    let required_version = required_java_version(&instance.version_id);
+
+    if let Some(jre_path) = crate::platform::java_download::find_downloaded_jre(required_version) {
+        return Ok(serde_json::json!({
+            "java_version": required_version,
+            "java_path": jre_path.to_string_lossy().to_string(),
+            "needs_download": false,
+        }));
+    }
+
+    let all_java = crate::platform::java::find_all_java();
+    if let Some(matching) = all_java.iter().find(|j| j.version == Some(required_version)) {
+        return Ok(serde_json::json!({
+            "java_version": required_version,
+            "java_path": matching.path,
+            "needs_download": false,
+        }));
+    }
+
+    let compatible_versions: Vec<u32> = if required_version == 8 {
+        vec![8, 11]
+    } else if required_version == 17 {
+        vec![17, 21]
+    } else {
+        vec![21, 17]
+    };
+
+    for compat_ver in &compatible_versions {
+        if let Some(jre_path) = crate::platform::java_download::find_downloaded_jre(*compat_ver) {
+            return Ok(serde_json::json!({
+                "java_version": *compat_ver,
+                "java_path": jre_path.to_string_lossy().to_string(),
+                "needs_download": false,
+            }));
+        }
+        if let Some(matching) = all_java.iter().find(|j| j.version == Some(*compat_ver)) {
+            return Ok(serde_json::json!({
+                "java_version": *compat_ver,
+                "java_path": matching.path,
+                "needs_download": false,
+            }));
+        }
+    }
+
+    Ok(serde_json::json!({
+        "java_version": required_version,
+        "java_path": null,
+        "needs_download": true,
+    }))
+}
+
+#[tauri::command]
+pub async fn download_jre_version_cmd(java_version: u8, app: tauri::AppHandle) -> Result<String, LauncherError> {
+    let app_clone = app.clone();
+    crate::platform::java_download::download_java_with_source(
+        java_version as u32,
+        &crate::platform::java_download::JreSource::Adoptium,
+        move |downloaded, total| {
+            let _ = app_clone.emit("jre-download-progress", serde_json::json!({
+                "downloaded": downloaded,
+                "total": total,
+                "version": java_version,
+            }));
+        },
+    ).await
+}
+
+#[tauri::command]
+pub async fn list_jre_versions() -> Vec<JreVersionInfo> {
+    let java_dir = paths::get_game_dir().join("java");
+    let all_java = crate::platform::java::find_all_java();
+
+    let version_requirements: Vec<(u32, Vec<&str>)> = vec![
+        (8, vec!["1.16.5-", "1.12.2", "1.8.9"]),
+        (17, vec!["1.17", "1.18", "1.19", "1.20.4"]),
+        (21, vec!["1.20.5+", "1.21", "1.21.4"]),
+    ];
+
+    let mut versions = Vec::new();
+
+    for (major, required_for) in &version_requirements {
+        let downloaded = if java_dir.exists() {
+            crate::platform::java_download::find_downloaded_jre(*major)
+        } else {
+            None
+        };
+
+        let system_path = all_java
+            .iter()
+            .find(|j| j.version == Some(*major))
+            .map(|j| j.path.clone());
+
+        versions.push(JreVersionInfo {
+            major_version: *major,
+            path: downloaded
+                .as_ref()
+                .map(|p| p.to_string_lossy().to_string())
+                .or(system_path.clone()),
+            installed: downloaded.is_some() || system_path.is_some(),
+            required_for: required_for.iter().map(|s| s.to_string()).collect(),
+        });
+    }
+
+    versions
 }

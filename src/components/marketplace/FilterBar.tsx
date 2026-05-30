@@ -1,8 +1,6 @@
 import { TextInput, Select } from '../ui';
-import {
-  type ContentType, type DataSource,
-  GAME_VERSIONS, LOADER_OPTIONS, SORT_OPTIONS, TAGS_BY_TYPE,
-} from './types';
+import { Icon } from '../ui/Icon';
+import { type ContentType, type DataSource, GAME_VERSIONS, LOADER_OPTIONS, SORT_OPTIONS, TAGS_BY_TYPE } from './types';
 import styles from './FilterBar.module.css';
 
 interface FilterBarProps {
@@ -24,11 +22,21 @@ interface FilterBarProps {
 }
 
 export default function FilterBar({
-  contentType, source, searchQuery, selectedTags,
-  gameVersion, loader, sortBy,
-  onSourceChange, onSearchChange, onSearchSubmit,
-  onTagToggle, onClearTags,
-  onVersionChange, onLoaderChange, onSortChange,
+  contentType,
+  source,
+  searchQuery,
+  selectedTags,
+  gameVersion,
+  loader,
+  sortBy,
+  onSourceChange,
+  onSearchChange,
+  onSearchSubmit,
+  onTagToggle,
+  onClearTags,
+  onVersionChange,
+  onLoaderChange,
+  onSortChange,
 }: FilterBarProps) {
   const tags = TAGS_BY_TYPE[contentType] || [];
   const hasActiveFilters = !!(searchQuery || selectedTags.length > 0 || gameVersion || loader);
@@ -72,7 +80,7 @@ export default function FilterBar({
         ))}
         {hasActiveFilters && (
           <button className={styles.tag} onClick={onClearTags}>
-            ✕ Clear filters
+            <Icon name="cross" size={12} /> Clear filters
           </button>
         )}
       </div>
@@ -89,18 +97,10 @@ export default function FilterBar({
           />
         </div>
         <div className={styles.filterSelect}>
-          <Select
-            value={loader}
-            onChange={(e) => onLoaderChange(e.target.value)}
-            options={LOADER_OPTIONS}
-          />
+          <Select value={loader} onChange={(e) => onLoaderChange(e.target.value)} options={LOADER_OPTIONS} />
         </div>
         <div className={styles.filterSelect}>
-          <Select
-            value={sortBy}
-            onChange={(e) => onSortChange(e.target.value)}
-            options={SORT_OPTIONS}
-          />
+          <Select value={sortBy} onChange={(e) => onSortChange(e.target.value)} options={SORT_OPTIONS} />
         </div>
       </div>
     </div>

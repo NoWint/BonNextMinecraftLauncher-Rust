@@ -5,7 +5,7 @@
   right: 0;
   bottom: 0;
   background: var(--color-overlay-80);
-  z-index: 200;
+  z-index: var(--modal-z, 200);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -44,11 +44,21 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-10px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }

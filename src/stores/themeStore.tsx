@@ -10,6 +10,8 @@ interface ThemeContextValue {
   switchThemeWithAnimation: (newTheme: Theme) => void;
   uiScale: number;
   setUiScale: (scale: number) => void;
+  autoScale: boolean;
+  setAutoScale: (auto: boolean) => void;
   animationSpeed: AnimationSpeed;
   setAnimationSpeed: (speed: AnimationSpeed) => void;
   animationDuration: number;
@@ -20,11 +22,14 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const THEME_STORAGE_KEY = 'bonnext:theme';
 const UI_SCALE_STORAGE_KEY = 'bonnext:ui-scale';
+const AUTO_SCALE_STORAGE_KEY = 'bonnext:auto-scale';
 const ANIM_SPEED_STORAGE_KEY = 'bonnext:animation-speed';
 const ANIM_DURATION_STORAGE_KEY = 'bonnext:animation-duration';
 const UI_SCALE_MIN = 0.5;
 const UI_SCALE_MAX = 2.0;
-const UI_SCALE_DEFAULT = 1.0;
+
+const DESIGN_WIDTH = 1200;
+const DESIGN_HEIGHT = 800;
 
 const ANIM_SPEED_MAP: Record<AnimationSpeed, number> = {
   fast: 0.5,
@@ -37,7 +42,9 @@ function getInitialTheme(): Theme {
   try {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
     if (stored === 'dark' || stored === 'light' || stored === 'oled') return stored;
-  } catch {}
+  } catch {
+    /* empty */
+  }
   return 'dark';
 }
 
@@ -48,15 +55,28 @@ function getInitialUiScale(): number {
       const val = parseFloat(stored);
       if (!isNaN(val) && val >= UI_SCALE_MIN && val <= UI_SCALE_MAX) return val;
     }
-  } catch {}
-  return UI_SCALE_DEFAULT;
+  } catch {
+    /* empty */
+  }
+  return computeAutoScale();
+}
+
+function computeAutoScale(): number {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const scaleW = w / DESIGN_WIDTH;
+  const scaleH = h / DESIGN_HEIGHT;
+  const scale = Math.min(scaleW, scaleH);
+  return Math.round(Math.min(UI_SCALE_MAX, Math.max(UI_SCALE_MIN, scale)) * 100) / 100;
 }
 
 function getInitialAnimationSpeed(): AnimationSpeed {
   try {
     const stored = localStorage.getItem(ANIM_SPEED_STORAGE_KEY);
     if (stored === 'fast' || stored === 'normal' || stored === 'smooth' || stored === 'custom') return stored;
-  } catch {}
+  } catch {
+    /* empty */
+  }
   return 'normal';
 }
 
@@ -67,7 +87,9 @@ function getInitialAnimationDuration(): number {
       const val = parseFloat(stored);
       if (!isNaN(val) && val >= 0.2 && val <= 5.0) return val;
     }
-  } catch {}
+  } catch {
+    /* empty */
+  }
   return 1.0;
 }
 
@@ -93,7 +115,9 @@ function createThemeSwitcher(setThemeState: React.Dispatch<React.SetStateAction<
     setThemeState(newTheme);
     try {
       localStorage.setItem(THEME_STORAGE_KEY, newTheme);
-    } catch {}
+    } catch {
+      /* empty */
+    }
     setTimeout(() => {
       root.classList.remove('theme-transition');
     }, 350);
@@ -102,6 +126,15 @@ function createThemeSwitcher(setThemeState: React.Dispatch<React.SetStateAction<
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(getInitialTheme);
+  const [autoScale, setAutoScaleState] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem(AUTO_SCALE_STORAGE_KEY);
+      if (stored !== null) return stored === 'true';
+    } catch {
+      /* empty */
+    }
+    return true;
+  });
   const [uiScale, setUiScaleState] = useState<number>(getInitialUiScale);
   const [animationSpeed, setAnimationSpeedState] = useState<AnimationSpeed>(getInitialAnimationSpeed);
   const [animationDuration, setAnimationDurationState] = useState<number>(getInitialAnimationDuration);
@@ -122,22 +155,39 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     applyThemeClass(theme);
     try {
       localStorage.setItem(THEME_STORAGE_KEY, theme);
-    } catch {}
+    } catch {
+      /* empty */
+    }
   }, [theme, applyThemeClass]);
 
   useEffect(() => {
     applyUiScale(uiScale);
     try {
       localStorage.setItem(UI_SCALE_STORAGE_KEY, String(uiScale));
-    } catch {}
+    } catch {
+      /* empty */
+    }
   }, [uiScale]);
+
+  useEffect(() => {
+    if (!autoScale) return;
+    const handleResize = () => {
+      const newScale = computeAutoScale();
+      setUiScaleState((prev) => (Math.abs(prev - newScale) > 0.01 ? newScale : prev));
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    return () => window.removeEventListener('resize', handleResize);
+  }, [autoScale]);
 
   useEffect(() => {
     applyAnimationSpeed(animationSpeed, animationDuration);
     try {
       localStorage.setItem(ANIM_SPEED_STORAGE_KEY, animationSpeed);
       localStorage.setItem(ANIM_DURATION_STORAGE_KEY, String(animationDuration));
-    } catch {}
+    } catch {
+      /* empty */
+    }
   }, [animationSpeed, animationDuration, applyAnimationSpeed]);
 
   const setTheme = useCallback((t: Theme) => {
@@ -151,16 +201,26 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const switchWithAnimation = useCallback(
-    (newTheme: Theme) => {
-      createThemeSwitcher(setThemeState)(newTheme);
-    },
-    []
-  );
+  const switchWithAnimation = useCallback((newTheme: Theme) => {
+    createThemeSwitcher(setThemeState)(newTheme);
+  }, []);
 
   const setUiScale = useCallback((scale: number) => {
     const clamped = Math.round(Math.min(UI_SCALE_MAX, Math.max(UI_SCALE_MIN, scale)) * 100) / 100;
     setUiScaleState(clamped);
+  }, []);
+
+  const setAutoScale = useCallback((auto: boolean) => {
+    setAutoScaleState(auto);
+    try {
+      localStorage.setItem(AUTO_SCALE_STORAGE_KEY, String(auto));
+    } catch {
+      /* empty */
+    }
+    if (auto) {
+      const newScale = computeAutoScale();
+      setUiScaleState(newScale);
+    }
   }, []);
 
   const setAnimationSpeed = useCallback((speed: AnimationSpeed) => {
@@ -172,18 +232,38 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setAnimationDurationState(clamped);
   }, []);
 
-  const contextValue = useMemo(() => ({
-    theme, setTheme, toggleTheme, switchThemeWithAnimation: switchWithAnimation,
-    uiScale, setUiScale,
-    animationSpeed, setAnimationSpeed,
-    animationDuration, setAnimationDuration,
-  }), [theme, setTheme, toggleTheme, switchWithAnimation, uiScale, setUiScale, animationSpeed, setAnimationSpeed, animationDuration, setAnimationDuration]);
-
-  return (
-    <ThemeContext.Provider value={contextValue}>
-      {children}
-    </ThemeContext.Provider>
+  const contextValue = useMemo(
+    () => ({
+      theme,
+      setTheme,
+      toggleTheme,
+      switchThemeWithAnimation: switchWithAnimation,
+      uiScale,
+      setUiScale,
+      autoScale,
+      setAutoScale,
+      animationSpeed,
+      setAnimationSpeed,
+      animationDuration,
+      setAnimationDuration,
+    }),
+    [
+      theme,
+      setTheme,
+      toggleTheme,
+      switchWithAnimation,
+      uiScale,
+      setUiScale,
+      autoScale,
+      setAutoScale,
+      animationSpeed,
+      setAnimationSpeed,
+      animationDuration,
+      setAnimationDuration,
+    ],
   );
+
+  return <ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme(): ThemeContextValue {

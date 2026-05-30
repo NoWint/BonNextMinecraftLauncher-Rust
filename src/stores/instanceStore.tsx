@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useMemo } from 'react';
-import { api, type GameInstance } from '../api';
+import { formatError } from '../utils/errorMapping';
+import { api, invalidateCache, type GameInstance } from '../api';
 
 interface InstanceState {
   instances: GameInstance[];
@@ -40,10 +41,11 @@ export function InstanceProvider({ children }: { children: React.ReactNode }) {
 
   const reloadInstances = useCallback(async () => {
     try {
+      invalidateCache(['instances', 'config', 'active_account']);
       const list = await api.listInstances();
       dispatch({ type: 'SET_INSTANCES_LOADED', instances: list });
-    } catch (e: any) {
-      dispatch({ type: 'SET_ERROR', error: e?.toString() || 'Failed to load' });
+    } catch (e: unknown) {
+      dispatch({ type: 'SET_ERROR', error: formatError(e) || 'Failed to load' });
     }
   }, []);
 
@@ -54,6 +56,7 @@ export function InstanceProvider({ children }: { children: React.ReactNode }) {
   const createInstance = useCallback(
     async (inst: GameInstance) => {
       await api.createInstance(inst);
+      invalidateCache(['instances', 'config', 'active_account']);
       await reloadInstances();
     },
     [reloadInstances],
@@ -62,6 +65,7 @@ export function InstanceProvider({ children }: { children: React.ReactNode }) {
   const deleteInstance = useCallback(
     async (id: string) => {
       await api.deleteInstance(id);
+      invalidateCache(['instances', 'config', 'active_account']);
       await reloadInstances();
     },
     [reloadInstances],

@@ -26,13 +26,57 @@ pub async fn search_content(
         return Ok(cached);
     }
 
-    let result = modrinth::search_with_facets(
-        &query, ct,
-        game_version.as_deref(),
-        loader.as_deref(),
-        sv, l, o,
-    ).await?;
+    let mr_query = query.clone();
+    let mr_ct = ct.to_string();
+    let mr_gv = game_version.clone();
+    let mr_loader = loader.clone();
+    let mr_sort = sort.clone();
+    let mr_limit = l;
+    let mr_offset = o;
 
+    let cf_query = query.clone();
+    let cf_gv = game_version.clone();
+    let cf_sort = sort.clone();
+    let cf_limit = l;
+
+    let mr_fut = async {
+        modrinth::search_with_facets(
+            &mr_query, &mr_ct,
+            mr_gv.as_deref(),
+            mr_loader.as_deref(),
+            mr_sort.as_deref(),
+            mr_limit, mr_offset,
+        ).await
+    };
+
+    let cf_fut = async {
+        crate::curseforge::search_mods(
+            &cf_query,
+            cf_gv.as_deref(),
+            None,
+            cf_sort.as_deref(),
+            cf_limit, 0,
+        ).await
+    };
+
+    let (mr_result, cf_result) = tokio::join!(mr_fut, cf_fut);
+
+    let mut all_results = Vec::new();
+    let mut total = 0u64;
+
+    if let Ok((items, count)) = mr_result {
+        total += count;
+        all_results.extend(items);
+    }
+    if let Ok((items, count)) = cf_result {
+        total += count;
+        all_results.extend(items);
+    }
+
+    all_results.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+    all_results.truncate(l as usize);
+
+    let result = (all_results, total);
     cache.cache_search_results(&cache_key, &result);
     Ok(result)
 }

@@ -307,3 +307,148 @@ pub async fn read_skin_file(
         &bytes,
     ))
 }
+
+#[tauri::command]
+pub async fn validate_skin_file(
+    file_path: String,
+) -> Result<serde_json::Value, crate::error::LauncherError> {
+    let normalized = normalize_file_path(&file_path);
+    crate::security::sanitizer::sanitize_path(&normalized)?;
+
+    let path = std::path::Path::new(&normalized);
+    if !path.exists() {
+        return Err(crate::error::LauncherError::Other("Skin file not found".to_string()));
+    }
+
+    let extension = path.extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if extension != "png" {
+        return Err(crate::error::LauncherError::Other(
+            "Skin file must be a PNG image".to_string()
+        ));
+    }
+
+    let bytes = std::fs::read(&normalized)?;
+    let size = bytes.len();
+    if size < 8 || size > 1024 * 1024 {
+        return Err(crate::error::LauncherError::Other(
+            "Invalid skin file size (must be between 8 bytes and 1MB)".to_string()
+        ));
+    }
+
+    if bytes[0..4] != [0x89, 0x50, 0x4E, 0x47] {
+        return Err(crate::error::LauncherError::Other(
+            "File is not a valid PNG image".to_string()
+        ));
+    }
+
+    let width = read_png_width(&bytes);
+    let height = read_png_height(&bytes);
+
+    let valid_dimensions = match (width, height) {
+        (Some(w), Some(h)) => {
+            let valid = (w == 64 && h == 64) || (w == 64 && h == 32);
+            if !valid {
+                return Err(crate::error::LauncherError::Other(format!(
+                    "Invalid skin dimensions: {}x{}. Must be 64x64 or 64x32", w, h
+                )));
+            }
+            true
+        }
+        _ => false,
+    };
+
+    let model = if let (Some(h), true) = (height, valid_dimensions) {
+        if h == 64 { "slim" } else { "default" }
+    } else {
+        "unknown"
+    };
+
+    Ok(serde_json::json!({
+        "valid": true,
+        "width": width,
+        "height": height,
+        "model": model,
+        "size_bytes": size,
+    }))
+}
+
+fn read_png_width(data: &[u8]) -> Option<u32> {
+    if data.len() < 24 { return None; }
+    let width_bytes = &data[16..20];
+    Some(u32::from_be_bytes([width_bytes[0], width_bytes[1], width_bytes[2], width_bytes[3]]))
+}
+
+fn read_png_height(data: &[u8]) -> Option<u32> {
+    if data.len() < 28 { return None; }
+    let height_bytes = &data[20..24];
+    Some(u32::from_be_bytes([height_bytes[0], height_bytes[1], height_bytes[2], height_bytes[3]]))
+}
+
+#[tauri::command]
+pub async fn microsoft_get_skin_profile(
+    _access_token: String,
+) -> Result<crate::auth::microsoft::McSkinProfile, crate::error::LauncherError> {
+    crate::auth::token_store::ensure_fresh_token().await?;
+    let store = crate::auth::token_store::AccountStore::load()?;
+    let active = store.get_active()
+        .ok_or_else(|| crate::error::LauncherError::AuthFailed("No active account".to_string()))?;
+    if active.account_type != "microsoft" {
+        return Err(crate::error::LauncherError::AuthFailed("Active account is not a Microsoft account".to_string()));
+    }
+    crate::auth::microsoft::get_skin_profile(&active.access_token).await
+}
+
+#[tauri::command]
+pub async fn microsoft_upload_skin(
+    _access_token: String,
+    file_path: String,
+    variant: String,
+) -> Result<(), crate::error::LauncherError> {
+    crate::security::sanitizer::sanitize_general_string(&variant)?;
+    let normalized = normalize_file_path(&file_path);
+    crate::security::sanitizer::sanitize_path(&normalized)?;
+    crate::auth::token_store::ensure_fresh_token().await?;
+    let store = crate::auth::token_store::AccountStore::load()?;
+    let active = store.get_active()
+        .ok_or_else(|| crate::error::LauncherError::AuthFailed("No active account".to_string()))?;
+    if active.account_type != "microsoft" {
+        return Err(crate::error::LauncherError::AuthFailed("Active account is not a Microsoft account".to_string()));
+    }
+    crate::auth::microsoft::upload_skin(&active.access_token, &normalized, &variant).await
+}
+
+#[tauri::command]
+pub async fn microsoft_delete_skin(
+    _access_token: String,
+    skin_id: String,
+) -> Result<(), crate::error::LauncherError> {
+    crate::security::sanitizer::sanitize_id(&skin_id)?;
+    crate::auth::token_store::ensure_fresh_token().await?;
+    let store = crate::auth::token_store::AccountStore::load()?;
+    let active = store.get_active()
+        .ok_or_else(|| crate::error::LauncherError::AuthFailed("No active account".to_string()))?;
+    if active.account_type != "microsoft" {
+        return Err(crate::error::LauncherError::AuthFailed("Active account is not a Microsoft account".to_string()));
+    }
+    crate::auth::microsoft::delete_skin(&active.access_token, &skin_id).await
+}
+
+#[tauri::command]
+pub async fn check_authlib_injector() -> Result<serde_json::Value, crate::error::LauncherError> {
+    let jar_path = crate::platform::paths::get_game_dir().join("shared").join("authlib-injector.jar");
+    let exists = jar_path.exists();
+    let size = if exists {
+        std::fs::metadata(&jar_path).map(|m| m.len()).unwrap_or(0)
+    } else {
+        0
+    };
+    Ok(serde_json::json!({
+        "exists": exists,
+        "path": jar_path.to_string_lossy().to_string(),
+        "size": size,
+        "ready": exists && size > 0,
+    }))
+}

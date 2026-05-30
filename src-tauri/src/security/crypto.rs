@@ -143,6 +143,19 @@ pub fn decrypt_json<T: serde::de::DeserializeOwned>(
         .map_err(|e| LauncherError::Decryption(format!("JSON deserialization failed: {}", e)))
 }
 
+pub fn encrypt_string(plaintext: &str, aad: &[u8]) -> Result<String, LauncherError> {
+    let encrypted = encrypt_data(plaintext.as_bytes(), aad)?;
+    let json = serde_json::to_string(&encrypted)?;
+    Ok(json)
+}
+
+pub fn decrypt_string(encrypted_json: &str, aad: &[u8]) -> Result<String, LauncherError> {
+    let data: EncryptedData = serde_json::from_str(encrypted_json)?;
+    let plaintext = decrypt_data(&data, aad)?;
+    String::from_utf8(plaintext)
+        .map_err(|e| LauncherError::Decryption(format!("UTF-8 decode failed: {}", e)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

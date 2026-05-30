@@ -2,8 +2,10 @@ use crate::error::LauncherError;
 use crate::platform::paths;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::LazyLock;
+use parking_lot::Mutex;
 
-static STORE_LOCK: parking_lot::Mutex<()> = parking_lot::Mutex::new(());
+static STORE_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredAccount {
@@ -35,25 +37,28 @@ pub struct AccountStore {
 }
 
 impl AccountStore {
-    #[allow(dead_code)]
     fn path() -> std::path::PathBuf {
         paths::get_config_dir().join("accounts.json")
     }
 
     pub fn load() -> Result<Self, LauncherError> {
-        let store = crate::security::credential_store::load()?;
-        let json = serde_json::to_value(&store)?;
-        serde_json::from_value(json).map_err(Into::into)
+        let path = Self::path();
+        if !path.exists() {
+            return Ok(AccountStore::default());
+        }
+        let content = std::fs::read_to_string(&path)?;
+        let store: AccountStore = serde_json::from_str(&content)?;
+        Ok(store)
     }
 
     pub fn save(&self) -> Result<(), LauncherError> {
-        let use_encryption = crate::config::load_config()
-            .map(|c| c.security.credential_encryption)
-            .unwrap_or(true);
-        let json = serde_json::to_value(self)?;
-        let store: crate::security::credential_store::AccountStore =
-            serde_json::from_value(json)?;
-        crate::security::credential_store::save(&store, use_encryption)
+        let path = Self::path();
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let content = serde_json::to_string_pretty(self)?;
+        std::fs::write(&path, content)?;
+        Ok(())
     }
 
     pub fn upsert_account(&mut self, account: StoredAccount) -> Result<(), LauncherError> {
@@ -126,13 +131,7 @@ pub async fn refresh_microsoft_token(
 }
 
 pub async fn ensure_fresh_token() -> Result<Option<String>, LauncherError> {
-    enum RefreshAction {
-        MicrosoftRefresh { refresh_token: String },
-        YggdrasilRefresh { access_token: String, client_token: String, server_url: String },
-        TokenStillValid { access_token: String },
-    }
-
-    let action = {
+    let refresh_token = {
         let _lock = STORE_LOCK.lock();
         let store = AccountStore::load()?;
         let active_id = match store.active_account_id {
@@ -141,7 +140,7 @@ pub async fn ensure_fresh_token() -> Result<Option<String>, LauncherError> {
         };
         match store.accounts.iter().find(|a| a.id == active_id) {
             Some(acct) if acct.account_type == "microsoft" => {
-                if acct.expires_at.as_ref().is_none_or(|exp| {
+                if acct.expires_at.as_ref().map_or(true, |exp| {
                     chrono::DateTime::parse_from_rfc3339(exp)
                         .map(|dt| {
                             let utc_dt: chrono::DateTime<chrono::Utc> = dt.into();
@@ -149,76 +148,138 @@ pub async fn ensure_fresh_token() -> Result<Option<String>, LauncherError> {
                         })
                         .unwrap_or(true)
                 }) {
-                    match acct.refresh_token.clone() {
-                        Some(rt) => RefreshAction::MicrosoftRefresh { refresh_token: rt },
-                        None => return Ok(None),
-                    }
+                    acct.refresh_token.clone()
                 } else {
-                    RefreshAction::TokenStillValid { access_token: acct.access_token.clone() }
-                }
-            }
-            Some(acct) if acct.account_type == "yggdrasil" => {
-                let client_token = acct.yggdrasil_client_token.clone();
-                let server_url = acct.yggdrasil_server_url.clone();
-                let access_token = acct.access_token.clone();
-                match (client_token, server_url) {
-                    (Some(ct), Some(su)) => RefreshAction::YggdrasilRefresh {
-                        access_token,
-                        client_token: ct,
-                        server_url: su,
-                    },
-                    _ => return Ok(None),
+                    return Ok(Some(acct.access_token.clone()));
                 }
             }
             _ => return Ok(None),
         }
     };
 
-    match action {
-        RefreshAction::TokenStillValid { access_token } => Ok(Some(access_token)),
-        RefreshAction::MicrosoftRefresh { refresh_token: rt } => {
-            let (new_access, new_refresh) = refresh_microsoft_token(&rt).await?;
-            let _lock = STORE_LOCK.lock();
-            let mut store = AccountStore::load()?;
-            let active_id = store.active_account_id.clone().unwrap_or_default();
-            if let Some(ref mut acct) = store.accounts.iter_mut().find(|a| a.id == active_id) {
-                acct.access_token = new_access.clone();
-                acct.refresh_token = Some(new_refresh);
-                let now = chrono::Utc::now();
-                acct.expires_at = Some((now + chrono::Duration::minutes(50)).to_rfc3339());
-                store.save()?;
-            }
-            Ok(Some(new_access))
+    let rt = match refresh_token {
+        Some(rt) => rt,
+        None => return Ok(None),
+    };
+
+    let (new_access, new_refresh) = refresh_microsoft_token(&rt).await?;
+
+    let _lock = STORE_LOCK.lock();
+    let mut store = AccountStore::load()?;
+    let active_id = store.active_account_id.clone().unwrap_or_default();
+    if let Some(ref mut acct) = store.accounts.iter_mut().find(|a| a.id == active_id) {
+        acct.access_token = new_access.clone();
+        acct.refresh_token = Some(new_refresh);
+        let now = chrono::Utc::now();
+        acct.expires_at = Some((now + chrono::Duration::minutes(50)).to_rfc3339());
+        store.save()?;
+    }
+
+    Ok(Some(new_access))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_account(id: &str, username: &str) -> StoredAccount {
+        StoredAccount {
+            id: id.to_string(),
+            username: username.to_string(),
+            uuid: "00000000000000000000000000000000".to_string(),
+            access_token: "token".to_string(),
+            refresh_token: None,
+            account_type: "offline".to_string(),
+            last_used: "2025-01-01T00:00:00Z".to_string(),
+            expires_at: None,
+            avatar_url: None,
+            yggdrasil_client_token: None,
+            yggdrasil_server_url: None,
+            yggdrasil_selected_profile: None,
+            local_skin_path: None,
+            local_skin_model: None,
         }
-        RefreshAction::YggdrasilRefresh { access_token, client_token, server_url } => {
-            match crate::auth::yggdrasil::refresh_token(&server_url, &access_token, &client_token).await {
-                Ok((new_access, new_client_token, _)) => {
-                    let _lock = STORE_LOCK.lock();
-                    let mut store = AccountStore::load()?;
-                    let active_id = store.active_account_id.clone().unwrap_or_default();
-                    if let Some(ref mut a) = store.accounts.iter_mut().find(|a| a.id == active_id) {
-                        a.access_token = new_access.clone();
-                        a.yggdrasil_client_token = Some(new_client_token);
-                        let now = chrono::Utc::now();
-                        a.expires_at = Some((now + chrono::Duration::hours(24)).to_rfc3339());
-                        store.save()?;
-                    }
-                    Ok(Some(new_access))
-                }
-                Err(e) => {
-                    tracing::warn!("Yggdrasil token refresh failed: {}", e);
-                    let _lock = STORE_LOCK.lock();
-                    if let Ok(mut store) = AccountStore::load() {
-                        let active_id = store.active_account_id.clone().unwrap_or_default();
-                        if let Some(ref mut a) = store.accounts.iter_mut().find(|a| a.id == active_id) {
-                            a.access_token = String::new();
-                            a.expires_at = None;
-                            let _ = store.save();
-                        }
-                    }
-                    Err(LauncherError::AuthFailed(format!("Session expired, please login again: {}", e)))
-                }
-            }
-        }
+    }
+
+    #[test]
+    fn stored_account_serialization() {
+        let account = sample_account("acc1", "TestPlayer");
+        let json = serde_json::to_string(&account).unwrap();
+        let back: StoredAccount = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.id, "acc1");
+        assert_eq!(back.username, "TestPlayer");
+        assert_eq!(back.account_type, "offline");
+    }
+
+    #[test]
+    fn account_store_default() {
+        let store = AccountStore::default();
+        assert!(store.accounts.is_empty());
+        assert!(store.active_account_id.is_none());
+    }
+
+    #[test]
+    fn account_store_serialization() {
+        let mut store = AccountStore::default();
+        store.accounts.push(sample_account("acc1", "Player1"));
+        store.accounts.push(sample_account("acc2", "Player2"));
+        store.active_account_id = Some("acc1".to_string());
+
+        let json = serde_json::to_string(&store).unwrap();
+        let back: AccountStore = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.accounts.len(), 2);
+        assert_eq!(back.active_account_id, Some("acc1".to_string()));
+    }
+
+    #[test]
+    fn get_active_returns_correct_account() {
+        let mut store = AccountStore::default();
+        store.accounts.push(sample_account("acc1", "Player1"));
+        store.accounts.push(sample_account("acc2", "Player2"));
+        store.active_account_id = Some("acc2".to_string());
+
+        let active = store.get_active().unwrap();
+        assert_eq!(active.id, "acc2");
+        assert_eq!(active.username, "Player2");
+    }
+
+    #[test]
+    fn get_active_returns_none_when_no_active() {
+        let mut store = AccountStore::default();
+        store.accounts.push(sample_account("acc1", "Player1"));
+        assert!(store.get_active().is_none());
+    }
+
+    #[test]
+    fn get_active_returns_none_when_empty() {
+        let store = AccountStore::default();
+        assert!(store.get_active().is_none());
+    }
+
+    #[test]
+    fn stored_account_with_optional_fields() {
+        let mut account = sample_account("acc1", "Player1");
+        account.refresh_token = Some("refresh_tok".to_string());
+        account.expires_at = Some("2025-12-31T23:59:59Z".to_string());
+        account.avatar_url = Some("https://example.com/avatar.png".to_string());
+        account.yggdrasil_client_token = Some("client_tok".to_string());
+        account.yggdrasil_server_url = Some("https://littleskin.cn".to_string());
+
+        let json = serde_json::to_string(&account).unwrap();
+        let back: StoredAccount = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.refresh_token, Some("refresh_tok".to_string()));
+        assert_eq!(back.expires_at, Some("2025-12-31T23:59:59Z".to_string()));
+        assert_eq!(back.avatar_url, Some("https://example.com/avatar.png".to_string()));
+        assert_eq!(back.yggdrasil_client_token, Some("client_tok".to_string()));
+    }
+
+    #[test]
+    fn stored_account_missing_optional_fields_deserialize() {
+        let json = r#"{"id":"acc1","username":"Player1","uuid":"abc","access_token":"tok","refresh_token":null,"account_type":"offline","last_used":"2025-01-01T00:00:00Z","expires_at":null,"avatar_url":null}"#;
+        let account: StoredAccount = serde_json::from_str(json).unwrap();
+        assert_eq!(account.id, "acc1");
+        assert!(account.yggdrasil_client_token.is_none());
+        assert!(account.yggdrasil_server_url.is_none());
+        assert!(account.local_skin_path.is_none());
     }
 }

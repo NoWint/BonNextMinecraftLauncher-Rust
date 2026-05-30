@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { formatError } from '../utils/errorMapping';
 import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
-import { api, type LaunchState } from '../api';
+import { api, type LaunchState, type RunningGameInfo } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useInstances } from '../stores/instanceStore';
 import { useToast } from '../stores/toastStore';
 import { useI18n } from '../i18n';
+import { Icon } from './ui/Icon';
 import styles from './MiniMode.module.css';
 
 const MINI_WIDTH = 320;
@@ -14,9 +16,12 @@ const FULL_MIN_HEIGHT = 640;
 
 function getLoaderIcon(loaderType: string | null): string {
   switch (loaderType) {
-    case 'fabric': return '\u{1F9F5}';
-    case 'forge': return '\u{2692}';
-    default: return '\u{1F4E6}';
+    case 'fabric':
+      return '\u{1F9F5}';
+    case 'forge':
+      return '\u{2692}';
+    default:
+      return '\u{1F4E6}';
   }
 }
 
@@ -29,35 +34,43 @@ export const MiniMode: React.FC<{
   const { t } = useI18n();
 
   const instances = instState.instances;
-  const recentInstances = useMemo(() =>
-    [...instances]
-      .sort((a, b) => {
-        const aTime = a.last_played ? new Date(a.last_played).getTime() : 0;
-        const bTime = b.last_played ? new Date(b.last_played).getTime() : 0;
-        return bTime - aTime;
-      })
-      .slice(0, 5),
-    [instances]
+  const recentInstances = useMemo(
+    () =>
+      [...instances]
+        .sort((a, b) => {
+          const aTime = a.last_played ? new Date(a.last_played).getTime() : 0;
+          const bTime = b.last_played ? new Date(b.last_played).getTime() : 0;
+          return bTime - aTime;
+        })
+        .slice(0, 5),
+    [instances],
   );
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [launchState, setLaunchState] = useState<LaunchState>('idle');
+  const [runningGames, setRunningGames] = useState<RunningGameInfo[]>([]);
   const [showSwitcher, setShowSwitcher] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
 
-  const activeInstance = recentInstances.find((i) => i.id === selectedId)
-    || (recentInstances.length > 0 ? recentInstances[0] : null);
+  const activeInstance =
+    recentInstances.find((i) => i.id === selectedId) || (recentInstances.length > 0 ? recentInstances[0] : null);
 
-  const isBusy = launchState !== 'idle' && launchState !== 'exited' && launchState !== 'crashed' && launchState !== 'error';
+  const launchState: LaunchState = activeInstance
+    ? (runningGames.find((g) => g.instance_id === activeInstance.id)?.state ?? 'idle')
+    : 'idle';
+  const isBusy =
+    launchState !== 'idle' && launchState !== 'exited' && launchState !== 'crashed' && launchState !== 'error';
   const isError = launchState === 'crashed' || launchState === 'error';
 
   useEffect(() => {
-    let timer: ReturnType<typeof setInterval>;
     const poll = async () => {
-      try { setLaunchState(await api.getLaunchState()); } catch {}
+      try {
+        setRunningGames(await api.getRunningGames());
+      } catch {
+        /* empty */
+      }
     };
     poll();
-    timer = setInterval(poll, 2000);
+    const timer = setInterval(poll, 2000);
     return () => clearInterval(timer);
   }, []);
 
@@ -76,24 +89,43 @@ export const MiniMode: React.FC<{
     if (isBusy) return;
 
     if (isError || launchState === 'exited') {
-      try { await api.resetLaunchState(); } catch {}
-      setLaunchState('idle');
-      return;
+      try {
+        if (activeInstance) {
+          await api.resetInstanceLaunchState(activeInstance.id);
+        } else {
+          await api.resetLaunchState();
+        }
+      } catch {
+        /* empty */
+      }
     }
 
     try {
       await api.launchGame(
-        activeInstance.version_id, activeInstance.version_url,
-        authState.currentUser.username, authState.currentUser.uuid,
-        authState.currentUser.access_token, activeInstance.max_memory, activeInstance.min_memory,
-        activeInstance.java_path || undefined, activeInstance.jvm_args || undefined,
+        activeInstance.version_id,
+        activeInstance.version_url,
+        authState.currentUser.username,
+        authState.currentUser.uuid,
+        authState.currentUser.access_token,
+        activeInstance.max_memory,
+        activeInstance.min_memory,
+        activeInstance.java_path || undefined,
+        activeInstance.jvm_args || undefined,
         activeInstance.id,
       );
-      addToast({ type: 'success', title: t('home.gameLaunched'), message: t('instances.isStarting', { name: activeInstance.name }) });
-    } catch (e: any) {
-      addToast({ type: 'error', title: t('instances.launchFailed'), message: e?.toString() || t('instances.launchFailed') });
+      addToast({
+        type: 'success',
+        title: t('home.gameLaunched'),
+        message: t('instances.isStarting', { name: activeInstance.name }),
+      });
+    } catch (e: unknown) {
+      addToast({
+        type: 'error',
+        title: t('instances.launchFailed'),
+        message: formatError(e) || t('instances.launchFailed'),
+      });
     }
-  }, [activeInstance, authState, isBusy, isError, launchState, addToast, t]);
+  }, [activeInstance, authState, isBusy, isError, addToast, t]);
 
   const statusDotClass = isError
     ? styles['miniMode__statusDot--error']
@@ -130,7 +162,12 @@ export const MiniMode: React.FC<{
           <span className={styles.miniMode__brandText}>BONNEXT</span>
         </div>
         <span className={styles.miniMode__dragHint}>{t('miniMode.dragToMove')}</span>
-        <button className={styles.miniMode__expandBtn} onClick={onExpand} title={t('miniMode.expand')} aria-label={t('miniMode.expand')}>
+        <button
+          className={styles.miniMode__expandBtn}
+          onClick={onExpand}
+          title={t('miniMode.expand')}
+          aria-label={t('miniMode.expand')}
+        >
           ⤢
         </button>
       </div>
@@ -143,17 +180,27 @@ export const MiniMode: React.FC<{
               onClick={() => recentInstances.length > 1 && setShowSwitcher((v) => !v)}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (recentInstances.length > 1) setShowSwitcher((v) => !v); } }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  if (recentInstances.length > 1) setShowSwitcher((v) => !v);
+                }
+              }}
             >
-              <div className={styles.miniMode__instanceIcon}>
-                {getLoaderIcon(activeInstance.loader_type)}
-              </div>
+              <div className={styles.miniMode__instanceIcon}>{getLoaderIcon(activeInstance.loader_type)}</div>
               <div className={styles.miniMode__instanceInfo}>
                 <div className={styles.miniMode__instanceName}>{activeInstance.name}</div>
                 <div className={styles.miniMode__instanceMeta}>
                   {activeInstance.version_id}
                   {activeInstance.loader_type ? ` · ${t(`common.${activeInstance.loader_type}`)}` : ''}
-                  {recentInstances.length > 1 ? ' · ▾' : ''}
+                  {recentInstances.length > 1 ? (
+                    <>
+                      {' '}
+                      · <Icon name="chevronDown" size={10} />
+                    </>
+                  ) : (
+                    ''
+                  )}
                 </div>
               </div>
             </div>
@@ -164,7 +211,10 @@ export const MiniMode: React.FC<{
                   <button
                     key={inst.id}
                     className={`${styles.miniMode__switcherItem} ${inst.id === activeInstance.id ? styles['miniMode__switcherItem--active'] : ''}`}
-                    onClick={() => { setSelectedId(inst.id); setShowSwitcher(false); }}
+                    onClick={() => {
+                      setSelectedId(inst.id);
+                      setShowSwitcher(false);
+                    }}
                   >
                     <span className={styles.miniMode__switcherIcon}>{getLoaderIcon(inst.loader_type)}</span>
                     <span className={styles.miniMode__switcherName}>{inst.name}</span>
@@ -175,19 +225,24 @@ export const MiniMode: React.FC<{
             )}
 
             <button className={launchBtnClass} onClick={handleLaunch}>
-              {isBusy
-                ? stateLabel[launchState].toUpperCase()
-                : isError
-                  ? stateLabel[launchState].toUpperCase()
-                  : launchState === 'exited'
-                    ? t('miniMode.clickToReset')
-                    : '▶ ' + t('home.playArea.start').toUpperCase()
-              }
+              {isBusy ? (
+                stateLabel[launchState].toUpperCase()
+              ) : isError ? (
+                stateLabel[launchState].toUpperCase()
+              ) : launchState === 'exited' ? (
+                t('miniMode.clickToReset')
+              ) : (
+                <>
+                  <Icon name="play" size={14} /> {t('home.playArea.start').toUpperCase()}
+                </>
+              )}
             </button>
           </>
         ) : (
           <div className={styles.miniMode__noInstance}>
-            <div className={styles.miniMode__noInstanceIcon}>◈</div>
+            <div className={styles.miniMode__noInstanceIcon}>
+              <Icon name="diamond" size={16} />
+            </div>
             <div className={styles.miniMode__noInstanceText}>{t('home.noInstances')}</div>
           </div>
         )}

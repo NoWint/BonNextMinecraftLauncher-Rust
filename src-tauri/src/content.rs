@@ -13,6 +13,8 @@ pub struct InstallRecord {
     pub installed_at: String,
     #[serde(default = "default_source")]
     pub source: String,
+    #[serde(default)]
+    pub pinned: bool,
 }
 
 fn default_source() -> String {
@@ -63,6 +65,7 @@ pub fn record_install(
             content_type: content_type.to_string(),
             installed_at: chrono::Utc::now().to_rfc3339(),
             source: source.to_string(),
+            pinned: false,
         },
     );
     save_metadata(instance_id, &map)
@@ -74,6 +77,41 @@ pub fn remove_record(instance_id: &str, filename: &str) -> Result<(), LauncherEr
     save_metadata(instance_id, &map)
 }
 
+pub fn pin_mod(instance_id: &str, slug: &str) -> Result<bool, LauncherError> {
+    let mut map = load_metadata(instance_id)?;
+    let mut found = false;
+    for record in map.values_mut() {
+        if record.slug == slug {
+            record.pinned = true;
+            found = true;
+        }
+    }
+    if found {
+        save_metadata(instance_id, &map)?;
+    }
+    Ok(found)
+}
+
+pub fn unpin_mod(instance_id: &str, slug: &str) -> Result<bool, LauncherError> {
+    let mut map = load_metadata(instance_id)?;
+    let mut found = false;
+    for record in map.values_mut() {
+        if record.slug == slug {
+            record.pinned = false;
+            found = true;
+        }
+    }
+    if found {
+        save_metadata(instance_id, &map)?;
+    }
+    Ok(found)
+}
+
+pub fn is_pinned(instance_id: &str, slug: &str) -> Result<bool, LauncherError> {
+    let map = load_metadata(instance_id)?;
+    Ok(map.values().any(|r| r.slug == slug && r.pinned))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateInfo {
     pub filename: String,
@@ -81,6 +119,8 @@ pub struct UpdateInfo {
     pub installed_version: Option<String>,
     pub latest_version: String,
     pub content_type: String,
+    #[serde(default)]
+    pub pinned: bool,
 }
 
 pub async fn check_updates(instance_id: &str) -> Result<Vec<UpdateInfo>, LauncherError> {
@@ -95,26 +135,25 @@ pub async fn check_updates(instance_id: &str) -> Result<Vec<UpdateInfo>, Launche
         let version_id = record.version_id.clone();
         let content_type = record.content_type.clone();
         let source = record.source.clone();
+        let pinned = record.pinned;
         async move {
             let result = if source == "curseforge" {
                 if let Ok(mod_id) = slug.parse::<u64>() {
                     crate::curseforge::get_mod_versions(mod_id).await
                 } else {
-                    // TODO: pass game_version and loader from instance for filtering
                     modrinth::get_mod_versions(&slug, None, None).await
                 }
             } else {
-                // TODO: pass game_version and loader from instance for filtering
                 modrinth::get_mod_versions(&slug, None, None).await
             };
-            (filename, slug, version_id, content_type, result)
+            (filename, slug, version_id, content_type, pinned, result)
         }
     }).collect();
 
     let results = futures_util::future::join_all(futures).await;
 
     let mut updates = Vec::new();
-    for (filename, slug, installed_version, content_type, result) in results {
+    for (filename, slug, installed_version, content_type, pinned, result) in results {
         match result {
             Ok(versions) => {
                 if let Some(latest) = versions.first() {
@@ -129,6 +168,7 @@ pub async fn check_updates(instance_id: &str) -> Result<Vec<UpdateInfo>, Launche
                             installed_version,
                             latest_version: latest.version_number.clone(),
                             content_type,
+                            pinned,
                         });
                     }
                 }
@@ -140,4 +180,143 @@ pub async fn check_updates(instance_id: &str) -> Result<Vec<UpdateInfo>, Launche
     }
 
     Ok(updates)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InstallSessionState {
+    pub session_id: String,
+    pub instance_id: String,
+    pub phase: String,
+    pub total_files: u32,
+    pub completed_files: u32,
+    pub failed: bool,
+    pub error_message: Option<String>,
+}
+
+pub struct AtomicInstaller {
+    instance_id: String,
+    session_id: String,
+    temp_dir: PathBuf,
+    backup_dir: PathBuf,
+    backups: Vec<(PathBuf, PathBuf)>,
+}
+
+impl AtomicInstaller {
+    pub fn new(instance_id: &str, session_id: &str) -> Self {
+        let mc_dir = crate::platform::paths::get_instance_minecraft_dir(instance_id);
+        AtomicInstaller {
+            instance_id: instance_id.to_string(),
+            session_id: session_id.to_string(),
+            temp_dir: mc_dir.join(".install_tmp").join(session_id),
+            backup_dir: mc_dir.join(".install_tmp").join(session_id).join("_backups"),
+            backups: Vec::new(),
+        }
+    }
+
+    pub fn session_id(&self) -> &str {
+        &self.session_id
+    }
+
+    pub fn temp_dir(&self) -> &PathBuf {
+        &self.temp_dir
+    }
+
+    pub fn prepare(&self) -> Result<(), LauncherError> {
+        std::fs::create_dir_all(&self.temp_dir)?;
+        std::fs::create_dir_all(&self.backup_dir)?;
+        Ok(())
+    }
+
+    pub fn backup_existing(&mut self, target_path: &std::path::Path) -> Result<(), LauncherError> {
+        if target_path.exists() {
+            let backup_name = format!(
+                "{}_{}",
+                target_path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "unknown".to_string()),
+                chrono::Utc::now().timestamp_millis()
+            );
+            let backup_path = self.backup_dir.join(&backup_name);
+            std::fs::copy(target_path, &backup_path)?;
+            self.backups.push((target_path.to_path_buf(), backup_path));
+        }
+        Ok(())
+    }
+
+    pub fn temp_path_for(&self, filename: &str) -> PathBuf {
+        self.temp_dir.join(filename)
+    }
+
+    pub fn commit(self) -> Result<(), LauncherError> {
+        for (target, _) in &self.backups {
+            let _ = std::fs::remove_file(target);
+        }
+
+        let entries: Vec<_> = std::fs::read_dir(&self.temp_dir)?
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path() != self.backup_dir)
+            .collect();
+
+        for entry in &entries {
+            let src = entry.path();
+            if src.is_file() && !src.starts_with(&self.backup_dir) {
+                if let Some(filename) = src.file_name() {
+                    let target_dir = self.determine_target_dir(&src.to_string_lossy());
+                    let dest = target_dir.join(filename);
+                    if let Some(parent) = dest.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    std::fs::rename(&src, &dest).or_else(|_| {
+                        std::fs::copy(&src, &dest)?;
+                        std::fs::remove_file(&src)
+                    })?;
+                }
+            }
+        }
+
+        let _ = std::fs::remove_dir_all(&self.temp_dir);
+        Ok(())
+    }
+
+    pub fn rollback(self) -> Result<(), LauncherError> {
+        tracing::warn!("Rolling back install session {}", self.session_id);
+
+        for (target, backup) in &self.backups {
+            if backup.exists() {
+                if let Err(e) = std::fs::copy(backup, target) {
+                    tracing::error!("Failed to restore backup {} -> {}: {}", backup.display(), target.display(), e);
+                }
+            }
+        }
+
+        let temp_entries: Vec<_> = std::fs::read_dir(&self.temp_dir)
+            .ok()
+            .map(|d| d.filter_map(|e| e.ok()).collect())
+            .unwrap_or_default();
+        for entry in temp_entries {
+            if entry.path().is_file() && !entry.path().starts_with(&self.backup_dir) {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+
+        let _ = std::fs::remove_dir_all(&self.temp_dir);
+        Ok(())
+    }
+
+    fn determine_target_dir(&self, _filename: &str) -> PathBuf {
+        crate::platform::paths::get_instance_mods_dir(&self.instance_id)
+    }
+
+    pub fn get_state(&self, phase: &str, total_files: u32, completed_files: u32) -> InstallSessionState {
+        InstallSessionState {
+            session_id: self.session_id.clone(),
+            instance_id: self.instance_id.clone(),
+            phase: phase.to_string(),
+            total_files,
+            completed_files,
+            failed: false,
+            error_message: None,
+        }
+    }
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { api, type VersionEntry, type GameInstance } from '../api';
 import { useInstances } from '../stores/instanceStore';
 import { useI18n } from '../i18n';
+import { formatError } from '../utils/errorMapping';
 import { SectionHeader, SubLabel } from '../components/layout';
 import { Button, TextInput, Select } from '../components/ui';
 import styles from './NewInstancePage.module.css';
@@ -62,19 +63,25 @@ export default function NewInstancePage() {
   const [optifineNote, setOptifineNote] = useState(false);
 
   useEffect(() => {
-    api.getVersions().then((v) => {
-      const releases = v.filter((ver) => ver.type === 'release');
-      setVersions(releases);
-      if (releases.length > 0) {
-        setSelectedVersion(releases[0].id);
-        setSelectedUrl(releases[0].url);
-      }
-    }).catch(() => {});
+    api
+      .getVersions()
+      .then((v) => {
+        const releases = v.filter((ver) => ver.type === 'release');
+        setVersions(releases);
+        if (releases.length > 0) {
+          setSelectedVersion(releases[0].id);
+          setSelectedUrl(releases[0].url);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     if (loaderType) {
-      api.getLoaderVersions(loaderType).then(setLoaderVersions).catch(() => {});
+      api
+        .getLoaderVersions(loaderType)
+        .then(setLoaderVersions)
+        .catch(() => {});
     } else {
       setLoaderVersions([]);
     }
@@ -115,14 +122,14 @@ export default function NewInstancePage() {
       if (loaderType && loaderVersion) {
         try {
           await api.installLoader(loaderType, selectedVersion, selectedUrl, loaderVersion, inst.id);
-        } catch (e: any) {
-          setError(t('newInstance.loaderInstallFailed', { error: String(e) }));
+        } catch (e: unknown) {
+          setError(t('newInstance.loaderInstallFailed', { error: formatError(e) }));
           return;
         }
       }
       window.location.hash = '#/';
-    } catch (e: any) {
-      setError(e?.toString() || t('newInstance.createFailed'));
+    } catch (e: unknown) {
+      setError(formatError(e) || t('newInstance.createFailed'));
     } finally {
       setLoading(false);
     }
@@ -160,7 +167,11 @@ export default function NewInstancePage() {
         {/* Name */}
         <div data-tour="new-name">
           <SubLabel>{t('newInstance.instanceName')}</SubLabel>
-          <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder={t('newInstance.namePlaceholder')} />
+          <TextInput
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t('newInstance.namePlaceholder')}
+          />
         </div>
 
         {/* Version selector */}
@@ -185,9 +196,7 @@ export default function NewInstancePage() {
             onChange={(e) => {
               setLoaderType(e.target.value);
               if (e.target.value) {
-                setActiveTemplate(
-                  e.target.value === 'fabric' ? 'fabric' : 'forge'
-                );
+                setActiveTemplate(e.target.value === 'fabric' ? 'fabric' : 'forge');
                 setOptifineNote(false);
               } else {
                 setActiveTemplate('vanilla');
@@ -216,7 +225,13 @@ export default function NewInstancePage() {
 
         {error && <div className={styles.error}>{error}</div>}
 
-        <Button variant="primary" size="lg" disabled={loading || !name.trim()} onClick={handleCreate} data-tour="new-create">
+        <Button
+          variant="primary"
+          size="lg"
+          disabled={loading || !name.trim()}
+          onClick={handleCreate}
+          data-tour="new-create"
+        >
           {loading ? t('newInstance.creating') : t('newInstance.create')}
         </Button>
       </div>

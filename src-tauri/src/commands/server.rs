@@ -84,8 +84,8 @@ pub async fn ping_server(address: String) -> Result<ServerStatusInfo, LauncherEr
         std::time::Duration::from_secs(5),
         tokio::net::TcpStream::connect(&sock_addr)
     ).await;
-    let stream = connect_result.map_err(|_| LauncherError::Other(format!("Connection timeout: {}", sock_addr)))?
-        .map_err(|e| LauncherError::Other(format!("Cannot connect to {}: {}", sock_addr, e)))?;
+    let stream = connect_result.map_err(|_| LauncherError::NetworkUnreachable)?
+        .map_err(|_| LauncherError::NetworkUnreachable)?;
 
     let latency_ms = start.elapsed().as_millis() as u64;
 

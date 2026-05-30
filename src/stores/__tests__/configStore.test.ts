@@ -65,7 +65,7 @@ describe('configReducer', () => {
   });
 
   it('should return current state for unknown action type', () => {
-    const next = configReducer(initialState, { type: 'UNKNOWN' } as any);
+    const next = configReducer(initialState, { type: 'UNKNOWN' } as unknown as Parameters<typeof configReducer>[1]);
     expect(next).toEqual(initialState);
   });
 });

@@ -1,0 +1,10 @@
+html[class*='theme-md3'] [class*='badge'] {
+  border-radius: var(--md3-shape-corner-small, 8px);
+  clip-path: none;
+}
+
+html[class*='theme-md3'] [class*='badge--accent'],
+html[class*='theme-md3'] [class*='badge'][class*='--accent'] {
+  background: var(--md3-primary-container);
+  color: var(--md3-on-primary-container);
+}

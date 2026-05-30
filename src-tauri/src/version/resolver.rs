@@ -397,13 +397,13 @@ pub async fn fetch_version_details(version_url: &str) -> Result<VersionDetails, 
     let status = resp.status();
     if !status.is_success() {
         tracing::error!("Version details HTTP {} for: {}", status, version_url);
-        return Err(LauncherError::Http(
-            resp.error_for_status().unwrap_err()
+        return Err(LauncherError::Other(
+            format!("HTTP {} for version details: {}", status, version_url)
         ));
     }
     let details: VersionDetails = resp.json().await.map_err(|e| {
         tracing::error!("Version details deserialize error for {}: {}", version_url, e);
-        LauncherError::Http(e.without_url())
+        LauncherError::Other(format!("parsing version details from {}: {}", version_url, e))
     })?;
     tracing::info!("Version details OK: id={}, type={}", details.id, details.version_type);
     Ok(details)
@@ -433,7 +433,7 @@ pub async fn resolve_version_with_parents(
             let parent_entry = manifest
                 .iter()
                 .find(|v| v.id == *parent_id)
-                .ok_or_else(|| LauncherError::Other(format!("Parent version {} not found in manifest", parent_id)))?;
+                .ok_or_else(|| LauncherError::VersionNotFound(format!("Parent version {} not found in manifest", parent_id)))?;
 
             let parent_details = fetch_version_details(&parent_entry.url).await?;
             save_local_version(parent_id, &parent_details)?;

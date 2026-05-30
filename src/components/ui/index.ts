@@ -29,3 +29,5 @@ export type { NavCategory } from './SettingsNav';
 export { default as SecurityScore } from './SecurityScore';
 export { default as AuditLogViewer } from './AuditLogViewer';
 export { default as SkinViewer3D } from './SkinViewer3D';
+export { UpdateNotification } from './UpdateNotification';
+export { ContextHelp } from './ContextHelp';

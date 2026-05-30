@@ -31,6 +31,7 @@ pub fn name(&self) -> &'static str {
         }
     }
 
+    // Reserved for loader type display in UI
     #[allow(dead_code)]
 pub fn display_name(&self) -> &'static str {
         match self {

@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { formatError } from '../../utils/errorMapping';
 import { api, type ModResult } from '../../api';
 import { useInstances } from '../../stores/instanceStore';
 import { useToast } from '../../stores/toastStore';
 import { Button, Pagination, ContentCard, contentFromModResult } from '../ui';
+import { Icon } from '../ui/Icon';
 import type { ContentType, DataSource, ViewMode } from './types';
 import { PAGE_SIZE } from './types';
 import styles from './ResultsView.module.css';
@@ -40,9 +42,18 @@ function SkeletonGrid() {
 }
 
 export default function ResultsView({
-  contentType, source, searchQuery, selectedTags,
-  gameVersion, loader, sortBy, page, viewMode,
-  onPageChange, onNavigate, onTotalHitsChange,
+  contentType,
+  source,
+  searchQuery,
+  selectedTags,
+  gameVersion,
+  loader,
+  sortBy,
+  page,
+  viewMode,
+  onPageChange,
+  onNavigate,
+  onTotalHitsChange,
 }: ResultsViewProps) {
   const { state: instState } = useInstances();
   const { addToast } = useToast();
@@ -70,13 +81,22 @@ export default function ResultsView({
       if (effectiveQuery.trim()) {
         if (source === 'curseforge') {
           [results, total] = await api.searchCfMods(
-            effectiveQuery, gameVersion || undefined, selectedTags[0] || undefined,
-            sortBy, PAGE_SIZE, offset,
+            effectiveQuery,
+            gameVersion || undefined,
+            selectedTags[0] || undefined,
+            sortBy,
+            PAGE_SIZE,
+            offset,
           );
         } else {
           [results, total] = await api.searchContent(
-            effectiveQuery, contentType, gameVersion || undefined, loader || undefined,
-            sortBy, PAGE_SIZE, offset,
+            effectiveQuery,
+            contentType,
+            gameVersion || undefined,
+            loader || undefined,
+            sortBy,
+            PAGE_SIZE,
+            offset,
           );
         }
       } else {
@@ -91,8 +111,8 @@ export default function ResultsView({
       setMods(results);
       setTotalHits(total);
       onTotalHitsChange(total);
-    } catch (e: any) {
-      setError(e?.toString() || 'Failed to load content');
+    } catch (e: unknown) {
+      setError(formatError(e) || 'Failed to load content');
       setMods([]);
       setTotalHits(0);
       onTotalHitsChange(0);
@@ -121,7 +141,15 @@ export default function ResultsView({
           return;
         }
         const latest = files[0];
-        await api.downloadCfMod(latest.url, latest.filename, activeInstance.id, contentType, undefined, mod.slug, undefined);
+        await api.downloadCfMod(
+          latest.url,
+          latest.filename,
+          activeInstance.id,
+          contentType,
+          undefined,
+          mod.slug,
+          undefined,
+        );
         addToast({ type: 'success', title: 'Installed', message: `${mod.title}` });
       } else {
         const versions = await api.getModVersions(
@@ -135,19 +163,23 @@ export default function ResultsView({
           return;
         }
         const latest = versions[0];
-        const primaryFile = latest.files.find(
-          (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
-        ) || latest.files[0];
+        const primaryFile =
+          latest.files.find((f) => !f.filename.includes('sources') && !f.filename.includes('javadoc')) ||
+          latest.files[0];
 
         await api.installContent(
-          primaryFile.url, primaryFile.filename, activeInstance.id,
-          contentType, primaryFile.hashes.sha1 || undefined,
-          mod.slug, latest.id,
+          primaryFile.url,
+          primaryFile.filename,
+          activeInstance.id,
+          contentType,
+          primaryFile.hashes.sha1 || undefined,
+          mod.slug,
+          latest.id,
         );
         addToast({ type: 'success', title: 'Installed', message: `${mod.title} ${latest.version_number}` });
       }
-    } catch (e: any) {
-      addToast({ type: 'error', title: 'Install failed', message: e?.toString() || '' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: 'Install failed', message: formatError(e) });
     } finally {
       setInstalling(null);
     }
@@ -157,7 +189,9 @@ export default function ResultsView({
     <div className={styles.view}>
       {!activeInstance && instances.length === 0 && (
         <div className={styles.warning}>
-          <span className={styles.warning__icon}>⚠</span>
+          <span className={styles.warning__icon}>
+            <Icon name="warning" size={14} />
+          </span>
           <span className={styles.warning__text}>
             You need an instance before you can install content. Create one first.
           </span>
@@ -174,7 +208,7 @@ export default function ResultsView({
       ) : mods.length === 0 ? (
         <div className={styles.emptyState}>
           <div className={styles.emptyState__icon}>
-            {searchQuery || selectedTags.length > 0 ? '🔍' : '📦'}
+            {searchQuery || selectedTags.length > 0 ? <Icon name="search" size={16} /> : <Icon name="cube" size={16} />}
           </div>
           <div className={styles.emptyState__title}>
             {searchQuery || selectedTags.length > 0 ? 'NO RESULTS FOUND' : 'DISCOVER CONTENT'}

@@ -1,6 +1,7 @@
 use crate::commands::instance::dir_size;
 use crate::config;
 use crate::content;
+use crate::download::queue::DownloadControlState;
 use crate::error::LauncherError;
 use crate::instance;
 use crate::modrinth;
@@ -89,6 +90,7 @@ fn smart_tune_memory(mod_count: usize) -> u32 {
 pub async fn quick_start(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
+    control: tauri::State<'_, DownloadControlState>,
 ) -> Result<(), LauncherError> {
     let versions = version::manifest::fetch_versions_sorted().await?;
     let latest_release = versions.iter()
@@ -101,7 +103,7 @@ pub async fn quick_start(
     let mem = auto_tune_memory();
     tracing::info!("Quick start: {} ({}MB RAM)", latest_release.id, mem);
 
-    crate::commands::launch::download_version(app.clone(), latest_release.id.clone(), latest_release.url.clone()).await?;
+    crate::commands::launch::download_version(app.clone(), latest_release.id.clone(), latest_release.url.clone(), control).await?;
     crate::commands::launch::launch_game(
         app, state,
         latest_release.id.clone(), latest_release.url.clone(),
@@ -299,10 +301,10 @@ pub async fn list_installed_versions() -> Result<Vec<InstalledVersionInfo>, Laun
 pub async fn delete_version_cmd(version_id: String) -> Result<(), LauncherError> {
     let version_dir = paths::get_versions_dir().join(&version_id);
     if !version_dir.exists() {
-        return Err(LauncherError::Other(format!("Version not found: {}", version_id)));
+        return Err(LauncherError::VersionNotFound(format!("Version not found: {}", version_id)));
     }
     std::fs::remove_dir_all(&version_dir)
-        .map_err(|e| LauncherError::Other(format!("Failed to delete version {}: {}", version_id, e)))?;
+        .map_err(|e| LauncherError::Other(format!("removing {}: {}", version_dir.display(), e)))?;
     Ok(())
 }
 
@@ -312,12 +314,12 @@ pub async fn get_dir_size_cmd(path: String) -> Result<u64, LauncherError> {
     if !p.exists() {
         return Ok(0);
     }
-    let canonical = p.canonicalize().map_err(|e| LauncherError::Other(format!("Invalid path: {}", e)))?;
+    let canonical = p.canonicalize()?;
     let game_dir = paths::get_game_dir().canonicalize().unwrap_or_else(|_| paths::get_game_dir());
     let config_dir = paths::get_config_dir().canonicalize().unwrap_or_else(|_| paths::get_config_dir());
     let is_allowed = canonical.starts_with(&game_dir) || canonical.starts_with(&config_dir);
     if !is_allowed {
-        return Err(LauncherError::Other("Access denied: path outside game/config directory".into()));
+        return Err(LauncherError::SecurityValidation("Access denied: path outside game/config directory".into()));
     }
     Ok(dir_size(&p))
 }

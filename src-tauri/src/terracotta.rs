@@ -71,7 +71,7 @@ pub async fn download_terracotta(
         .output()?;
 
     if !output.status.success() {
-        return Err(LauncherError::Other(format!(
+        return Err(LauncherError::LaunchFailed(format!(
             "Failed to extract terracotta: {}",
             String::from_utf8_lossy(&output.stderr)
         )));
@@ -106,6 +106,7 @@ pub async fn download_terracotta(
     Ok(())
 }
 
+// Reserved for dynamic port allocation
 #[allow(dead_code)]
 pub async fn find_available_port() -> Result<u16, LauncherError> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
@@ -130,25 +131,25 @@ pub async fn discover_terracotta_port(max_retries: u32) -> Result<u16, LauncherE
             }
         }
     }
-    Err(LauncherError::Other(
+    Err(LauncherError::LaunchFailed(
         "Failed to discover Terracotta port".to_string(),
     ))
 }
 
+// Reserved for standalone Terracotta process management
 #[allow(dead_code)]
 pub struct TerracottaProcess {
     child: Child,
     pub port: u16,
 }
 
+// Reserved for standalone Terracotta process management
 #[allow(dead_code)]
 impl TerracottaProcess {
     pub fn start(port: u16) -> Result<Self, LauncherError> {
         let binary = get_terracotta_binary_path();
         if !binary.exists() {
-            return Err(LauncherError::Other(
-                "Terracotta is not installed".to_string(),
-            ));
+            return Err(LauncherError::TerracottaNotInstalled);
         }
 
         let child = Command::new(&binary)

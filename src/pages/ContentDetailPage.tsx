@@ -1,24 +1,34 @@
+import DOMPurify from 'dompurify';
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
+import { formatError } from '../utils/errorMapping';
 import { api, type ModProjectFull, type ModVersion } from '../api';
 import { useInstances } from '../stores/instanceStore';
 import { useI18n } from '../i18n';
 import { Breadcrumb, Button, Badge, StatBadge, StatusDot, Tabs } from '../components/ui';
+import { Icon } from '../components/ui/Icon';
 import { InstallButton } from '../components/ui/InstallButton';
 import { CollectionButton } from '../components/ui/CollectionButton';
 import { InstanceSelect } from '../components/ui/InstanceSelect';
 import { SectionHeader, Ticker } from '../components/layout';
 import { CardSkeleton } from '../components/ui/Skeleton';
-import DOMPurify from 'dompurify';
 import styles from './ContentDetailPage.module.css';
 
-function getTypeLabel(type: string, t: (key: string) => string): string {
+function useRouteParams(): { type: string; slug: string; source: string } | null {
+  const { type, slug } = useParams<{ type: string; slug: string }>();
+  const [searchParams] = useSearchParams();
+  if (!type || !slug) return null;
+  const source = searchParams.get('source') === 'curseforge' ? 'curseforge' : 'modrinth';
+  return { type, slug, source };
+}
+
+function getTypeLabel(type: string): string {
   const map: Record<string, string> = {
-    mod: t('contentDetail.typeMods'),
-    modpack: t('contentDetail.typeModpacks'),
-    resourcepack: t('contentDetail.typeResourcePacks'),
-    shader: t('contentDetail.typeShaders'),
-    datapack: t('contentDetail.typeDataPacks'),
+    mod: 'Mods',
+    modpack: 'Modpacks',
+    resourcepack: 'Resource Packs',
+    shader: 'Shaders',
+    datapack: 'Data Packs',
   };
   return map[type] || type;
 }
@@ -38,21 +48,63 @@ function formatNum(n: number): string {
 function sanitizeHtml(html: string): string {
   return DOMPurify.sanitize(html, {
     ALLOWED_TAGS: [
-      'h1','h2','h3','h4','h5','h6','p','br','hr','div','span',
-      'ul','ol','li','a','strong','em','b','i','u','s','code','pre',
-      'blockquote','table','thead','tbody','tr','th','td','img',
-      'details','summary','sup','sub','mark','del','ins',
+      'b',
+      'i',
+      'em',
+      'strong',
+      'a',
+      'p',
+      'br',
+      'ul',
+      'ol',
+      'li',
+      'code',
+      'pre',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
+      'blockquote',
+      'hr',
+      'img',
+      'table',
+      'thead',
+      'tbody',
+      'tr',
+      'th',
+      'td',
+      'span',
+      'div',
+      'sup',
+      'sub',
+      'del',
+      's',
+      'mark',
+      'details',
+      'summary',
     ],
-    ALLOWED_ATTR: ['href','src','alt','title','class','id','target','rel','width','height','align'],
+    ALLOWED_ATTR: [
+      'href',
+      'target',
+      'rel',
+      'src',
+      'alt',
+      'title',
+      'class',
+      'id',
+      'width',
+      'height',
+      'colspan',
+      'rowspan',
+    ],
     ALLOW_DATA_ATTR: false,
   });
 }
 
 export default function ContentDetailPage() {
-  const { type: routeType, slug: routeSlug } = useParams<{ type: string; slug: string }>();
-  const [searchParams] = useSearchParams();
-  const source = searchParams.get('source') === 'curseforge' ? 'curseforge' : 'modrinth';
-  const parsed = routeType && routeSlug ? { type: routeType, slug: routeSlug, source } : null;
+  const parsed = useRouteParams();
   const { state: instState } = useInstances();
 
   const [project, setProject] = useState<ModProjectFull | null>(null);
@@ -78,7 +130,7 @@ export default function ContentDetailPage() {
 
   useEffect(() => {
     if (!parsed) {
-      setError(t('contentDetail.invalidUrl'));
+      setError('Invalid URL');
       setLoading(false);
       return;
     }
@@ -94,51 +146,36 @@ export default function ContentDetailPage() {
 
         if (parsed.source === 'curseforge') {
           const modId = parseInt(parsed.slug, 10);
-          if (isNaN(modId)) {
-            setError(t('contentDetail.invalidCfId'));
-            setLoading(false);
-            return;
-          }
-          [proj, vers] = await Promise.all([
-            api.getCfProjectDetails(modId),
-            api.getCfModVersions(modId),
-          ]);
+          [proj, vers] = await Promise.all([api.getCfProjectDetails(modId), api.getCfModVersions(modId)]);
         } else {
-          try {
-            proj = await api.getProjectDetails(parsed.slug);
-          } catch (projErr: any) {
-            if (!cancelled) setError(t('contentDetail.failedToLoad') || `Failed to load project: ${projErr?.toString() || 'Unknown error'}`);
-            setLoading(false);
-            return;
-          }
-          try {
-            vers = await api.getModVersions(parsed.slug);
-          } catch (verErr: any) {
-            vers = [];
-            console.warn('Failed to load versions, continuing with empty list:', verErr);
-          }
+          [proj, vers] = await Promise.all([api.getProjectDetails(parsed.slug), api.getModVersions(parsed.slug)]);
         }
 
         if (!cancelled) {
           setProject(proj);
           setAllVersions(vers);
-          setLoading(false);
         }
-      } catch (e: any) {
-        if (!cancelled) setError(e?.toString() || t('contentDetail.failedToLoad'));
+      } catch (e: unknown) {
+        if (!cancelled) setError(formatError(e) || 'Failed to load project');
+      } finally {
         if (!cancelled) setLoading(false);
       }
     };
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [parsed?.slug, parsed?.type, parsed?.source]);
 
   // Keyboard: lightbox navigation
   useEffect(() => {
     if (!lightboxOpen || !project) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setLightboxOpen(false); return; }
+      if (e.key === 'Escape') {
+        setLightboxOpen(false);
+        return;
+      }
       if (e.key === 'ArrowLeft') setGalleryIndex((i) => (i > 0 ? i - 1 : project.gallery.length - 1));
       if (e.key === 'ArrowRight') setGalleryIndex((i) => (i < project.gallery.length - 1 ? i + 1 : 0));
     };
@@ -146,10 +183,7 @@ export default function ContentDetailPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [lightboxOpen, project]);
 
-  const activeInstance = useMemo(() =>
-    instances.find((i) => i.id === selectedInstance),
-    [instances, selectedInstance]
-  );
+  const activeInstance = useMemo(() => instances.find((i) => i.id === selectedInstance), [instances, selectedInstance]);
 
   // Compute compatibility for each version vs active instance
   const versionCompat = useMemo(() => {
@@ -186,9 +220,7 @@ export default function ContentDetailPage() {
   }, [allVersions, versionCompat, selectedVersionId]);
 
   if (!parsed) {
-    return (
-      <div className={styles.notFound}>{t('contentDetail.invalidUrl')}</div>
-    );
+    return <div className={styles.notFound}>Invalid URL — expected #/store/:type/:slug</div>;
   }
 
   if (error) {
@@ -209,17 +241,17 @@ export default function ContentDetailPage() {
   }
 
   if (!project) {
-    return <div className={styles.notFound}>{t('contentDetail.projectNotFound')}</div>;
+    return <div className={styles.notFound}>Project not found</div>;
   }
 
   const breadcrumbItems = [
-    { label: t('contentDetail.marketplace'), href: '#/store' },
-    { label: getTypeLabel(parsed.type, t), href: `#/mods?type=${parsed.type}` },
+    { label: 'Marketplace', href: '/store' },
+    { label: getTypeLabel(parsed.type), href: `/mods?type=${parsed.type}` },
     { label: project.title },
   ];
 
   return (
-    <div className={styles.page}>
+    <div className={`page-enter ${styles.page}`}>
       <Breadcrumb items={breadcrumbItems} />
 
       {/* Header */}
@@ -236,18 +268,28 @@ export default function ContentDetailPage() {
           <div className={styles.header__title}>{project.title}</div>
           <div className={styles.header__author}>by {project.author}</div>
           <div className={styles.header__statsRow}>
-            <StatBadge icon="⬇" value={formatNum(project.downloads)} label={t('contentDetail.downloads')} />
-            <StatBadge icon="❤" value={formatNum(project.follows)} label={t('contentDetail.follows')} />
+            <StatBadge icon="download" value={formatNum(project.downloads)} label="downloads" />
+            <StatBadge icon="heart" value={formatNum(project.follows)} label="follows" />
             {project.categories.map((cat) => (
-              <Badge key={cat} variant="muted">{cat}</Badge>
+              <Badge key={cat} variant="muted">
+                {cat}
+              </Badge>
             ))}
-            <StatusDot status={
-              project.client_side === 'required' ? 'ready' :
-              project.client_side === 'optional' ? 'processing' : 'inactive'
-            } />
+            <StatusDot
+              status={
+                project.client_side === 'required'
+                  ? 'ready'
+                  : project.client_side === 'optional'
+                    ? 'processing'
+                    : 'inactive'
+              }
+            />
             <span style={{ fontSize: '0.5em', color: 'var(--color-text-dim)' }}>
-              {project.client_side === 'required' ? t('contentDetail.clientRequired') :
-               project.client_side === 'optional' ? t('contentDetail.clientOptional') : t('contentDetail.serverOnly')}
+              {project.client_side === 'required'
+                ? 'Client required'
+                : project.client_side === 'optional'
+                  ? 'Client optional'
+                  : 'Server only'}
             </span>
           </div>
         </div>
@@ -265,11 +307,7 @@ export default function ContentDetailPage() {
               categories={project.categories}
               size="md"
             />
-            <InstanceSelect
-              value={selectedInstance}
-              onChange={setSelectedInstance}
-              instances={instances}
-            />
+            <InstanceSelect value={selectedInstance} onChange={setSelectedInstance} instances={instances} />
           </div>
           <InstallButton
             contentSlug={project.slug}
@@ -284,16 +322,13 @@ export default function ContentDetailPage() {
 
       {/* Description */}
       <div className={styles.descSection}>
-        <SectionHeader title={t('contentDetail.description')} />
-        <div
-          className={styles.descBody}
-          dangerouslySetInnerHTML={{ __html: sanitizeHtml(project.body) }}
-        />
+        <SectionHeader title="DESCRIPTION" />
+        <div className={styles.descBody} dangerouslySetInnerHTML={{ __html: sanitizeHtml(project.body) }} />
       </div>
 
       {/* Gallery */}
       <div>
-        <SectionHeader title={t('contentDetail.gallery')} />
+        <SectionHeader title="GALLERY" />
         {project.gallery.length > 0 ? (
           <div className={styles.gallerySection}>
             {/* Main image */}
@@ -309,14 +344,14 @@ export default function ContentDetailPage() {
                 <>
                   <button
                     className={`${styles.gallery__nav} ${styles['gallery__nav--prev']}`}
-                    onClick={() => setGalleryIndex((i) => i > 0 ? i - 1 : project.gallery.length - 1)}
+                    onClick={() => setGalleryIndex((i) => (i > 0 ? i - 1 : project.gallery.length - 1))}
                     aria-label="Previous image"
                   >
                     {'\u{2039}'}
                   </button>
                   <button
                     className={`${styles.gallery__nav} ${styles['gallery__nav--next']}`}
-                    onClick={() => setGalleryIndex((i) => i < project.gallery.length - 1 ? i + 1 : 0)}
+                    onClick={() => setGalleryIndex((i) => (i < project.gallery.length - 1 ? i + 1 : 0))}
                     aria-label="Next image"
                   >
                     {'\u{203A}'}
@@ -344,9 +379,7 @@ export default function ContentDetailPage() {
             )}
           </div>
         ) : (
-          <div className={styles.gallery__empty}>
-            {t('contentDetail.noScreenshots')}
-          </div>
+          <div className={styles.gallery__empty}>{t('contentDetail.noScreenshots')}</div>
         )}
       </div>
 
@@ -355,22 +388,30 @@ export default function ContentDetailPage() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {project.source_url && (
             <a href={project.source_url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-              <Button variant="secondary" size="sm">{t('contentDetail.source')}</Button>
+              <Button variant="secondary" size="sm">
+                Source
+              </Button>
             </a>
           )}
           {project.wiki_url && (
             <a href={project.wiki_url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-              <Button variant="secondary" size="sm">{t('contentDetail.wiki')}</Button>
+              <Button variant="secondary" size="sm">
+                Wiki
+              </Button>
             </a>
           )}
           {project.discord_url && (
             <a href={project.discord_url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-              <Button variant="secondary" size="sm">{t('contentDetail.discord')}</Button>
+              <Button variant="secondary" size="sm">
+                Discord
+              </Button>
             </a>
           )}
           {project.issues_url && (
             <a href={project.issues_url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-              <Button variant="secondary" size="sm">{t('contentDetail.issues')}</Button>
+              <Button variant="secondary" size="sm">
+                Issues
+              </Button>
             </a>
           )}
         </div>
@@ -379,8 +420,8 @@ export default function ContentDetailPage() {
       {/* Tabs: Versions / Dependencies */}
       <Tabs
         tabs={[
-          { id: 'versions', label: `${t('contentDetail.versions')} (${allVersions.length})` },
-          { id: 'dependencies', label: t('contentDetail.dependencies') },
+          { id: 'versions', label: `VERSIONS (${allVersions.length})` },
+          { id: 'dependencies', label: 'DEPENDENCIES' },
         ]}
         activeId={activeTab}
         onChange={setActiveTab}
@@ -396,19 +437,25 @@ export default function ContentDetailPage() {
               type="button"
             >
               {selectedVersion && (
-                <div className={`${styles.versionSelect__compat} ${styles[`versionSelect__compat--${versionCompat[selectedVersion.id] || 'grey'}`]}`} />
+                <div
+                  className={`${styles.versionSelect__compat} ${styles[`versionSelect__compat--${versionCompat[selectedVersion.id] || 'grey'}`]}`}
+                />
               )}
               <span className={styles.versionSelect__label}>
                 {selectedVersion
                   ? `${selectedVersion.version_number} — ${selectedVersion.game_versions.slice(0, 2).join(', ')}`
-                  : t('contentDetail.selectVersion')}
+                  : 'Select version...'}
               </span>
-              <span className={styles.versionSelect__arrow}>{versionDropdownOpen ? '▲' : '▼'}</span>
+              <span className={styles.versionSelect__arrow}>
+                {versionDropdownOpen ? <Icon name="chevronUp" size={10} /> : <Icon name="chevronDown" size={10} />}
+              </span>
             </button>
 
-            <div className={`${styles.versionSelect__dropdown} ${versionDropdownOpen ? styles['versionSelect__dropdown--open'] : ''}`}>
+            <div
+              className={`${styles.versionSelect__dropdown} ${versionDropdownOpen ? styles['versionSelect__dropdown--open'] : ''}`}
+            >
               {allVersions.length === 0 ? (
-                <div className={styles.versionSelect__empty}>{t('contentDetail.noVersions')}</div>
+                <div className={styles.versionSelect__empty}>No versions available</div>
               ) : (
                 allVersions.map((ver) => {
                   const compat = versionCompat[ver.id] || 'grey';
@@ -416,16 +463,25 @@ export default function ContentDetailPage() {
                     <div
                       key={ver.id}
                       className={`${styles.versionSelect__option} ${ver.id === selectedVersionId ? styles['versionSelect__option--active'] : ''}`}
-                      onClick={() => { setSelectedVersionId(ver.id); setVersionDropdownOpen(false); }}
+                      onClick={() => {
+                        setSelectedVersionId(ver.id);
+                        setVersionDropdownOpen(false);
+                      }}
                     >
-                      <div className={`${styles.versionSelect__compat} ${styles[`versionSelect__compat--${compat}`]}`} />
+                      <div
+                        className={`${styles.versionSelect__compat} ${styles[`versionSelect__compat--${compat}`]}`}
+                      />
                       <span>{ver.version_number}</span>
                       <div className={styles.versionSelect__optionBadges}>
                         {ver.game_versions.slice(0, 3).map((v) => (
-                          <Badge key={v} variant="accent">{v}</Badge>
+                          <Badge key={v} variant="accent">
+                            {v}
+                          </Badge>
                         ))}
                         {ver.loaders.slice(0, 2).map((l) => (
-                          <Badge key={l} variant="muted">{l}</Badge>
+                          <Badge key={l} variant="muted">
+                            {l}
+                          </Badge>
                         ))}
                       </div>
                       <div className={styles.versionSelect__optionDate}>
@@ -449,9 +505,15 @@ export default function ContentDetailPage() {
             <div className={styles.versionSelect__hint}>
               <div className={`${styles.versionSelect__compat} ${styles['versionSelect__compat--green']}`} />
               <span>{t('contentDetail.compatible')}</span>
-              <div className={`${styles.versionSelect__compat} ${styles['versionSelect__compat--yellow']}`} style={{ marginLeft: 8 }} />
+              <div
+                className={`${styles.versionSelect__compat} ${styles['versionSelect__compat--yellow']}`}
+                style={{ marginLeft: 8 }}
+              />
               <span>{t('contentDetail.loaderMismatch')}</span>
-              <div className={`${styles.versionSelect__compat} ${styles['versionSelect__compat--grey']}`} style={{ marginLeft: 8 }} />
+              <div
+                className={`${styles.versionSelect__compat} ${styles['versionSelect__compat--grey']}`}
+                style={{ marginLeft: 8 }}
+              />
               <span>{t('contentDetail.versionMismatch')}</span>
             </div>
           )}
@@ -463,21 +525,24 @@ export default function ContentDetailPage() {
                 <div className={styles.versionRow__num}>{selectedVersion.version_number}</div>
                 <div className={styles.versionRow__tags}>
                   {selectedVersion.game_versions.map((v) => (
-                    <Badge key={v} variant="accent">{v}</Badge>
+                    <Badge key={v} variant="accent">
+                      {v}
+                    </Badge>
                   ))}
                   {selectedVersion.loaders.map((l) => (
-                    <Badge key={l} variant="muted">{l}</Badge>
+                    <Badge key={l} variant="muted">
+                      {l}
+                    </Badge>
                   ))}
                 </div>
                 {(() => {
-                  const primaryFile = selectedVersion.files.find(
-                    (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
-                  ) || selectedVersion.files[0];
+                  const primaryFile =
+                    selectedVersion.files.find(
+                      (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
+                    ) || selectedVersion.files[0];
                   return (
                     <>
-                      {primaryFile && (
-                        <div className={styles.versionRow__size}>{formatSize(primaryFile.size)}</div>
-                      )}
+                      {primaryFile && <div className={styles.versionRow__size}>{formatSize(primaryFile.size)}</div>}
                       <div className={styles.versionRow__date}>
                         {new Date(selectedVersion.date_published).toLocaleDateString()}
                       </div>
@@ -507,25 +572,24 @@ export default function ContentDetailPage() {
           {selectedVersion && selectedVersion.dependencies.length > 0 ? (
             selectedVersion.dependencies.map((dep, i) => (
               <div key={i} className={styles.depRow}>
-                <Badge variant={
-                  dep.dependency_type === 'required' ? 'accent' :
-                  dep.dependency_type === 'incompatible' ? 'muted' : 'default'
-                }>
+                <Badge
+                  variant={
+                    dep.dependency_type === 'required'
+                      ? 'accent'
+                      : dep.dependency_type === 'incompatible'
+                        ? 'muted'
+                        : 'default'
+                  }
+                >
                   {dep.dependency_type}
                 </Badge>
-                <span style={{ color: 'var(--color-text-secondary)' }}>
-                  {dep.project_id || t('contentDetail.unknownProject')}
-                </span>
-                {dep.version_id && (
-                  <span style={{ color: 'var(--color-text-dim)' }}>
-                    {t('contentDetail.requires')} {dep.version_id}
-                  </span>
-                )}
+                <span style={{ color: 'var(--color-text-secondary)' }}>{dep.project_id || 'Unknown project'}</span>
+                {dep.version_id && <span style={{ color: 'var(--color-text-dim)' }}>requires {dep.version_id}</span>}
               </div>
             ))
           ) : (
             <div className={styles.notFound} style={{ height: 80 }}>
-              {t('contentDetail.noDeps')}
+              No dependencies listed for the latest version
             </div>
           )}
         </div>
@@ -533,26 +597,45 @@ export default function ContentDetailPage() {
 
       {/* License */}
       {project.license && (
-        <div style={{
-          fontSize: '0.5em', color: 'var(--color-text-dim)',
-          padding: '6px 10px', background: 'var(--color-panel)',
-          border: '1px solid var(--color-border)',
-        }}>
-          {t('contentDetail.license')}: {project.license.name}
-          {project.license.url && <> &mdash; <a href={project.license.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)' }}>{t('contentDetail.view')}</a></>}
+        <div
+          style={{
+            fontSize: '0.5em',
+            color: 'var(--color-text-dim)',
+            padding: '6px 10px',
+            background: 'var(--color-panel)',
+            border: '1px solid var(--color-border)',
+          }}
+        >
+          License: {project.license.name}
+          {project.license.url && (
+            <>
+              {' '}
+              &mdash;{' '}
+              <a
+                href={project.license.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: 'var(--color-accent)' }}
+              >
+                View
+              </a>
+            </>
+          )}
         </div>
       )}
 
-      <Ticker messages={[
-        `${t('contentDetail.updated')} ${new Date(project.date_modified).toLocaleDateString()}`,
-        `${t('contentDetail.created')} ${new Date(project.date_created).toLocaleDateString()}`,
-        `${project.project_type} · ${parsed.source === 'curseforge' ? t('contentDetail.curseforge') : t('contentDetail.modrinth')}`,
-      ]} />
+      <Ticker
+        messages={[
+          `Updated ${new Date(project.date_modified).toLocaleDateString()}`,
+          `Created ${new Date(project.date_created).toLocaleDateString()}`,
+          `${project.project_type} · ${parsed.source === 'curseforge' ? 'CurseForge' : 'Modrinth'}`,
+        ]}
+      />
 
       {/* Lightbox */}
       {lightboxOpen && project.gallery.length > 0 && (
         <div className={styles.lightbox} onClick={() => setLightboxOpen(false)}>
-          <button className={styles.lightbox__close} onClick={() => setLightboxOpen(false)} aria-label="Close lightbox">
+          <button className={styles.lightbox__close} onClick={() => setLightboxOpen(false)}>
             {'\u{2715}'}
           </button>
 
@@ -560,15 +643,19 @@ export default function ContentDetailPage() {
             <>
               <button
                 className={`${styles.lightbox__nav} ${styles['lightbox__nav--prev']}`}
-                onClick={(e) => { e.stopPropagation(); setGalleryIndex((i) => i > 0 ? i - 1 : project.gallery.length - 1); }}
-                aria-label="Previous image"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setGalleryIndex((i) => (i > 0 ? i - 1 : project.gallery.length - 1));
+                }}
               >
                 {'\u{2039}'}
               </button>
               <button
                 className={`${styles.lightbox__nav} ${styles['lightbox__nav--next']}`}
-                onClick={(e) => { e.stopPropagation(); setGalleryIndex((i) => i < project.gallery.length - 1 ? i + 1 : 0); }}
-                aria-label="Next image"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setGalleryIndex((i) => (i < project.gallery.length - 1 ? i + 1 : 0));
+                }}
               >
                 {'\u{203A}'}
               </button>

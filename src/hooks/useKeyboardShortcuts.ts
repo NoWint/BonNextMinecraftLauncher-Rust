@@ -16,7 +16,7 @@ interface ShortcutHandlers {
   enabled: boolean;
 }
 
-export function useKeyboardShortcuts({
+export function useShortcutBindings({
   navigate,
   launchInstance,
   setSearchOpen,
@@ -51,19 +51,22 @@ export function useKeyboardShortcuts({
 
     if (e.metaKey || e.ctrlKey) {
       switch (e.key.toLowerCase()) {
-        case 'n':
+        case 'n': {
           e.preventDefault();
           refs.current.navigate('new_instance');
           break;
-        case ',':
+        }
+        case ',': {
           e.preventDefault();
           refs.current.navigate('settings');
           break;
-        case 'l':
+        }
+        case 'l': {
           e.preventDefault();
           const active = refs.current.instances[0];
           if (active) refs.current.launchInstance(active.id);
           break;
+        }
       }
       return;
     }

@@ -1,6 +1,8 @@
 import React, { useEffect, useCallback, useState } from 'react';
 import { api, type MinecraftArticle } from '../../api';
 import { useI18n } from '../../i18n';
+import { formatError } from '../../utils/errorMapping';
+import { Icon } from './Icon';
 import styles from './NewsArticleModal.module.css';
 
 interface NewsArticleModalProps {
@@ -38,7 +40,7 @@ export const NewsArticleModal: React.FC<NewsArticleModalProps> = ({
         setLoading(false);
       })
       .catch((e) => {
-        setError(String(e));
+        setError(formatError(e));
         setLoading(false);
       });
   }, [open, articleUrl]);
@@ -62,7 +64,9 @@ export const NewsArticleModal: React.FC<NewsArticleModalProps> = ({
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.container} onClick={(e) => e.stopPropagation()}>
-        <button className={styles.closeBtn} onClick={onClose} aria-label="Close article">✕</button>
+        <button className={styles.closeBtn} onClick={onClose} aria-label="Close article">
+          <Icon name="cross" size={14} />
+        </button>
 
         {loading && (
           <div className={styles.loading}>
@@ -89,9 +93,7 @@ export const NewsArticleModal: React.FC<NewsArticleModalProps> = ({
 
             <div className={styles.articleHeader}>
               <div className={styles.metaRow}>
-                {article.author && (
-                  <span className={styles.metaItem}>{article.author}</span>
-                )}
+                {article.author && <span className={styles.metaItem}>{article.author}</span>}
                 {article.date && (
                   <>
                     {article.author && <span className={styles.metaSep}>·</span>}
@@ -100,33 +102,31 @@ export const NewsArticleModal: React.FC<NewsArticleModalProps> = ({
                 )}
               </div>
               <h1 className={styles.title}>{article.title}</h1>
-              {article.subtitle && (
-                <p className={styles.subtitle}>{article.subtitle}</p>
-              )}
+              {article.subtitle && <p className={styles.subtitle}>{article.subtitle}</p>}
             </div>
 
             <div className={styles.body}>
               {article.sections.map((section, si) => (
                 <div key={si} className={styles.section}>
-                  {section.heading && (
-                    <h2 className={styles.sectionHeading}>{section.heading}</h2>
-                  )}
+                  {section.heading && <h2 className={styles.sectionHeading}>{section.heading}</h2>}
                   {section.paragraphs.map((p, pi) => (
-                    <p key={pi} className={styles.paragraph}>{p}</p>
+                    <p key={pi} className={styles.paragraph}>
+                      {p}
+                    </p>
                   ))}
                   {section.list_items.length > 0 && (
                     <ul className={styles.list}>
                       {section.list_items.map((item, li) => (
-                        <li key={li} className={styles.listItem}>{item}</li>
+                        <li key={li} className={styles.listItem}>
+                          {item}
+                        </li>
                       ))}
                     </ul>
                   )}
                   {section.images.map((img, ii) => (
                     <figure key={ii} className={styles.figure}>
                       <img src={img.url} alt={img.caption || ''} className={styles.sectionImage} />
-                      {img.caption && (
-                        <figcaption className={styles.figcaption}>{img.caption}</figcaption>
-                      )}
+                      {img.caption && <figcaption className={styles.figcaption}>{img.caption}</figcaption>}
                     </figure>
                   ))}
                 </div>

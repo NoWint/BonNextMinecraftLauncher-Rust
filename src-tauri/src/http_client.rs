@@ -2,35 +2,39 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 static API_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
-static DOWNLOAD_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
 pub fn build_client() -> &'static reqwest::Client {
     API_CLIENT.get_or_init(|| {
-        reqwest::Client::builder()
-            .user_agent("BonNext/1.0 (MinecraftLauncher)")
-            .timeout(Duration::from_secs(60))
-            .connect_timeout(Duration::from_secs(15))
-            .build()
-            .expect("Failed to build HTTP client")
+        build_client_with_proxy()
+            .unwrap_or_else(|_| {
+                reqwest::Client::builder()
+                    .user_agent(format!("BonNext/{} (MinecraftLauncher)", env!("CARGO_PKG_VERSION")))
+                    .timeout(Duration::from_secs(60))
+                    .connect_timeout(Duration::from_secs(15))
+                    .build()
+                    .expect("Failed to build HTTP client")
+            })
     })
 }
 
 pub fn build_download_client() -> &'static reqwest::Client {
+    static DOWNLOAD_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
     DOWNLOAD_CLIENT.get_or_init(|| {
-        reqwest::Client::builder()
-            .user_agent("BonNext/1.0 (MinecraftLauncher)")
-            .connect_timeout(Duration::from_secs(30))
-            .no_proxy()
-            .build()
-            .expect("Failed to build download HTTP client")
+        build_download_client_with_proxy()
+            .unwrap_or_else(|_| {
+                reqwest::Client::builder()
+                    .user_agent(format!("BonNext/{} (MinecraftLauncher)", env!("CARGO_PKG_VERSION")))
+                    .connect_timeout(Duration::from_secs(30))
+                    .build()
+                    .expect("Failed to build download HTTP client")
+            })
     })
 }
 
-#[allow(dead_code)]
 pub fn build_client_with_proxy() -> Result<reqwest::Client, crate::error::LauncherError> {
     let config = crate::config::load_config()?;
     let mut builder = reqwest::Client::builder()
-        .user_agent("BonNext/1.0 (MinecraftLauncher)")
+        .user_agent(format!("BonNext/{} (MinecraftLauncher)", env!("CARGO_PKG_VERSION")))
         .timeout(std::time::Duration::from_secs(60))
         .connect_timeout(std::time::Duration::from_secs(15));
     if config.security.proxy_enabled {
@@ -49,11 +53,10 @@ pub fn build_client_with_proxy() -> Result<reqwest::Client, crate::error::Launch
     Ok(builder.build()?)
 }
 
-#[allow(dead_code)]
 pub fn build_download_client_with_proxy() -> Result<reqwest::Client, crate::error::LauncherError> {
     let config = crate::config::load_config()?;
     let mut builder = reqwest::Client::builder()
-        .user_agent("BonNext/1.0 (MinecraftLauncher)")
+        .user_agent(format!("BonNext/{} (MinecraftLauncher)", env!("CARGO_PKG_VERSION")))
         .connect_timeout(std::time::Duration::from_secs(30));
     if config.security.proxy_enabled {
         if let Some(ref proxy_url) = config.security.proxy_url {

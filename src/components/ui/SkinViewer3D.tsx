@@ -1,5 +1,6 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SkinViewer, IdleAnimation } from 'skinview3d';
+import { Icon } from './Icon';
 import styles from './SkinViewer3D.module.css';
 
 interface SkinViewer3DProps {
@@ -21,31 +22,40 @@ export default function SkinViewer3D({
 }: SkinViewer3DProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewerRef = useRef<SkinViewer | null>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
     if (viewerRef.current) {
       viewerRef.current.dispose();
+      viewerRef.current = null;
     }
 
-    const viewer = new SkinViewer({
-      canvas: canvasRef.current,
-      width,
-      height,
-      background: 0x00000000,
-      enableControls: true,
-    });
-
-    viewer.animation = new IdleAnimation();
-    viewer.autoRotate = true;
-    viewer.autoRotateSpeed = 0.5;
-
-    viewerRef.current = viewer;
+    try {
+      const viewer = new SkinViewer({
+        canvas,
+        width,
+        height,
+        enableControls: true,
+      });
+      viewer.renderer.setClearColor(0x000000, 0);
+      viewer.animation = new IdleAnimation();
+      viewer.autoRotate = true;
+      viewer.autoRotateSpeed = 0.5;
+      viewerRef.current = viewer;
+      setError(false);
+    } catch (e) {
+      console.warn('Failed to create SkinViewer:', e);
+      setError(true);
+    }
 
     return () => {
-      viewer.dispose();
-      viewerRef.current = null;
+      if (viewerRef.current) {
+        viewerRef.current.dispose();
+        viewerRef.current = null;
+      }
     };
   }, [width, height]);
 
@@ -54,7 +64,13 @@ export default function SkinViewer3D({
     if (!viewer) return;
 
     if (skinUrl) {
-      viewer.loadSkin(skinUrl, { model });
+      try {
+        viewer.loadSkin(skinUrl, { model }).catch((e: unknown) => {
+          console.warn('Failed to load skin:', e);
+        });
+      } catch (e) {
+        console.warn('Failed to load skin:', e);
+      }
     } else {
       viewer.resetSkin();
     }
@@ -65,19 +81,34 @@ export default function SkinViewer3D({
     if (!viewer) return;
 
     if (capeUrl) {
-      viewer.loadCape(capeUrl);
+      try {
+        viewer.loadCape(capeUrl).catch((e: unknown) => {
+          console.warn('Failed to load cape:', e);
+        });
+      } catch (e) {
+        console.warn('Failed to load cape:', e);
+      }
     } else {
       viewer.resetCape();
     }
   }, [capeUrl]);
 
-  const handleCanvasRef = useCallback((el: HTMLCanvasElement | null) => {
-    (canvasRef as React.MutableRefObject<HTMLCanvasElement | null>).current = el;
-  }, []);
+  if (error) {
+    return (
+      <div className={`${styles.wrapper} ${className}`} style={{ width, height }}>
+        <div className={styles.fallback}>
+          <span className={styles.fallback__icon}>
+            <Icon name="diamondOutline" size={16} />
+          </span>
+          <span className={styles.fallback__text}>3D</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`${styles.wrapper} ${className}`}>
-      <canvas ref={handleCanvasRef} className={styles.canvas} />
+      <canvas ref={canvasRef} className={styles.canvas} />
     </div>
   );
 }

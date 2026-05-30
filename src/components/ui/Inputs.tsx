@@ -1,6 +1,8 @@
 import React from 'react';
+import { Icon } from './Icon';
 import styles from './Inputs.module.css';
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface TextInputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 
 export const TextInput: React.FC<TextInputProps> = ({ className = '', ...props }) => (
@@ -14,7 +16,9 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 export const Select: React.FC<SelectProps> = ({ options, className = '', ...props }) => (
   <select className={`${styles.select} ${className}`} {...props}>
     {options.map((opt) => (
-      <option key={opt.value} value={opt.value}>{opt.label}</option>
+      <option key={opt.value} value={opt.value}>
+        {opt.label}
+      </option>
     ))}
   </select>
 );
@@ -51,7 +55,7 @@ export const Checkbox: React.FC<CheckboxProps> = ({ on, onChange, className = ''
     role="checkbox"
     aria-checked={on}
   >
-    {on && '✓'}
+    {on && <Icon name="check" size={12} />}
   </button>
 );
 
@@ -116,10 +120,7 @@ export const Slider: React.FC<SliderProps> = ({ value, min, max, step = 1, onCha
 
   return (
     <div ref={trackRef} className={`${styles.slider} ${className}`} onMouseDown={handleMouseDown}>
-      <div
-        className={styles.slider__fill}
-        style={{ width: `${pct}%`, background: fillColor }}
-      />
+      <div className={styles.slider__fill} style={{ width: `${pct}%`, background: fillColor }} />
       <div className={styles.slider__thumb} style={{ left: `${pct}%` }} />
     </div>
   );

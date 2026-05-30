@@ -1,39 +1,101 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
 .controls {
   display: flex;
   gap: 8px;
-  margin-bottom: 12px;
+  flex-shrink: 0;
 }
 
 .error {
   color: var(--color-error);
   font-size: 0.6em;
-  margin-bottom: 8px;
+  background: rgba(255, 68, 68, 0.06);
+  border: 1px solid rgba(255, 68, 68, 0.2);
+  padding: 6px 12px;
+  flex-shrink: 0;
 }
 
-.list {
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
+  padding-right: 4px;
+}
+
+.card {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  max-height: calc(100vh - 200px);
-  overflow-y: auto;
+  gap: 10px;
+  clip-path: var(--clip-medium);
+  transition:
+    border-color var(--transition-normal),
+    transform var(--transition-normal);
 }
 
-.row {
+.card:hover {
+  border-color: var(--color-border-light);
+  transform: translateY(-2px);
+}
+
+.card__header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: var(--color-panel);
-  border: 1px solid var(--color-panel-alt);
-  padding: 8px 14px;
+  justify-content: space-between;
 }
 
-.rowInfo {
-  flex: 1;
+.card__icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: var(--clip-small);
+  font-size: 1em;
 }
 
-.rowName {
-  font-weight: 600;
-  font-size: 0.72em;
+.card__icon--release {
+  background: rgba(255, 230, 0, 0.08);
+  color: var(--color-accent);
+}
+
+.card__icon--snapshot {
+  background: rgba(100, 180, 255, 0.08);
+  color: var(--color-text-secondary);
+}
+
+.card__version {
+  font-family: var(--font-heading);
+  font-size: 1.1em;
   color: var(--color-text);
-  margin-right: 8px;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+.card__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card__type {
+  font-size: 0.5em;
+  color: var(--color-text-dim);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.card__btn {
+  margin-top: auto;
 }

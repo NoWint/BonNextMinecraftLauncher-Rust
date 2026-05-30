@@ -9,6 +9,7 @@ import { MigrationModal } from '../components/ui/MigrationModal';
 import { SubLabel } from '../components/layout';
 import { open } from '@tauri-apps/plugin-dialog';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { formatError } from '../utils/errorMapping';
 import styles from './InstancesPage.module.css';
 
 function getLoaderClass(loader: string | null): string {
@@ -208,7 +209,7 @@ export default function InstancesPage() {
       .then((s) => {
         setMpRunning(true);
         setMpState(s.state);
-        setMpRoomCode(String((s as any).invitation_code || (s as any).room_code || ''));
+        setMpRoomCode(String(s.invitation_code || s.room_code || ''));
       })
       .catch(() => {
         setMpRunning(false);
@@ -266,9 +267,9 @@ export default function InstancesPage() {
           title: t('instances.launching'),
           message: t('instances.isStarting', { name: inst.name }),
         });
-      } catch (e: any) {
-        setError(e?.toString() || t('instances.launchFailed'));
-        addToast({ type: 'error', title: t('instances.launchFailed'), message: e?.toString() || '' });
+      } catch (e: unknown) {
+        setError(formatError(e) || t('instances.launchFailed'));
+        addToast({ type: 'error', title: t('instances.launchFailed'), message: formatError(e) || '' });
       }
     },
     [auth, addToast, t],
@@ -284,8 +285,8 @@ export default function InstancesPage() {
         message: t('instances.created', { name: dupName }),
       });
       await reloadInstances();
-    } catch (e: any) {
-      addToast({ type: 'error', title: t('instances.failed'), message: e?.toString() || '' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instances.failed'), message: formatError(e) || '' });
     } finally {
       setDuplicating(null);
       setDupName('');
@@ -310,9 +311,9 @@ export default function InstancesPage() {
         message: t('instances.importedReady', { name: inst.name }),
       });
       window.location.hash = `#/instances/${inst.id}`;
-    } catch (e: any) {
+    } catch (e: unknown) {
       setImporting(false);
-      addToast({ type: 'error', title: t('instances.importFailed'), message: e?.toString() || '' });
+      addToast({ type: 'error', title: t('instances.importFailed'), message: formatError(e) || '' });
     }
   };
 
@@ -327,8 +328,8 @@ export default function InstancesPage() {
       await api.downloadTerracotta();
       setMpInstalled(true);
       addToast({ type: 'success', title: t('instanceDetail.mpInstallSuccess'), message: '' });
-    } catch (e: any) {
-      addToast({ type: 'error', title: t('instanceDetail.mpInstallFailed'), message: e?.toString() || '' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instanceDetail.mpInstallFailed'), message: formatError(e) || '' });
     } finally {
       setMpLoading(false);
     }
@@ -342,8 +343,8 @@ export default function InstancesPage() {
       const s = await api.getTerracottaState();
       setMpState(s.state);
       addToast({ type: 'success', title: t('instanceDetail.mpStarted'), message: '' });
-    } catch (e: any) {
-      addToast({ type: 'error', title: t('instanceDetail.mpStartFailed'), message: e?.toString() || '' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instanceDetail.mpStartFailed'), message: formatError(e) || '' });
       setMpRunning(false);
     } finally {
       setMpLoading(false);
@@ -358,8 +359,8 @@ export default function InstancesPage() {
       setMpState('idle');
       setMpRoomCode('');
       addToast({ type: 'success', title: t('instanceDetail.mpStopped'), message: '' });
-    } catch (e: any) {
-      addToast({ type: 'error', title: t('instanceDetail.mpStopFailed'), message: e?.toString() || '' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instanceDetail.mpStopFailed'), message: formatError(e) || '' });
     } finally {
       setMpLoading(false);
     }
@@ -371,10 +372,10 @@ export default function InstancesPage() {
       await api.terracottaSetHost();
       const s = await api.getTerracottaState();
       setMpState(s.state);
-      setMpRoomCode(String((s as any).invitation_code || (s as any).room_code || ''));
+      setMpRoomCode(String(s.invitation_code || s.room_code || ''));
       addToast({ type: 'success', title: t('instanceDetail.mpHosting'), message: '' });
-    } catch (e: any) {
-      addToast({ type: 'error', title: t('instanceDetail.mpHostFailed'), message: e?.toString() || '' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instanceDetail.mpHostFailed'), message: formatError(e) || '' });
     } finally {
       setMpLoading(false);
     }
@@ -388,8 +389,8 @@ export default function InstancesPage() {
       const s = await api.getTerracottaState();
       setMpState(s.state);
       addToast({ type: 'success', title: t('instanceDetail.mpJoining'), message: '' });
-    } catch (e: any) {
-      addToast({ type: 'error', title: t('instanceDetail.mpJoinFailed'), message: e?.toString() || '' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instanceDetail.mpJoinFailed'), message: formatError(e) || '' });
     } finally {
       setMpLoading(false);
     }
@@ -402,8 +403,8 @@ export default function InstancesPage() {
       setMpState('idle');
       setMpRoomCode('');
       addToast({ type: 'success', title: t('instanceDetail.mpDisconnected'), message: '' });
-    } catch (e: any) {
-      addToast({ type: 'error', title: '', message: e?.toString() || '' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: '', message: formatError(e) || '' });
     } finally {
       setMpLoading(false);
     }
@@ -491,7 +492,14 @@ export default function InstancesPage() {
             </div>
 
             <div className={styles.hero__actions}>
-              <button className={`${styles.hero__playBtn} play-pulse`} title={t('instances.play')}>
+              <button
+                className={`${styles.hero__playBtn} play-pulse`}
+                title={t('instances.play')}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleLaunch(heroInstance);
+                }}
+              >
                 ▶
               </button>
               <button
@@ -705,12 +713,20 @@ export default function InstancesPage() {
               size="sm"
               onClick={async () => {
                 if (confirmDelete) {
-                  await deleteInstance(confirmDelete.id);
-                  addToast({
-                    type: 'success',
-                    title: t('instances.deleted'),
-                    message: `"${confirmDelete.name}" removed`,
-                  });
+                  try {
+                    await deleteInstance(confirmDelete.id);
+                    addToast({
+                      type: 'success',
+                      title: t('instances.deleted'),
+                      message: `"${confirmDelete.name}" removed`,
+                    });
+                  } catch (e) {
+                    addToast({
+                      type: 'error',
+                      title: t('instances.deleteFailed') || 'Delete failed',
+                      message: formatError(e),
+                    });
+                  }
                 }
                 setConfirmDelete(null);
               }}
@@ -748,7 +764,8 @@ export default function InstancesPage() {
                       addToast({ type: 'success', title: t('instances.exportAsMrpack') || 'Exported' });
                     }
                   } catch (e) {
-                    addToast({ type: 'error', title: String(e) });
+                    addToast({ type: 'error', title: formatError(e) });
+                    return;
                   }
                   setExportingInstance(null);
                 }}

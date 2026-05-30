@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
+import { formatError } from '../utils/errorMapping';
 import { api, type ContentCounts, type InstalledModInfo, type UpdateInfo } from '../api';
 import { useInstances } from '../stores/instanceStore';
 import { useToast } from '../stores/toastStore';
 import { useI18n } from '../i18n';
 import { SectionHeader, Ticker } from '../components/layout';
 import { Button, Modal, Tabs, Select } from '../components/ui';
+import { Icon } from '../components/ui/Icon';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import styles from './LibraryPage.module.css';
 
@@ -87,8 +89,8 @@ export default function LibraryPage() {
       if (result.length === 0) {
         addToast({ type: 'info', title: t('library.allUpToDate'), message: t('library.noUpdatesAvailable') });
       }
-    } catch (e: any) {
-      addToast({ type: 'error', title: t('library.updateCheckFailed'), message: e?.toString() || '' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('library.updateCheckFailed'), message: formatError(e) });
     } finally {
       setCheckingUpdates(false);
     }
@@ -101,27 +103,34 @@ export default function LibraryPage() {
       const versions = await api.getModVersions(update.slug);
       if (versions.length === 0) throw new Error('No versions found');
       const latest = versions[0];
-      const primaryFile = latest.files.find(
-        (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
-      ) || latest.files[0];
+      const primaryFile =
+        latest.files.find((f) => !f.filename.includes('sources') && !f.filename.includes('javadoc')) || latest.files[0];
 
       // Remove old file
-      try { await api.removeInstalledMod(selectedId, update.filename); } catch (e) { console.error("Failed to remove mod:", e); }
+      try {
+        await api.removeInstalledMod(selectedId, update.filename);
+      } catch (e) {
+        console.error('Failed to remove mod:', e);
+      }
 
       // Download new version
       await api.installContent(
-        primaryFile.url, primaryFile.filename, selectedId,
-        update.content_type, primaryFile.hashes.sha1 || undefined,
-        update.slug, latest.id,
+        primaryFile.url,
+        primaryFile.filename,
+        selectedId,
+        update.content_type,
+        primaryFile.hashes.sha1 || undefined,
+        update.slug,
+        latest.id,
       );
 
-      addToast({ type: 'success', title: t('library.updated'), message: `${update.slug} → ${latest.version_number}` });
+      addToast({ type: 'success', title: t('library.updated'), message: `${update.slug} -> ${latest.version_number}` });
 
       // Refresh
       setUpdates((prev) => prev.filter((u) => u.filename !== update.filename));
       loadContent();
-    } catch (e: any) {
-      addToast({ type: 'error', title: t('library.updateFailed'), message: e?.toString() || '' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('library.updateFailed'), message: formatError(e) });
     } finally {
       setUpdatingItems((prev) => {
         const next = new Set(prev);
@@ -135,7 +144,9 @@ export default function LibraryPage() {
     if (!selectedId || updates.length === 0) return;
     setUpdatingAll(true);
     const initial: Record<string, UpdateStatus> = {};
-    updates.forEach((u) => { initial[u.filename] = 'pending'; });
+    updates.forEach((u) => {
+      initial[u.filename] = 'pending';
+    });
     setUpdateProgress(initial);
 
     let successCount = 0;
@@ -149,21 +160,29 @@ export default function LibraryPage() {
         const versions = await api.getModVersions(update.slug);
         if (versions.length === 0) throw new Error('No versions found');
         const latest = versions[0];
-        const primaryFile = latest.files.find(
-          (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
-        ) || latest.files[0];
+        const primaryFile =
+          latest.files.find((f) => !f.filename.includes('sources') && !f.filename.includes('javadoc')) ||
+          latest.files[0];
 
-        try { await api.removeInstalledMod(selectedId, update.filename); } catch (e) { /* ok if already removed */ }
+        try {
+          await api.removeInstalledMod(selectedId, update.filename);
+        } catch (e) {
+          /* ok if already removed */
+        }
 
         await api.installContent(
-          primaryFile.url, primaryFile.filename, selectedId,
-          update.content_type, primaryFile.hashes.sha1 || undefined,
-          update.slug, latest.id,
+          primaryFile.url,
+          primaryFile.filename,
+          selectedId,
+          update.content_type,
+          primaryFile.hashes.sha1 || undefined,
+          update.slug,
+          latest.id,
         );
 
         setUpdateProgress((prev) => ({ ...prev, [update.filename]: 'complete' }));
         successCount++;
-      } catch (e: any) {
+      } catch (e: unknown) {
         setUpdateProgress((prev) => ({ ...prev, [update.filename]: 'failed' }));
         failCount++;
         console.error(`Failed to update ${update.slug}:`, e);
@@ -175,9 +194,17 @@ export default function LibraryPage() {
     setUpdatingAll(false);
 
     if (failCount === 0) {
-      addToast({ type: 'success', title: t('library.updateSummary'), message: t('library.allUpdated', { count: String(successCount) }) });
+      addToast({
+        type: 'success',
+        title: t('library.updateSummary'),
+        message: t('library.allUpdated', { count: String(successCount) }),
+      });
     } else {
-      addToast({ type: 'warning', title: t('library.updateSummary'), message: t('library.partialUpdated', { succeeded: String(successCount), failed: String(failCount) }) });
+      addToast({
+        type: 'warning',
+        title: t('library.updateSummary'),
+        message: t('library.partialUpdated', { succeeded: String(successCount), failed: String(failCount) }),
+      });
     }
   };
 
@@ -191,12 +218,20 @@ export default function LibraryPage() {
       loadContent();
       setUpdates([]);
       if (result.failed === 0) {
-        addToast({ type: 'success', title: t('library.updateSummary'), message: t('library.allUpdated', { count: String(result.succeeded) }) });
+        addToast({
+          type: 'success',
+          title: t('library.updateSummary'),
+          message: t('library.allUpdated', { count: String(result.succeeded) }),
+        });
       } else {
-        addToast({ type: 'warning', title: t('library.updateSummary'), message: t('library.partialUpdated', { succeeded: String(result.succeeded), failed: String(result.failed) }) });
+        addToast({
+          type: 'warning',
+          title: t('library.updateSummary'),
+          message: t('library.partialUpdated', { succeeded: String(result.succeeded), failed: String(result.failed) }),
+        });
       }
-    } catch (e: any) {
-      addToast({ type: 'error', title: t('library.bulkUpdateFailed'), message: e?.toString() || '' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('library.bulkUpdateFailed'), message: formatError(e) });
     } finally {
       setBulkUpdating(false);
     }
@@ -209,8 +244,8 @@ export default function LibraryPage() {
       addToast({ type: 'success', title: t('common.remove'), message: removeTarget });
       setRemoveTarget(null);
       loadContent();
-    } catch (e: any) {
-      addToast({ type: 'error', title: t('library.remove'), message: e?.toString() || '' });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('library.remove'), message: formatError(e) });
     }
   };
 
@@ -230,10 +265,7 @@ export default function LibraryPage() {
         <Select
           value={selectedId}
           onChange={(e) => setSelectedId(e.target.value)}
-          options={[
-            { value: '', label: t('library.selectInstance') },
-            ...instanceOptions,
-          ]}
+          options={[{ value: '', label: t('library.selectInstance') }, ...instanceOptions]}
         />
       </div>
 
@@ -266,39 +298,29 @@ export default function LibraryPage() {
             <div>
               <span className={styles.updatesSection__title}>{t('library.updates')}</span>
               {updates.length > 0 && (
-                <span className={styles.updatesSection__count}>{t('library.available', { count: String(updates.length) })}</span>
+                <span className={styles.updatesSection__count}>
+                  {t('library.available', { count: String(updates.length) })}
+                </span>
               )}
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={checkingUpdates}
-                onClick={checkForUpdates}
-              >
+              <Button variant="secondary" size="sm" disabled={checkingUpdates} onClick={checkForUpdates}>
                 {checkingUpdates ? t('library.checking') : t('library.checkForUpdates')}
               </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                disabled={bulkUpdating}
-                onClick={handleBulkUpdate}
-              >
+              <Button variant="primary" size="sm" disabled={bulkUpdating} onClick={handleBulkUpdate}>
                 {bulkUpdating ? t('library.updatingStatus') : t('library.checkAllUpdates')}
               </Button>
               {updates.length > 0 && !updatingAll && (
-                <Button
-                  variant="secondary-highlight"
-                  size="sm"
-                  onClick={updateAll}
-                >
+                <Button variant="secondary-highlight" size="sm" onClick={updateAll}>
                   {t('library.updateAll')} ({updates.length})
                 </Button>
               )}
               {updatingAll && (
                 <span className={styles.updatingLabel}>
                   {t('library.updating', {
-                    current: String(Object.values(updateProgress).filter(s => s === 'complete' || s === 'failed').length + 1),
+                    current: String(
+                      Object.values(updateProgress).filter((s) => s === 'complete' || s === 'failed').length + 1,
+                    ),
                     total: String(updates.length),
                     name: updates[0]?.slug || '',
                   })}
@@ -332,15 +354,11 @@ export default function LibraryPage() {
                       {update.installed_version && (
                         <span className={styles.updateItem__oldVer}>{update.installed_version}</span>
                       )}
-                      <span className={styles.updateItem__arrow}>→</span>
+                      <Icon name="arrowRight" size={10} />
                       <span className={styles.updateItem__newVer}>{update.latest_version}</span>
                     </div>
                     {!updatingAll && !updatingItems.has(update.filename) && (
-                      <Button
-                        variant="secondary-highlight"
-                        size="sm"
-                        onClick={() => updateItem(update)}
-                      >
+                      <Button variant="secondary-highlight" size="sm" onClick={() => updateItem(update)}>
                         {t('library.individualUpdate')}
                       </Button>
                     )}
@@ -352,11 +370,9 @@ export default function LibraryPage() {
               })}
             </div>
           ) : (
-            !checkingUpdates && updates.length === 0 && !updatingAll && (
-              <div className={styles.updatesSection__empty}>
-                {t('library.clickToCheck')}
-              </div>
-            )
+            !checkingUpdates &&
+            updates.length === 0 &&
+            !updatingAll && <div className={styles.updatesSection__empty}>{t('library.clickToCheck')}</div>
           )}
         </div>
       )}
@@ -379,8 +395,8 @@ export default function LibraryPage() {
       ) : (
         <>
           {/* Mods tab */}
-          {activeTab === 'mods' && (
-            mods.length === 0 ? (
+          {activeTab === 'mods' &&
+            (mods.length === 0 ? (
               <div className={styles.empty}>
                 <div className={styles.empty__title}>{t('library.noModsInstalled')}</div>
                 <div className={styles.empty__desc}>{t('library.noModsInstalledDesc')}</div>
@@ -399,23 +415,18 @@ export default function LibraryPage() {
                       {mod.installed_at ? new Date(mod.installed_at).toLocaleDateString() : ''}
                     </div>
                     <div className={styles.item__actions}>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => setRemoveTarget(mod.filename)}
-                      >
+                      <Button variant="danger" size="sm" onClick={() => setRemoveTarget(mod.filename)}>
                         {t('library.remove')}
                       </Button>
                     </div>
                   </div>
                 ))}
               </div>
-            )
-          )}
+            ))}
 
           {/* Resource packs tab */}
-          {activeTab === 'resourcepacks' && (
-            resourcepacks.length === 0 ? (
+          {activeTab === 'resourcepacks' &&
+            (resourcepacks.length === 0 ? (
               <div className={styles.empty}>
                 <div className={styles.empty__title}>{t('library.noResourcePacks')}</div>
                 <div className={styles.empty__desc}>{t('library.noResourcePacksDesc')}</div>
@@ -429,12 +440,11 @@ export default function LibraryPage() {
                   </div>
                 ))}
               </div>
-            )
-          )}
+            ))}
 
           {/* Shaders tab */}
-          {activeTab === 'shaders' && (
-            shaders.length === 0 ? (
+          {activeTab === 'shaders' &&
+            (shaders.length === 0 ? (
               <div className={styles.empty}>
                 <div className={styles.empty__title}>{t('library.noShaders')}</div>
                 <div className={styles.empty__desc}>{t('library.noShadersDesc')}</div>
@@ -448,12 +458,11 @@ export default function LibraryPage() {
                   </div>
                 ))}
               </div>
-            )
-          )}
+            ))}
 
           {/* Worlds tab */}
-          {activeTab === 'worlds' && (
-            counts && counts.worlds === 0 ? (
+          {activeTab === 'worlds' &&
+            (counts && counts.worlds === 0 ? (
               <div className={styles.empty}>
                 <div className={styles.empty__title}>{t('library.noWorlds')}</div>
                 <div className={styles.empty__desc}>{t('library.noWorldsDesc')}</div>
@@ -463,18 +472,23 @@ export default function LibraryPage() {
                 <div className={styles.empty__title}>{t('library.worldManagement')}</div>
                 <div className={styles.empty__desc}>{t('library.worldManagementDesc')}</div>
                 {selectedInstance && (
-                  <Button variant="secondary" size="sm" onClick={async () => {
-                    try {
-                      const gameDir = await api.getGameDir();
-                      await api.openFolder(`${gameDir}/instances/${selectedInstance.id}/.minecraft/saves`);
-                    } catch (e) { console.error("Failed to load library:", e); }
-                  }}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const gameDir = await api.getGameDir();
+                        await api.openFolder(`${gameDir}/instances/${selectedInstance.id}/.minecraft/saves`);
+                      } catch (e) {
+                        console.error('Failed to load library:', e);
+                      }
+                    }}
+                  >
                     {t('library.openSavesFolder')}
                   </Button>
                 )}
               </div>
-            )
-          )}
+            ))}
         </>
       )}
 
@@ -496,18 +510,30 @@ export default function LibraryPage() {
                 <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2em', color: 'var(--color-success)' }}>
                   {bulkResult.succeeded}
                 </div>
-                <div style={{ fontSize: '0.5em', color: 'var(--color-text-dim)', letterSpacing: 2 }}>{t('library.succeeded')}</div>
+                <div style={{ fontSize: '0.5em', color: 'var(--color-text-dim)', letterSpacing: 2 }}>
+                  {t('library.succeeded')}
+                </div>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2em', color: bulkResult.failed > 0 ? 'var(--color-error)' : 'var(--color-text-dim)' }}>
+                <div
+                  style={{
+                    fontFamily: 'var(--font-heading)',
+                    fontSize: '1.2em',
+                    color: bulkResult.failed > 0 ? 'var(--color-error)' : 'var(--color-text-dim)',
+                  }}
+                >
                   {bulkResult.failed}
                 </div>
-                <div style={{ fontSize: '0.5em', color: 'var(--color-text-dim)', letterSpacing: 2 }}>{t('library.failed')}</div>
+                <div style={{ fontSize: '0.5em', color: 'var(--color-text-dim)', letterSpacing: 2 }}>
+                  {t('library.failed')}
+                </div>
               </div>
             </div>
             {bulkResult.errors.length > 0 && (
               <div>
-                <div style={{ fontSize: '0.45em', color: 'var(--color-text-muted)', letterSpacing: 2, marginBottom: 6 }}>
+                <div
+                  style={{ fontSize: '0.45em', color: 'var(--color-text-muted)', letterSpacing: 2, marginBottom: 6 }}
+                >
                   {t('library.errors')}
                 </div>
                 <div style={{ maxHeight: 150, overflowY: 'auto' }}>
@@ -555,11 +581,18 @@ export default function LibraryPage() {
         </p>
       </Modal>
 
-      <Ticker messages={[
-        t('library.tickerInstance', { name: selectedInstance?.name || 'None', version: selectedInstance?.version_id || 'N/A' }),
-        t('library.tickerTotal', { count: String((counts?.mods || 0) + (counts?.resourcepacks || 0) + (counts?.shaders || 0)) }),
-        t('library.tickerStorage'),
-      ]} />
+      <Ticker
+        messages={[
+          t('library.tickerInstance', {
+            name: selectedInstance?.name || 'None',
+            version: selectedInstance?.version_id || 'N/A',
+          }),
+          t('library.tickerTotal', {
+            count: String((counts?.mods || 0) + (counts?.resourcepacks || 0) + (counts?.shaders || 0)),
+          }),
+          t('library.tickerStorage'),
+        ]}
+      />
     </div>
   );
 }

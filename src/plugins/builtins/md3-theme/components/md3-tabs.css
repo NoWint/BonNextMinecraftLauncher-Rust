@@ -1,0 +1,14 @@
+html[class*='theme-md3'] [class*='tabs'] {
+  border-bottom: 1px solid var(--md3-outline-variant);
+}
+
+html[class*='theme-md3'] [class*='tab'] {
+  border-radius: var(--md3-shape-corner-full, 9999px) var(--md3-shape-corner-full, 9999px) 0 0;
+  clip-path: none;
+  color: var(--md3-on-surface-variant);
+}
+
+html[class*='theme-md3'] [class*='tab--active'],
+html[class*='theme-md3'] [class*='tab'][class*='--active'] {
+  color: var(--md3-primary);
+}

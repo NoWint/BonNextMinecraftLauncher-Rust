@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { formatError } from '../../utils/errorMapping';
 import { api } from '../../api';
 import { Modal } from './Modal';
 import { Button } from './Button';
+import { Icon } from './Icon';
 import { useToast } from '../../stores/toastStore';
 import styles from './ShareModal.module.css';
 
@@ -23,7 +25,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({ open, onClose, instanceI
     if (open && instanceId) {
       setExportLoading(true);
       setExportedCode('');
-      api.exportInstanceConfig(instanceId)
+      api
+        .exportInstanceConfig(instanceId)
         .then((code) => setExportedCode(code))
         .catch(() => {
           setExportedCode('');
@@ -58,11 +61,11 @@ export const ShareModal: React.FC<ShareModalProps> = ({ open, onClose, instanceI
       });
       setImportCode('');
       onClose();
-    } catch (e: any) {
+    } catch (e: unknown) {
       addToast({
         type: 'error',
         title: 'Import failed',
-        message: e?.toString() || 'Invalid config code.',
+        message: formatError(e) || 'Invalid config code.',
       });
     } finally {
       setImportLoading(false);
@@ -79,9 +82,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ open, onClose, instanceI
     <Modal open={open} onClose={onClose} title="SHARE CONFIG" actions={actions}>
       <div className={styles.section}>
         <div className={styles.sectionLabel}>EXPORT</div>
-        <div className={styles.sectionDesc}>
-          Share this code with others to let them import your instance setup.
-        </div>
+        <div className={styles.sectionDesc}>Share this code with others to let them import your instance setup.</div>
         {exportLoading ? (
           <div className={styles.loading}>Generating config code...</div>
         ) : exportedCode ? (
@@ -99,7 +100,15 @@ export const ShareModal: React.FC<ShareModalProps> = ({ open, onClose, instanceI
               onClick={handleCopy}
               style={{ marginTop: 6 }}
             >
-              {copied ? '✓ COPIED' : '📋 COPY'}
+              {copied ? (
+                <>
+                  <Icon name="check" size={12} /> COPIED
+                </>
+              ) : (
+                <>
+                  <Icon name="copy" size={14} /> COPY
+                </>
+              )}
             </Button>
           </>
         ) : (
@@ -111,9 +120,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ open, onClose, instanceI
 
       <div className={styles.section}>
         <div className={styles.sectionLabel}>IMPORT</div>
-        <div className={styles.sectionDesc}>
-          Paste a shared config code below to import an instance setup.
-        </div>
+        <div className={styles.sectionDesc}>Paste a shared config code below to import an instance setup.</div>
         <textarea
           className={styles.textarea}
           placeholder="Paste config code here..."
@@ -128,7 +135,13 @@ export const ShareModal: React.FC<ShareModalProps> = ({ open, onClose, instanceI
           disabled={importLoading || !importCode.trim()}
           style={{ marginTop: 6 }}
         >
-          {importLoading ? 'IMPORTING...' : '📥 IMPORT'}
+          {importLoading ? (
+            'IMPORTING...'
+          ) : (
+            <>
+              <Icon name="download" size={14} /> IMPORT
+            </>
+          )}
         </Button>
       </div>
     </Modal>

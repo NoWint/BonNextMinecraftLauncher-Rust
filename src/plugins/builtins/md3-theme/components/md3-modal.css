@@ -1,0 +1,10 @@
+html[class*='theme-md3'] [class*='overlay'] {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+html[class*='theme-md3'] [class*='modal'] {
+  border-radius: var(--md3-shape-corner-extra-large, 28px);
+  clip-path: none;
+  background: var(--md3-surface-container-high);
+  box-shadow: var(--md3-elevation-3);
+}

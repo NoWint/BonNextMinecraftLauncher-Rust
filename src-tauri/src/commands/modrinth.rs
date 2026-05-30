@@ -77,7 +77,7 @@ pub async fn install_content(
 ) -> Result<String, LauncherError> {
     let ct = content_type.as_deref().unwrap_or("mod");
     let src = source.as_deref().unwrap_or("modrinth");
-    let result = modrinth::download_content_file(&file_url, &filename, &instance_id, ct, sha1.as_deref()).await?;
+    let result = modrinth::download_content_file_with_progress(&file_url, &filename, &instance_id, ct, sha1.as_deref(), slug.as_deref(), Some(&app)).await?;
 
     if let Some(ref s) = slug {
         if let Err(e) = content::record_install(&instance_id, &filename, s, version_id.as_deref(), ct, src) {

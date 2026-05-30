@@ -41,11 +41,11 @@
 }
 
 .toast--success {
-  border-left: 3px solid var(--color-accent);
+  border-left: 3px solid var(--success);
 }
 
 .toast--error {
-  border-left: 3px solid var(--color-error);
+  border-left: 3px solid var(--danger);
   animation:
     toastIn 0.35s var(--ease-out-expo) forwards,
     toastShake 0.4s 0.3s ease;
@@ -56,7 +56,7 @@
 }
 
 .toast--warning {
-  border-left: 3px solid var(--color-accent);
+  border-left: 3px solid #ffaa00;
 }
 
 .toast--exiting {
@@ -84,6 +84,16 @@
 }
 
 .toast--success .icon {
+  background: rgba(0, 255, 136, 0.12);
+  color: var(--success);
+}
+
+.toast--warning .icon {
+  background: rgba(255, 170, 0, 0.12);
+  color: #ffaa00;
+}
+
+.toast--info .icon {
   background: rgba(255, 230, 0, 0.12);
   color: var(--color-accent);
 }
