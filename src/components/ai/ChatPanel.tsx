@@ -42,35 +42,43 @@ export const ChatPanel: React.FC = () => {
 
   return (
     <>
-      {/* Full-window rainbow edge */}
-      <div className={`${styles.rainbowEdge} ${state.isOpen ? styles['rainbowEdge--visible'] : ''}`} />
-      <div className={`${styles.rainbowGlow} ${state.isOpen ? styles['rainbowGlow--visible'] : ''}`} />
+      {/* Rainbow ripple border — 4 edges, right-to-left cascade */}
+      <div className={`${styles.rainbowBorder} ${state.isOpen ? styles['rainbowBorder--visible'] : ''}`}>
+        <div className={`${styles.rainbowBorder__edge} ${styles['rainbowBorder__edge--right']}`} />
+        <div className={`${styles.rainbowBorder__edge} ${styles['rainbowBorder__edge--top']}`} />
+        <div className={`${styles.rainbowBorder__edge} ${styles['rainbowBorder__edge--bottom']}`} />
+        <div className={`${styles.rainbowBorder__edge} ${styles['rainbowBorder__edge--left']}`} />
+      </div>
 
       <div
         className={`${styles.panel__overlay} ${state.isOpen ? styles['panel__overlay--visible'] : ''}`}
         onClick={handleClose}
       />
-      <div className={`${styles.panel} ${state.isOpen ? styles['panel--open'] : ''}`}>
-        <div className={styles.panel__header}>
-          <span className={styles.panel__title}>{t('ai.title')}</span>
-          <div className={styles.panel__actions}>
-            <button className={styles.panel__actionBtn} onClick={clearMessages} title={t('ai.clear')}>
+      {/* Background layer — gradient blur only */}
+      <div className={`${styles.panel} ${state.isOpen ? styles['panel--open'] : ''}`} />
+
+      {/* Controls card — Gaussian blur, right-aligned */}
+      <div className={`${styles.controlsCard} ${state.isOpen ? styles['controlsCard--open'] : ''}`}>
+        <div className={styles.controlsCard__header}>
+          <span className={styles.controlsCard__title}>{t('ai.title')}</span>
+          <div className={styles.controlsCard__actions}>
+            <button className={styles.controlsCard__actionBtn} onClick={clearMessages} title={t('ai.clear')}>
               {t('ai.clear')}
             </button>
-            <button className={styles.panel__actionBtn} onClick={handleOpenSettings} title={t('ai.settings')}>
+            <button className={styles.controlsCard__actionBtn} onClick={handleOpenSettings} title={t('ai.settings')}>
               {t('ai.settings')}
             </button>
-            <button className={styles.panel__actionBtn} onClick={handleClose} title={t('ai.close')}>
+            <button className={styles.controlsCard__actionBtn} onClick={handleClose} title={t('ai.close')}>
               {t('ai.close')}
             </button>
           </div>
         </div>
 
-        <div className={styles.panel__messages}>
+        <div className={styles.controlsCard__messages}>
           {state.messages.length === 0 && (
-            <div className={styles.panel__empty}>
-              <div className={styles.panel__emptyIcon}>AI</div>
-              <div className={styles.panel__emptyText}>
+            <div className={styles.controlsCard__empty}>
+              <div className={styles.controlsCard__emptyIcon}>AI</div>
+              <div className={styles.controlsCard__emptyText}>
                 {t('ai.empty.line1')}
                 <br />
                 {t('ai.empty.line2')}
@@ -90,13 +98,13 @@ export const ChatPanel: React.FC = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        {state.error && <div className={styles.panel__error}>{state.error}</div>}
+        {state.error && <div className={styles.controlsCard__error}>{state.error}</div>}
 
-        <div className={styles.panel__inputArea}>
-          <div className={styles.panel__inputWrapper}>
+        <div className={styles.controlsCard__inputArea}>
+          <div className={styles.controlsCard__inputWrapper}>
             <textarea
               ref={textareaRef}
-              className={styles.panel__input}
+              className={styles.controlsCard__input}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -105,7 +113,7 @@ export const ChatPanel: React.FC = () => {
               rows={1}
             />
             <button
-              className={styles.panel__sendBtn}
+              className={styles.controlsCard__sendBtn}
               onClick={handleSend}
               disabled={state.isLoading || !input.trim() || !state.config.enabled}
             >
