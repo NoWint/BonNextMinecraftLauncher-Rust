@@ -3,7 +3,7 @@ import { formatError } from '../../utils/errorMapping';
 import { api, type ModResult } from '../../api';
 import { useInstances } from '../../stores/instanceStore';
 import { useToast } from '../../stores/toastStore';
-import { Button, ContentCard, contentFromModResult } from '../ui';
+import { Button, Pagination, ContentCard, contentFromModResult } from '../ui';
 import { Icon } from '../ui/Icon';
 import type { ContentType, DataSource, ViewMode } from './types';
 import { PAGE_SIZE } from './types';
@@ -58,6 +58,8 @@ export default function ResultsView({
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState('');
   const [installing, setInstalling] = useState<string | null>(null);
+  const [totalHits, setTotalHits] = useState(0);
+  const [page, setPage] = useState(1);
 
   const offsetRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -75,6 +77,7 @@ export default function ResultsView({
         setLoading(true);
         offsetRef.current = 0;
         setHasMore(true);
+        setPage(1);
       } else {
         setLoadingMore(true);
       }
@@ -117,6 +120,8 @@ export default function ResultsView({
           total = results.length;
         }
 
+        setTotalHits(total);
+
         if (reset) {
           setMods(results);
         } else {
@@ -132,6 +137,57 @@ export default function ResultsView({
         setLoading(false);
         setLoadingMore(false);
         loadingRef.current = false;
+      }
+    },
+    [contentType, source, searchQuery, selectedTags, gameVersion, loader, sortBy],
+  );
+
+  const loadModsAt = useCallback(
+    async (targetOffset: number) => {
+      setLoading(true);
+      setError('');
+      try {
+        const effectiveQuery = searchQuery || selectedTags.join(' ');
+        let results: ModResult[];
+        let total: number;
+
+        if (effectiveQuery.trim()) {
+          if (source === 'curseforge') {
+            [results, total] = await api.searchCfMods(
+              effectiveQuery,
+              gameVersion || undefined,
+              selectedTags[0] || undefined,
+              sortBy,
+              PAGE_SIZE,
+              targetOffset,
+            );
+          } else {
+            [results, total] = await api.searchContent(
+              effectiveQuery,
+              contentType,
+              gameVersion || undefined,
+              loader || undefined,
+              sortBy,
+              PAGE_SIZE,
+              targetOffset,
+            );
+          }
+        } else {
+          if (source === 'curseforge') {
+            results = await api.getCfFeatured();
+          } else {
+            results = await api.getTrendingContent(contentType, gameVersion || undefined, PAGE_SIZE);
+          }
+          total = results.length;
+        }
+
+        setMods(results);
+        setTotalHits(total);
+        setHasMore(targetOffset + results.length < total);
+      } catch (e: unknown) {
+        setError(formatError(e) || 'Failed');
+      } finally {
+        setLoading(false);
       }
     },
     [contentType, source, searchQuery, selectedTags, gameVersion, loader, sortBy],
@@ -275,7 +331,18 @@ export default function ResultsView({
             </div>
           )}
 
-          {!hasMore && mods.length > 0 && <div className={styles.endReached}>All content loaded</div>}
+          {totalHits > PAGE_SIZE && !loading && (
+            <Pagination
+              current={page}
+              total={Math.max(1, Math.ceil(totalHits / PAGE_SIZE))}
+              onPage={(p) => {
+                setPage(p);
+                const newOffset = (p - 1) * PAGE_SIZE;
+                offsetRef.current = newOffset;
+                loadModsAt(newOffset);
+              }}
+            />
+          )}
         </>
       )}
     </div>
