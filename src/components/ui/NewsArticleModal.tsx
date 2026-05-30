@@ -86,7 +86,7 @@ export const NewsArticleModal: React.FC<NewsArticleModalProps> = ({
           <div className={styles.content}>
             {headerImage && (
               <div className={styles.heroImage}>
-                <img src={headerImage} alt={article.title} />
+                <img src={headerImage} alt={article.title} loading="lazy" />
                 <div className={styles.heroGradient} />
               </div>
             )}

@@ -233,6 +233,7 @@ pub fn run() {
             commands::system::list_installed_versions,
             commands::system::delete_version_cmd,
             commands::system::get_dir_size_cmd,
+            commands::system::get_recommended_config,
             commands::system::get_recommendations,
             commands::system::check_migration_readiness,
             commands::misc::warmup_launch,

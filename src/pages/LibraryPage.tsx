@@ -415,6 +415,23 @@ export default function LibraryPage() {
                       {mod.installed_at ? new Date(mod.installed_at).toLocaleDateString() : ''}
                     </div>
                     <div className={styles.item__actions}>
+                      <Button
+                        variant={mod.enabled !== false ? 'secondary' : 'primary'}
+                        size="sm"
+                        onClick={async () => {
+                          if (!selectedId) return;
+                          try {
+                            const newEnabled = await api.toggleMod(selectedId, mod.filename);
+                            setMods((prev) =>
+                              prev.map((m) => (m.filename === mod.filename ? { ...m, enabled: newEnabled } : m)),
+                            );
+                          } catch {
+                            addToast({ type: 'error', title: t('library.toggleModFailed') || 'Toggle failed' });
+                          }
+                        }}
+                      >
+                        {mod.enabled !== false ? t('library.disable') || 'Disable' : t('library.enable') || 'Enable'}
+                      </Button>
                       <Button variant="danger" size="sm" onClick={() => setRemoveTarget(mod.filename)}>
                         {t('library.remove')}
                       </Button>

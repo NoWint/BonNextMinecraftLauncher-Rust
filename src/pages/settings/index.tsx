@@ -28,6 +28,7 @@ import {
   StatusDot,
   Badge,
   Button,
+  Modal,
   TextInput,
   Select,
   Checkbox,
@@ -120,6 +121,7 @@ export default function SettingsPage() {
   >([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [deletingVersion, setDeletingVersion] = useState<string | null>(null);
+  const [confirmDeleteVersion, setConfirmDeleteVersion] = useState<string | null>(null);
   const [fileManagementGameDir, setFileManagementGameDir] = useState<string>('');
   const [securityScore, setSecurityScore] = useState(40);
   const [encryptionStatus, setEncryptionStatus] = useState<{ encrypted: boolean; plain: boolean }>({
@@ -208,7 +210,11 @@ export default function SettingsPage() {
   }, []);
 
   const handleDeleteVersion = async (versionId: string) => {
-    if (!confirm(t('settings.fileMgmt.deleteConfirm', { version: versionId }))) return;
+    setConfirmDeleteVersion(versionId);
+  };
+
+  const executeDeleteVersion = async (versionId: string) => {
+    setConfirmDeleteVersion(null);
     setDeletingVersion(versionId);
     try {
       await api.deleteVersion(versionId);
@@ -1651,6 +1657,25 @@ export default function SettingsPage() {
           {t('settings.joinQQGroup')}
         </a>
       </div>
+
+      {confirmDeleteVersion && (
+        <Modal
+          open
+          title={t('settings.fileMgmt.deleteConfirm', { version: confirmDeleteVersion })}
+          onClose={() => setConfirmDeleteVersion(null)}
+          children={<p>{t('settings.fileMgmt.deleteConfirmMsg') || 'This action cannot be undone.'}</p>}
+          actions={
+            <>
+              <Button variant="secondary" size="sm" onClick={() => setConfirmDeleteVersion(null)}>
+                {t('common.cancel')}
+              </Button>
+              <Button variant="danger" size="sm" onClick={() => executeDeleteVersion(confirmDeleteVersion)}>
+                {t('settings.fileMgmt.delete')}
+              </Button>
+            </>
+          }
+        />
+      )}
     </div>
   );
 }

@@ -29,8 +29,25 @@
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
   --color-text-tertiary: #888888;
-  --color-text-dim: #777777;
-  --color-text-faint: #666666;
+  --color-text-dim: #888888;
+  --color-text-faint: #767676;
+
+  --color-accent-06: rgba(255, 230, 0, 0.06);
+  --color-accent-10: rgba(255, 230, 0, 0.1);
+  --color-accent-15: rgba(255, 230, 0, 0.15);
+  --color-accent-20: rgba(255, 230, 0, 0.2);
+  --color-accent-30: rgba(255, 230, 0, 0.3);
+
+  --color-overlay-30: rgba(0, 0, 0, 0.3);
+  --color-overlay-50: rgba(0, 0, 0, 0.5);
+  --color-overlay-60: rgba(0, 0, 0, 0.6);
+  --color-overlay-80: rgba(0, 0, 0, 0.8);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.6);
+  --selection-bg: rgba(255, 230, 0, 0.3);
+  --selection-color: #0d0d0d;
+  --scrollbar-thumb-color: rgba(255, 255, 255, 0.1);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
 }
 
 /* ========================================
@@ -93,8 +110,8 @@
   --bg-secondary: #0a0a0a;
   --bg-card: #0f0f0f;
   --text-primary: #ffffff;
-  --text-secondary: #999999;
-  --text-muted: #777777;
+  --text-secondary: #aaaaaa;
+  --text-muted: #888888;
   --accent: #ffe600;
   --border: #1a1a1a;
   --border-hover: #333333;
@@ -115,6 +132,23 @@
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
   --color-text-tertiary: #888888;
-  --color-text-dim: #666666;
-  --color-text-faint: #555555;
+  --color-text-dim: #888888;
+  --color-text-faint: #767676;
+
+  --color-accent-06: rgba(255, 230, 0, 0.06);
+  --color-accent-10: rgba(255, 230, 0, 0.1);
+  --color-accent-15: rgba(255, 230, 0, 0.15);
+  --color-accent-20: rgba(255, 230, 0, 0.2);
+  --color-accent-30: rgba(255, 230, 0, 0.3);
+
+  --color-overlay-30: rgba(0, 0, 0, 0.4);
+  --color-overlay-50: rgba(0, 0, 0, 0.6);
+  --color-overlay-60: rgba(0, 0, 0, 0.7);
+  --color-overlay-80: rgba(0, 0, 0, 0.9);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.8);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.9);
+  --selection-bg: rgba(255, 230, 0, 0.35);
+  --selection-color: #000000;
+  --scrollbar-thumb-color: rgba(255, 255, 255, 0.08);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.15);
 }

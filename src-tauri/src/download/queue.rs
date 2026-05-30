@@ -254,7 +254,7 @@ impl DownloadQueue {
         expected_size: u64,
     ) -> Result<u64, LauncherError> {
         if let Some(parent) = target_path.parent() {
-            std::fs::create_dir_all(parent)?;
+            tokio::fs::create_dir_all(parent).await?;
         }
 
         let mut response = self.client.get(url).send().await?;

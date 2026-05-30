@@ -70,6 +70,36 @@ fn auto_tune_memory() -> u32 {
     ((total_ram / 2).clamp(2048, 8192)) as u32
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct RecommendedConfig {
+    pub min_memory: u32,
+    pub max_memory: u32,
+    pub java_version: u32,
+    pub download_threads: u32,
+    pub use_g1gc: bool,
+    pub total_ram_mb: u64,
+    pub cpu_cores: usize,
+}
+
+#[tauri::command]
+pub async fn get_recommended_config() -> Result<RecommendedConfig, LauncherError> {
+    use sysinfo::System;
+    let sys = System::new_all();
+    let total_ram = sys.total_memory() / 1024 / 1024;
+    let cpu_cores = sys.cpus().len();
+    let min_memory = 512u32;
+    let max_memory = ((total_ram / 2).clamp(2048, 16384)) as u32;
+    Ok(RecommendedConfig {
+        min_memory,
+        max_memory,
+        java_version: 21,
+        download_threads: (cpu_cores.clamp(2, 8)) as u32,
+        use_g1gc: total_ram >= 8192,
+        total_ram_mb: total_ram,
+        cpu_cores,
+    })
+}
+
 fn smart_tune_memory(mod_count: usize) -> u32 {
     use sysinfo::System;
     let sys = System::new_all();
