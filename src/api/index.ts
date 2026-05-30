@@ -11,6 +11,7 @@ import * as system from './system';
 import { invalidateCache } from './cache';
 import { socialApi } from './social';
 import { chatApi } from './chat';
+import { modpackindexApi } from './modpackindex';
 
 export type * from './types';
 export { invalidateCache } from './cache';
@@ -265,4 +266,5 @@ export const api = {
 
   social: socialApi,
   chat: chatApi,
+  mpindex: modpackindexApi,
 };

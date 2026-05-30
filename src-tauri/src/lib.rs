@@ -21,6 +21,7 @@ mod recommendation;
 mod types;
 mod version;
 mod curseforge;
+mod modpackindex;
 mod commands;
 mod web_api;
 mod terracotta;
@@ -114,6 +115,7 @@ pub fn run() {
         .manage(download::queue::DownloadControlState::new())
         .manage(cache::ApiCache::new())
         .manage(TerracottaState { port: tokio::sync::Mutex::new(None), child: tokio::sync::Mutex::new(None) })
+        .manage(crate::social::p2p::P2pState::new())
         .invoke_handler(tauri::generate_handler![
             commands::version::get_versions,
             commands::launch::get_launch_state,
@@ -208,6 +210,16 @@ pub fn run() {
             commands::curseforge::get_cf_featured,
             commands::curseforge::get_cf_mod_files,
             commands::curseforge::download_cf_mod,
+            commands::modpackindex::search_mpi_mods,
+            commands::modpackindex::search_mpi_modpacks,
+            commands::modpackindex::get_mpi_mod,
+            commands::modpackindex::get_mpi_modpack,
+            commands::modpackindex::get_mpi_mod_modpacks,
+            commands::modpackindex::get_mpi_modpack_mods,
+            commands::modpackindex::get_mpi_popular_mods,
+            commands::modpackindex::get_mpi_popular_modpacks,
+            commands::modpackindex::get_mpi_categories,
+            commands::modpackindex::get_mpi_category_mods,
             commands::collections::add_to_collection,
             commands::collections::remove_from_collection,
             commands::collections::is_in_collection,
@@ -278,6 +290,9 @@ pub fn run() {
             commands::social::start_discord_rpc,
             commands::social::stop_discord_rpc,
             commands::social::update_discord_presence,
+            commands::social::start_p2p_listener,
+            commands::social::send_p2p_message,
+            commands::social::get_peer_public_key,
             commands::misc::get_launch_profiling_data,
             commands::misc::get_frame_time_data,
             commands::misc::nlp_search_content,

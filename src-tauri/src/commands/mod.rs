@@ -6,6 +6,7 @@ pub mod launch;
 pub mod version;
 pub mod modrinth;
 pub mod curseforge;
+pub mod modpackindex;
 pub mod content;
 pub mod collections;
 pub mod system;
