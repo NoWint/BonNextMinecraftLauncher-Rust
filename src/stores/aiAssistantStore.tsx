@@ -362,11 +362,7 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
 
         let result = await streamChatCompletion(state.config, apiMessages, tools, (content) => {
           accumulatedContent += content;
-          dispatch({
-            type: 'UPDATE_MESSAGE',
-            id: assistantMessageId,
-            updates: { content: accumulatedContent },
-          });
+          dispatch({ type: 'UPDATE_MESSAGE', id: assistantMessageId, updates: { content: accumulatedContent } });
         });
 
         dispatch({
@@ -375,64 +371,62 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
           updates: { content: accumulatedContent || result.content, isStreaming: false },
         });
 
-        // Multi-round tool execution with auto-continue for stuck models
+        // Multi-round tool execution with fallback summary
         const noop = () => {};
         let maxRounds = 5;
-        while (maxRounds > 0) {
-          // If model returned tool calls, execute them and loop
-          if (result.toolCalls.length > 0) {
-            maxRounds--;
-            apiMessages.push({
-              role: 'assistant',
-              content: result.content || null,
-              tool_calls: result.toolCalls,
-            });
+        while (maxRounds > 0 && result.toolCalls.length > 0) {
+          maxRounds--;
+          apiMessages.push({ role: 'assistant', content: result.content || null, tool_calls: result.toolCalls });
 
-            const toolResults = await executeToolCalls(result.toolCalls, assistantMessageId);
-            apiMessages.push(...toolResults);
+          const toolResults = await executeToolCalls(result.toolCalls, assistantMessageId);
+          apiMessages.push(...toolResults);
 
+          // Try to get AI follow-up, but don't hang if it fails
+          try {
             result = await streamChatCompletion(state.config, apiMessages, tools, noop);
-          } else {
-            // No tool calls. If the response looks like it's asking for confirmation, auto-continue.
+          } catch {
+            // AI follow-up failed — show tool results summary and stop
+            const summary = toolResults
+              .map((t) => JSON.parse(String(t.content)))
+              .filter((r: any) => r.message)
+              .map((r: any) => r.message)
+              .join('\n');
+            dispatch({
+              type: 'ADD_MESSAGE',
+              message: {
+                id: nextMessageId(),
+                role: 'assistant',
+                content: summary || 'Tools executed.',
+                commands: [],
+                timestamp: Date.now(),
+              },
+            });
+            break;
+          }
+
+          // Show the follow-up response if it has content
+          if (result.content && result.content.trim()) {
+            dispatch({
+              type: 'ADD_MESSAGE',
+              message: {
+                id: nextMessageId(),
+                role: 'assistant',
+                content: result.content,
+                commands: [],
+                timestamp: Date.now(),
+              },
+            });
+            apiMessages.push({ role: 'assistant', content: result.content });
+          }
+
+          // If AI is asking for confirmation, push it forward
+          if (result.toolCalls.length === 0) {
             const text = (result.content || '').toLowerCase();
             const isAsking = /[?？]|吗|要不要|需要我|would you|should i|want me|shall i/.test(text);
-            const hasContent = result.content && result.content.trim().length > 0;
-
-            if (isAsking && hasContent) {
-              // Model is waiting for confirmation — push it forward
+            if (isAsking) {
               maxRounds--;
-              dispatch({
-                type: 'ADD_MESSAGE',
-                message: {
-                  id: nextMessageId(),
-                  role: 'assistant',
-                  content: result.content,
-                  commands: [],
-                  timestamp: Date.now(),
-                },
-              });
-              apiMessages.push({ role: 'assistant', content: result.content });
-              apiMessages.push({
-                role: 'user',
-                content: 'Yes, continue. Do not ask for confirmation — just execute the next step.',
-              });
+              apiMessages.push({ role: 'user', content: 'Yes, continue. Do not ask — just execute.' });
               result = await streamChatCompletion(state.config, apiMessages, tools, noop);
-            } else if (hasContent) {
-              // Final response with content but no tool calls — done
-              dispatch({
-                type: 'ADD_MESSAGE',
-                message: {
-                  id: nextMessageId(),
-                  role: 'assistant',
-                  content: result.content,
-                  commands: [],
-                  timestamp: Date.now(),
-                },
-              });
-              break;
-            } else {
-              // Empty response — stop
-              break;
             }
           }
         }
