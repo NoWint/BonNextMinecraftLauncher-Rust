@@ -216,11 +216,11 @@ struct ModrinthProjectFull {
     description: String,
     #[serde(default)]
     body: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_string")]
     author: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_string")]
     team: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_string")]
     organization: String,
     #[serde(default)]
     categories: Vec<String>,
@@ -232,6 +232,7 @@ struct ModrinthProjectFull {
     client_side: String,
     #[serde(default)]
     server_side: String,
+    #[serde(default, deserialize_with = "deserialize_null_string")]
     project_type: String,
     #[serde(default)]
     gallery: Vec<ModrinthGalleryImage>,
@@ -246,19 +247,21 @@ struct ModrinthProjectFull {
 
 #[derive(Debug, Deserialize)]
 struct ModrinthGalleryImage {
+    #[serde(default, deserialize_with = "deserialize_null_string")]
     url: String,
     #[serde(default)]
     featured: bool,
     title: Option<String>,
     description: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_string")]
     created: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct ModrinthLicense {
+    #[serde(default, deserialize_with = "deserialize_null_string")]
     id: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_string")]
     name: String,
     url: Option<String>,
 }
