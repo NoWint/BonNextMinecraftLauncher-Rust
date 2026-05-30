@@ -130,15 +130,17 @@ struct CfFile {
     file_name: String,
     #[serde(rename = "downloadUrl")]
     download_url: Option<String>,
-    #[serde(rename = "fileLength")]
+    #[serde(rename = "fileLength", default)]
     file_length: u64,
-    #[serde(rename = "gameVersions")]
+    #[serde(rename = "gameVersions", default)]
     game_versions: Vec<String>,
-    #[serde(rename = "releaseType")]
-    release_type: u64, // 1=release, 2=beta, 3=alpha
-    #[serde(rename = "fileDate")]
+    #[serde(rename = "releaseType", default)]
+    release_type: u64,
+    #[serde(rename = "fileDate", default)]
     file_date: String,
+    #[serde(default)]
     hashes: Vec<CfHash>,
+    #[serde(default)]
     dependencies: Vec<CfDependency>,
 }
 
@@ -151,16 +153,18 @@ struct CfMod {
     description: Option<String>,
     #[serde(default)]
     authors: Vec<CfAuthor>,
+    #[serde(default)]
     categories: Vec<CfCategory>,
     #[serde(rename = "downloadCount")]
     download_count: f64,
+    #[serde(default)]
     logo: Option<CfAsset>,
     links: CfLinks,
     #[serde(rename = "dateCreated")]
     date_created: String,
     #[serde(rename = "dateModified")]
     date_modified: String,
-    #[serde(rename = "latestFiles")]
+    #[serde(rename = "latestFiles", default)]
     latest_files: Vec<CfFile>,
     #[serde(default)]
     screenshots: Vec<CfScreenshot>,

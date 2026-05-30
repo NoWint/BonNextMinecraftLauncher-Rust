@@ -83,11 +83,17 @@ pub struct ModLicense {
 pub struct ModVersion {
     pub id: String,
     pub name: String,
+    #[serde(default)]
     pub version_number: String,
+    #[serde(default)]
     pub game_versions: Vec<String>,
+    #[serde(default)]
     pub loaders: Vec<String>,
+    #[serde(default)]
     pub files: Vec<ModFile>,
+    #[serde(default)]
     pub dependencies: Vec<ModDependency>,
+    #[serde(default)]
     pub date_published: String,
 }
 
@@ -95,6 +101,7 @@ pub struct ModVersion {
 pub struct ModFile {
     pub url: String,
     pub filename: String,
+    #[serde(default)]
     pub size: u64,
     pub hashes: ModHashes,
 }
@@ -210,12 +217,15 @@ struct ModrinthProjectFull {
     #[serde(default)]
     body: String,
     author: String,
+    #[serde(default)]
     categories: Vec<String>,
     downloads: u64,
     follows: u64,
     #[serde(default, deserialize_with = "deserialize_null_string")]
     icon_url: String,
+    #[serde(default)]
     client_side: String,
+    #[serde(default)]
     server_side: String,
     project_type: String,
     #[serde(default)]
