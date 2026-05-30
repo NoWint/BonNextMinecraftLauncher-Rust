@@ -9,7 +9,6 @@ import { Skeleton } from '../components/ui/Skeleton';
 import {
   marketplaceReducer,
   INITIAL_STATE,
-  PAGE_SIZE,
   type ContentType,
   type DataSource,
   type SubView,
@@ -30,7 +29,6 @@ interface RecommendationItem {
 
 export default function MarketplacePage() {
   const [state, dispatch] = useReducer(marketplaceReducer, INITIAL_STATE);
-  const [totalHits, setTotalHits] = useReducer((_s: number, a: number) => a, 0);
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
   const [recsLoading, setRecsLoading] = useState(true);
   const { state: configState } = useConfig();
@@ -96,10 +94,6 @@ export default function MarketplacePage() {
 
   const handleSortChange = useCallback((sort: string) => {
     dispatch({ type: 'SET_SORT', payload: sort });
-  }, []);
-
-  const handlePageChange = useCallback((page: number) => {
-    dispatch({ type: 'SET_PAGE', payload: page });
   }, []);
 
   const handleViewModeChange = useCallback((mode: ViewMode) => {
@@ -176,9 +170,6 @@ export default function MarketplacePage() {
       <SubViewSwitch
         subView={state.subView}
         viewMode={state.viewMode}
-        page={state.page}
-        pageSize={PAGE_SIZE}
-        totalHits={totalHits}
         onSubViewChange={handleSubViewChange}
         onViewModeChange={handleViewModeChange}
       />
@@ -194,11 +185,8 @@ export default function MarketplacePage() {
           gameVersion={state.gameVersion}
           loader={state.loader}
           sortBy={state.sortBy}
-          page={state.page}
           viewMode={state.viewMode}
-          onPageChange={handlePageChange}
           onNavigate={handleNavigate}
-          onTotalHitsChange={setTotalHits}
         />
       )}
     </div>

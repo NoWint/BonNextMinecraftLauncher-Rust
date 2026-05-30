@@ -5,28 +5,11 @@ import styles from './SubViewSwitch.module.css';
 interface SubViewSwitchProps {
   subView: SubView;
   viewMode: ViewMode;
-  page: number;
-  pageSize: number;
-  totalHits: number;
   onSubViewChange: (view: SubView) => void;
   onViewModeChange: (mode: ViewMode) => void;
 }
 
-export default function SubViewSwitch({
-  subView,
-  viewMode,
-  page,
-  pageSize,
-  totalHits,
-  onSubViewChange,
-  onViewModeChange,
-}: SubViewSwitchProps) {
-  const totalPages = Math.max(1, Math.ceil(totalHits / pageSize));
-  const showing =
-    totalHits > 0
-      ? `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, totalHits)} of ${totalHits.toLocaleString()}`
-      : '';
-
+export default function SubViewSwitch({ subView, viewMode, onSubViewChange, onViewModeChange }: SubViewSwitchProps) {
   return (
     <div className={styles.bar}>
       <div className={styles.left}>
@@ -44,12 +27,6 @@ export default function SubViewSwitch({
         </button>
       </div>
       <div className={styles.right}>
-        {subView === 'results' && showing && <span className={styles.info}>{showing}</span>}
-        {subView === 'results' && totalHits > 0 && (
-          <span className={styles.info}>
-            Page {page}/{totalPages}
-          </span>
-        )}
         {subView === 'results' && (
           <div className={styles.viewToggle}>
             <button

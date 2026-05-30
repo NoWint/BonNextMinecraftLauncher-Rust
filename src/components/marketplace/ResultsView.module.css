@@ -140,3 +140,12 @@
   padding: 4px 0 2px;
   flex-shrink: 0;
 }
+
+.endReached {
+  text-align: center;
+  font-size: 0.55em;
+  color: var(--color-text-dim);
+  padding: 1em 0;
+  font-family: var(--font-mono);
+  letter-spacing: 1px;
+}

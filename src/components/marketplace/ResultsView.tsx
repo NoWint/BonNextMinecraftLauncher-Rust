@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { formatError } from '../../utils/errorMapping';
 import { api, type ModResult } from '../../api';
 import { useInstances } from '../../stores/instanceStore';
 import { useToast } from '../../stores/toastStore';
-import { Button, Pagination, ContentCard, contentFromModResult } from '../ui';
+import { Button, ContentCard, contentFromModResult } from '../ui';
 import { Icon } from '../ui/Icon';
 import type { ContentType, DataSource, ViewMode } from './types';
 import { PAGE_SIZE } from './types';
@@ -17,11 +17,8 @@ interface ResultsViewProps {
   gameVersion: string;
   loader: string;
   sortBy: string;
-  page: number;
   viewMode: ViewMode;
-  onPageChange: (page: number) => void;
   onNavigate: (slug: string) => void;
-  onTotalHitsChange: (total: number) => void;
 }
 
 function SkeletonGrid() {
@@ -49,81 +46,116 @@ export default function ResultsView({
   gameVersion,
   loader,
   sortBy,
-  page,
   viewMode,
-  onPageChange,
   onNavigate,
-  onTotalHitsChange,
 }: ResultsViewProps) {
   const { state: instState } = useInstances();
   const { addToast } = useToast();
 
   const [mods, setMods] = useState<ModResult[]>([]);
   const [loading, setLoading] = useState(true);
-  const [totalHits, setTotalHits] = useState(0);
-  const [installing, setInstalling] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState('');
+  const [installing, setInstalling] = useState<string | null>(null);
+
+  const offsetRef = useRef(0);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadingRef = useRef(false);
 
   const instances = instState.instances;
   const activeInstance = instances.length > 0 ? instances[0] : null;
-  const totalPages = Math.max(1, Math.ceil(totalHits / PAGE_SIZE));
 
-  const loadMods = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const effectiveQuery = searchQuery || selectedTags.join(' ');
-      const offset = (page - 1) * PAGE_SIZE;
+  const loadMods = useCallback(
+    async (reset: boolean) => {
+      if (loadingRef.current) return;
+      loadingRef.current = true;
 
-      let results: ModResult[];
-      let total: number;
-
-      if (effectiveQuery.trim()) {
-        if (source === 'curseforge') {
-          [results, total] = await api.searchCfMods(
-            effectiveQuery,
-            gameVersion || undefined,
-            selectedTags[0] || undefined,
-            sortBy,
-            PAGE_SIZE,
-            offset,
-          );
-        } else {
-          [results, total] = await api.searchContent(
-            effectiveQuery,
-            contentType,
-            gameVersion || undefined,
-            loader || undefined,
-            sortBy,
-            PAGE_SIZE,
-            offset,
-          );
-        }
+      if (reset) {
+        setLoading(true);
+        offsetRef.current = 0;
+        setHasMore(true);
       } else {
-        if (source === 'curseforge') {
-          results = await api.getCfFeatured();
-        } else {
-          results = await api.getTrendingContent(contentType, gameVersion || undefined, PAGE_SIZE);
-        }
-        total = results.length;
+        setLoadingMore(true);
       }
 
-      setMods(results);
-      setTotalHits(total);
-      onTotalHitsChange(total);
-    } catch (e: unknown) {
-      setError(formatError(e) || 'Failed to load content');
-      setMods([]);
-      setTotalHits(0);
-      onTotalHitsChange(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [contentType, source, searchQuery, selectedTags, gameVersion, loader, sortBy, page, onTotalHitsChange]);
+      setError('');
+      try {
+        const effectiveQuery = searchQuery || selectedTags.join(' ');
+        const offset = reset ? 0 : offsetRef.current;
 
+        let results: ModResult[];
+        let total: number;
+
+        if (effectiveQuery.trim()) {
+          if (source === 'curseforge') {
+            [results, total] = await api.searchCfMods(
+              effectiveQuery,
+              gameVersion || undefined,
+              selectedTags[0] || undefined,
+              sortBy,
+              PAGE_SIZE,
+              offset,
+            );
+          } else {
+            [results, total] = await api.searchContent(
+              effectiveQuery,
+              contentType,
+              gameVersion || undefined,
+              loader || undefined,
+              sortBy,
+              PAGE_SIZE,
+              offset,
+            );
+          }
+        } else {
+          if (source === 'curseforge') {
+            results = await api.getCfFeatured();
+          } else {
+            results = await api.getTrendingContent(contentType, gameVersion || undefined, PAGE_SIZE);
+          }
+          total = results.length;
+        }
+
+        if (reset) {
+          setMods(results);
+        } else {
+          setMods((prev) => [...prev, ...results]);
+        }
+
+        offsetRef.current = offset + results.length;
+        setHasMore(offsetRef.current < total);
+      } catch (e: unknown) {
+        setError(formatError(e) || 'Failed to load content');
+        if (reset) setMods([]);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+        loadingRef.current = false;
+      }
+    },
+    [contentType, source, searchQuery, selectedTags, gameVersion, loader, sortBy],
+  );
+
+  // Reset and reload when filters change
   useEffect(() => {
-    loadMods();
+    loadMods(true);
   }, [loadMods]);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    if (!sentinelRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          loadMods(false);
+        }
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore, loadMods]);
 
   const handleInstall = async (mod: ModResult) => {
     if (!activeInstance) {
@@ -220,24 +252,31 @@ export default function ResultsView({
           </div>
         </div>
       ) : (
-        <div className={viewMode === 'grid' ? styles.galleryView : styles.listView}>
-          {mods.map((mod) => (
-            <ContentCard
-              key={mod.slug}
-              content={contentFromModResult(mod)}
-              variant={viewMode === 'grid' ? 'gallery' : 'list'}
-              onInstall={activeInstance ? () => handleInstall(mod) : undefined}
-              onNavigate={onNavigate}
-              installing={installing === mod.slug}
-            />
-          ))}
-        </div>
-      )}
+        <>
+          <div className={viewMode === 'grid' ? styles.galleryView : styles.listView}>
+            {mods.map((mod) => (
+              <ContentCard
+                key={`${mod.slug}-${mod.title}`}
+                content={contentFromModResult(mod)}
+                variant={viewMode === 'grid' ? 'gallery' : 'list'}
+                onInstall={activeInstance ? () => handleInstall(mod) : undefined}
+                onNavigate={onNavigate}
+                installing={installing === mod.slug}
+              />
+            ))}
+          </div>
 
-      {totalPages > 1 && !loading && (
-        <div className={styles.paginationRow}>
-          <Pagination current={page} total={totalPages} onPage={onPageChange} />
-        </div>
+          {/* Infinite scroll sentinel */}
+          <div ref={sentinelRef} style={{ height: 1, marginTop: 8 }} />
+
+          {loadingMore && (
+            <div style={{ padding: '1em 0', display: 'flex', justifyContent: 'center' }}>
+              <SkeletonGrid />
+            </div>
+          )}
+
+          {!hasMore && mods.length > 0 && <div className={styles.endReached}>All content loaded</div>}
+        </>
       )}
     </div>
   );
