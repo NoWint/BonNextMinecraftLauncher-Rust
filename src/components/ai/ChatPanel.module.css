@@ -19,28 +19,35 @@
   position: absolute;
   background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff, #5f27cd);
   background-size: 200% 100%;
-  animation: rainbowFlowBorder 4s linear infinite;
   opacity: 0;
 }
 
 .rainbowBorder--visible .rainbowBorder__edge--right {
-  animation: edgeFadeIn 0.3s ease-out forwards;
-  animation-delay: 0s;
+  animation:
+    edgeFadeIn 0.3s ease-out forwards,
+    rainbowFlowBorder 4s linear infinite;
+  animation-delay: 0s, 0.3s;
 }
 
 .rainbowBorder--visible .rainbowBorder__edge--top {
-  animation: edgeGrowRight 0.4s ease-out forwards;
-  animation-delay: 0.15s;
+  animation:
+    edgeGrowRight 0.4s ease-out forwards,
+    rainbowFlowBorder 4s linear infinite;
+  animation-delay: 0.15s, 0.55s;
 }
 
 .rainbowBorder--visible .rainbowBorder__edge--bottom {
-  animation: edgeGrowRight 0.4s ease-out forwards;
-  animation-delay: 0.15s;
+  animation:
+    edgeGrowRight 0.4s ease-out forwards,
+    rainbowFlowBorder 4s linear infinite;
+  animation-delay: 0.15s, 0.55s;
 }
 
 .rainbowBorder--visible .rainbowBorder__edge--left {
-  animation: edgeFadeIn 0.3s ease-out forwards;
-  animation-delay: 0.35s;
+  animation:
+    edgeFadeIn 0.3s ease-out forwards,
+    rainbowFlowBorder 4s linear infinite;
+  animation-delay: 0.35s, 0.65s;
 }
 
 /* Right edge: full height, 3px wide, on right */
