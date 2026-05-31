@@ -754,3 +754,16 @@ export interface CrashDetectedEvent {
   severity: 'fatal' | 'warning';
   timestamp: string;
 }
+
+export interface P2PStatus {
+  connections: number;
+  signaling_connected: boolean;
+  local_port: number | null;
+}
+
+export interface PeerInfo {
+  peer_id: string;
+  status: 'connecting' | 'connected' | 'disconnected' | 'failed';
+  latency_ms: number | null;
+  display_name: string | null;
+}

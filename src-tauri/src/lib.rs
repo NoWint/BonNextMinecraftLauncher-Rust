@@ -33,6 +33,7 @@ mod mod_compat;
 mod mod_scanner;
 mod server_ping;
 mod mod_watcher;
+mod p2p;
 
 pub use config::AppConfig;
 pub use config::SecurityConfig;
@@ -125,6 +126,7 @@ pub fn run() {
         .manage(cache::ApiCache::new())
         .manage(TerracottaState { port: tokio::sync::Mutex::new(None), child: tokio::sync::Mutex::new(None) })
         .manage(crate::social::p2p::P2pState::new())
+        .manage(Arc::new(tokio::sync::Mutex::new(crate::p2p::P2PState::new())))
         .manage(commands::workflow::WorkflowState(crate::workflow::WorkflowEngine::new()))
         .manage(crate::crash_watcher::CrashWatcherState::new())
         .manage(std::sync::Arc::new(tokio::sync::Mutex::new(mod_scanner::scanner::ScanCache::new())))
@@ -395,6 +397,9 @@ pub fn run() {
             commands::server_ping::update_server_ping,
             commands::mod_watcher::watch_instance_mods,
             commands::mod_watcher::unwatch_instance_mods,
+            commands::p2p::p2p_get_status,
+            commands::p2p::p2p_connect,
+            commands::p2p::p2p_disconnect,
         ])
         .setup(|app| {
             app.manage(mod_watcher::watcher::ModWatcherState::new(app.handle().clone()));

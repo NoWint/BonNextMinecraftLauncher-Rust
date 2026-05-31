@@ -65,6 +65,7 @@ notify = { version = "7", features = ["macos_kqueue"] }
 tokio-util = { version = "0.7", features = ["rt"] }
 hickory-resolver = "0.24"
 quick-xml = { version = "0.37", features = ["serialize"] }
+str0m = "0.7"
 
 [dev-dependencies]
 indoc = "2"
