@@ -18,6 +18,10 @@ function getLoaderLabel(loaderType: string | null): string {
       return 'Fabric';
     case 'forge':
       return 'Forge';
+    case 'quilt':
+      return 'Quilt';
+    case 'neoforge':
+      return 'NeoForge';
     default:
       return 'Vanilla';
   }
@@ -49,8 +53,10 @@ export function InstanceSelect({ value, onChange, instances, filterVersion, filt
     <div className={styles.select} ref={ref}>
       <button type="button" className={styles.select__trigger} onClick={() => setOpen(!open)}>
         <div className={styles.select__icon}>
-          {selected?.loader_type === 'fabric'
+          {selected?.loader_type === 'fabric' || selected?.loader_type === 'quilt'
             ? '\u{1F9F5}'
+            : selected?.loader_type === 'neoforge'
+            ? '\u{2699}'
             : selected?.loader_type === 'forge'
               ? '\u{2692}'
               : '\u{1F4E6}'}

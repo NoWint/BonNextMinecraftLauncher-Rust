@@ -116,6 +116,10 @@ function getLoaderIcon(loaderType: string | null): IconName {
       return 'fabric';
     case 'forge':
       return 'forge';
+    case 'quilt':
+      return 'quilt';
+    case 'neoforge':
+      return 'neoforge';
     default:
       return 'vanilla';
   }
@@ -127,6 +131,10 @@ function getLoaderLabel(loaderType: string | null): string {
       return 'Fabric';
     case 'forge':
       return 'Forge';
+    case 'quilt':
+      return 'Quilt';
+    case 'neoforge':
+      return 'NeoForge';
     default:
       return 'Vanilla';
   }

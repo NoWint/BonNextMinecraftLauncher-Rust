@@ -20,6 +20,10 @@ function getLoaderIcon(loaderType: string | null): string {
       return '\u{1F9F5}';
     case 'forge':
       return '\u{2692}';
+    case 'quilt':
+      return '\u{1F9F5}';
+    case 'neoforge':
+      return '\u{2699}';
     default:
       return '\u{1F4E6}';
   }

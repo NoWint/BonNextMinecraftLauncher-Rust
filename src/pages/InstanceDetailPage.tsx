@@ -18,6 +18,7 @@ import { useToast } from '../stores/toastStore';
 import { useI18n } from '../i18n';
 import { Badge, Tabs, Modal, Breadcrumb as BreadcrumbComp, TextInput, Tooltip } from '../components/ui';
 import { Button } from '../components/ui';
+import { Icon } from '../components/ui/Icon';
 import GameConsole from '../components/ui/GameConsole';
 import LogViewer from '../components/ui/LogViewer';
 import { relativeTime } from '../utils/time';
@@ -40,6 +41,10 @@ function getLoaderIcon(loaderType: string | null): string {
       return '\u{1F9F5}';
     case 'forge':
       return '\u{2692}';
+    case 'quilt':
+      return '\u{1F9F5}';
+    case 'neoforge':
+      return '\u{2699}';
     default:
       return '\u{1F4E6}';
   }
@@ -51,6 +56,10 @@ function getLoaderLabel(loaderType: string | null): string {
       return 'Fabric';
     case 'forge':
       return 'Forge';
+    case 'quilt':
+      return 'Quilt';
+    case 'neoforge':
+      return 'NeoForge';
     default:
       return 'Vanilla';
   }
@@ -586,16 +595,16 @@ export default function InstanceDetailPage() {
           ) : (
             <span className={styles.topBarIconEmoji}>{getLoaderIcon(instance.loader_type)}</span>
           )}
-          {iconStatus === 'loading' && <span className={styles.iconStatusOverlay}>⏳</span>}
-          {iconStatus === 'success' && <span className={styles.iconStatusOverlay}>✓</span>}
-          {iconStatus === 'error' && <span className={styles.iconStatusOverlay}>✗</span>}
+          {iconStatus === 'loading' && <span className={styles.iconStatusOverlay}><Icon name="hourglass" size={12} /></span>}
+          {iconStatus === 'success' && <span className={styles.iconStatusOverlay}><Icon name="check" size={12} /></span>}
+          {iconStatus === 'error' && <span className={styles.iconStatusOverlay}><Icon name="cross" size={12} /></span>}
         </div>
         <div className={styles.topBarInfo}>
           <div className={styles.topBarNameRow}>
             <span className={styles.topBarName}>{instance.name.toUpperCase()}</span>
             <Badge variant="accent">{instance.version_id}</Badge>
             {instance.loader_type && <Badge variant="muted">{instance.loader_type}</Badge>}
-            {isReady !== null && <span style={{ fontSize: '0.6em' }}>{isReady ? '✅' : '⚠️'}</span>}
+            {isReady !== null && <span style={{ fontSize: '0.6em' }}>{isReady ? <Icon name="checkCircle" size={12} /> : <Icon name="warning" size={12} />}</span>}
           </div>
           <div className={styles.topBarMeta}>
             <span className={styles.topBarMetaText}>
@@ -614,28 +623,28 @@ export default function InstanceDetailPage() {
           {runningGames.some((g) => g.instance_id === instanceId && g.state === 'running') && (
             <Tooltip content="View Logs">
               <Button variant="secondary" size="sm" onClick={() => setShowLogViewer(true)}>
-                📋 Logs
+                <Icon name="copy" size={14} /> Logs
               </Button>
             </Tooltip>
           )}
           <Tooltip content={t('common.launch')}>
             <Button variant="primary" size="md" onClick={handleLaunch} disabled={checkingPreLaunch}>
-              ▶ {t('instanceDetail.launch')}
+              <Icon name="play" size={14} /> {t('instanceDetail.launch')}
             </Button>
           </Tooltip>
           <Tooltip content="Health Check">
             <Button variant="secondary" size="sm" onClick={handleHealthCheck} disabled={healthLoading}>
-              🏥 {healthLoading ? 'Checking...' : 'Health Check'}
+              <Icon name="lightbulb" size={14} /> {healthLoading ? 'Checking...' : 'Health Check'}
             </Button>
           </Tooltip>
           <Tooltip content={t('instances.exportAsMrpack')}>
             <Button variant="secondary" size="sm" onClick={handleExport} disabled={exporting}>
-              📤 {exporting ? t('instanceDetail.exporting') : t('instanceDetail.export')}
+              <Icon name="upload" size={14} /> {exporting ? t('instanceDetail.exporting') : t('instanceDetail.export')}
             </Button>
           </Tooltip>
           <Tooltip content={t('instances.duplicateInstanceTooltip')}>
             <Button variant="secondary" size="sm" onClick={handleDuplicate}>
-              📋 {t('instanceDetail.duplicate')}
+              <Icon name="copy" size={14} /> {t('instanceDetail.duplicate')}
             </Button>
           </Tooltip>
           <Tooltip content={t('instanceDetail.delete')}>
@@ -774,7 +783,7 @@ export default function InstanceDetailPage() {
             <div className={styles.statCard}>
               <div className={styles.statCardLabel}>{t('instanceDetail.downloadStatus')}</div>
               <div className={styles.statCardValue}>
-                {isReady === null ? '⏳' : isReady ? '✅ ' + t('common.ready') : '⚠️ ' + t('common.needsDownload')}
+                {isReady === null ? <Icon name="hourglass" size={12} /> : isReady ? <><Icon name="checkCircle" size={12} /> {t('common.ready')}</> : <><Icon name="warning" size={12} /> {t('common.needsDownload')}</>}
               </div>
               <div className={styles.statCardSub}>
                 {isReady ? t('instanceDetail.readyStatus') : t('instanceDetail.notReadyStatus')}
@@ -795,7 +804,7 @@ export default function InstanceDetailPage() {
                   onClick={handleExport}
                   disabled={exporting}
                 >
-                  {exporting ? '⏳ ' + t('instanceDetail.exporting') : '📤 ' + t('instanceDetail.exportInstance')}
+                  {exporting ? <><Icon name="hourglass" size={12} /> {t('instanceDetail.exporting')}</> : <><Icon name="upload" size={14} /> {t('instanceDetail.exportInstance')}</>}
                 </Button>
               </Tooltip>
             </div>
@@ -859,7 +868,7 @@ export default function InstanceDetailPage() {
                 >
                   <div>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6em', color: '#FFF' }}>
-                      🌍 {world.name}
+                      <Icon name="globe" size={14} /> {world.name}
                     </div>
                     <div style={{ fontSize: '0.5em', color: '#666', marginTop: 2 }}>
                       {world.game_mode} · {world.difficulty} · {world.size_mb.toFixed(1)} MB
@@ -867,7 +876,7 @@ export default function InstanceDetailPage() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    {world.seed && <Badge variant="muted">Seed: {world.seed}</Badge>}
+                    {world.seed != null && <Badge variant="muted">Seed: {world.seed}</Badge>}
                   </div>
                 </div>
               ))}
@@ -980,11 +989,11 @@ export default function InstanceDetailPage() {
                         <div className={presetStyles.applyResult}>
                           <div className={presetStyles.applyResultSummary}>
                             <span className={presetStyles.applyResultSuccess}>
-                              ✓ {t('instanceDetail.presetSucceeded', { count: String(result.succeeded) })}
+                              <Icon name="check" size={12} /> {t('instanceDetail.presetSucceeded', { count: String(result.succeeded) })}
                             </span>
                             {result.failed > 0 && (
                               <span className={presetStyles.applyResultFailed}>
-                                ✗ {t('instanceDetail.presetFailed', { count: String(result.failed) })}
+                                <Icon name="cross" size={12} /> {t('instanceDetail.presetFailed', { count: String(result.failed) })}
                               </span>
                             )}
                           </div>
@@ -1216,7 +1225,7 @@ export default function InstanceDetailPage() {
                 onKeyDown={(e) => e.key === 'Enter' && handleCreateSnapshot()}
               />
               <Button variant="primary" size="sm" onClick={handleCreateSnapshot} disabled={snapshotLoading}>
-                {snapshotLoading ? t('instanceDetail.creating') : '📸 ' + t('instanceDetail.createSnapshot')}
+                {snapshotLoading ? t('instanceDetail.creating') : <><Icon name="camera" size={14} /> {t('instanceDetail.createSnapshot')}</>}
               </Button>
             </div>
           </div>
@@ -1250,10 +1259,10 @@ export default function InstanceDetailPage() {
                       size="sm"
                       onClick={() => handleRestoreSnapshot(snap.id, snap.name)}
                     >
-                      {'↺ ' + t('instanceDetail.restore')}
+                      <><Icon name="arrowCurveLeft" size={14} /> {t('instanceDetail.restore')}</>
                     </Button>
                     <Button variant="danger" size="sm" onClick={() => handleDeleteSnapshot(snap.id, snap.name)}>
-                      {'✕ ' + t('common.delete')}
+                      <><Icon name="cross" size={14} /> {t('common.delete')}</>
                     </Button>
                   </span>
                 </div>
@@ -1393,7 +1402,7 @@ export default function InstanceDetailPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.8em' }}>
-                Overall: {healthReport.overall === 'pass' ? '✅' : healthReport.overall === 'warn' ? '⚠️' : '❌'}
+                Overall: {healthReport.overall === 'pass' ? <Icon name="checkCircle" size={12} /> : healthReport.overall === 'warn' ? <Icon name="warning" size={12} /> : <Icon name="crossCircle" size={12} />}
               </span>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55em', color: 'var(--color-text-dim)' }}>
                 {healthReport.instance_id}
@@ -1430,7 +1439,7 @@ export default function InstanceDetailPage() {
                 </div>
                 <span style={{ fontSize: '0.5em', color: 'var(--color-text-secondary)' }}>{item.message}</span>
                 {item.suggestion && (
-                  <span style={{ fontSize: '0.5em', color: 'var(--color-accent)' }}>💡 {item.suggestion}</span>
+                  <span style={{ fontSize: '0.5em', color: 'var(--color-accent)' }}><Icon name="lightbulb" size={12} /> {item.suggestion}</span>
                 )}
               </div>
             ))}

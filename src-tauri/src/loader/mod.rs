@@ -5,6 +5,8 @@ use crate::version::resolver::VersionDetails;
 
 pub mod fabric;
 pub mod forge;
+pub mod quilt;
+pub mod neoforge;
 
 /// Supported mod loader types.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -12,6 +14,8 @@ pub mod forge;
 pub enum LoaderType {
     Fabric,
     Forge,
+    Quilt,
+    NeoForge,
 }
 
 impl LoaderType {
@@ -19,6 +23,8 @@ impl LoaderType {
         match s.to_lowercase().as_str() {
             "fabric" => Some(LoaderType::Fabric),
             "forge" => Some(LoaderType::Forge),
+            "quilt" => Some(LoaderType::Quilt),
+            "neoforge" | "neo_forge" => Some(LoaderType::NeoForge),
             _ => None,
         }
     }
@@ -28,6 +34,8 @@ pub fn name(&self) -> &'static str {
         match self {
             LoaderType::Fabric => "fabric",
             LoaderType::Forge => "forge",
+            LoaderType::Quilt => "quilt",
+            LoaderType::NeoForge => "neoforge",
         }
     }
 
@@ -37,6 +45,8 @@ pub fn display_name(&self) -> &'static str {
         match self {
             LoaderType::Fabric => "Fabric",
             LoaderType::Forge => "Forge",
+            LoaderType::Quilt => "Quilt",
+            LoaderType::NeoForge => "NeoForge",
         }
     }
 }
@@ -63,6 +73,8 @@ pub async fn fetch_loader_versions(
     match loader_type {
         LoaderType::Fabric => fabric::fetch_versions().await,
         LoaderType::Forge => forge::fetch_versions().await,
+        LoaderType::Quilt => quilt::fetch_versions().await,
+        LoaderType::NeoForge => neoforge::fetch_versions().await,
     }
 }
 
@@ -76,5 +88,7 @@ pub async fn install_loader(
     match loader_type {
         LoaderType::Fabric => fabric::install(minecraft_version, loader_version, instance_id).await,
         LoaderType::Forge => forge::install(minecraft_version, loader_version, instance_id).await,
+        LoaderType::Quilt => quilt::install(minecraft_version, loader_version, instance_id).await,
+        LoaderType::NeoForge => neoforge::install(minecraft_version, loader_version, instance_id).await,
     }
 }

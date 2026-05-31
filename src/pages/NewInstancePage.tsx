@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { api, type VersionEntry, type GameInstance } from '../api';
+import { api, type VersionEntry, type GameInstance, type DetectedLauncher, type MigrateableInstance } from '../api';
 import { useInstances } from '../stores/instanceStore';
 import { useI18n } from '../i18n';
 import { formatError } from '../utils/errorMapping';
 import { SectionHeader, SubLabel } from '../components/layout';
-import { Button, TextInput, Select } from '../components/ui';
+import { Button, TextInput, Select, Badge } from '../components/ui';
 import styles from './NewInstancePage.module.css';
 
 interface Template {
@@ -61,6 +61,13 @@ export default function NewInstancePage() {
   const [error, setError] = useState('');
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [optifineNote, setOptifineNote] = useState(false);
+  const [detectedLaunchers, setDetectedLaunchers] = useState<DetectedLauncher[]>([]);
+  const [selectedLauncher, setSelectedLauncher] = useState<DetectedLauncher | null>(null);
+  const [launcherInstances, setLauncherInstances] = useState<MigrateableInstance[]>([]);
+  const [detecting, setDetecting] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [migrating, setMigrating] = useState<string | null>(null);
+  const [migrationError, setMigrationError] = useState('');
 
   useEffect(() => {
     api
@@ -132,6 +139,66 @@ export default function NewInstancePage() {
       setError(formatError(e) || t('newInstance.createFailed'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDetectLaunchers = async () => {
+    setDetecting(true);
+    setMigrationError('');
+    setSelectedLauncher(null);
+    setLauncherInstances([]);
+    try {
+      const launchers = await api.detectLaunchers();
+      setDetectedLaunchers(launchers);
+      if (launchers.length === 0) {
+        setMigrationError(t('newInstance.noLaunchersFound'));
+      }
+    } catch (e: unknown) {
+      setMigrationError(formatError(e) || t('newInstance.detectFailed'));
+    } finally {
+      setDetecting(false);
+    }
+  };
+
+  const handleSelectLauncher = async (launcher: DetectedLauncher) => {
+    setSelectedLauncher(launcher);
+    setScanning(true);
+    setLauncherInstances([]);
+    setMigrationError('');
+    try {
+      const instances = await api.scanLauncherInstances(launcher.launcher_type, launcher.game_dir);
+      setLauncherInstances(instances);
+      if (instances.length === 0) {
+        setMigrationError(t('newInstance.noInstancesFound'));
+      }
+    } catch (e: unknown) {
+      setMigrationError(formatError(e) || t('newInstance.scanFailed'));
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleMigrateInstance = async (inst: MigrateableInstance) => {
+    setMigrating(inst.name);
+    setMigrationError('');
+    try {
+      await api.migrateInstance({
+        name: inst.name,
+        versionId: inst.version_id,
+        loaderType: inst.loader_type,
+        loaderVersion: inst.loader_version,
+        sourceGameDir: inst.game_dir,
+        launcherType: inst.launcher_type,
+        javaPath: inst.java_path,
+        jvmArgs: inst.jvm_args,
+        minMemory: inst.min_memory,
+        maxMemory: inst.max_memory,
+      });
+      window.location.hash = '#/';
+    } catch (e: unknown) {
+      setMigrationError(formatError(e) || t('newInstance.migrateFailed'));
+    } finally {
+      setMigrating(null);
     }
   };
 
@@ -207,6 +274,8 @@ export default function NewInstancePage() {
               { value: '', label: t('newInstance.noneVanilla') },
               { value: 'fabric', label: t('common.fabric') },
               { value: 'forge', label: t('common.forge') },
+              { value: 'quilt', label: 'Quilt' },
+              { value: 'neoforge', label: 'NeoForge' },
             ]}
           />
         </div>
@@ -234,6 +303,80 @@ export default function NewInstancePage() {
         >
           {loading ? t('newInstance.creating') : t('newInstance.create')}
         </Button>
+      </div>
+
+      <div className={styles.divider}>
+        <span className={styles.dividerText}>{t('newInstance.or')}</span>
+      </div>
+
+      <div className={styles.form}>
+        <SectionHeader title={t('newInstance.importTitle').toUpperCase()} />
+        <div className={styles.migrationDesc}>{t('newInstance.importDesc')}</div>
+
+        <Button
+          variant="secondary"
+          size="md"
+          disabled={detecting}
+          onClick={handleDetectLaunchers}
+        >
+          {detecting ? t('newInstance.detecting') : t('newInstance.detectLaunchers')}
+        </Button>
+
+        {detectedLaunchers.length > 0 && (
+          <div>
+            <SubLabel>{t('newInstance.detectedLaunchers')}</SubLabel>
+            <div className={styles.launcherGrid}>
+              {detectedLaunchers.map((launcher) => (
+                <button
+                  key={launcher.launcher_type}
+                  type="button"
+                  className={`${styles.launcherCard} ${selectedLauncher?.launcher_type === launcher.launcher_type ? styles.launcherCardActive : ''}`}
+                  onClick={() => handleSelectLauncher(launcher)}
+                  disabled={scanning}
+                >
+                  <span className={styles.launcherName}>{launcher.name}</span>
+                  <Badge variant="accent">{launcher.instance_count}</Badge>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {scanning && <div className={styles.scanHint}>{t('newInstance.scanning')}</div>}
+
+        {launcherInstances.length > 0 && (
+          <div>
+            <SubLabel>{t('newInstance.launcherInstances')}</SubLabel>
+            <div className={styles.instanceList}>
+              {launcherInstances.map((inst) => (
+                <div key={inst.game_dir} className={styles.migrationRow}>
+                  <div className={styles.migrationInfo}>
+                    <span className={styles.migrationName}>{inst.name}</span>
+                    <span className={styles.migrationMeta}>
+                      {inst.version_id}
+                      {inst.loader_type && ` · ${inst.loader_type}${inst.loader_version ? ` ${inst.loader_version}` : ''}`}
+                    </span>
+                    <span className={styles.migrationMeta}>
+                      {inst.size_mb > 0 ? `${inst.size_mb.toFixed(0)} MB` : ''}
+                      {inst.has_mods ? ' · Mods' : ''}
+                      {inst.has_saves ? ' · Saves' : ''}
+                    </span>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={migrating !== null}
+                    onClick={() => handleMigrateInstance(inst)}
+                  >
+                    {migrating === inst.name ? t('newInstance.migrating') : t('newInstance.importBtn')}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {migrationError && <div className={styles.error}>{migrationError}</div>}
       </div>
     </div>
   );

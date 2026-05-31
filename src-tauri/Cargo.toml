@@ -61,6 +61,10 @@ x25519-dalek = { version = "2", features = ["static_secrets"] }
 chacha20poly1305 = "0.10"
 bs58 = "0.5"
 rusqlite = { version = "0.31", features = ["bundled"] }
+notify = { version = "7", features = ["macos_kqueue"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+hickory-resolver = "0.24"
+quick-xml = { version = "0.37", features = ["serialize"] }
 
 [dev-dependencies]
 indoc = "2"
