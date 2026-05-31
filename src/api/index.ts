@@ -13,8 +13,14 @@ import { socialApi } from './social';
 import { chatApi } from './chat';
 import { modpackindexApi } from './modpackindex';
 import { crashApi } from './crash';
+import { workflowApi } from './workflow';
+import { modpackApi } from './modpack';
+import * as modScanner from './modScanner';
+import * as servers from './servers';
 
 export type * from './types';
+export type { MojangProfile, YggdrasilServerPreset } from './auth';
+export type { ServerListEntry, MinecraftServerInfo } from './servers';
 export { invalidateCache } from './cache';
 
 const downloadVersion = (versionId: string, versionUrl: string) =>
@@ -92,6 +98,7 @@ export const api = {
   listInstanceResourcepacks: content.listInstanceResourcepacks,
   listInstanceShaders: content.listInstanceShaders,
   listInstanceSaves: content.listInstanceSaves,
+  exportWorld: content.exportWorld,
   listInstanceLogs: content.listInstanceLogs,
   readLogFile: content.readLogFile,
   getRecentLogs: content.getRecentLogs,
@@ -119,6 +126,7 @@ export const api = {
 
   quickStart: system.quickStart,
   selectFastestMirror: system.selectFastestMirror,
+  getActiveDownloadSource: system.getActiveDownloadSource,
   getSystemInfo: system.getSystemInfo,
   autoTuneMemory: system.autoTuneMemory,
   smartTuneMemory: instances.smartTuneMemory,
@@ -141,6 +149,8 @@ export const api = {
   scanLauncherInstances: instances.scanLauncherInstances,
   scanCustomDirectory: instances.scanCustomDirectory,
   migrateInstance: instances.migrateInstance,
+  diagnoseMigration: instances.diagnoseMigration,
+  fixMigrationIssues: instances.fixMigrationIssues,
 
   createSnapshot: instances.createSnapshot,
   listSnapshots: instances.listSnapshots,
@@ -181,6 +191,8 @@ export const api = {
   getGcRecommendations: instances.getGcRecommendations,
 
   detectAnomalies: instances.detectAnomalies,
+
+  repairInstance: instances.repairInstance,
 
   readConfigFile: instances.readConfigFile,
   writeConfigFile: instances.writeConfigFile,
@@ -245,6 +257,9 @@ export const api = {
   yggdrasilResetSkin: auth.yggdrasilResetSkin,
   yggdrasilSelectProfile: auth.yggdrasilSelectProfile,
   getYggdrasilPresets: auth.getYggdrasilPresets,
+  getYggdrasilServerPresets: auth.getYggdrasilServerPresets,
+  testYggdrasilServer: auth.testYggdrasilServer,
+  yggdrasilValidateToken: auth.yggdrasilValidateToken,
   ensureAuthlibInjector: auth.ensureAuthlibInjector,
   setLocalSkin: auth.setLocalSkin,
   readSkinFile: auth.readSkinFile,
@@ -253,6 +268,12 @@ export const api = {
   microsoftUploadSkin: auth.microsoftUploadSkin,
   microsoftDeleteSkin: auth.microsoftDeleteSkin,
   checkAuthlibInjector: auth.checkAuthlibInjector,
+
+  uploadSkin: auth.uploadSkin,
+  resetSkin: auth.resetSkin,
+  equipCape: auth.equipCape,
+  hideCape: auth.hideCape,
+  getMojangProfile: auth.getMojangProfile,
 
   checkForUpdates: system.checkForUpdates,
   installUpdate: system.installUpdate,
@@ -263,10 +284,17 @@ export const api = {
   getCachedImage: system.getCachedImage,
   getRecommendedConfig: system.getRecommendedConfig,
 
+  getUrlConfig: system.getUrlConfig,
+  setGitProxy: system.setGitProxy,
+
   invalidateCache,
 
   social: socialApi,
   chat: chatApi,
   mpindex: modpackindexApi,
   crash: crashApi,
+  workflow: workflowApi,
+  modpack: modpackApi,
+  modScanner,
+  servers,
 };

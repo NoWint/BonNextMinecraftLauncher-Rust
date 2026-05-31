@@ -157,6 +157,26 @@ export interface MigrateableInstance {
   has_mods: boolean;
   has_saves: boolean;
   size_mb: number;
+  java_path: string | null;
+  jvm_args: string | null;
+  min_memory: number | null;
+  max_memory: number | null;
+}
+
+export interface MigrationIssue {
+  issue_type: string;
+  severity: string;
+  description: string;
+  auto_fixable: boolean;
+  instance_id: string | null;
+  path: string | null;
+}
+
+export interface MigrationFixResult {
+  total_issues: number;
+  fixed: number;
+  unfixed: number;
+  details: string[];
 }
 
 export interface OfflineAuthResult {
@@ -352,9 +372,18 @@ export interface WorldInfo {
   name: string;
   last_played: string | null;
   game_mode: string;
-  seed: string | null;
+  game_mode_name: string | null;
+  seed: number | null;
   difficulty: string;
+  difficulty_name: string | null;
   size_mb: number;
+  spawn_x: number | null;
+  spawn_y: number | null;
+  spawn_z: number | null;
+  time_played_ticks: number | null;
+  hardcore: boolean | null;
+  version_name: string | null;
+  level_name: string | null;
 }
 
 export interface LogFileInfo {
@@ -598,6 +627,19 @@ export interface HealthCheckReport {
   overall: string;
 }
 
+export interface RepairAction {
+  action: string;
+  description: string;
+  success: boolean;
+  message: string;
+}
+
+export interface RepairResult {
+  instance_id: string;
+  actions: RepairAction[];
+  fixed: boolean;
+}
+
 export interface AtomicInstallFile {
   url: string;
   filename: string;
@@ -614,4 +656,101 @@ export interface AtomicInstallResult {
   installed_files: string[];
   rolled_back: boolean;
   error: string | null;
+}
+
+export interface ModpackPlan {
+  plan_id: string;
+  theme: string;
+  game_version: string;
+  loader: { loader_type: string; version: string };
+  mods: Array<{
+    slug: string;
+    name: string;
+    version_id: string;
+    source: string;
+    category: string;
+    required: boolean;
+  }>;
+  jvm_config: { max_memory_mb: number; min_memory_mb: number; jvm_args: string };
+  estimated_size_mb: number;
+  warnings: Array<{ warning_type: string; message: string }>;
+}
+
+export interface ModpackPlanRequest {
+  theme: string;
+  game_version: string;
+  loader_type: string;
+  mods: Array<{
+    slug: string;
+    name: string;
+    version_id: string;
+    source: string;
+    category: string;
+    required: boolean;
+  }>;
+  jvm_args?: string;
+  max_memory_mb?: number;
+}
+
+export interface WorkflowHandle {
+  id: string;
+  workflow_type: string;
+  status: 'running' | 'paused' | 'completed' | 'failed' | 'cancelled' | 'rolling_back';
+  current_step: number;
+  total_steps: number;
+  step_name: string;
+  snapshot_id: string | null;
+  error_message: string | null;
+  started_at: number;
+}
+
+export interface CompatibilityReport {
+  conflicts: Array<{ mod_a: string; mod_b: string; reason: string; severity: string }>;
+  missing_deps: Array<{ mod_slug: string; required_by: string }>;
+  warnings: Array<{ mod_slug: string; issue: string }>;
+  score: number;
+}
+
+export interface FixPlan {
+  instance_id: string;
+  crash_report_path: string;
+  diagnosis: CrashDiagnosis;
+  fix_actions: Array<{ action_type: string; description: string; target: string; value: string }>;
+  knowledge_base_matches: Array<{
+    signature: string;
+    mod_context: string[];
+    cause: string;
+    fix: string;
+    source: string;
+    confidence: number;
+    occurrences: number;
+  }>;
+}
+
+export interface WorkflowProgressEvent {
+  workflow_id: string;
+  step: number;
+  total_steps: number;
+  step_name: string;
+  detail?: string;
+}
+
+export interface WorkflowErrorEvent {
+  workflow_id: string;
+  step: string;
+  error: string;
+  recoverable: boolean;
+}
+
+export interface WorkflowCompleteEvent {
+  workflow_id: string;
+  result: string;
+  instance_id?: string;
+}
+
+export interface CrashDetectedEvent {
+  instance_id: string;
+  crash_report_path: string;
+  severity: 'fatal' | 'warning';
+  timestamp: string;
 }

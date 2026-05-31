@@ -19,12 +19,20 @@ mod chat;
 mod social_feed;
 mod recommendation;
 mod types;
+mod url_config;
 mod version;
 mod curseforge;
 mod modpackindex;
 mod commands;
 mod web_api;
 mod terracotta;
+mod workflow;
+mod crash_knowledge;
+mod crash_watcher;
+mod mod_compat;
+mod mod_scanner;
+mod server_ping;
+mod mod_watcher;
 
 pub use config::AppConfig;
 pub use config::SecurityConfig;
@@ -44,6 +52,7 @@ use launch::state::LaunchState;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tauri::Manager;
 
 pub struct RunningGame {
     pub state: Arc<Mutex<LaunchState>>,
@@ -116,6 +125,13 @@ pub fn run() {
         .manage(cache::ApiCache::new())
         .manage(TerracottaState { port: tokio::sync::Mutex::new(None), child: tokio::sync::Mutex::new(None) })
         .manage(crate::social::p2p::P2pState::new())
+        .manage(commands::workflow::WorkflowState(crate::workflow::WorkflowEngine::new()))
+        .manage(crate::crash_watcher::CrashWatcherState::new())
+        .manage(std::sync::Arc::new(tokio::sync::Mutex::new(mod_scanner::scanner::ScanCache::new())))
+        .manage({
+            let data_dir = platform::paths::get_game_dir();
+            std::sync::Arc::new(mod_scanner::cache_db::ModCacheDb::open(&data_dir).expect("Failed to open database"))
+        })
         .invoke_handler(tauri::generate_handler![
             commands::version::get_versions,
             commands::launch::get_launch_state,
@@ -126,6 +142,7 @@ pub fn run() {
             commands::launch::pre_launch_check,
             commands::config::get_config,
             commands::config::save_config,
+            commands::config::get_active_download_source,
             commands::misc::find_java,
             commands::misc::find_all_java,
             commands::misc::check_java_version,
@@ -165,7 +182,10 @@ pub fn run() {
             commands::instance::scan_launcher_instances,
             commands::instance::scan_custom_directory,
             commands::instance::migrate_instance,
+            commands::instance::diagnose_migration,
+            commands::instance::fix_migration_issues,
             commands::instance::check_instance_ready,
+            commands::instance::repair_instance,
             commands::instance::toggle_mod,
             commands::instance::health_check,
             commands::instance::open_folder,
@@ -193,12 +213,14 @@ pub fn run() {
             commands::content::list_instance_resourcepacks,
             commands::content::list_instance_shaders,
             commands::world::list_instance_saves,
+            commands::world::export_world,
             commands::world::list_instance_logs,
             commands::world::read_log_file,
             commands::world::get_recent_logs,
             commands::content::remove_installed_mod,
             commands::content::get_content_counts,
             commands::content::check_content_updates,
+            commands::content::check_mod_updates,
             commands::content::bulk_update_content,
             commands::content::pin_mod,
             commands::content::unpin_mod,
@@ -326,6 +348,9 @@ pub fn run() {
             commands::auth::yggdrasil_reset_skin,
             commands::auth::yggdrasil_select_profile,
             commands::auth::get_yggdrasil_presets,
+            commands::auth::get_yggdrasil_server_presets,
+            commands::auth::test_yggdrasil_server,
+            commands::auth::yggdrasil_validate_token,
             commands::auth::ensure_authlib_injector,
             commands::auth::set_local_skin,
             commands::auth::read_skin_file,
@@ -334,14 +359,45 @@ pub fn run() {
             commands::auth::microsoft_upload_skin,
             commands::auth::microsoft_delete_skin,
             commands::auth::check_authlib_injector,
+            commands::auth::upload_skin,
+            commands::auth::reset_skin,
+            commands::auth::equip_cape,
+            commands::auth::hide_cape,
+            commands::auth::get_mojang_profile,
+
+            commands::workflow::generate_modpack_plan,
+            commands::workflow::execute_modpack_plan,
+            commands::workflow::execute_crash_fix,
+            commands::workflow::abort_workflow,
+            commands::workflow::get_workflow_status,
+            commands::workflow::rollback_workflow,
+            commands::workflow::check_mod_compatibility,
+            commands::crash_watcher::start_crash_watcher,
+            commands::crash_watcher::stop_crash_watcher,
 
             check_for_updates,
             install_update,
             commands::misc::auto_select_jre,
             commands::misc::download_jre_version_cmd,
             commands::misc::list_jre_versions,
+            commands::mod_scanner::scan_mod_file,
+            commands::mod_scanner::scan_mods_directory,
+            commands::mod_scanner::clear_mod_cache,
+            commands::mod_scanner::get_mod_cache_stats,
+            commands::url_config::get_url_config,
+            commands::url_config::set_git_proxy,
+            commands::server_ping::ping_server_info,
+            commands::server_ping::batch_ping_servers,
+            commands::server_ping::list_servers,
+            commands::server_ping::add_server,
+            commands::server_ping::remove_server,
+            commands::server_ping::toggle_server_favorite,
+            commands::server_ping::update_server_ping,
+            commands::mod_watcher::watch_instance_mods,
+            commands::mod_watcher::unwatch_instance_mods,
         ])
-        .setup(|_app| {
+        .setup(|app| {
+            app.manage(mod_watcher::watcher::ModWatcherState::new(app.handle().clone()));
             let audit_enabled = config::load_config()
                 .map(|c| c.security.audit_log_enabled)
                 .unwrap_or(true);

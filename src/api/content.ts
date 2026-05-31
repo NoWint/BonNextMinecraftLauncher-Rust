@@ -16,6 +16,8 @@ export const listInstanceResourcepacks = (instanceId: string) =>
   invoke<string[]>('list_instance_resourcepacks', { instanceId });
 export const listInstanceShaders = (instanceId: string) => invoke<string[]>('list_instance_shaders', { instanceId });
 export const listInstanceSaves = (instanceId: string) => invoke<WorldInfo[]>('list_instance_saves', { instanceId });
+export const exportWorld = (instanceId: string, saveName: string, outputPath: string) =>
+  invoke<string>('export_world', { instanceId, saveName, outputPath });
 export const listInstanceLogs = (instanceId: string) => invoke<LogFileInfo[]>('list_instance_logs', { instanceId });
 export const readLogFile = (instanceId: string, filename: string, maxLines?: number) =>
   invoke<string>('read_log_file', { instanceId, filename, maxLines });
