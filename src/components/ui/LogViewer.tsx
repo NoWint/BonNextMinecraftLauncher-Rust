@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import TextComponentRenderer from './TextComponentRenderer';
 import styles from './LogViewer.module.css';
 
 interface LogLine {
@@ -121,7 +122,13 @@ export default function LogViewer({ instanceId, visible }: LogViewerProps) {
         {filtered.map((l) => (
           <div key={l.id} className={styles.line}>
             {l.time && <span className={styles.lineTime}>{l.time}</span>}
-            <span className={`${styles.lineText} ${getLevelClass(l.text, l.stream)}`}>{l.text}</span>
+            <span className={`${styles.lineText} ${getLevelClass(l.text, l.stream)}`}>
+              {l.text.includes('\u00A7') ? (
+                <TextComponentRenderer component={l.text} />
+              ) : (
+                l.text
+              )}
+            </span>
           </div>
         ))}
         <div ref={bottomRef} className={styles.bottomAnchor} />
