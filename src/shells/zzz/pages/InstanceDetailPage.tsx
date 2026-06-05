@@ -1,0 +1,1460 @@
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  api,
+  type GameInstance,
+  type InstalledModInfo,
+  type WorldInfo,
+  type LogFileInfo,
+  type OptimizationPreset,
+  type VersionEntry,
+  type RunningGameInfo,
+  type PreLaunchReport,
+  type HealthCheckReport,
+} from '../shared/api';
+import { useAuth } from '../shared/stores/authStore';
+import { useInstances } from '../shared/stores/instanceStore';
+import { useToast } from '../shared/stores/toastStore';
+import { useI18n } from '../shared/i18n';
+import { Badge, Tabs, Modal, Breadcrumb as BreadcrumbComp, TextInput, Tooltip } from '../components/ui';
+import { Button } from '../components/ui';
+import { Icon } from '../components/ui/Icon';
+import GameConsole from '../components/ui/GameConsole';
+import LogViewer from '../components/ui/LogViewer';
+import { relativeTime } from '../shared/utils/time';
+import { formatError } from '../shared/utils/errorMapping';
+import { open } from '@tauri-apps/plugin-dialog';
+import { convertFileSrc } from '@tauri-apps/api/core';
+import styles from './InstanceDetailPage.module.css';
+import presetStyles from '../components/ui/OptimizationPresets.module.css';
+
+type SnapshotInfo = {
+  id: string;
+  name: string;
+  created_at: string;
+  size_bytes: number;
+};
+
+function getLoaderIcon(loaderType: string | null): string {
+  switch (loaderType) {
+    case 'fabric':
+      return '\u{1F9F5}';
+    case 'forge':
+      return '\u{2692}';
+    case 'quilt':
+      return '\u{1F9F5}';
+    case 'neoforge':
+      return '\u{2699}';
+    default:
+      return '\u{1F4E6}';
+  }
+}
+
+function getLoaderLabel(loaderType: string | null): string {
+  switch (loaderType) {
+    case 'fabric':
+      return 'Fabric';
+    case 'forge':
+      return 'Forge';
+    case 'quilt':
+      return 'Quilt';
+    case 'neoforge':
+      return 'NeoForge';
+    default:
+      return 'Vanilla';
+  }
+}
+
+function useDetailTabs(t: (key: string) => string, modCount: number) {
+  return [
+    { id: 'overview', label: t('instanceDetail.overview') },
+    { id: 'mods', label: `${t('instanceDetail.mods')} (${modCount})` },
+    { id: 'optimize', label: t('instanceDetail.optimize') },
+    { id: 'migrate', label: t('instanceDetail.migrate') },
+    { id: 'profile', label: t('instanceDetail.profile') },
+    { id: 'fps', label: t('instanceDetail.fps') },
+    { id: 'saves', label: t('instanceDetail.saves') },
+    { id: 'logs', label: t('instanceDetail.logs') },
+    { id: 'screenshots', label: t('instanceDetail.screenshots') },
+    { id: 'snapshots', label: t('instanceDetail.snapshots') },
+  ];
+}
+
+export default function InstanceDetailPage() {
+  const { state: authState } = useAuth();
+  const { state, deleteInstance, reloadInstances } = useInstances();
+  const { addToast } = useToast();
+  const { t } = useI18n();
+  const { id: routeId = '' } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const auth = authState.currentUser;
+  const [instance, setInstance] = useState<GameInstance | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [error, setError] = useState('');
+  const [isReady, setIsReady] = useState<boolean | null>(null);
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [duplicateName, setDuplicateName] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [installedMods, setInstalledMods] = useState<InstalledModInfo[]>([]);
+  const [worlds, setWorlds] = useState<WorldInfo[]>([]);
+  const [logFiles, setLogFiles] = useState<LogFileInfo[]>([]);
+  const [selectedLog, setSelectedLog] = useState<string | null>(null);
+  const [logContent, setLogContent] = useState<string>('');
+  const [loadingLog, setLoadingLog] = useState(false);
+
+  const [screenshots, setScreenshots] = useState<string[]>([]);
+  const [screenshotLoading, setScreenshotLoading] = useState(false);
+
+  const [snapshots, setSnapshots] = useState<SnapshotInfo[]>([]);
+  const [snapshotName, setSnapshotName] = useState('');
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
+
+  const [presets, setPresets] = useState<OptimizationPreset[]>([]);
+  const [presetsLoading, setPresetsLoading] = useState(false);
+  const [applyResults, setApplyResults] = useState<
+    Record<string, { succeeded: number; failed: number; errors: string[] } | null>
+  >({});
+  const [applyingPreset, setApplyingPreset] = useState<string | null>(null);
+
+  const [versions, setVersions] = useState<VersionEntry[]>([]);
+  const [migrationTarget, setMigrationTarget] = useState('');
+  const [migrationResults, setMigrationResults] = useState<Array<{
+    mod_slug: string;
+    mod_name: string;
+    status: string;
+    detail: string;
+  }> | null>(null);
+  const [checkingMigration, setCheckingMigration] = useState(false);
+  const [smartMemory, setSmartMemory] = useState<number | null>(null);
+  const [tuningMemory, setTuningMemory] = useState(false);
+
+  const [iconUrl, setIconUrl] = useState<string | null>(null);
+  const [iconStatus, setIconStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+  const [profilingData, setProfilingData] = useState<Array<{
+    stage: string;
+    duration_ms: number;
+    details: string;
+  }> | null>(null);
+  const [loadingProfiling, setLoadingProfiling] = useState(false);
+
+  const [fpsData, setFpsData] = useState<{
+    avg_fps: number;
+    min_fps: number;
+    max_fps: number;
+    frame_times_ms: number[];
+    stutter_count: number;
+    analysis: string;
+  } | null>(null);
+  const [loadingFps, setLoadingFps] = useState(false);
+
+  const [healthReport, setHealthReport] = useState<HealthCheckReport | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [healthModalOpen, setHealthModalOpen] = useState(false);
+
+  const [showLogViewer, setShowLogViewer] = useState(false);
+  const [runningGames, setRunningGames] = useState<RunningGameInfo[]>([]);
+  const [preLaunchReport, setPreLaunchReport] = useState<PreLaunchReport | null>(null);
+  const [showPreLaunchModal, setShowPreLaunchModal] = useState(false);
+  const [checkingPreLaunch, setCheckingPreLaunch] = useState(false);
+
+  const instanceId = routeId || '';
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const inst = await api.getInstance(instanceId);
+        setInstance(inst);
+      } catch {
+        const found = state.instances.find((i) => i.id === instanceId);
+        setInstance(found || null);
+      }
+      setLoading(false);
+    };
+    load();
+  }, [instanceId]);
+
+  useEffect(() => {
+    if (instanceId) {
+      api
+        .getGameDir()
+        .then((gameDir) => {
+          const iconPath = `${gameDir}/instances/${instanceId}/icon.png`;
+          setIconUrl(convertFileSrc(iconPath));
+        })
+        .catch(() => {});
+    }
+  }, [instanceId]);
+
+  useEffect(() => {
+    if (instanceId) {
+      Promise.allSettled([
+        api.checkInstanceReady(instanceId),
+        api.listInstanceMods(instanceId),
+        api.listInstanceSaves(instanceId),
+        api.listInstanceLogs(instanceId),
+      ]).then(([readyRes, modsRes, savesRes, logsRes]) => {
+        setIsReady(readyRes.status === 'fulfilled' ? readyRes.value : null);
+        setInstalledMods(modsRes.status === 'fulfilled' ? modsRes.value : []);
+        setWorlds(savesRes.status === 'fulfilled' ? savesRes.value : []);
+        setLogFiles(logsRes.status === 'fulfilled' ? logsRes.value : []);
+      });
+    }
+  }, [instanceId]);
+
+  useEffect(() => {
+    if (selectedLog && instanceId) {
+      setLoadingLog(true);
+      api
+        .readLogFile(instanceId, selectedLog, 500)
+        .then(setLogContent)
+        .catch(() => setLogContent('Failed to load log file'))
+        .finally(() => setLoadingLog(false));
+    }
+  }, [selectedLog, instanceId]);
+
+  useEffect(() => {
+    if (activeTab === 'screenshots' && instanceId) {
+      loadScreenshots();
+    }
+  }, [activeTab, instanceId]);
+
+  useEffect(() => {
+    if (activeTab === 'snapshots' && instanceId) {
+      loadSnapshots();
+    }
+  }, [activeTab, instanceId]);
+
+  useEffect(() => {
+    if (activeTab === 'optimize' && instanceId && presets.length === 0) {
+      setPresetsLoading(true);
+      api
+        .getOptimizationPresets()
+        .then(setPresets)
+        .catch(() => setPresets([]))
+        .finally(() => setPresetsLoading(false));
+    }
+  }, [activeTab, instanceId, presets.length]);
+
+  useEffect(() => {
+    if (activeTab === 'migrate' && instanceId && versions.length === 0) {
+      api
+        .getVersions()
+        .then(setVersions)
+        .catch(() => setVersions([]));
+    }
+  }, [activeTab, instanceId, versions.length]);
+
+  useEffect(() => {
+    if (activeTab === 'profile' && instanceId && profilingData === null) {
+      setLoadingProfiling(true);
+      api
+        .getLaunchProfilingData(instanceId)
+        .then((data) => setProfilingData(data.length > 0 ? data : null))
+        .catch(() => setProfilingData(null))
+        .finally(() => setLoadingProfiling(false));
+    }
+  }, [activeTab, instanceId, profilingData]);
+
+  useEffect(() => {
+    if (activeTab === 'fps' && instanceId && fpsData === null) {
+      setLoadingFps(true);
+      api
+        .getFrameTimeData(instanceId)
+        .then((data) => setFpsData(data))
+        .catch(() => setFpsData(null))
+        .finally(() => setLoadingFps(false));
+    }
+  }, [activeTab, instanceId, fpsData]);
+
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const games = await api.getRunningGames();
+        setRunningGames(games);
+      } catch {
+        setRunningGames([]);
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleApplyPreset = async (presetId: string) => {
+    if (!instanceId) return;
+    setApplyingPreset(presetId);
+    try {
+      const result = await api.applyOptimizationPreset(instanceId, presetId);
+      setApplyResults((prev) => ({ ...prev, [presetId]: result }));
+      addToast({
+        type: 'success',
+        title: 'Preset Applied',
+        message: `${result.succeeded} succeeded, ${result.failed} failed`,
+      });
+      api
+        .listInstanceMods(instanceId)
+        .then(setInstalledMods)
+        .catch(() => {});
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: 'Apply Failed', message: formatError(e) || 'Failed to apply preset' });
+    } finally {
+      setApplyingPreset(null);
+    }
+  };
+
+  const handleCheckMigration = async () => {
+    if (!instanceId || !migrationTarget) return;
+    setCheckingMigration(true);
+    setMigrationResults(null);
+    try {
+      const results = await api.checkMigrationReadiness(instanceId, migrationTarget);
+      setMigrationResults(results);
+    } catch (e: unknown) {
+      addToast({
+        type: 'error',
+        title: 'Migration Check Failed',
+        message: formatError(e) || 'Failed to check migration',
+      });
+    } finally {
+      setCheckingMigration(false);
+    }
+  };
+
+  const handleSmartTune = async () => {
+    if (!instanceId) return;
+    setTuningMemory(true);
+    try {
+      const mem = await api.smartTuneMemory(instanceId);
+      setSmartMemory(mem);
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: 'Smart Tune Failed', message: formatError(e) || 'Failed to tune memory' });
+    } finally {
+      setTuningMemory(false);
+    }
+  };
+
+  const handleHealthCheck = async () => {
+    if (!instanceId) return;
+    setHealthLoading(true);
+    setHealthReport(null);
+    try {
+      const report = await api.healthCheck(instanceId);
+      setHealthReport(report);
+      setHealthModalOpen(true);
+    } catch (e: unknown) {
+      addToast({
+        type: 'error',
+        title: 'Health Check Failed',
+        message: formatError(e) || 'Failed to run health check',
+      });
+    } finally {
+      setHealthLoading(false);
+    }
+  };
+
+  const loadScreenshots = async () => {
+    setScreenshotLoading(true);
+    try {
+      const list = await api.listScreenshots(instanceId);
+      setScreenshots(list.map((s) => s.path));
+    } catch {
+      /* empty */
+    }
+    setScreenshotLoading(false);
+  };
+
+  const loadSnapshots = async () => {
+    try {
+      const list = await api.listSnapshots(instanceId);
+      setSnapshots(list);
+    } catch {
+      setSnapshots([]);
+    }
+  };
+
+  const handleCreateSnapshot = async () => {
+    if (!instanceId) return;
+    const name =
+      snapshotName.trim() ||
+      `Snapshot ${new Date().toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+    setSnapshotLoading(true);
+    try {
+      await api.createSnapshot(instanceId, name);
+      setSnapshotName('');
+      await loadSnapshots();
+      addToast({ type: 'success', title: 'Snapshot created', message: name });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: 'Snapshot failed', message: formatError(e) || 'Failed to create snapshot' });
+    } finally {
+      setSnapshotLoading(false);
+    }
+  };
+
+  const handleRestoreSnapshot = async (snapshotId: string, name: string) => {
+    if (!instanceId) return;
+    if (!confirm(`Restore snapshot "${name}"? This will overwrite current mods, configs, and saves.`)) return;
+    try {
+      await api.restoreSnapshot(instanceId, snapshotId);
+      await loadSnapshots();
+      addToast({ type: 'success', title: 'Restored', message: `Snapshot "${name}" restored` });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: 'Restore failed', message: formatError(e) || 'Failed to restore snapshot' });
+    }
+  };
+
+  const handleDeleteSnapshot = async (snapshotId: string, name: string) => {
+    if (!instanceId) return;
+    if (!confirm(`Delete snapshot "${name}"? This cannot be undone.`)) return;
+    try {
+      await api.deleteSnapshot(instanceId, snapshotId);
+      await loadSnapshots();
+      addToast({ type: 'success', title: 'Deleted', message: `Snapshot "${name}" deleted` });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: 'Delete failed', message: formatError(e) || 'Failed to delete snapshot' });
+    }
+  };
+
+  const handleLaunch = useCallback(async () => {
+    if (!instance) return;
+    setError('');
+    setCheckingPreLaunch(true);
+    try {
+      const report = await api.preLaunchCheck(instance.id);
+      setPreLaunchReport(report);
+      const hasFail = report.items.some((i) => i.status === 'fail');
+      if (hasFail) {
+        setShowPreLaunchModal(true);
+        return;
+      }
+      const hasWarn = report.items.some((i) => i.status === 'warn');
+      if (hasWarn) {
+        setShowPreLaunchModal(true);
+        return;
+      }
+    } catch {
+      /* empty */
+    } finally {
+      setCheckingPreLaunch(false);
+    }
+    await doLaunch();
+  }, [instance, auth, addToast, t]);
+
+  const doLaunch = useCallback(async () => {
+    if (!instance) return;
+    setError('');
+    setShowPreLaunchModal(false);
+    try {
+      await api.launchGame(
+        instance.version_id,
+        instance.version_url,
+        auth?.username || 'Player',
+        auth?.uuid || '',
+        auth?.access_token || '',
+        instance.max_memory,
+        instance.min_memory,
+        instance.java_path || undefined,
+        instance.jvm_args || undefined,
+        instance.id,
+      );
+      addToast({
+        type: 'success',
+        title: t('instances.launching'),
+        message: t('instances.isStarting', { name: instance.name }),
+      });
+    } catch (e: unknown) {
+      setError(formatError(e) || t('instances.launchFailed'));
+      addToast({
+        type: 'error',
+        title: t('instances.launchFailed'),
+        message: formatError(e) || t('instances.launchFailed'),
+      });
+      setTimeout(() => setError(''), 8000);
+    }
+  }, [instance, auth, addToast, t]);
+
+  const handlePickIcon = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'] }],
+      });
+      if (selected && typeof selected === 'string') {
+        setIconStatus('loading');
+        await api.setInstanceIcon(instanceId, selected);
+        setIconUrl(convertFileSrc(selected));
+        setIconStatus('success');
+        addToast({ type: 'success', title: 'Icon Updated', message: 'Instance icon has been set' });
+        setTimeout(() => setIconStatus('idle'), 2500);
+      }
+    } catch (e: unknown) {
+      setIconStatus('error');
+      addToast({ type: 'error', title: 'Icon Failed', message: formatError(e) || 'Failed to set icon' });
+      setTimeout(() => setIconStatus('idle'), 2500);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!instance) return;
+    try {
+      await deleteInstance(instance.id);
+      addToast({ type: 'success', title: 'Deleted', message: `Instance "${instance.name}" deleted` });
+      navigate('/instances');
+    } catch (e) {
+      addToast({ type: 'error', title: 'Delete failed', message: formatError(e) });
+    }
+  };
+
+  const handleDuplicate = async () => {
+    if (!instance) return;
+    setDuplicateName(`${instance.name} (Copy)`);
+    setDuplicateOpen(true);
+  };
+
+  const confirmDuplicate = async () => {
+    if (!instance || !duplicateName.trim()) return;
+    try {
+      await api.duplicateInstance(instance.id, duplicateName.trim());
+      addToast({ type: 'success', title: 'Duplicated', message: `Instance "${duplicateName}" created` });
+      setDuplicateOpen(false);
+      await reloadInstances();
+      navigate('/instances');
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: 'Duplicate failed', message: formatError(e) || 'Failed to duplicate' });
+    }
+  };
+
+  const handleExport = async () => {
+    if (!instance) return;
+    setExporting(true);
+    try {
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const safeName = instance.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const path = await save({
+        defaultPath: `${safeName}.mrpack`,
+        filters: [{ name: 'Mrpack', extensions: ['mrpack'] }],
+      });
+      if (path && typeof path === 'string') {
+        await api.exportMrpack(instance.id, path);
+        addToast({ type: 'success', title: t('instances.exportAsMrpack') || 'Exported' });
+      }
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instances.exportFailed') || 'Export failed', message: formatError(e) || '' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleUpdateInstance = useCallback(
+    async (updates: Partial<GameInstance>) => {
+      if (!instance) return;
+      try {
+        const updated = { ...instance, ...updates };
+        await api.updateInstance(updated);
+        setInstance(updated);
+      } catch (e: unknown) {
+        addToast({ type: 'error', title: 'Update failed', message: formatError(e) || 'Failed to update instance' });
+      }
+    },
+    [instance, addToast],
+  );
+
+  const DETAIL_TABS = useMemo(() => useDetailTabs(t, installedMods.length), [t, installedMods.length]);
+
+  if (loading) {
+    return (
+      <div className={styles.loadingWrap}>
+        <div className={styles.spinner} />
+      </div>
+    );
+  }
+
+  if (!instance) {
+    return <div className={styles.notFound}>{t('instanceDetail.notFound')}</div>;
+  }
+
+  const memoryGB = Math.round(instance.max_memory / 1024);
+  const playtimeH = instance.playtime_seconds > 0 ? (instance.playtime_seconds / 3600).toFixed(1) : '0';
+
+  return (
+    <div className={styles.page}>
+      <BreadcrumbComp items={[{ label: t('instances.title'), href: '/instances' }, { label: instance.name }]} />
+
+      {/* Top info bar */}
+      <div className={styles.topBar}>
+        <div
+          className={`${styles.topBarIcon} ${iconStatus === 'success' ? styles.topBarIconSuccess : ''} ${iconStatus === 'error' ? styles.topBarIconError : ''} ${iconStatus === 'loading' ? styles.topBarIconLoading : ''}`}
+          onClick={handlePickIcon}
+          title={t('instanceDetail.clickChangeIcon')}
+        >
+          {iconUrl ? (
+            <img src={iconUrl} alt={instance.name} className={styles.topBarIconImg} onError={() => setIconUrl(null)} />
+          ) : (
+            <span className={styles.topBarIconEmoji}>{getLoaderIcon(instance.loader_type)}</span>
+          )}
+          {iconStatus === 'loading' && <span className={styles.iconStatusOverlay}><Icon name="hourglass" size={12} /></span>}
+          {iconStatus === 'success' && <span className={styles.iconStatusOverlay}><Icon name="check" size={12} /></span>}
+          {iconStatus === 'error' && <span className={styles.iconStatusOverlay}><Icon name="cross" size={12} /></span>}
+        </div>
+        <div className={styles.topBarInfo}>
+          <div className={styles.topBarNameRow}>
+            <span className={styles.topBarName}>{instance.name.toUpperCase()}</span>
+            <Badge variant="accent">{instance.version_id}</Badge>
+            {instance.loader_type && <Badge variant="muted">{instance.loader_type}</Badge>}
+            {isReady !== null && <span style={{ fontSize: '0.6em' }}>{isReady ? <Icon name="checkCircle" size={12} /> : <Icon name="warning" size={12} />}</span>}
+          </div>
+          <div className={styles.topBarMeta}>
+            <span className={styles.topBarMetaText}>
+              {getLoaderLabel(instance.loader_type)}
+              {instance.loader_version ? ` ${instance.loader_version}` : ''}
+            </span>
+            <div className={styles.topBarMetaSep} />
+            <span className={styles.topBarRam}>{memoryGB}GB</span>
+            <div className={styles.topBarMetaSep} />
+            <span className={styles.topBarMetaText}>
+              {t('instances.lastPlayed')}: {relativeTime(instance.last_played)}
+            </span>
+          </div>
+        </div>
+        <div className={styles.topBarActions}>
+          {runningGames.some((g) => g.instance_id === instanceId && g.state === 'running') && (
+            <Tooltip content="View Logs">
+              <Button variant="secondary" size="sm" onClick={() => setShowLogViewer(true)}>
+                <Icon name="copy" size={14} /> Logs
+              </Button>
+            </Tooltip>
+          )}
+          <Tooltip content={t('common.launch')}>
+            <Button variant="primary" size="md" onClick={handleLaunch} disabled={checkingPreLaunch}>
+              <Icon name="play" size={14} /> {t('instanceDetail.launch')}
+            </Button>
+          </Tooltip>
+          <Tooltip content="Health Check">
+            <Button variant="secondary" size="sm" onClick={handleHealthCheck} disabled={healthLoading}>
+              <Icon name="lightbulb" size={14} /> {healthLoading ? 'Checking...' : 'Health Check'}
+            </Button>
+          </Tooltip>
+          <Tooltip content={t('instances.exportAsMrpack')}>
+            <Button variant="secondary" size="sm" onClick={handleExport} disabled={exporting}>
+              <Icon name="upload" size={14} /> {exporting ? t('instanceDetail.exporting') : t('instanceDetail.export')}
+            </Button>
+          </Tooltip>
+          <Tooltip content={t('instances.duplicateInstanceTooltip')}>
+            <Button variant="secondary" size="sm" onClick={handleDuplicate}>
+              <Icon name="copy" size={14} /> {t('instanceDetail.duplicate')}
+            </Button>
+          </Tooltip>
+          <Tooltip content={t('instanceDetail.delete')}>
+            <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>
+              {t('instanceDetail.delete')}
+            </Button>
+          </Tooltip>
+        </div>
+      </div>
+
+      {error && <div className={styles.error}>{error}</div>}
+
+      {/* Tabs */}
+      <Tabs tabs={DETAIL_TABS} activeId={activeTab} onChange={setActiveTab} />
+
+      {/* Tab content */}
+      {activeTab === 'overview' && (
+        <div className={styles.tabContent}>
+          {/* Left column */}
+          <div className={styles.leftCol}>
+            <div className={styles.infoCard}>
+              <div className={styles.infoCardHeader}>{t('instanceDetail.versionInfo').toUpperCase()}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <InfoRow label="Minecraft" value={instance.version_id} />
+                <InfoRow
+                  label="Loader"
+                  value={
+                    instance.loader_type
+                      ? `${getLoaderLabel(instance.loader_type)} ${instance.loader_version || ''}`
+                      : t('common.vanilla')
+                  }
+                />
+                <InfoRow label="Java" value={instance.java_path || t('instanceDetail.autoDetect')} />
+                <InfoRow label="Created" value={new Date(instance.created_at).toLocaleDateString()} />
+                <InfoRow
+                  label={t('instanceDetail.status')}
+                  value={
+                    isReady === null ? t('common.checking') : isReady ? t('common.ready') : t('common.needsDownload')
+                  }
+                  mono
+                />
+              </div>
+            </div>
+
+            <div className={styles.infoCard}>
+              <div className={styles.infoCardHeader}>{t('instanceDetail.launchConfig').toUpperCase()}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className={styles.infoRowLabel}>{t('instanceDetail.allocatedMemory')}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                      type="range"
+                      min={1}
+                      max={16}
+                      step={1}
+                      value={memoryGB}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        handleUpdateInstance({ max_memory: val * 1024 });
+                      }}
+                      style={{ width: 120, accentColor: 'var(--color-accent)' }}
+                    />
+                    <span className={styles.infoRowValueMono}>{memoryGB} GB</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className={styles.infoRowLabel}>{t('instanceDetail.minMemory')}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                      type="range"
+                      min={256}
+                      max={4096}
+                      step={256}
+                      value={instance.min_memory}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        handleUpdateInstance({ min_memory: val });
+                      }}
+                      style={{ width: 120, accentColor: 'var(--color-accent)' }}
+                    />
+                    <span className={styles.infoRowValueMono}>{Math.round(instance.min_memory / 1024)} GB</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className={styles.infoRowLabel}>{t('settings.jvmArgs')}</span>
+                  <input
+                    type="text"
+                    value={instance.jvm_args || ''}
+                    placeholder={t('instanceDetail.default')}
+                    onChange={(e) => handleUpdateInstance({ jvm_args: e.target.value })}
+                    style={{
+                      background: '#0A0A0A',
+                      border: '1px solid #1C1C1C',
+                      color: '#FFF',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.55em',
+                      padding: '4px 8px',
+                      width: 200,
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className={styles.infoRowLabel}>{t('instanceDetail.javaPath')}</span>
+                  <input
+                    type="text"
+                    value={instance.java_path || ''}
+                    placeholder={t('instanceDetail.autoDetect')}
+                    onChange={(e) => handleUpdateInstance({ java_path: e.target.value })}
+                    style={{
+                      background: '#0A0A0A',
+                      border: '1px solid #1C1C1C',
+                      color: '#FFF',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.55em',
+                      padding: '4px 8px',
+                      width: 200,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right column */}
+          <div className={styles.rightCol}>
+            <div className={styles.statCard}>
+              <div className={styles.statCardLabel}>{t('instanceDetail.playtime').toUpperCase()}</div>
+              <div className={styles.statCardValue}>{playtimeH} h</div>
+              <div className={styles.statCardSub}>
+                {instance.playtime_seconds > 0
+                  ? t('instanceDetail.playtimeMinutes', { minutes: String(Math.floor(instance.playtime_seconds / 60)) })
+                  : t('instanceDetail.noPlaytime')}
+              </div>
+            </div>
+
+            <div className={styles.statCard}>
+              <div className={styles.statCardLabel}>{t('instanceDetail.downloadStatus')}</div>
+              <div className={styles.statCardValue}>
+                {isReady === null ? <Icon name="hourglass" size={12} /> : isReady ? <><Icon name="checkCircle" size={12} /> {t('common.ready')}</> : <><Icon name="warning" size={12} /> {t('common.needsDownload')}</>}
+              </div>
+              <div className={styles.statCardSub}>
+                {isReady ? t('instanceDetail.readyStatus') : t('instanceDetail.notReadyStatus')}
+              </div>
+              {!isReady && isReady !== null && (
+                <div className={styles.statBar}>
+                  <div className={styles.statBarFill} style={{ width: '10%' }} />
+                </div>
+              )}
+            </div>
+
+            <div className={styles.exportBtn}>
+              <Tooltip content={t('instanceDetail.exportAsZip')}>
+                <Button
+                  variant="secondary-highlight"
+                  size="md"
+                  style={{ width: '100%', justifyContent: 'center' }}
+                  onClick={handleExport}
+                  disabled={exporting}
+                >
+                  {exporting ? <><Icon name="hourglass" size={12} /> {t('instanceDetail.exporting')}</> : <><Icon name="upload" size={14} /> {t('instanceDetail.exportInstance')}</>}
+                </Button>
+              </Tooltip>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'mods' && (
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          {installedMods.length === 0 ? (
+            <div className={styles.placeholderTab}>{t('instanceDetail.noModsInstalled')}</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {installedMods.map((mod) => (
+                <div
+                  key={mod.filename}
+                  style={{
+                    background: '#141414',
+                    border: '1px solid #1C1C1C',
+                    padding: '10px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6em', color: '#FFF' }}>
+                      {mod.filename}
+                    </div>
+                    <div style={{ fontSize: '0.5em', color: '#666', marginTop: 2 }}>
+                      {t('instanceDetail.modSize', {
+                        size: (mod.size / 1024).toFixed(1),
+                        date: new Date(mod.installed_at).toLocaleDateString(),
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'saves' && (
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          {worlds.length === 0 ? (
+            <div className={styles.placeholderTab}>{t('instanceDetail.noSaves')}</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {worlds.map((world) => (
+                <div
+                  key={world.name}
+                  style={{
+                    background: '#141414',
+                    border: '1px solid #1C1C1C',
+                    padding: '10px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6em', color: '#FFF' }}>
+                      <Icon name="globe" size={14} /> {world.name}
+                    </div>
+                    <div style={{ fontSize: '0.5em', color: '#666', marginTop: 2 }}>
+                      {world.game_mode} · {world.difficulty} · {world.size_mb.toFixed(1)} MB
+                      {world.last_played && ` · ${relativeTime(world.last_played)}`}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {world.seed != null && <Badge variant="muted">Seed: {world.seed}</Badge>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {activeTab === 'logs' && (
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            {logFiles.map((log) => (
+              <button
+                key={log.filename}
+                onClick={() => setSelectedLog(log.filename)}
+                style={{
+                  background: selectedLog === log.filename ? 'var(--color-accent)' : '#141414',
+                  color: selectedLog === log.filename ? '#000' : '#FFF',
+                  border: '1px solid #1C1C1C',
+                  padding: '4px 10px',
+                  fontSize: '0.5em',
+                  fontFamily: 'var(--font-mono)',
+                  cursor: 'pointer',
+                }}
+              >
+                {log.filename} ({(log.size / 1024).toFixed(0)}KB)
+              </button>
+            ))}
+            {logFiles.length === 0 && (
+              <span style={{ fontSize: '0.5em', color: '#666' }}>{t('instanceDetail.noLogs')}</span>
+            )}
+          </div>
+          {selectedLog ? (
+            loadingLog ? (
+              <div style={{ fontSize: '0.6em', color: '#666', padding: 20 }}>{t('common.loading')}</div>
+            ) : (
+              <div
+                style={{
+                  background: '#0A0A0A',
+                  border: '1px solid #1C1C1C',
+                  padding: 10,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.5em',
+                  color: '#AAA',
+                  maxHeight: 400,
+                  overflowY: 'auto',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all',
+                }}
+              >
+                {logContent}
+              </div>
+            )
+          ) : (
+            <div style={{ padding: 20 }}>
+              <GameConsole visible={true} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'optimize' && (
+        <div className={presetStyles.container}>
+          {presetsLoading ? (
+            <div className={presetStyles.loading}>{t('instanceDetail.loadingPresets')}</div>
+          ) : (
+            <>
+              <div className={presetStyles.cards}>
+                {presets.map((preset) => {
+                  const result = applyResults[preset.id];
+                  const isApplying = applyingPreset === preset.id;
+                  const perfBadgeClass =
+                    preset.performance_level === 'low'
+                      ? presetStyles.badgeLow
+                      : preset.performance_level === 'medium'
+                        ? presetStyles.badgeMedium
+                        : presetStyles.badgeHigh;
+                  return (
+                    <div key={preset.id} className={presetStyles.card}>
+                      <div className={presetStyles.cardHeader}>
+                        <span className={presetStyles.cardName}>{preset.name}</span>
+                        <span className={perfBadgeClass}>{preset.performance_level}</span>
+                      </div>
+                      <p className={presetStyles.cardDesc}>{preset.description}</p>
+                      <div>
+                        <div className={presetStyles.modsLabel}>Included Mods</div>
+                        <div className={presetStyles.modPills}>
+                          {preset.mods.map((mod) => (
+                            <span key={mod.slug} className={presetStyles.modPill}>
+                              {mod.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className={presetStyles.ramInfo}>
+                        <span className={presetStyles.ramLabel}>{t('instanceDetail.minRam')}</span>
+                        <span className={presetStyles.ramValue}>{Math.round(preset.min_ram_mb / 1024)} GB</span>
+                      </div>
+                      <div className={presetStyles.applyBtn}>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleApplyPreset(preset.id)}
+                          disabled={isApplying}
+                          style={{ width: '100%', justifyContent: 'center' }}
+                        >
+                          {isApplying ? t('instanceDetail.applying') : t('instanceDetail.applyPreset')}
+                        </Button>
+                      </div>
+                      {result && (
+                        <div className={presetStyles.applyResult}>
+                          <div className={presetStyles.applyResultSummary}>
+                            <span className={presetStyles.applyResultSuccess}>
+                              <Icon name="check" size={12} /> {t('instanceDetail.presetSucceeded', { count: String(result.succeeded) })}
+                            </span>
+                            {result.failed > 0 && (
+                              <span className={presetStyles.applyResultFailed}>
+                                <Icon name="cross" size={12} /> {t('instanceDetail.presetFailed', { count: String(result.failed) })}
+                              </span>
+                            )}
+                          </div>
+                          {result.errors.length > 0 && (
+                            <div className={presetStyles.applyResultErrors}>
+                              {result.errors.map((err, i) => (
+                                <span key={i} className={presetStyles.applyResultError}>
+                                  {err}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {presets.length === 0 && <div className={presetStyles.loading}>{t('instanceDetail.noPresets')}</div>}
+            </>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'migrate' && (
+        <div className={styles.migrateTab}>
+          <div className={styles.migrateSection}>
+            <div className={styles.migrateSectionHeader}>{t('instanceDetail.versionMigration')}</div>
+            <div className={styles.migrateRow}>
+              <select
+                className={styles.migrateSelect}
+                value={migrationTarget}
+                onChange={(e) => setMigrationTarget(e.target.value)}
+              >
+                <option value="">{t('instanceDetail.selectTargetVersion')}</option>
+                {versions
+                  .filter((v) => v.type === 'release' || v.type === 'snapshot')
+                  .map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.id}
+                    </option>
+                  ))}
+              </select>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleCheckMigration}
+                disabled={!migrationTarget || checkingMigration}
+              >
+                {checkingMigration ? t('instanceDetail.checking') : t('instanceDetail.checkCompat')}
+              </Button>
+            </div>
+            {migrationResults && (
+              <div className={styles.migrateResults}>
+                {migrationResults.length === 0 ? (
+                  <div className={styles.migrateEmpty}>
+                    {t('instanceDetail.allCompatible', { version: migrationTarget })}
+                  </div>
+                ) : (
+                  migrationResults.map((item) => {
+                    const statusBadgeClass =
+                      item.status === 'compatible'
+                        ? styles.badgeGreen
+                        : item.status === 'pending'
+                          ? styles.badgeYellow
+                          : styles.badgeGray;
+                    return (
+                      <div key={item.mod_slug} className={styles.migrateResultItem}>
+                        <div className={styles.migrateResultInfo}>
+                          <span className={styles.migrateResultName}>{item.mod_name}</span>
+                          <span className={styles.migrateResultSlug}>{item.mod_slug}</span>
+                        </div>
+                        <div className={styles.migrateResultRight}>
+                          <span className={statusBadgeClass}>{item.status}</span>
+                          <span className={styles.migrateResultDetail}>{item.detail}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className={styles.migrateSection}>
+            <div className={styles.migrateSectionHeader}>{t('instanceDetail.smartTune')}</div>
+            <p className={styles.migrateDesc}>{t('instanceDetail.smartTuneDesc')}</p>
+            <div className={styles.migrateRow}>
+              <Button variant="secondary" size="sm" onClick={handleSmartTune} disabled={tuningMemory}>
+                {tuningMemory ? t('instanceDetail.analyzing') : t('instanceDetail.smartTuneBtn')}
+              </Button>
+              {smartMemory !== null && (
+                <span className={styles.migrateMemoryResult}>
+                  {t('instanceDetail.recommended')}: <strong>{smartMemory} MB</strong> (
+                  {(smartMemory / 1024).toFixed(1)} GB)
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'profile' && (
+        <div className={styles.profileTab}>
+          {loadingProfiling ? (
+            <div className={styles.placeholderTab}>{t('instanceDetail.loadingProfiling')}</div>
+          ) : !profilingData ? (
+            <div className={styles.placeholderTab}>
+              {t('instanceDetail.noProfilingData') || 'No profiling data yet - launch the game first'}
+            </div>
+          ) : (
+            <div className={styles.profileContent}>
+              <div className={styles.profileHeader}>
+                <span className={styles.profileHeaderStage}>{t('instanceDetail.profileStage')}</span>
+                <span className={styles.profileHeaderDuration}>{t('instanceDetail.profileDuration')}</span>
+                <span className={styles.profileHeaderDetails}>{t('instanceDetail.profileDetails')}</span>
+              </div>
+              {profilingData.map((item, i) => {
+                const maxDuration = Math.max(...profilingData.map((p) => p.duration_ms), 1);
+                const pct = (item.duration_ms / maxDuration) * 100;
+                const colorClass =
+                  item.duration_ms < 500 ? styles.barGreen : item.duration_ms < 2000 ? styles.barYellow : styles.barRed;
+                const durationLabel =
+                  item.duration_ms >= 1000 ? `${(item.duration_ms / 1000).toFixed(1)}s` : `${item.duration_ms}ms`;
+                return (
+                  <div key={i} className={styles.profileRow}>
+                    <span className={styles.profileStage}>{item.stage}</span>
+                    <div className={styles.profileBarWrap}>
+                      <div className={`${styles.profileBar} ${colorClass}`} style={{ width: `${pct}%` }} />
+                      <span className={styles.profileDuration}>{durationLabel}</span>
+                    </div>
+                    <span className={styles.profileDetails}>{item.details}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'fps' && (
+        <div className={styles.fpsTab}>
+          {loadingFps ? (
+            <div className={styles.placeholderTab}>{t('instanceDetail.loadingFps')}</div>
+          ) : !fpsData ? (
+            <div className={styles.placeholderTab}>
+              {t('instanceDetail.noFpsData') || 'Run the game with monitoring enabled'}
+            </div>
+          ) : (
+            <div className={styles.fpsContent}>
+              <div className={styles.fpsStats}>
+                <div className={styles.fpsStatCard}>
+                  <div className={styles.fpsStatLabel}>{t('instanceDetail.fpsAvg')}</div>
+                  <div className={styles.fpsStatValue}>{fpsData.avg_fps.toFixed(0)}</div>
+                </div>
+                <div className={styles.fpsStatCard}>
+                  <div className={styles.fpsStatLabel}>{t('instanceDetail.fpsMin')}</div>
+                  <div className={styles.fpsStatValue}>{fpsData.min_fps.toFixed(0)}</div>
+                </div>
+                <div className={styles.fpsStatCard}>
+                  <div className={styles.fpsStatLabel}>{t('instanceDetail.fpsMax')}</div>
+                  <div className={styles.fpsStatValue}>{fpsData.max_fps.toFixed(0)}</div>
+                </div>
+              </div>
+              <div className={styles.fpsChartSection}>
+                <div className={styles.fpsChartHeader}>{t('instanceDetail.fpsFrameTimes')}</div>
+                <div className={styles.fpsChart}>
+                  {fpsData.frame_times_ms.slice(0, 30).map((ft, i) => {
+                    const fpsFromFt = ft > 0 ? 1000 / ft : 999;
+                    const colorClass =
+                      fpsFromFt >= 60 ? styles.barGreen : fpsFromFt >= 30 ? styles.barYellow : styles.barRed;
+                    const maxFt = Math.max(...fpsData.frame_times_ms.slice(0, 30), 1);
+                    const pct = (ft / maxFt) * 100;
+                    return (
+                      <div key={i} className={styles.fpsBarRow}>
+                        <span className={styles.fpsBarIndex}>{i + 1}</span>
+                        <div className={styles.fpsBarTrack}>
+                          <div className={`${styles.fpsBar} ${colorClass}`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className={styles.fpsBarValue}>{ft.toFixed(1)}ms</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'screenshots' && (
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          {screenshotLoading ? (
+            <p style={{ color: 'var(--color-text-dim)', fontSize: '0.7em', padding: '1em' }}>Loading...</p>
+          ) : screenshots.length === 0 ? (
+            <p style={{ color: 'var(--color-text-dim)', fontSize: '0.7em', padding: '1em' }}>No screenshots found</p>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+              {screenshots.map((path, i) => (
+                <img
+                  key={i}
+                  src={path}
+                  alt={`Screenshot ${i + 1}`}
+                  style={{
+                    width: '100%',
+                    aspectRatio: '16/10',
+                    objectFit: 'cover',
+                    clipPath: 'var(--clip-small)',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => api.openFolder(path)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'snapshots' && (
+        <div className={styles.snapshotsTab}>
+          <div className={styles.snapshotsHeader}>
+            <div className={styles.snapshotsCreateRow}>
+              <input
+                type="text"
+                value={snapshotName}
+                onChange={(e) => setSnapshotName(e.target.value)}
+                placeholder={t('instanceDetail.snapshotName')}
+                className={styles.snapshotInput}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateSnapshot()}
+              />
+              <Button variant="primary" size="sm" onClick={handleCreateSnapshot} disabled={snapshotLoading}>
+                {snapshotLoading ? t('instanceDetail.creating') : <><Icon name="camera" size={14} /> {t('instanceDetail.createSnapshot')}</>}
+              </Button>
+            </div>
+          </div>
+
+          {snapshots.length === 0 ? (
+            <div className={styles.placeholderTab}>{t('instanceDetail.noSnapshots')}</div>
+          ) : (
+            <div className={styles.snapshotList}>
+              <div className={styles.snapshotTableHeader}>
+                <span className={styles.snapshotColName}>{t('instanceDetail.snapshotNameCol')}</span>
+                <span className={styles.snapshotColDate}>{t('instanceDetail.snapshotDateCol')}</span>
+                <span className={styles.snapshotColSize}>{t('instanceDetail.snapshotSizeCol')}</span>
+                <span className={styles.snapshotColActions}>{t('instanceDetail.snapshotActionsCol')}</span>
+              </div>
+              {snapshots.map((snap) => (
+                <div key={snap.id} className={styles.snapshotRow}>
+                  <span className={styles.snapshotColName}>{snap.name}</span>
+                  <span className={styles.snapshotColDate}>
+                    {new Date(snap.created_at).toLocaleString('zh-CN', {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                  <span className={styles.snapshotColSize}>{(snap.size_bytes / 1048576).toFixed(1)} MB</span>
+                  <span className={styles.snapshotColActions}>
+                    <Button
+                      variant="secondary-highlight"
+                      size="sm"
+                      onClick={() => handleRestoreSnapshot(snap.id, snap.name)}
+                    >
+                      <><Icon name="arrowCurveLeft" size={14} /> {t('instanceDetail.restore')}</>
+                    </Button>
+                    <Button variant="danger" size="sm" onClick={() => handleDeleteSnapshot(snap.id, snap.name)}>
+                      <><Icon name="cross" size={14} /> {t('common.delete')}</>
+                    </Button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Delete modal */}
+      <Modal
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        title={t('instances.deleteTitle')}
+        actions={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="danger" size="sm" onClick={handleDelete}>
+              {t('common.delete')}
+            </Button>
+          </>
+        }
+      >
+        {t('instanceDetail.deleteConfirm', { name: instance.name })}
+      </Modal>
+
+      {/* Duplicate modal */}
+      <Modal
+        open={duplicateOpen}
+        onClose={() => setDuplicateOpen(false)}
+        title={t('instanceDetail.duplicateInstance')}
+        actions={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setDuplicateOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="primary" size="sm" onClick={confirmDuplicate} disabled={!duplicateName.trim()}>
+              {t('instanceDetail.duplicate')}
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label style={{ fontSize: '0.6em', color: 'var(--color-text-secondary)' }}>
+            {t('instanceDetail.newInstanceName')}
+          </label>
+          <TextInput
+            value={duplicateName}
+            onChange={(e) => setDuplicateName(e.target.value)}
+            placeholder={t('instanceDetail.instanceName')}
+            autoFocus
+          />
+        </div>
+      </Modal>
+
+      {/* Log Viewer modal */}
+      <Modal
+        open={showLogViewer}
+        onClose={() => setShowLogViewer(false)}
+        title="GAME LOG VIEWER"
+        actions={
+          <Button variant="secondary" size="sm" onClick={() => setShowLogViewer(false)}>
+            {t('common.cancel') || 'Close'}
+          </Button>
+        }
+      >
+        <div style={{ height: 400 }}>
+          <LogViewer instanceId={instanceId} visible={showLogViewer} />
+        </div>
+      </Modal>
+
+      {/* Pre-launch check modal */}
+      <Modal
+        open={showPreLaunchModal}
+        onClose={() => setShowPreLaunchModal(false)}
+        title="PRE-LAUNCH CHECK"
+        actions={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setShowPreLaunchModal(false)}>
+              Cancel
+            </Button>
+            {preLaunchReport && preLaunchReport.can_launch && (
+              <Button variant="primary" size="sm" onClick={doLaunch}>
+                Launch Anyway
+              </Button>
+            )}
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {preLaunchReport?.items.map((item, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '8px 12px',
+                background: '#141414',
+                border: '1px solid #1C1C1C',
+                fontSize: '0.55em',
+              }}
+            >
+              <span
+                style={{
+                  fontWeight: 700,
+                  minWidth: 40,
+                  color: item.status === 'pass' ? '#00FF88' : item.status === 'warn' ? '#FFE600' : '#FF6B6B',
+                }}
+              >
+                {item.status.toUpperCase()}
+              </span>
+              <span style={{ color: '#AAA', flex: 1 }}>{item.message}</span>
+            </div>
+          ))}
+          {preLaunchReport && !preLaunchReport.can_launch && (
+            <div style={{ fontSize: '0.55em', color: '#FF6B6B', marginTop: 8 }}>
+              Cannot launch — fix the issues above before proceeding.
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      <Modal
+        open={healthModalOpen}
+        onClose={() => setHealthModalOpen(false)}
+        title="HEALTH CHECK"
+        actions={
+          <Button variant="primary" size="sm" onClick={() => setHealthModalOpen(false)}>
+            OK
+          </Button>
+        }
+      >
+        {healthReport && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.8em' }}>
+                Overall: {healthReport.overall === 'pass' ? <Icon name="checkCircle" size={12} /> : healthReport.overall === 'warn' ? <Icon name="warning" size={12} /> : <Icon name="crossCircle" size={12} />}
+              </span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55em', color: 'var(--color-text-dim)' }}>
+                {healthReport.instance_id}
+              </span>
+            </div>
+            {healthReport.items.map((item, i) => (
+              <div
+                key={i}
+                style={{
+                  background: 'var(--color-panel-alt)',
+                  border: '1px solid var(--color-border)',
+                  padding: '8px 12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6em', color: '#FFF' }}>{item.name}</span>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-heading)',
+                      fontSize: '0.55em',
+                      color:
+                        item.status === 'pass'
+                          ? 'var(--color-success)'
+                          : item.status === 'warn'
+                            ? 'var(--color-accent)'
+                            : 'var(--color-error)',
+                    }}
+                  >
+                    {item.status.toUpperCase()}
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.5em', color: 'var(--color-text-secondary)' }}>{item.message}</span>
+                {item.suggestion && (
+                  <span style={{ fontSize: '0.5em', color: 'var(--color-accent)' }}><Icon name="lightbulb" size={12} /> {item.suggestion}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+function InfoRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className={styles.infoRow}>
+      <span className={styles.infoRowLabel}>{label}</span>
+      <span className={mono ? styles.infoRowValueMono : styles.infoRowValue}>{value}</span>
+    </div>
+  );
+}

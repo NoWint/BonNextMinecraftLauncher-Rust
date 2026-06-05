@@ -1,0 +1,253 @@
+.page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  position: relative;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.decorTopRight {
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 300px;
+  height: 300px;
+  border: 1px solid var(--color-accent-06);
+  transform: rotate(15deg);
+  pointer-events: none;
+}
+
+.decorBottomLeft {
+  position: absolute;
+  bottom: -100px;
+  left: -100px;
+  width: 350px;
+  height: 350px;
+  border: 1px solid var(--color-accent-06);
+  transform: rotate(-10deg);
+  pointer-events: none;
+}
+
+.content {
+  text-align: center;
+  position: relative;
+  z-index: 1;
+  width: 360px;
+}
+
+.logoRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 40px;
+}
+
+.logoHex {
+  width: 40px;
+  height: 40px;
+  background: var(--color-accent);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+.logoText {
+  font-family: var(--font-heading);
+  font-size: 2.2em;
+  color: var(--color-text);
+  letter-spacing: 8px;
+}
+
+.logoVersion {
+  font-size: 0.5em;
+  color: var(--color-accent);
+  letter-spacing: 4px;
+  font-weight: 700;
+}
+
+.tagline {
+  font-size: 0.55em;
+  color: var(--color-text-dim);
+  letter-spacing: 6px;
+  margin-bottom: 48px;
+}
+
+.msSection {
+  margin-bottom: 16px;
+}
+
+.msError {
+  color: var(--color-error);
+  font-size: 0.55em;
+  margin-top: 8px;
+}
+
+.msBtnFull {
+  width: 100%;
+  justify-content: center;
+  font-size: 0.9em;
+  padding: 14px 48px;
+}
+
+.deviceCodeBox {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border-light);
+  padding: 16px;
+  text-align: left;
+}
+
+.deviceCodeValue {
+  font-size: 0.7em;
+  color: var(--color-text);
+  font-weight: 700;
+  margin-top: 8px;
+}
+
+.deviceCodeMsg {
+  font-size: 0.55em;
+  color: var(--color-text-tertiary);
+  margin-top: 4px;
+}
+
+.deviceCodeHint {
+  font-size: 0.5em;
+  color: var(--color-text-dim);
+  margin-top: 8px;
+}
+
+.deviceCodeHintAccent {
+  color: var(--color-accent);
+}
+
+.deviceCodeProgress {
+  margin-top: 10px;
+}
+
+.deviceCodeCancel {
+  margin-top: 8px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.dividerLine {
+  width: 60px;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.dividerText {
+  font-size: 0.5em;
+  color: var(--color-text-faint);
+  letter-spacing: 3px;
+}
+
+.offlineSection {
+  margin-bottom: 16px;
+}
+
+.offlineRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.offlineInput {
+  width: 180px;
+}
+
+.offlineBtn {
+  font-size: 0.65em;
+  padding: 10px 20px;
+}
+
+.offlineError {
+  color: var(--color-error);
+  font-size: 0.55em;
+  margin-top: 8px;
+}
+
+.statusRow {
+  margin-top: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.statusText {
+  font-family: var(--font-mono);
+  font-size: 0.45em;
+  color: var(--color-text-dim);
+}
+
+.guestSection {
+  margin-top: 8px;
+}
+
+.guestLabel {
+  font-size: 0.4em;
+  color: var(--color-text-dim);
+  text-align: center;
+  letter-spacing: 3px;
+  margin-bottom: 6px;
+}
+
+.yggSection {
+  margin-top: 8px;
+}
+
+.yggToggle {
+  font-size: 0.45em;
+  color: var(--color-accent);
+  cursor: pointer;
+  letter-spacing: 2px;
+  margin-top: 12px;
+  display: inline-block;
+  transition: opacity 0.2s;
+}
+
+.yggToggle:hover {
+  opacity: 0.8;
+}
+
+.yggForm {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.yggFormRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.yggFormInput {
+  width: 180px;
+}
+
+.yggFormActions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.yggError {
+  color: var(--color-error);
+  font-size: 0.55em;
+  margin-top: 4px;
+}
+
+.yggServerSelect {
+  width: 260px;
+}

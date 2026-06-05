@@ -1,0 +1,171 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  font-size: 0.65em;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5em;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: 1.1em;
+  letter-spacing: 0.05em;
+  color: var(--color-accent);
+}
+
+.count {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--color-text-secondary);
+  background: var(--color-panel-alt);
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+}
+
+.filterGroup {
+  display: flex;
+  gap: 2px;
+  background: var(--color-panel-alt);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.filterBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 0.85em;
+  padding: 0.2em 0.5em;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.filterBtnActive {
+  background: var(--color-accent);
+  color: var(--color-bg);
+  font-weight: 600;
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.progressBar {
+  flex: 1;
+  height: 4px;
+  background: var(--color-border-light);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.progressText {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  color: var(--color-text-secondary);
+  min-width: 3em;
+  text-align: right;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.4em;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.5em;
+  border-radius: 6px;
+  border: 1px solid var(--color-border-light);
+  background: var(--color-panel);
+  transition: border-color 0.15s ease;
+}
+
+.card:hover {
+  border-color: var(--color-border-mid);
+}
+
+.cardUnlocked {
+  border-left: 3px solid var(--color-accent);
+}
+
+.cardLocked {
+  opacity: 0.5;
+  border-left: 3px solid var(--color-border-light);
+}
+
+.cardIcon {
+  font-size: 1.4em;
+  flex-shrink: 0;
+}
+
+.cardInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardName {
+  font-weight: 600;
+  font-size: 0.9em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardDesc {
+  font-size: 0.75em;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardDate {
+  font-size: 0.65em;
+  font-family: var(--font-mono);
+  color: var(--color-text-dim);
+  margin-top: 1px;
+}
+
+.cardRarity {
+  font-family: var(--font-mono);
+  font-size: 0.6em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.loading {
+  padding: 1em;
+  color: var(--color-text-muted);
+  font-size: 0.65em;
+}

@@ -1,0 +1,299 @@
+.launcherList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  min-height: 10em;
+}
+
+.hint {
+  font-size: 0.72em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.4em;
+}
+
+.loading,
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 8em;
+  gap: 0.8em;
+  color: var(--color-text-muted);
+  font-size: 0.75em;
+}
+
+.launcherCard {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  padding: 0.7em 0.9em;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  color: var(--color-text);
+  font-size: 0.75em;
+  width: 100%;
+}
+
+.launcherCard:hover {
+  border-color: var(--color-accent);
+  background: var(--color-bg-tertiary);
+}
+
+.launcherIcon {
+  font-size: 1.4em;
+  flex-shrink: 0;
+}
+
+.launcherInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  min-width: 0;
+}
+
+.launcherName {
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+.launcherDir {
+  font-size: 0.85em;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.launcherCount {
+  font-size: 0.85em;
+  color: var(--color-accent);
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+}
+
+.customDir {
+  margin-top: 0.5em;
+  padding-top: 0.5em;
+  border-top: 1px solid var(--color-border);
+  text-align: center;
+}
+
+.instanceList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  max-height: 24em;
+  overflow-y: auto;
+}
+
+.instanceHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.selectAllBtn {
+  background: none;
+  border: none;
+  color: var(--color-accent);
+  cursor: pointer;
+  font-size: 0.72em;
+  font-family: inherit;
+}
+
+.selectAllBtn:hover {
+  text-decoration: underline;
+}
+
+.instanceCard {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.6em 0.8em;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  color: var(--color-text);
+  font-size: 0.75em;
+  width: 100%;
+}
+
+.instanceCard:hover {
+  border-color: var(--color-accent);
+}
+
+.instanceCard--selected {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-bg-secondary));
+}
+
+.instanceCheck {
+  font-size: 1.1em;
+  flex-shrink: 0;
+  color: var(--color-accent);
+}
+
+.instanceInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1em;
+  min-width: 0;
+}
+
+.instanceName {
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+.instanceMeta {
+  font-size: 0.82em;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}
+
+.instanceTags {
+  display: flex;
+  gap: 0.3em;
+  flex-shrink: 0;
+}
+
+.tag {
+  font-size: 0.75em;
+  padding: 0.15em 0.4em;
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  color: var(--color-accent);
+  border-radius: var(--radius-xs);
+  font-family: var(--font-mono);
+}
+
+.migrating {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 8em;
+  gap: 1em;
+}
+
+.spinner {
+  width: 2em;
+  height: 2em;
+  border: 0.15em solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.fixSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.fixInstance {
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border);
+  padding: 10px 12px;
+}
+
+.fixInstanceHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.fixInstanceName {
+  font-weight: 700;
+  font-size: 0.7em;
+  color: var(--color-text);
+}
+
+.fixIssueCount {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-accent);
+}
+
+.fixIssue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 0.55em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fixIssue:last-child {
+  border-bottom: none;
+}
+
+.fixIssue--high {
+  color: var(--color-error);
+}
+
+.fixIssue--medium {
+  color: #ecc94b;
+}
+
+.fixIssue--info {
+  color: var(--color-text-dim);
+}
+
+.fixIssueType {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--color-text-dim);
+  min-width: 100px;
+}
+
+.fixIssueDesc {
+  flex: 1;
+  color: var(--color-text-secondary);
+}
+
+.fixAutoTag {
+  font-size: 0.85em;
+  padding: 1px 6px;
+  background: rgba(0, 255, 136, 0.1);
+  color: var(--color-success);
+  clip-path: var(--clip-badge);
+}
+
+.fixResult {
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: var(--color-panel);
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-text-dim);
+}
+
+.fixResultLine {
+  padding: 1px 0;
+}
+
+.fixActions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 8px;
+}

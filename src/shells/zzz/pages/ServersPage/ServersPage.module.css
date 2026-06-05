@@ -1,0 +1,331 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+}
+
+.addForm {
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-accent);
+  padding: 12px 14px;
+  clip-path: var(--clip-small);
+}
+
+.addForm__row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.addForm__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.addForm__field:last-of-type {
+  flex: 0.5;
+}
+
+.addForm__label {
+  font-size: 0.45em;
+  color: var(--color-text-dim);
+  letter-spacing: 2px;
+  font-weight: 700;
+}
+
+.addForm__input {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+  padding: 6px 10px;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.addForm__input:focus {
+  border-color: var(--color-accent);
+}
+
+.addForm__input::placeholder {
+  color: var(--color-text-faint);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  transition: border-color var(--transition-fast);
+}
+
+.card:hover {
+  border-color: var(--color-border-light);
+}
+
+.card__icon {
+  width: 40px;
+  height: 40px;
+  background: var(--color-panel-alt);
+  clip-path: var(--clip-diamond);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.card__favicon {
+  width: 40px;
+  height: 40px;
+  image-rendering: pixelated;
+}
+
+.card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.card__name {
+  font-family: var(--font-heading);
+  font-size: 0.75em;
+  color: var(--color-text);
+  letter-spacing: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card__address {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-text-dim);
+  margin-top: 2px;
+}
+
+.card__desc {
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.card__version {
+  font-family: var(--font-mono);
+  font-size: 0.45em;
+  color: var(--color-accent);
+  background: var(--color-accent-10);
+  padding: 1px 6px;
+  clip-path: var(--clip-badge);
+}
+
+.card__players {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.45em;
+  color: var(--color-text-dim);
+}
+
+.card__status {
+  flex-shrink: 0;
+  text-align: right;
+  min-width: 60px;
+}
+
+.card__ping {
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+  font-weight: 600;
+}
+
+.card__pingOffline {
+  font-family: var(--font-heading);
+  font-size: 0.5em;
+  color: var(--color-error);
+  letter-spacing: 1px;
+}
+
+.card__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.card__favBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  transition: color var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card__favBtn:hover {
+  color: var(--color-accent);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 200px;
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border-light);
+}
+
+.empty__title {
+  font-family: var(--font-heading);
+  font-size: 0.85em;
+  color: var(--color-text-dim);
+  letter-spacing: 2px;
+}
+
+.empty__desc {
+  font-size: 0.55em;
+  color: var(--color-text-faint);
+}
+
+.empty__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.loadingGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border);
+  clip-path: var(--clip-small);
+}
+
+.controls__search {
+  width: 100%;
+}
+
+.controls__searchInput {
+  width: 100%;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+  padding: 6px 10px;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.controls__searchInput:focus {
+  border-color: var(--color-accent);
+}
+
+.controls__searchInput::placeholder {
+  color: var(--color-text-faint);
+}
+
+.controls__filters {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.controls__filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.controls__label {
+  font-size: 0.45em;
+  color: var(--color-text-dim);
+  letter-spacing: 1px;
+  font-weight: 700;
+  margin-right: 2px;
+}
+
+.controls__filterBtn {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.45em;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  clip-path: var(--clip-badge);
+}
+
+.controls__filterBtn:hover {
+  border-color: var(--color-border-light);
+  color: var(--color-text);
+}
+
+.controls__filterBtn--active {
+  background: var(--color-accent-10);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.addForm__select {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+  padding: 6px 10px;
+  outline: none;
+  transition: border-color var(--transition-fast);
+  width: 100%;
+}
+
+.addForm__select:focus {
+  border-color: var(--color-accent);
+}

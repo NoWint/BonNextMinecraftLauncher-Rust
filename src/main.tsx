@@ -1,7 +1,7 @@
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { formatError } from './shared/utils/errorMapping';
-import './styles/global.css';
+import './shells/zzz/styles/global.css';
 
 window.addEventListener('error', (event) => {
   console.error('[BonNext Global Error]', event.error || event.message, event.filename, event.lineno);

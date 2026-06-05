@@ -1,0 +1,477 @@
+/* ========================================
+   Rainbow Ripple Border — 4 edges, right-to-left cascade
+   ======================================== */
+
+.rainbowBorder {
+  position: fixed;
+  inset: 0;
+  z-index: 1003;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.rainbowBorder--visible {
+  opacity: 1;
+}
+
+.rainbowBorder__edge {
+  position: absolute;
+  background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff, #5f27cd);
+  background-size: 200% 100%;
+  opacity: 0;
+}
+
+.rainbowBorder--visible .rainbowBorder__edge--right {
+  animation:
+    edgeFadeIn 0.3s ease-out forwards,
+    rainbowFlowBorder 4s linear infinite;
+  animation-delay: 0s, 0.3s;
+}
+
+.rainbowBorder--visible .rainbowBorder__edge--top {
+  animation:
+    edgeGrowRight 0.4s ease-out forwards,
+    rainbowFlowBorder 4s linear infinite;
+  animation-delay: 0.15s, 0.55s;
+}
+
+.rainbowBorder--visible .rainbowBorder__edge--bottom {
+  animation:
+    edgeGrowRight 0.4s ease-out forwards,
+    rainbowFlowBorder 4s linear infinite;
+  animation-delay: 0.15s, 0.55s;
+}
+
+.rainbowBorder--visible .rainbowBorder__edge--left {
+  animation:
+    edgeFadeIn 0.3s ease-out forwards,
+    rainbowFlowBorder 4s linear infinite;
+  animation-delay: 0.35s, 0.65s;
+}
+
+/* Right edge: full height, 3px wide, on right */
+.rainbowBorder__edge--right {
+  top: 0;
+  right: 0;
+  width: 3px;
+  height: 100%;
+  background: linear-gradient(180deg, #ff6b6b 0%, #feca57 20%, #48dbfb 40%, #ff9ff3 60%, #54a0ff 80%, #5f27cd 100%);
+  background-size: 100% 200%;
+  filter: blur(1px);
+  box-shadow:
+    0 0 12px rgba(72, 219, 251, 0.3),
+    0 0 24px rgba(255, 159, 243, 0.15);
+}
+
+/* Top edge: full width, 3px tall, on top */
+.rainbowBorder__edge--top {
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  filter: blur(1px);
+  box-shadow: 0 0 12px rgba(72, 219, 251, 0.3);
+  transform-origin: right center;
+}
+
+/* Bottom edge: full width, 3px tall, on bottom */
+.rainbowBorder__edge--bottom {
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  filter: blur(1px);
+  box-shadow: 0 0 12px rgba(255, 159, 243, 0.3);
+  transform-origin: right center;
+}
+
+/* Left edge: full height, 3px wide, on left */
+.rainbowBorder__edge--left {
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: linear-gradient(180deg, #ff6b6b 0%, #feca57 20%, #48dbfb 40%, #ff9ff3 60%, #54a0ff 80%, #5f27cd 100%);
+  background-size: 100% 200%;
+  filter: blur(1px);
+  box-shadow:
+    0 0 12px rgba(72, 219, 251, 0.3),
+    0 0 24px rgba(84, 160, 255, 0.15);
+}
+
+/* Rainbow flow for horizontal edges */
+@keyframes rainbowFlowBorder {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Fade in (right and left edges) */
+@keyframes edgeFadeIn {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+  }
+  to {
+    opacity: 0.85;
+    filter: blur(1px);
+  }
+}
+
+/* Grow from right (top and bottom edges) */
+@keyframes edgeGrowRight {
+  from {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  to {
+    opacity: 0.85;
+    transform: scaleX(1);
+  }
+}
+
+/* ========================================
+   Background Layer — gradient blur, no content
+   ======================================== */
+
+.panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: var(--sidebar-width, 190px);
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(40px) saturate(120%);
+  -webkit-backdrop-filter: blur(40px) saturate(120%);
+  mask-image: linear-gradient(
+    to left,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 1) 40%,
+    rgba(0, 0, 0, 0.95) 60%,
+    rgba(0, 0, 0, 0.8) 75%,
+    rgba(0, 0, 0, 0.4) 90%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to left,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 1) 40%,
+    rgba(0, 0, 0, 0.95) 60%,
+    rgba(0, 0, 0, 0.8) 75%,
+    rgba(0, 0, 0, 0.4) 90%,
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+
+.panel--open {
+  opacity: 1;
+  pointer-events: none;
+}
+
+/* ========================================
+   Controls Card — Gaussian blur, right-aligned
+   ======================================== */
+
+.controlsCard {
+  position: fixed;
+  top: 40px;
+  right: 4%;
+  bottom: 40px;
+  width: 45%;
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transform: perspective(1500px) rotateY(25deg) scale(1.18) translateZ(120px) translateX(-150px);
+  opacity: 0;
+  filter: blur(16px);
+  pointer-events: none;
+  transition:
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: center center;
+  will-change: transform, opacity, filter;
+}
+
+.controlsCard--open {
+  transform: perspective(1500px) rotateY(0deg) scale(1) translateZ(0) translateX(0);
+  opacity: 1;
+  filter: blur(0);
+  pointer-events: auto;
+}
+
+/* ========================================
+   Controls Card — Header
+   ======================================== */
+
+.controlsCard__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px 14px;
+  flex-shrink: 0;
+}
+
+.controlsCard__title {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  font-size: 0.95em;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.controlsCard__title::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #48dbfb, #54a0ff);
+  box-shadow: 0 0 10px rgba(72, 219, 251, 0.5);
+  flex-shrink: 0;
+}
+
+.controlsCard__actions {
+  display: flex;
+  gap: 4px;
+}
+
+.controlsCard__actionBtn {
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55em;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.controlsCard__actionBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* ========================================
+   Controls Card — Messages
+   ======================================== */
+
+.controlsCard__messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scroll-behavior: smooth;
+}
+
+.controlsCard__messages::-webkit-scrollbar {
+  width: 2px;
+}
+.controlsCard__messages::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+}
+
+/* Empty state */
+.controlsCard__empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 0.7em;
+}
+
+.controlsCard__emptyIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(72, 219, 251, 0.12), rgba(255, 159, 243, 0.1));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1em;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.controlsCard__emptyText {
+  text-align: center;
+  line-height: 1.6;
+  font-size: 0.9em;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+}
+
+.controlsCard__suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 16px;
+  padding: 0 8px;
+}
+
+.controlsCard__suggestionChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 0.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  font-size: 0.7em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.controlsCard__suggestionChip:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.85);
+  transform: translateY(-1px);
+}
+
+.controlsCard__suggestionChip:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.controlsCard__suggestionIcon {
+  font-size: 0.9em;
+}
+
+/* ========================================
+   Controls Card — Input Area
+   ======================================== */
+
+.controlsCard__inputArea {
+  padding: 12px 20px 20px;
+  flex-shrink: 0;
+}
+
+.controlsCard__inputWrapper {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 22px;
+  padding: 5px 5px 5px 18px;
+  border: 0.5px solid rgba(255, 255, 255, 0.04);
+  transition: all 0.25s ease;
+}
+
+.controlsCard__inputWrapper:focus-within {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(72, 219, 251, 0.06);
+}
+
+.controlsCard__input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  font-size: 0.76em;
+  padding: 7px 0;
+  resize: none;
+  outline: none;
+  min-height: 1.4em;
+  max-height: 5em;
+  line-height: 1.4;
+}
+
+.controlsCard__input::placeholder {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.controlsCard__sendBtn {
+  background: linear-gradient(135deg, #48dbfb, #54a0ff);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  width: 34px;
+  height: 34px;
+  border-radius: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75em;
+  font-weight: 700;
+  flex-shrink: 0;
+  transition: all 0.2s cubic-bezier(0.22, 0.8, 0.25, 1);
+  box-shadow: 0 2px 10px rgba(72, 219, 251, 0.2);
+}
+
+.controlsCard__sendBtn:hover:not(:disabled) {
+  transform: scale(1.06);
+  box-shadow: 0 4px 18px rgba(72, 219, 251, 0.35);
+}
+
+.controlsCard__sendBtn:active:not(:disabled) {
+  transform: scale(0.93);
+  transition: transform 0.1s ease;
+}
+
+.controlsCard__sendBtn:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
+/* ========================================
+   Error
+   ======================================== */
+
+.controlsCard__error {
+  font-size: 0.55em;
+  color: #ff6b6b;
+  padding: 6px 20px 4px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+/* ========================================
+   Overlay — subtle darkening
+   ======================================== */
+
+.panel__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.12);
+  z-index: 999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.panel__overlay--visible {
+  opacity: 1;
+  pointer-events: auto;
+}

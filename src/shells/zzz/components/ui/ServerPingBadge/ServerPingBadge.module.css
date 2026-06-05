@@ -1,0 +1,27 @@
+.badge {
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+  padding: 0.15em 0.4em;
+  clip-path: var(--clip-badge);
+  font-weight: 600;
+}
+
+.fast {
+  background: #1bd96a;
+  color: #000;
+}
+
+.medium {
+  background: var(--color-accent);
+  color: #000;
+}
+
+.slow {
+  background: #f16436;
+  color: #fff;
+}
+
+.offline {
+  background: var(--color-panel-alt);
+  color: var(--color-text-dim);
+}

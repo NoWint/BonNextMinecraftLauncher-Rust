@@ -1,0 +1,135 @@
+.titlebar {
+  display: flex;
+  align-items: center;
+  height: var(--titlebar-height);
+  background: var(--color-sidebar);
+  border-bottom: 1px solid var(--color-border);
+  border-radius: var(--window-border-radius) var(--window-border-radius) 0 0;
+  -webkit-app-region: drag;
+  app-region: drag;
+  user-select: none;
+  flex-shrink: 0;
+  z-index: 100;
+  position: relative;
+}
+
+.titlebar::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-accent-20), transparent);
+  pointer-events: none;
+}
+
+.osMacos {
+  padding-left: 0;
+}
+
+.maximized {
+  border-radius: 0;
+}
+
+.maximized::after {
+  display: none;
+}
+
+.trafficLightSpacer {
+  width: 4.875em;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.titleLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding-left: 0.875em;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.osMacos .titleLeft {
+  padding-left: 0;
+}
+
+.logoDiamond {
+  width: 0.9375em;
+  height: 0.9375em;
+  background: var(--color-accent);
+  clip-path: var(--clip-diamond);
+  flex-shrink: 0;
+  animation: breathe-yellow 3s ease-in-out infinite;
+}
+
+.appName {
+  font-family: var(--font-heading);
+  font-size: 0.7em;
+  letter-spacing: 4px;
+  color: var(--color-text);
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.appVersion {
+  font-family: var(--font-mono);
+  font-size: 0.4em;
+  color: var(--color-accent);
+  letter-spacing: 2px;
+  font-weight: 500;
+  opacity: 0.7;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.titleCenter {
+  flex: 1;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.windowControls {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.controlBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.875em;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--color-text-dim);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.controlBtn:hover {
+  background: var(--color-panel-alt);
+  color: var(--color-text);
+}
+
+.controlBtn:last-child {
+  border-radius: 0 var(--window-border-radius) 0 0;
+}
+
+.maximized .controlBtn:last-child {
+  border-radius: 0;
+}
+
+.btnClose:hover {
+  background: var(--color-error);
+  color: var(--color-text);
+}

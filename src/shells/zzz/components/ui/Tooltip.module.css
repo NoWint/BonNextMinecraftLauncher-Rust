@@ -1,0 +1,63 @@
+.wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 9999;
+  background: var(--color-bg);
+  border: 1px solid var(--color-accent-30);
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: tooltip-in 0.2s var(--ease-out-expo) forwards;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  box-shadow: 0 2px 12px var(--color-overlay-60), 0 0 0 1px var(--color-accent-06);
+}
+
+.tooltip--top {
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.tooltip--bottom {
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.tooltip--left {
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.tooltip--right {
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.content {
+  font-size: 0.55em;
+  color: var(--color-text-dim);
+  letter-spacing: 0.5px;
+}
+
+.shortcut {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-accent);
+  padding: 1px 5px;
+  border: 1px solid var(--color-accent-20);
+}
+
+@keyframes tooltip-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
