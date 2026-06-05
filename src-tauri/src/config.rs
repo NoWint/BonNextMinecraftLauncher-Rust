@@ -107,6 +107,8 @@ pub struct AppConfig {
     pub force_java_path: bool,
     #[serde(default)]
     pub security: SecurityConfig,
+    #[serde(default = "default_active_shell")]
+    pub active_shell: String,
 }
 
 fn default_max_memory() -> u32 {
@@ -145,6 +147,10 @@ fn default_git_proxy_url() -> String {
     "https://gh-proxy.com".to_string()
 }
 
+fn default_active_shell() -> String {
+    "zzz".to_string()
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         AppConfig {
@@ -169,6 +175,7 @@ impl Default for AppConfig {
             force_memory: false,
             force_java_path: false,
             security: SecurityConfig::default(),
+            active_shell: default_active_shell(),
         }
     }
 }

@@ -34,6 +34,7 @@ mod mod_scanner;
 mod server_ping;
 mod mod_watcher;
 mod p2p;
+mod persistent_cache;
 
 pub use config::AppConfig;
 pub use config::SecurityConfig;
@@ -127,6 +128,9 @@ pub fn run() {
         .manage(TerracottaState { port: tokio::sync::Mutex::new(None), child: tokio::sync::Mutex::new(None) })
         .manage(crate::social::p2p::P2pState::new())
         .manage(Arc::new(tokio::sync::Mutex::new(crate::p2p::P2PState::new())))
+        .manage(commands::cache::PersistentCacheState(Arc::new(parking_lot::Mutex::new(
+            persistent_cache::PersistentCache::new(&platform::paths::get_game_dir().to_string_lossy())
+        ))))
         .manage(commands::workflow::WorkflowState(crate::workflow::WorkflowEngine::new()))
         .manage(crate::crash_watcher::CrashWatcherState::new())
         .manage(std::sync::Arc::new(tokio::sync::Mutex::new(mod_scanner::scanner::ScanCache::new())))
@@ -145,6 +149,8 @@ pub fn run() {
             commands::config::get_config,
             commands::config::save_config,
             commands::config::get_active_download_source,
+            commands::config::get_active_shell,
+            commands::config::set_active_shell,
             commands::misc::find_java,
             commands::misc::find_all_java,
             commands::misc::check_java_version,
@@ -166,6 +172,7 @@ pub fn run() {
             commands::download::resume_download,
             commands::download::cancel_download,
             commands::download::is_download_paused,
+            commands::download::get_mirror_stats,
             commands::launch::launch_game,
             commands::instance::get_game_dir,
             commands::instance::get_default_game_dir,
@@ -197,8 +204,11 @@ pub fn run() {
             commands::instance::parse_crash_report,
             commands::instance::diagnose_crash,
             commands::instance::diagnose_instance_crash,
+            commands::instance::diagnose_crash_from_content,
             commands::instance::get_loader_versions,
             commands::instance::install_loader,
+            commands::instance::get_instance_groups,
+            commands::instance::save_instance_groups,
             commands::modrinth::search_mods,
             commands::modrinth::get_popular_mods,
             commands::modrinth::get_mod_details,
@@ -369,6 +379,8 @@ pub fn run() {
             commands::auth::equip_cape,
             commands::auth::hide_cape,
             commands::auth::get_mojang_profile,
+            commands::auth::download_authlib_injector,
+            commands::auth::login_yggdrasil,
 
             commands::workflow::generate_modpack_plan,
             commands::workflow::execute_modpack_plan,
@@ -406,6 +418,10 @@ pub fn run() {
             commands::p2p::p2p_get_status,
             commands::p2p::p2p_connect,
             commands::p2p::p2p_disconnect,
+            commands::cache::cache_get,
+            commands::cache::cache_set,
+            commands::cache::cache_invalidate,
+            commands::cache::cache_evict_expired,
         ])
         .setup(|app| {
             app.manage(mod_watcher::watcher::ModWatcherState::new(app.handle().clone()));

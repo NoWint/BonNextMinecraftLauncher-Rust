@@ -24,3 +24,24 @@ pub async fn save_config(config: config::AppConfig) -> Result<(), LauncherError>
 pub async fn get_active_download_source() -> String {
     crate::download::source::active_source_name()
 }
+
+#[tauri::command]
+pub async fn get_active_shell() -> Result<String, LauncherError> {
+    let config = config::load_config_async().await?;
+    Ok(config.active_shell)
+}
+
+#[tauri::command]
+pub async fn set_active_shell(shell_id: String) -> Result<(), LauncherError> {
+    let valid_shells = ["zzz", "swiftui", "fluent", "tv"];
+    if !valid_shells.contains(&shell_id.as_str()) {
+        return Err(LauncherError::InvalidConfig(format!(
+            "Unknown shell: {}",
+            shell_id
+        )));
+    }
+    let mut config = config::load_config_async().await?;
+    config.active_shell = shell_id;
+    config::save_config_async(&config).await?;
+    Ok(())
+}
