@@ -362,7 +362,7 @@ export default function SettingsPage() {
     'sec-account': [t('settings.account'), 'account', 'login', 'microsoft', 'offline', t('settings.logout')],
     'sec-skin-station': ['skin', t('settings.skinStation')],
     'sec-language': [t('settings.language'), 'language', 'i18n', 'locale'],
-    'sec-theme': [t('settings.theme'), 'theme', 'dark', 'light', 'oled', 'md3'],
+    'sec-theme': [t('settings.theme'), 'theme', 'dark', 'light', 'oled'],
     'sec-font-custom': [t('settings.fontCustom'), 'font'],
     'sec-guide': [t('settings.guide'), 'guide', 'onboarding'],
     'sec-java': [t('settings.javaPath'), 'java', 'jvm', 'jdk', 'runtime'],

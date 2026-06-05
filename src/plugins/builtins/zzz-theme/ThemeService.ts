@@ -31,16 +31,13 @@ interface RegisteredTheme {
   fonts?: Array<{ family: string; src: string; weight?: number; style?: string }>;
 }
 
-const THEME_CLASSES = ['theme-dark', 'theme-light', 'theme-oled', 'theme-md3-dark', 'theme-md3-light'];
+const THEME_CLASSES = ['theme-dark', 'theme-light', 'theme-oled'];
 
 function getThemeClass(themeId: string): string {
   if (themeId.startsWith('zzz-')) {
     const modeMap: Record<string, string> = { dark: 'theme-dark', light: 'theme-light', oled: 'theme-oled' };
     const legacy = themeId.replace('zzz-', '');
     return modeMap[legacy] || 'theme-dark';
-  }
-  if (themeId.startsWith('md3-')) {
-    return `theme-${themeId}`;
   }
   return `theme-${themeId}`;
 }

@@ -80,7 +80,7 @@ The binary entry is `main.rs` → calls `lib.rs::run()` which registers ~100 Tau
 - `configStore.tsx` — app settings with save/reload
 - `instanceStore.tsx` — instance CRUD
 - `toastStore.tsx` — toast notification queue (auto-dismiss, max 5) + `errorToast()` helper with structured error mapping
-- `themeStore.tsx` — dark/light/OLED/MD3 theme, persisted to localStorage
+- `themeStore.tsx` — dark/light/OLED theme, persisted to localStorage
 - `downloadStore.tsx` — download task queue with progress/speed/eta tracking for the Steam-style download panel
 
 **Routing** — `react-router-dom` v7 `HashRouter` + `Routes` + `Route`. All pages lazy-loaded via `React.lazy()`. Current routes:
@@ -99,7 +99,7 @@ The binary entry is `main.rs` → calls `lib.rs::run()` which registers ~100 Tau
 | `/versions`          | VersionsPage       | Version browser & downloader                     |
 | `/settings`          | SettingsPage       | Java, memory, game directory, security config    |
 
-**Component hierarchy**: `App` → `AppProviders` (composed via `composeProviders`) → `AppShell` → Sidebar + current Page + DownloadPanel. When MD3 layout is active, `MD3AppShell` replaces the ZZZ layout.
+**Component hierarchy**: `App` → `AppProviders` (composed via `composeProviders`) → `AppShell` → Sidebar + current Page + DownloadPanel.
 
 **Provider order** (composed via `composeProviders`): HashRouter → PluginProvider → ThemeBridge(ThemeProvider) → I18nProvider → AuthProvider → ConfigProvider → InstanceProvider → ToastProvider → DownloadProvider → ContextMenuProvider.
 
@@ -113,13 +113,13 @@ The binary entry is `main.rs` → calls `lib.rs::run()` which registers ~100 Tau
 - `Modal` — accessible dialog with focus trap, aria-modal, focus restoration
 - Plus: Button, Tabs, Badge, Tooltip, Pagination, Select, SearchPalette, Skeleton, etc.
 
-**Styling**: CSS Modules per component (`*.module.css`) + global `styles/` with `tokens.css` (design tokens, clip-paths, animations), `themes.css` (dark/light/OLED + MD3), `ux-delight.css` (page transitions, stagger, shimmer).
+**Styling**: CSS Modules per component (`*.module.css`) + global `styles/` with `tokens.css` (design tokens, clip-paths, animations), `themes.css` (dark/light/OLED), `ux-delight.css` (page transitions, stagger, shimmer).
 
 **Plugin system** (`src/plugins/`):
 
 - Core: PluginManager, PluginRegistry, PluginContext, ServiceRegistry, DependencyResolver, PluginProvider
-- Built-in: ZZZ Theme Plugin (ThemeService), MD3 Theme Plugin (@material/web wrappers + MD3AppShell)
-- Extension points: `ThemeExtensionPoint`, `LayoutExtensionPoint`
+- Built-in: ZZZ Theme Plugin (ThemeService)
+- Extension points: `ThemeExtensionPoint`
 
 **Utility modules** (`src/utils/`):
 
@@ -146,7 +146,6 @@ Default game directory: `~/.local/share/bonnext/` (Linux), `~/Library/Applicatio
 ### Visual Design Constraints
 
 - **ZZZ/Neo-Tokyo aesthetic** — dark theme, #FFE600 yellow accent, Bebas Neue headings, Inter body, DM Mono for data
-- **MD3 aesthetic** (when MD3 theme active) — Material Design 3 with Roboto font, Navigation Rail, Top App Bar, @material/web components
 - **Clip-path corners** — `--clip-primary/medium/small/badge/diamond` CSS variables for angled corner cuts
 - **Overlays** — `.noise-overlay` (SVG noise) and `.scanline-overlay` (horizontal lines) for CRT effect
 - **Sizes use `em`** — base is 16px set on `html`. Component font sizes typically 0.55em–0.9em range
