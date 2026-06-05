@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { type GameInstance } from '../../shared/api';
+import { type GameInstance } from '../../../../shared/api';
 import { Icon } from './Icon';
 import { Badge } from './Status';
 import styles from './InstanceSelect.module.css';

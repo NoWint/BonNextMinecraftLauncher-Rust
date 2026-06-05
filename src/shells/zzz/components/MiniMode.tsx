@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { formatError } from '../shared/utils/errorMapping';
+import { formatError } from '../../../shared/utils/errorMapping';
 import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
-import { api, type LaunchState, type RunningGameInfo } from '../shared/api';
-import { useAuth } from '../shared/stores/authStore';
-import { useInstances } from '../shared/stores/instanceStore';
-import { useToast } from '../shared/stores/toastStore';
-import { useI18n } from '../shared/i18n';
+import { api, type LaunchState, type RunningGameInfo } from '../../../shared/api';
+import { useAuth } from '../../../shared/stores/authStore';
+import { useInstances } from '../../../shared/stores/instanceStore';
+import { useToast } from '../../../shared/stores/toastStore';
+import { useI18n } from '../../../shared/i18n';
 import { Icon } from './ui/Icon';
 import styles from './MiniMode.module.css';
 

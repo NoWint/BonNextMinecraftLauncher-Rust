@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatError } from '../shared/utils/errorMapping';
+import { formatError } from '../../../shared/utils/errorMapping';
 import {
   api,
   type DownloadProgressEvent,
@@ -10,12 +10,12 @@ import {
   type SystemInfo,
   type JreDownloadProgress,
   type MinecraftNewsEntry,
-} from '../shared/api';
-import { useAuth } from '../shared/stores/authStore';
-import { useInstances } from '../shared/stores/instanceStore';
-import { useToast } from '../shared/stores/toastStore';
-import { useI18n } from '../shared/i18n';
-import { useGreeting } from '../shared/hooks/useGreeting';
+} from '../../../shared/api';
+import { useAuth } from '../../../shared/stores/authStore';
+import { useInstances } from '../../../shared/stores/instanceStore';
+import { useToast } from '../../../shared/stores/toastStore';
+import { useI18n } from '../../../shared/i18n';
+import { useGreeting } from '../../../shared/hooks/useGreeting';
 import { Heading, SubLabel, AccentCorner, Ticker } from '../components/layout';
 import { StatusDot, Badge, ProgressBar, Tooltip } from '../components/ui';
 import { Button } from '../components/ui';
@@ -23,7 +23,7 @@ import { Icon } from '../components/ui/Icon';
 import type { IconName } from '../components/ui/Icon';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import GameConsole from '../components/ui/GameConsole';
-import { relativeTime } from '../shared/utils/time';
+import { relativeTime } from '../../../shared/utils/time';
 import styles from './HomePage.module.css';
 
 const BANNER_SLIDES = [

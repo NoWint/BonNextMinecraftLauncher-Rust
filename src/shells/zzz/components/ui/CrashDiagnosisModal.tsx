@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Modal } from './Modal';
 import { Icon, type IconName } from './Icon';
-import { api } from '../../shared/api';
-import type { CrashDiagnosis } from '../../shared/api';
+import { api } from '../../../../shared/api';
+import type { CrashDiagnosis } from '../../../../shared/api';
 import styles from './CrashDiagnosisModal.module.css';
 
 interface CrashDiagnosisModalProps {

@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import type { FABProps } from '@/plugins/extensions';
-import { Icon } from '@/components/ui/Icon';
+import { Icon } from '@/shells/zzz/components/ui/Icon';
 
 export function MD3FAB({ icon, label, variant = 'surface', size = 'medium', onClick, extended }: FABProps) {
   const ref = useRef<HTMLElement>(null);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { api } from '../../shared/api';
-import type { AppUpdateInfo } from '../../shared/api';
+import { api } from '../../../../shared/api';
+import type { AppUpdateInfo } from '../../../../shared/api';
 import { Icon } from './Icon';
 import styles from './UpdateNotification.module.css';
 

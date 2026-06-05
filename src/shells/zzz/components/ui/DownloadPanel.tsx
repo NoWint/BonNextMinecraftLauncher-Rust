@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { useDownloads } from '../../shared/stores/downloadStore';
-import { api } from '../../shared/api';
+import { useDownloads } from '../../../../shared/stores/downloadStore';
+import { api } from '../../../../shared/api';
 import styles from './DownloadPanel.module.css';
 
 const STATUS_LABELS: Record<string, string> = {

@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listen } from '@tauri-apps/api/event';
-import { formatError } from '../shared/utils/errorMapping';
-import { api, type ContentCounts, type InstalledModInfo, type UpdateInfo } from '../shared/api';
-import { scanModsDirectory, checkModUpdates, watchInstanceMods, unwatchInstanceMods, type ScanResult, type ModUpdateInfo } from '../shared/api/modScanner';
-import { useInstances } from '../shared/stores/instanceStore';
-import { useToast } from '../shared/stores/toastStore';
-import { useI18n } from '../shared/i18n';
+import { formatError } from '../../../shared/utils/errorMapping';
+import { api, type ContentCounts, type InstalledModInfo, type UpdateInfo } from '../../../shared/api';
+import { scanModsDirectory, checkModUpdates, watchInstanceMods, unwatchInstanceMods, type ScanResult, type ModUpdateInfo } from '../../../shared/api/modScanner';
+import { useInstances } from '../../../shared/stores/instanceStore';
+import { useToast } from '../../../shared/stores/toastStore';
+import { useI18n } from '../../../shared/i18n';
 import { SectionHeader, Ticker } from '../components/layout';
 import { Button, Modal, Tabs, Select, ModScanResult } from '../components/ui';
 import { Icon } from '../components/ui/Icon';

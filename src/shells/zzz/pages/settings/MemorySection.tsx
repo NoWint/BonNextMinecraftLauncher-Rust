@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { AppConfig } from '../../shared/api';
-import type { HardwareProfile, RecommendedConfig } from '../../shared/api';
-import { api } from '../../shared/api';
+import type { AppConfig } from '../../../../shared/api';
+import type { HardwareProfile, RecommendedConfig } from '../../../../shared/api';
+import { api } from '../../../../shared/api';
 import { Slider, Checkbox, Select, Badge, Button, ContextHelp } from '../../components/ui';
-import { useDebouncedCallback } from '../../shared/hooks/useDebouncedCallback';
-import { useFormField } from '../../shared/hooks/useFormField';
-import { memoryRange } from '../../shared/utils/validators';
-import { useConfig } from '../../shared/stores/configStore';
-import { useToast } from '../../shared/stores/toastStore';
+import { useDebouncedCallback } from '../../../../shared/hooks/useDebouncedCallback';
+import { useFormField } from '../../../../shared/hooks/useFormField';
+import { memoryRange } from '../../../../shared/utils/validators';
+import { useConfig } from '../../../../shared/stores/configStore';
+import { useToast } from '../../../../shared/stores/toastStore';
 import formStyles from '../../components/ui/FormField.module.css';
 import styles from '../SettingsPage.module.css';
 

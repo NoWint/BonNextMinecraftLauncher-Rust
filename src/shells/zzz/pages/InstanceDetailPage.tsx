@@ -11,18 +11,18 @@ import {
   type RunningGameInfo,
   type PreLaunchReport,
   type HealthCheckReport,
-} from '../shared/api';
-import { useAuth } from '../shared/stores/authStore';
-import { useInstances } from '../shared/stores/instanceStore';
-import { useToast } from '../shared/stores/toastStore';
-import { useI18n } from '../shared/i18n';
+} from '../../../shared/api';
+import { useAuth } from '../../../shared/stores/authStore';
+import { useInstances } from '../../../shared/stores/instanceStore';
+import { useToast } from '../../../shared/stores/toastStore';
+import { useI18n } from '../../../shared/i18n';
 import { Badge, Tabs, Modal, Breadcrumb as BreadcrumbComp, TextInput, Tooltip } from '../components/ui';
 import { Button } from '../components/ui';
 import { Icon } from '../components/ui/Icon';
 import GameConsole from '../components/ui/GameConsole';
 import LogViewer from '../components/ui/LogViewer';
-import { relativeTime } from '../shared/utils/time';
-import { formatError } from '../shared/utils/errorMapping';
+import { relativeTime } from '../../../shared/utils/time';
+import { formatError } from '../../../shared/utils/errorMapping';
 import { open } from '@tauri-apps/plugin-dialog';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import styles from './InstanceDetailPage.module.css';

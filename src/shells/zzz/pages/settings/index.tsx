@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatError } from '../../shared/utils/errorMapping';
-import { formatDate } from '../../shared/utils/format';
-import { useFormField } from '../../shared/hooks/useFormField';
-import { javaPath, proxyUrl } from '../../shared/utils/validators';
+import { formatError } from '../../../../shared/utils/errorMapping';
+import { formatDate } from '../../../../shared/utils/format';
+import { useFormField } from '../../../../shared/hooks/useFormField';
+import { javaPath, proxyUrl } from '../../../../shared/utils/validators';
 import formStyles from '../../components/ui/FormField.module.css';
 import {
   api,
@@ -18,12 +18,12 @@ import {
   type JavaInfo,
   type RecommendedConfig,
   type StoredAccount,
-} from '../../shared/api';
-import { useAuth } from '../../shared/stores/authStore';
-import { useConfig } from '../../shared/stores/configStore';
-import { useInstances } from '../../shared/stores/instanceStore';
-import { useI18n } from '../../shared/i18n';
-import { useToast } from '../../shared/stores/toastStore';
+} from '../../../../shared/api';
+import { useAuth } from '../../../../shared/stores/authStore';
+import { useConfig } from '../../../../shared/stores/configStore';
+import { useInstances } from '../../../../shared/stores/instanceStore';
+import { useI18n } from '../../../../shared/i18n';
+import { useToast } from '../../../../shared/stores/toastStore';
 import {
   StatusDot,
   Badge,

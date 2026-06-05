@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useI18n } from '../../shared/i18n';
-import { useAIAssistant } from '../../shared/stores/aiAssistantStore';
+import { useI18n } from '../../../../shared/i18n';
+import { useAIAssistant } from '../../../../shared/stores/aiAssistantStore';
 import { ChatMessage } from './ChatMessage';
 import { ModpackPreview } from './ModpackPreview';
 import { WorkflowProgress } from './WorkflowProgress';
 import { CrashAnalysisPanel } from './CrashAnalysisPanel';
 import { ConfirmDialog } from './ConfirmDialog';
-import { workflowApi } from '../../shared/api/workflow';
-import type { ModpackPlan } from '../../shared/ai/types';
+import { workflowApi } from '../../../../shared/api/workflow';
+import type { ModpackPlan } from '../../../../shared/ai/types';
 import styles from './ChatPanel.module.css';
 
 const SUGGESTIONS = [

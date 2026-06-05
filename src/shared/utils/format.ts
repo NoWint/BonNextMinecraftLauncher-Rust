@@ -1,4 +1,4 @@
-import type { IconName } from '../../components/ui/Icon';
+import type { IconName } from '../../shells/zzz/components/ui/Icon';
 
 export function formatDate(input: string | Date | number): string {
   const d = input instanceof Date ? input : new Date(input);

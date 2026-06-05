@@ -1,5 +1,5 @@
 import type { TopAppBarProps } from '@/plugins/extensions';
-import { Icon } from '@/components/ui/Icon';
+import { Icon } from '@/shells/zzz/components/ui/Icon';
 import s from './MD3TopAppBar.module.css';
 
 export function MD3TopAppBar({ title, onSearchClick, onSettingsClick }: TopAppBarProps) {

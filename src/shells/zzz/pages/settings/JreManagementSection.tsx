@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { api } from '../../shared/api';
-import type { JreVersionInfo } from '../../shared/api';
+import { api } from '../../../../shared/api';
+import type { JreVersionInfo } from '../../../../shared/api';
 import { SectionCard } from './MemorySection';
 import { Button, Badge, StatusDot } from '../../components/ui';
 import { Icon } from '../../components/ui/Icon';

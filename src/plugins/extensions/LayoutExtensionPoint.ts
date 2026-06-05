@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import { ExtensionPointBase } from './ExtensionPoint';
-import type { IconName } from '../../components/ui/Icon';
+import type { IconName } from '../../shells/zzz/components/ui/Icon';
 
 export interface NavigationRailProps {
   items: Array<{

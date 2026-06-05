@@ -1,5 +1,5 @@
 import type { NavigationRailProps } from '@/plugins/extensions';
-import { Icon } from '@/components/ui/Icon';
+import { Icon } from '@/shells/zzz/components/ui/Icon';
 import { MD3FAB } from '../wrappers/MD3FAB';
 import s from './MD3NavigationRail.module.css';
 

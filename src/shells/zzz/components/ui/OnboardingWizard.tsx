@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useI18n } from '../../shared/i18n';
+import { useI18n } from '../../../../shared/i18n';
 import { Icon } from './Icon';
 import { SpotlightOverlay } from './SpotlightOverlay';
 import type { TourStep } from './SpotlightOverlay';

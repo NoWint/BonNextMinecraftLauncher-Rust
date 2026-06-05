@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatError } from '../shared/utils/errorMapping';
-import { api, type DeviceCodeResponse } from '../shared/api';
-import { useAuth } from '../shared/stores/authStore';
-import { useI18n } from '../shared/i18n';
+import { formatError } from '../../../shared/utils/errorMapping';
+import { api, type DeviceCodeResponse } from '../../../shared/api';
+import { useAuth } from '../../../shared/stores/authStore';
+import { useI18n } from '../../../shared/i18n';
 import { SubLabel } from '../components/layout';
 import { StatusDot, ProgressBar, Button, TextInput, Select } from '../components/ui';
 import { Icon } from '../components/ui/Icon';
-import { useGreeting, getRandomLoadingMessage } from '../shared/hooks/useGreeting';
-import { useConfetti } from '../shared/hooks/useConfetti';
+import { useGreeting, getRandomLoadingMessage } from '../../../shared/hooks/useGreeting';
+import { useConfetti } from '../../../shared/hooks/useConfetti';
 import styles from './LoginPage.module.css';
 
 export default function LoginPage() {

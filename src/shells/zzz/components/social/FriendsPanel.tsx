@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSocial } from '../../shared/stores/socialStore';
-import { useChat } from '../../shared/stores/chatStore';
-import { useI18n } from '../../shared/i18n';
+import { useSocial } from '../../../../shared/stores/socialStore';
+import { useChat } from '../../../../shared/stores/chatStore';
+import { useI18n } from '../../../../shared/i18n';
 import ChatWindow from './ChatWindow';
 import styles from './FriendsPanel.module.css';
 

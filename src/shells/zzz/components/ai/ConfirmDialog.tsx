@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { resolveConfirmation } from '../../shared/ai/pi';
+import { resolveConfirmation } from '../../../../shared/ai/pi';
 import styles from './ConfirmDialog.module.css';
 
 interface PendingConfirm {

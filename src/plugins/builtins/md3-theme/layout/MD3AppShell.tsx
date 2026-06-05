@@ -2,20 +2,20 @@ import { useLocation, useNavigate, Routes, Route, Navigate } from 'react-router-
 import { lazy, Suspense, type ReactNode, Component } from 'react';
 import type { LayoutContribution } from '@/plugins/extensions';
 import { useAuth } from '@/shared/stores/authStore';
-import type { IconName } from '@/components/ui/Icon';
-import LoginPage from '@/pages/LoginPage';
+import type { IconName } from '@/shells/zzz/components/ui/Icon';
+import LoginPage from '@/shells/zzz/pages/LoginPage';
 import s from './MD3AppShell.module.css';
 
-const HomePage = lazy(() => import('@/pages/HomePage'));
-const InstancesPage = lazy(() => import('@/pages/InstancesPage'));
-const InstanceDetailPage = lazy(() => import('@/pages/InstanceDetailPage'));
-const NewInstancePage = lazy(() => import('@/pages/NewInstancePage'));
-const VersionsPage = lazy(() => import('@/pages/VersionsPage'));
-const MarketplacePage = lazy(() => import('@/pages/MarketplacePage'));
-const ContentDetailPage = lazy(() => import('@/pages/ContentDetailPage'));
-const LibraryPage = lazy(() => import('@/pages/LibraryPage'));
-const CollectionsPage = lazy(() => import('@/pages/CollectionsPage'));
-const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
+const HomePage = lazy(() => import('@/shells/zzz/pages/HomePage'));
+const InstancesPage = lazy(() => import('@/shells/zzz/pages/InstancesPage'));
+const InstanceDetailPage = lazy(() => import('@/shells/zzz/pages/InstanceDetailPage'));
+const NewInstancePage = lazy(() => import('@/shells/zzz/pages/NewInstancePage'));
+const VersionsPage = lazy(() => import('@/shells/zzz/pages/VersionsPage'));
+const MarketplacePage = lazy(() => import('@/shells/zzz/pages/MarketplacePage'));
+const ContentDetailPage = lazy(() => import('@/shells/zzz/pages/ContentDetailPage'));
+const LibraryPage = lazy(() => import('@/shells/zzz/pages/LibraryPage'));
+const CollectionsPage = lazy(() => import('@/shells/zzz/pages/CollectionsPage'));
+const SettingsPage = lazy(() => import('@/shells/zzz/pages/SettingsPage'));
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };

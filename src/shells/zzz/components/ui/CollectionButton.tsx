@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { formatError } from '../../shared/utils/errorMapping';
-import { api } from '../../shared/api';
-import { useToast } from '../../shared/stores/toastStore';
+import { formatError } from '../../../../shared/utils/errorMapping';
+import { api } from '../../../../shared/api';
+import { useToast } from '../../../../shared/stores/toastStore';
 import { Tooltip } from './Tooltip';
 
 interface CollectionButtonProps {

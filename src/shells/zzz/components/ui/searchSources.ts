@@ -1,4 +1,4 @@
-import type { GameInstance } from '../../shared/api';
+import type { GameInstance } from '../../../../shared/api';
 
 export interface SearchSourceResult {
   id: string;

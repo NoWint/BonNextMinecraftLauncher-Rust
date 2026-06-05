@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal } from './Modal';
 import { Icon, type IconName } from './Icon';
-import type { CrashDiagnosis } from '../../shared/api';
+import type { CrashDiagnosis } from '../../../../shared/api';
 import styles from './CrashModal.module.css';
 
 interface CrashModalProps {

@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatError } from '../../shared/utils/errorMapping';
-import { api, type ModResult } from '../../shared/api';
-import { useInstances } from '../../shared/stores/instanceStore';
-import { useToast } from '../../shared/stores/toastStore';
+import { formatError } from '../../../../shared/utils/errorMapping';
+import { api, type ModResult } from '../../../../shared/api';
+import { useInstances } from '../../../../shared/stores/instanceStore';
+import { useToast } from '../../../../shared/stores/toastStore';
 import { Button, Pagination, ContentCard, contentFromModResult } from '../ui';
 import { Icon } from '../ui/Icon';
 import type { ContentType, DataSource, ViewMode } from './types';

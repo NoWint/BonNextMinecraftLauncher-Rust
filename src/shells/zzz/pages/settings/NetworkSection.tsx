@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { api } from '../../shared/api';
-import { formatError } from '../../shared/utils/errorMapping';
+import { api } from '../../../../shared/api';
+import { formatError } from '../../../../shared/utils/errorMapping';
 import { Button, Checkbox, ContextHelp } from '../../components/ui';
 import { SectionCard, SettingRow } from './MemorySection';
 import styles from '../SettingsPage.module.css';

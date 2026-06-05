@@ -1,14 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
-import { api, type YggdrasilServerPreset, type YggdrasilTexturesValue, type StoredAccount, type McSkinInfo, type MojangProfile } from '../../shared/api';
-import { useAuth } from '../../shared/stores/authStore';
-import { useI18n } from '../../shared/i18n';
+import { api, type YggdrasilServerPreset, type YggdrasilTexturesValue, type StoredAccount, type McSkinInfo, type MojangProfile } from '../../../../shared/api';
+import { useAuth } from '../../../../shared/stores/authStore';
+import { useI18n } from '../../../../shared/i18n';
 import { StatusDot, Badge, Button, TextInput, Select, SkinViewer3D, SkinPreview } from '../../components/ui';
-import { useFormField } from '../../shared/hooks/useFormField';
-import { url } from '../../shared/utils/validators';
+import { useFormField } from '../../../../shared/hooks/useFormField';
+import { url } from '../../../../shared/utils/validators';
 import formStyles from '../../components/ui/FormField.module.css';
 import { SectionCard, SettingRow } from './MemorySection';
 import { open } from '@tauri-apps/plugin-dialog';
-import { formatError } from '../../shared/utils/errorMapping';
+import { formatError } from '../../../../shared/utils/errorMapping';
 import styles from '../SettingsPage.module.css';
 
 export default function SkinStationSection({

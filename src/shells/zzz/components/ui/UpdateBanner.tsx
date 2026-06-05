@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, type AppUpdateInfo } from '../../shared/api';
+import { api, type AppUpdateInfo } from '../../../../shared/api';
 import styles from './UpdateBanner.module.css';
 
 const SKIP_VERSION_KEY = 'bonnext_skip_version';

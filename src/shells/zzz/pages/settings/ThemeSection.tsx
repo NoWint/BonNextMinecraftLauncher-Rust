@@ -1,4 +1,4 @@
-import { useTheme, type Theme, type AnimationSpeed, UI_SCALE_MIN, UI_SCALE_MAX } from '../../shared/stores/themeStore';
+import { useTheme, type Theme, type AnimationSpeed, UI_SCALE_MIN, UI_SCALE_MAX } from '../../../../shared/stores/themeStore';
 import { Button, Slider } from '../../components/ui';
 import { SectionCard, SettingRow } from './MemorySection';
 

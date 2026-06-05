@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { api, type ModResult } from '../../shared/api';
+import { api, type ModResult } from '../../../../shared/api';
 import { SectionHeader } from '../layout';
 import { Button, ContentCard, contentFromModResult, CollectionButton } from '../ui';
 import { CardSkeleton } from '../ui/Skeleton';

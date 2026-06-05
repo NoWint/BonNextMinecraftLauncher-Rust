@@ -1,17 +1,17 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, type GameInstance, type ServerStatus, type PlaytimeStats, type RepairResult } from '../shared/api';
-import { useAuth } from '../shared/stores/authStore';
-import { useInstances } from '../shared/stores/instanceStore';
-import { useToast } from '../shared/stores/toastStore';
-import { useI18n } from '../shared/i18n';
+import { api, type GameInstance, type ServerStatus, type PlaytimeStats, type RepairResult } from '../../../shared/api';
+import { useAuth } from '../../../shared/stores/authStore';
+import { useInstances } from '../../../shared/stores/instanceStore';
+import { useToast } from '../../../shared/stores/toastStore';
+import { useI18n } from '../../../shared/i18n';
 import { Badge, Modal, TextInput, Button } from '../components/ui';
 import { Icon } from '../components/ui/Icon';
 import { MigrationModal } from '../components/ui/MigrationModal';
 import { SubLabel } from '../components/layout';
 import { open } from '@tauri-apps/plugin-dialog';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { formatError } from '../shared/utils/errorMapping';
+import { formatError } from '../../../shared/utils/errorMapping';
 import styles from './InstancesPage.module.css';
 
 function getLoaderClass(loader: string | null): string {

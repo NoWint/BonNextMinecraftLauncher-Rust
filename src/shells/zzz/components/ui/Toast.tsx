@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Check, X, Info, AlertTriangle } from 'lucide-react';
-import { useToast, type Toast } from '../../shared/stores/toastStore';
+import { useToast, type Toast } from '../../../../shared/stores/toastStore';
 import styles from './Toast.module.css';
 
 const ICONS: Record<Toast['type'], React.ReactNode> = {

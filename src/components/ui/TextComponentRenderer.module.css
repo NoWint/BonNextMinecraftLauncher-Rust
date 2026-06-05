@@ -1,8 +1,0 @@
-.obfuscated {
-  animation: obfuscate 0.1s steps(2) infinite;
-}
-
-@keyframes obfuscate {
-  0% { opacity: 1; }
-  50% { opacity: 0.6; }
-}

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { formatError } from '../../shared/utils/errorMapping';
-import { api } from '../../shared/api';
+import { formatError } from '../../../../shared/utils/errorMapping';
+import { api } from '../../../../shared/api';
 import { Modal } from './Modal';
 import { Button } from './Button';
 import { Icon } from './Icon';
-import { useToast } from '../../shared/stores/toastStore';
+import { useToast } from '../../../../shared/stores/toastStore';
 import styles from './ShareModal.module.css';
 
 interface ShareModalProps {
