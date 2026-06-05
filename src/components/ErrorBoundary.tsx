@@ -1,5 +1,5 @@
 import React from 'react';
-import { log } from '../utils/logger';
+import { log } from '../shared/utils/logger';
 import styles from './ErrorBoundary.module.css';
 
 interface ErrorBoundaryState {

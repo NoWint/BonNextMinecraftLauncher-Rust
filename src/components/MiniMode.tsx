@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { formatError } from '../utils/errorMapping';
+import { formatError } from '../shared/utils/errorMapping';
 import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
 import { api, type LaunchState, type RunningGameInfo } from '../api';
 import { useAuth } from '../shared/stores/authStore';

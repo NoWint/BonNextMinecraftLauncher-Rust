@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { formatError } from '../../utils/errorMapping';
+import { formatError } from '../../shared/utils/errorMapping';
 import { api, type DetectedLauncher, type MigrateableInstance, type MigrationIssue, type MigrationFixResult } from '../../api';
 import { Button } from './Button';
 import { Modal } from './Modal';

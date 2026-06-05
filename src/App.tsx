@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { api } from './api';
-import { composeProviders } from './utils/composeProviders';
+import { composeProviders } from './shared/utils/composeProviders';
 import { AuthProvider, useAuth } from './shared/stores/authStore';
 import { ConfigProvider } from './shared/stores/configStore';
 import { InstanceProvider, useInstances } from './shared/stores/instanceStore';

@@ -3,7 +3,7 @@ import { api } from '../../api';
 import type { ServerListEntry, MinecraftServerInfo, BatchPingResult } from '../../api/servers';
 import type { ServerAddress } from '../../api/servers';
 import type { GameInstance } from '../../api/types';
-import { formatError } from '../../utils/errorMapping';
+import { formatError } from '../../shared/utils/errorMapping';
 import { useToast } from '../../shared/stores/toastStore';
 import { useInstances } from '../../shared/stores/instanceStore';
 import { SectionHeader, Ticker } from '../../components/layout';

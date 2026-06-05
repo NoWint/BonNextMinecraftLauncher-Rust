@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatError } from '../utils/errorMapping';
+import { formatError } from '../shared/utils/errorMapping';
 import {
   api,
   type DownloadProgressEvent,
@@ -23,7 +23,7 @@ import { Icon } from '../components/ui/Icon';
 import type { IconName } from '../components/ui/Icon';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import GameConsole from '../components/ui/GameConsole';
-import { relativeTime } from '../utils/time';
+import { relativeTime } from '../shared/utils/time';
 import styles from './HomePage.module.css';
 
 const BANNER_SLIDES = [

@@ -4,11 +4,11 @@ import { useAuth } from '../../shared/stores/authStore';
 import { useI18n } from '../../shared/i18n';
 import { StatusDot, Badge, Button, TextInput, Select, SkinViewer3D, SkinPreview } from '../../components/ui';
 import { useFormField } from '../../shared/hooks/useFormField';
-import { url } from '../../utils/validators';
+import { url } from '../../shared/utils/validators';
 import formStyles from '../../components/ui/FormField.module.css';
 import { SectionCard, SettingRow } from './MemorySection';
 import { open } from '@tauri-apps/plugin-dialog';
-import { formatError } from '../../utils/errorMapping';
+import { formatError } from '../../shared/utils/errorMapping';
 import styles from '../SettingsPage.module.css';
 
 export default function SkinStationSection({

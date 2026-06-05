@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { formatError } from '../utils/errorMapping';
+import { formatError } from '../shared/utils/errorMapping';
 import { api, type VersionEntry } from '../api';
 import { useI18n } from '../shared/i18n';
 import { SectionHeader } from '../components/layout';

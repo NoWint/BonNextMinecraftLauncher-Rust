@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatError } from '../../utils/errorMapping';
-import { formatDate } from '../../utils/format';
+import { formatError } from '../../shared/utils/errorMapping';
+import { formatDate } from '../../shared/utils/format';
 import { useFormField } from '../../shared/hooks/useFormField';
-import { javaPath, proxyUrl } from '../../utils/validators';
+import { javaPath, proxyUrl } from '../../shared/utils/validators';
 import formStyles from '../../components/ui/FormField.module.css';
 import {
   api,

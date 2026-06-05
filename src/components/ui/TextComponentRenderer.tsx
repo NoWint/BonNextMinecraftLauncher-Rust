@@ -5,7 +5,7 @@ import {
   parseFormattedString,
   resolveStyle,
   styleToCSS,
-} from '../../utils/textComponent';
+} from '../../shared/utils/textComponent';
 import styles from './TextComponentRenderer.module.css';
 
 interface TextComponentRendererProps {

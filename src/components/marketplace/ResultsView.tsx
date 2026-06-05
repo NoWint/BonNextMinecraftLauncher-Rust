@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatError } from '../../utils/errorMapping';
+import { formatError } from '../../shared/utils/errorMapping';
 import { api, type ModResult } from '../../api';
 import { useInstances } from '../../shared/stores/instanceStore';
 import { useToast } from '../../shared/stores/toastStore';

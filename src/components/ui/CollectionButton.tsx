@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { formatError } from '../../utils/errorMapping';
+import { formatError } from '../../shared/utils/errorMapping';
 import { api } from '../../api';
 import { useToast } from '../../shared/stores/toastStore';
 import { Tooltip } from './Tooltip';

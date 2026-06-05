@@ -11,7 +11,7 @@ import { MigrationModal } from '../components/ui/MigrationModal';
 import { SubLabel } from '../components/layout';
 import { open } from '@tauri-apps/plugin-dialog';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { formatError } from '../utils/errorMapping';
+import { formatError } from '../shared/utils/errorMapping';
 import styles from './InstancesPage.module.css';
 
 function getLoaderClass(loader: string | null): string {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatError } from '../utils/errorMapping';
+import { formatError } from '../shared/utils/errorMapping';
 import { api, type DeviceCodeResponse } from '../api';
 import { useAuth } from '../shared/stores/authStore';
 import { useI18n } from '../shared/i18n';

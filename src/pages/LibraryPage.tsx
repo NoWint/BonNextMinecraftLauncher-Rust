@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listen } from '@tauri-apps/api/event';
-import { formatError } from '../utils/errorMapping';
+import { formatError } from '../shared/utils/errorMapping';
 import { api, type ContentCounts, type InstalledModInfo, type UpdateInfo } from '../api';
 import { scanModsDirectory, checkModUpdates, watchInstanceMods, unwatchInstanceMods, type ScanResult, type ModUpdateInfo } from '../api/modScanner';
 import { useInstances } from '../shared/stores/instanceStore';

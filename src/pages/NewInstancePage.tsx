@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, type VersionEntry, type GameInstance, type DetectedLauncher, type MigrateableInstance } from '../api';
 import { useInstances } from '../shared/stores/instanceStore';
 import { useI18n } from '../shared/i18n';
-import { formatError } from '../utils/errorMapping';
+import { formatError } from '../shared/utils/errorMapping';
 import { SectionHeader, SubLabel } from '../components/layout';
 import { Button, TextInput, Select, Badge } from '../components/ui';
 import styles from './NewInstancePage.module.css';

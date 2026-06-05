@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback, useState } from 'react';
 import { api, type MinecraftArticle } from '../../api';
 import { useI18n } from '../../shared/i18n';
-import { formatError } from '../../utils/errorMapping';
+import { formatError } from '../../shared/utils/errorMapping';
 import { Icon } from './Icon';
 import styles from './NewsArticleModal.module.css';
 
