@@ -522,7 +522,8 @@ export default function LibraryPage() {
                       result={result}
                       onClick={() => {
                         if (result.project_slug) {
-                          navigate(`/store/mod/${result.project_slug}`);
+                          const sourceParam = result.source === 'CurseForge' ? 'curseforge' : 'modrinth';
+                          navigate(`/store/mod/${result.project_slug}?source=${sourceParam}`);
                         }
                       }}
                     />
@@ -543,7 +544,17 @@ export default function LibraryPage() {
                   {mods.map((mod) => {
                     const modUpdate = modUpdates.find((u) => u.file_name === mod.filename);
                     return (
-                      <div key={mod.filename} className={styles.item}>
+                      <div
+                        key={mod.filename}
+                        className={styles.item}
+                        style={mod.slug ? { cursor: 'pointer' } : undefined}
+                        onClick={() => {
+                          if (mod.slug) {
+                            const sourceParam = mod.source === 'curseforge' ? 'curseforge' : 'modrinth';
+                            navigate(`/store/mod/${mod.slug}?source=${sourceParam}`);
+                          }
+                        }}
+                      >
                         <div className={styles.item__icon}>{'\u{1F9F5}'}</div>
                         <div className={styles.item__name}>{mod.filename}</div>
                         {modUpdate && (
@@ -555,7 +566,7 @@ export default function LibraryPage() {
                         <div className={styles.item__meta}>
                           {mod.installed_at ? new Date(mod.installed_at).toLocaleDateString() : ''}
                         </div>
-                        <div className={styles.item__actions}>
+                        <div className={styles.item__actions} onClick={(e) => e.stopPropagation()}>
                           <Button
                             variant={mod.enabled !== false ? 'secondary' : 'primary'}
                             size="sm"

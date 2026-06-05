@@ -11,6 +11,39 @@ use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InstanceGroup {
+    pub name: String,
+    pub instance_ids: Vec<String>,
+    pub collapsed: bool,
+}
+
+#[tauri::command]
+pub async fn get_instance_groups() -> Result<Vec<InstanceGroup>, LauncherError> {
+    let config = crate::config::load_config()?;
+    let game_dir = std::path::PathBuf::from(config.game_dir.unwrap_or_default());
+    let groups_path = game_dir.join("instance_groups.json");
+
+    if !groups_path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let content = std::fs::read_to_string(&groups_path)?;
+    let groups: Vec<InstanceGroup> = serde_json::from_str(&content)?;
+    Ok(groups)
+}
+
+#[tauri::command]
+pub async fn save_instance_groups(groups: Vec<InstanceGroup>) -> Result<(), LauncherError> {
+    let config = crate::config::load_config()?;
+    let game_dir = std::path::PathBuf::from(config.game_dir.unwrap_or_default());
+    let groups_path = game_dir.join("instance_groups.json");
+
+    let content = serde_json::to_string_pretty(&groups)?;
+    std::fs::write(&groups_path, content)?;
+    Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InstanceCheckResult {
     pub instance_id: String,
     pub is_ready: bool,
@@ -336,6 +369,11 @@ pub async fn diagnose_instance_crash(instance_id: String) -> Result<crash_parser
     reports.sort_by_key(|e| e.file_name());
     let latest = reports.last().unwrap();
     crash_parser::diagnose_crash(&latest.path().to_string_lossy())
+}
+
+#[tauri::command]
+pub async fn diagnose_crash_from_content(log_content: String) -> Result<crash_parser::CrashDiagnosis, LauncherError> {
+    crate::crash_parser::diagnose_from_content(&log_content)
 }
 
 #[tauri::command]

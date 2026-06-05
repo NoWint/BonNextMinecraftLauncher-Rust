@@ -33,10 +33,19 @@ pub async fn batch_ping_servers(
     servers: Vec<(String, u16)>,
     timeout_ms: u32,
 ) -> Vec<Option<(MinecraftServerInfo, u64)>> {
-    let mut results = Vec::with_capacity(servers.len());
+    let mut handles = Vec::with_capacity(servers.len());
     for (addr, port) in servers {
-        let result = ping_server_cmd(addr, port, timeout_ms).await.ok();
-        results.push(result);
+        let handle = tokio::spawn(async move {
+            ping_server_cmd(addr, port, timeout_ms).await.ok()
+        });
+        handles.push(handle);
+    }
+    let mut results = Vec::with_capacity(handles.len());
+    for handle in handles {
+        match handle.await {
+            Ok(r) => results.push(r),
+            Err(_) => results.push(None),
+        }
     }
     results
 }

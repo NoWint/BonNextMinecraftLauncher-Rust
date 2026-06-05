@@ -406,11 +406,7 @@ const FINDING_RULES: &[FindingRule] = &[
     },
 ];
 
-pub fn parse_crash_report(report_path: &str) -> Result<CrashInfo, LauncherError> {
-    let content = std::fs::read_to_string(report_path).map_err(|e| {
-        LauncherError::Other(format!("Cannot read crash report '{}': {}", report_path, e))
-    })?;
-
+fn parse_crash_info_from_content(content: &str) -> CrashInfo {
     let description = content
         .lines()
         .find(|l| l.starts_with("Description:") || l.starts_with("description:"))
@@ -488,20 +484,16 @@ pub fn parse_crash_report(report_path: &str) -> Result<CrashInfo, LauncherError>
         .unwrap_or("unknown")
         .to_string();
 
-    Ok(CrashInfo {
+    CrashInfo {
         description,
         suggestion,
         severity,
         error_type,
-    })
+    }
 }
 
-pub fn diagnose_crash(report_path: &str) -> Result<CrashDiagnosis, LauncherError> {
-    let content = std::fs::read_to_string(report_path).map_err(|e| {
-        LauncherError::Other(format!("Cannot read crash report '{}': {}", report_path, e))
-    })?;
-
-    let crash_info = parse_crash_report(report_path)?;
+fn diagnose_from_content_inner(content: &str) -> CrashDiagnosis {
+    let crash_info = parse_crash_info_from_content(content);
 
     let mut additional_findings: Vec<CrashFinding> = Vec::new();
 
@@ -545,12 +537,31 @@ pub fn diagnose_crash(report_path: &str) -> Result<CrashDiagnosis, LauncherError
         .and_then(|m| m.auto_fix)
         .map(|s| s.to_string());
 
-    Ok(CrashDiagnosis {
+    CrashDiagnosis {
         crash_info,
         additional_findings,
         auto_fix_available,
         auto_fix_action,
-    })
+    }
+}
+
+pub fn parse_crash_report(report_path: &str) -> Result<CrashInfo, LauncherError> {
+    let content = std::fs::read_to_string(report_path).map_err(|e| {
+        LauncherError::Other(format!("Cannot read crash report '{}': {}", report_path, e))
+    })?;
+    Ok(parse_crash_info_from_content(&content))
+}
+
+pub fn diagnose_crash(report_path: &str) -> Result<CrashDiagnosis, LauncherError> {
+    let content = std::fs::read_to_string(report_path).map_err(|e| {
+        LauncherError::Other(format!("Cannot read crash report '{}': {}", report_path, e))
+    })?;
+    Ok(diagnose_from_content_inner(&content))
+}
+
+/// Diagnose a crash from raw log content (no file path needed).
+pub fn diagnose_from_content(content: &str) -> Result<CrashDiagnosis, LauncherError> {
+    Ok(diagnose_from_content_inner(content))
 }
 
 #[cfg(test)]

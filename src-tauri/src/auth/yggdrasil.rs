@@ -460,6 +460,39 @@ pub fn get_presets() -> Vec<(String, String)> {
     ]
 }
 
+/// Download authlib-injector jar to the game directory's libraries folder.
+/// Returns the path to the downloaded jar file.
+pub async fn download_authlib_injector(game_dir: &str) -> Result<String, LauncherError> {
+    let client = crate::http_client::build_client();
+    let version_url = "https://authlib-injector.yushi.moe/artifact/latest.json";
+    let version_info: serde_json::Value = client.get(version_url).send().await?.error_for_status()?.json().await?;
+
+    let download_url = version_info["download_url"].as_str()
+        .ok_or_else(|| LauncherError::InvalidConfig("No download_url in authlib-injector info".into()))?;
+
+    let libs_dir = std::path::PathBuf::from(game_dir).join("libraries").join("authlib-injector");
+    std::fs::create_dir_all(&libs_dir)?;
+
+    let jar_name = download_url.rsplit('/').next().unwrap_or("authlib-injector.jar");
+    let jar_path = libs_dir.join(jar_name);
+
+    if !jar_path.exists() {
+        let bytes = client.get(download_url).send().await?.error_for_status()?.bytes().await?;
+        std::fs::write(&jar_path, &bytes)?;
+    }
+
+    Ok(jar_path.to_string_lossy().to_string())
+}
+
+/// Get JVM arguments for authlib-injector to enable external Yggdrasil authentication.
+pub fn get_authlib_injector_args(jar_path: &str, auth_server_url: &str) -> Vec<String> {
+    vec![
+        format!("-javaagent:{}", jar_path),
+        "-Dauthlibinjector.side=client".to_string(),
+        format!("-Dauthlibinjector.yggdrasil.prefetched={}", auth_server_url),
+    ]
+}
+
 // ── OAuth2 flow ──────────────────────────────────────────────────────────
 
 /// Result of starting an OAuth2 flow: the URL to open in the browser and a

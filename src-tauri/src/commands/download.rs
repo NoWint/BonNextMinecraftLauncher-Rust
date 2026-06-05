@@ -1,5 +1,25 @@
 use crate::download::queue::DownloadControlState;
 
+#[derive(serde::Serialize)]
+pub struct MirrorStat {
+    pub url: String,
+    pub success_rate: f64,
+    pub avg_latency_ms: u64,
+}
+
+#[tauri::command]
+pub async fn get_mirror_stats() -> Result<Vec<MirrorStat>, crate::error::LauncherError> {
+    let stats = crate::download::mirror_health::get_mirror_stats();
+    Ok(stats
+        .into_iter()
+        .map(|(url, success_rate, avg_latency)| MirrorStat {
+            url,
+            success_rate,
+            avg_latency_ms: avg_latency,
+        })
+        .collect())
+}
+
 #[tauri::command]
 pub async fn pause_download(state: tauri::State<'_, DownloadControlState>) -> Result<(), crate::error::LauncherError> {
     state.pause();

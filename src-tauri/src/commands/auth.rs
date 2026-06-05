@@ -626,6 +626,70 @@ pub async fn hide_cape(
 }
 
 #[tauri::command]
+pub async fn download_authlib_injector(
+    game_dir: String,
+) -> Result<String, crate::error::LauncherError> {
+    crate::security::sanitizer::sanitize_path(&game_dir)?;
+    crate::auth::yggdrasil::download_authlib_injector(&game_dir).await
+}
+
+#[tauri::command]
+pub async fn login_yggdrasil(
+    auth_server_url: String,
+    username: String,
+    password: String,
+    client_token: Option<String>,
+) -> Result<crate::auth::yggdrasil::YggdrasilAuthResult, crate::error::LauncherError> {
+    crate::security::sanitizer::sanitize_url(&auth_server_url)?;
+    crate::security::sanitizer::sanitize_general_string(&username)?;
+
+    let result = crate::auth::yggdrasil::authenticate(&auth_server_url, &username, &password).await?;
+
+    if result.selected_profile.is_none() && result.available_profiles.is_empty() {
+        return Err(crate::error::LauncherError::AuthFailed(
+            "No game profile found on this account. Please create a character first.".to_string()
+        ));
+    }
+
+    let result = if result.selected_profile.is_none() && !result.available_profiles.is_empty() {
+        let profile = &result.available_profiles[0];
+        crate::auth::yggdrasil::YggdrasilAuthResult {
+            username: profile.name.clone(),
+            uuid: profile.id.clone(),
+            selected_profile: Some(profile.clone()),
+            ..result
+        }
+    } else {
+        result
+    };
+
+    let account = crate::auth::token_store::StoredAccount {
+        id: result.uuid.clone(),
+        username: result.username.clone(),
+        uuid: result.uuid.clone(),
+        access_token: result.access_token.clone(),
+        refresh_token: None,
+        account_type: "yggdrasil".to_string(),
+        last_used: chrono::Utc::now().to_rfc3339(),
+        expires_at: Some((chrono::Utc::now() + chrono::Duration::hours(24)).to_rfc3339()),
+        avatar_url: None,
+        yggdrasil_client_token: client_token.or(Some(result.client_token.clone())),
+        yggdrasil_server_url: Some(result.server_url.clone()),
+        yggdrasil_selected_profile: result.selected_profile.as_ref().map(|p| p.id.clone()),
+        local_skin_path: None,
+        local_skin_model: None,
+    };
+
+    let mut store = crate::auth::token_store::AccountStore::load()?;
+    store.upsert_account(account)?;
+    store.set_active(&result.uuid)?;
+
+    crate::security::audit::record_login("yggdrasil", true, &result.username)?;
+
+    Ok(result)
+}
+
+#[tauri::command]
 pub async fn get_mojang_profile(
     _access_token: String,
 ) -> Result<crate::auth::skin_server::MojangProfile, crate::error::LauncherError> {

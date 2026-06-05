@@ -29,3 +29,4 @@ pub mod server_ping;
 pub mod url_config;
 pub mod mod_watcher;
 pub mod p2p;
+pub mod cache;

@@ -26,6 +26,15 @@ function getLevelClass(text: string, stream: string): string {
   return styles.levelInfo;
 }
 
+function detectLevel(text: string, stream: string): string {
+  if (stream === 'stderr') return 'ERROR';
+  const upper = text.toUpperCase();
+  if (upper.includes('FATAL') || upper.includes('SEVERE')) return 'FATAL';
+  if (upper.includes('ERROR') || upper.includes('EXCEPTION') || upper.includes('CAUSED BY')) return 'ERROR';
+  if (upper.includes('WARN') || upper.includes('WARNING')) return 'WARN';
+  return 'INFO';
+}
+
 interface LogViewerProps {
   instanceId: string;
   visible: boolean;
@@ -36,6 +45,8 @@ export default function LogViewer({ instanceId, visible }: LogViewerProps) {
   const [lines, setLines] = useState<LogLine[]>([]);
   const [autoScroll, setAutoScroll] = useState(true);
   const [filter, setFilter] = useState('');
+  const [levelFilter, setLevelFilter] = useState<Set<string>>(new Set(['INFO', 'WARN', 'ERROR', 'FATAL']));
+  const [searchTerm, setSearchTerm] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const nextId = useRef(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -92,7 +103,13 @@ export default function LogViewer({ instanceId, visible }: LogViewerProps) {
 
   if (!visible) return null;
 
-  const filtered = filter ? lines.filter((l) => l.text.toLowerCase().includes(filter.toLowerCase())) : lines;
+  const filtered = lines.filter((l) => {
+    const level = detectLevel(l.text, l.stream);
+    if (!levelFilter.has(level)) return false;
+    if (filter && !l.text.toLowerCase().includes(filter.toLowerCase())) return false;
+    if (searchTerm && !l.text.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    return true;
+  });
 
   return (
     <div className={styles.container}>
@@ -116,6 +133,28 @@ export default function LogViewer({ instanceId, visible }: LogViewerProps) {
             Auto-scroll
           </label>
         </div>
+      </div>
+      <div className={styles.filterBar}>
+        {(['INFO', 'WARN', 'ERROR', 'FATAL'] as const).map((level) => (
+          <button
+            key={level}
+            className={`${styles.filterBtn} ${levelFilter.has(level) ? styles.active : ''} ${styles[`level_${level}`]}`}
+            onClick={() => {
+              const next = new Set(levelFilter);
+              if (next.has(level)) next.delete(level); else next.add(level);
+              setLevelFilter(next);
+            }}
+          >
+            {level}
+          </button>
+        ))}
+        <input
+          type="text"
+          className={styles.searchInput}
+          placeholder="搜索日志..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
       </div>
       <div className={styles.body} ref={scrollContainerRef} onScroll={handleScroll}>
         {filtered.length === 0 && <div className={styles.empty}>Waiting for game output...</div>}

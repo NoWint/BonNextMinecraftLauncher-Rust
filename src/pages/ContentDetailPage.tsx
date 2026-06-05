@@ -147,7 +147,20 @@ export default function ContentDetailPage() {
 
         if (parsed.source === 'curseforge') {
           const modId = parseInt(parsed.slug, 10);
-          [proj, vers] = await Promise.all([api.getCfProjectDetails(modId), api.getCfModVersions(modId)]);
+          if (!isNaN(modId)) {
+            [proj, vers] = await Promise.all([api.getCfProjectDetails(modId), api.getCfModVersions(modId)]);
+          } else {
+            // Slug is not a numeric ID — search CurseForge by name to resolve the ID
+            console.error(`[ContentDetailPage] CurseForge slug "${parsed.slug}" is not a numeric ID, searching by name`);
+            const [results] = await api.searchCfMods(parsed.slug, undefined, undefined, undefined, 5, 0);
+            const match = results.find(
+              (r) => r.slug === parsed.slug || r.title.toLowerCase() === parsed.slug.toLowerCase()
+            ) || results[0];
+            if (!match) throw new Error(`CurseForge project "${parsed.slug}" not found`);
+            const resolvedId = parseInt(match.slug, 10);
+            if (isNaN(resolvedId)) throw new Error(`Could not resolve CurseForge numeric ID for "${parsed.slug}"`);
+            [proj, vers] = await Promise.all([api.getCfProjectDetails(resolvedId), api.getCfModVersions(resolvedId)]);
+          }
         } else {
           [proj, vers] = await Promise.all([api.getProjectDetails(parsed.slug), api.getModVersions(parsed.slug)]);
         }
@@ -157,6 +170,7 @@ export default function ContentDetailPage() {
           setAllVersions(vers);
         }
       } catch (e: unknown) {
+        console.error('[ContentDetailPage] Failed to load project:', e);
         if (!cancelled) setError(formatError(e) || 'Failed to load project');
       } finally {
         if (!cancelled) setLoading(false);

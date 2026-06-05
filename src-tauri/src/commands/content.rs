@@ -15,6 +15,10 @@ pub struct InstalledModInfo {
     pub pinned: bool,
     #[serde(default = "default_enabled")]
     pub enabled: bool,
+    #[serde(default)]
+    pub slug: Option<String>,
+    #[serde(default)]
+    pub source: Option<String>,
 }
 
 fn default_enabled() -> bool {
@@ -103,8 +107,10 @@ pub async fn list_instance_mods(instance_id: String) -> Result<Vec<InstalledModI
                     .unwrap_or_default();
 
                 let pinned = metadata.get(&filename).map(|r| r.pinned).unwrap_or(false);
+                let slug = metadata.get(&filename).map(|r| r.slug.clone());
+                let source = metadata.get(&filename).map(|r| r.source.clone());
 
-                mods.push(InstalledModInfo { filename, size, installed_at, pinned, enabled });
+                mods.push(InstalledModInfo { filename, size, installed_at, pinned, enabled, slug, source });
             }
         }
     }

@@ -6,12 +6,20 @@ use crate::platform::paths;
 use crate::server_ping;
 use crate::server_ping::models::{MinecraftServerInfo, ServerListEntry};
 use crate::server_ping::servers_dat::{self, ServerAddress};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
 pub struct PingResult {
     pub info: MinecraftServerInfo,
     pub latency_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchPingResult {
+    pub id: i64,
+    pub online: bool,
+    pub latency_ms: Option<i64>,
+    pub info: Option<MinecraftServerInfo>,
 }
 
 #[tauri::command]
@@ -27,15 +35,47 @@ pub async fn ping_server_info(
 
 #[tauri::command]
 pub async fn batch_ping_servers(
-    servers: Vec<(String, u16)>,
+    server_ids: Vec<i64>,
+    db: tauri::State<'_, Arc<ModCacheDb>>,
     timeout_ms: Option<u32>,
-) -> Result<Vec<Option<PingResult>>, LauncherError> {
+) -> Result<Vec<BatchPingResult>, LauncherError> {
     let timeout = timeout_ms.unwrap_or(5000);
-    let results = server_ping::batch_ping_servers(servers, timeout).await;
-    Ok(results
-        .into_iter()
-        .map(|r| r.map(|(info, latency)| PingResult { info, latency_ms: latency }))
-        .collect())
+    let servers = server_ping::list_servers(&db)?;
+    let targets: Vec<(i64, String, u16)> = servers.into_iter()
+        .filter(|s| server_ids.contains(&s.id))
+        .map(|s| (s.id, s.address, s.port))
+        .collect();
+
+    let mut handles = Vec::new();
+    for (id, addr, port) in targets {
+        let handle = tokio::spawn(async move {
+            let result = server_ping::ping_server_cmd(addr, port, timeout).await.ok();
+            (id, result)
+        });
+        handles.push(handle);
+    }
+
+    let mut results = Vec::new();
+    for handle in handles {
+        if let Ok((id, result)) = handle.await {
+            let ping_result = match result {
+                Some((info, latency)) => BatchPingResult {
+                    id,
+                    online: true,
+                    latency_ms: Some(latency as i64),
+                    info: Some(info),
+                },
+                None => BatchPingResult {
+                    id,
+                    online: false,
+                    latency_ms: None,
+                    info: None,
+                },
+            };
+            results.push(ping_result);
+        }
+    }
+    Ok(results)
 }
 
 #[tauri::command]
