@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api } from '../../api';
+import { api } from '../../shared/api';
 import { Checkbox } from '../../components/ui';
 import { SectionCard, SettingRow } from './MemorySection';
 import styles from '../SettingsPage.module.css';

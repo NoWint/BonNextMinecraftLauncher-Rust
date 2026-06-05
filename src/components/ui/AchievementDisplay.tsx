@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getAchievements, checkAchievements } from '../../api/system';
+import { getAchievements, checkAchievements } from '../../shared/api/system';
 import { Button } from './Button';
 import { formatDate } from '../../shared/utils/format';
 import styles from './AchievementDisplay.module.css';

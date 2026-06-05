@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, type CollectionItem } from '../api';
+import { api, type CollectionItem } from '../shared/api';
 import { useI18n } from '../shared/i18n';
 import { SectionHeader, Ticker } from '../components/layout';
 import { Button, ContentCard, Tabs } from '../components/ui';

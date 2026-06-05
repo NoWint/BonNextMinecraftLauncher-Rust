@@ -1,4 +1,4 @@
-import type { ScanResult } from '../../../api/modScanner';
+import type { ScanResult } from '../../../shared/api/modScanner';
 import styles from './ModScanResult.module.css';
 
 interface ModScanResultProps {

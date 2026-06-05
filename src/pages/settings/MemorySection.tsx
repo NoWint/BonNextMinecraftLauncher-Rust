@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { AppConfig } from '../../api';
-import type { HardwareProfile, RecommendedConfig } from '../../api';
-import { api } from '../../api';
+import type { AppConfig } from '../../shared/api';
+import type { HardwareProfile, RecommendedConfig } from '../../shared/api';
+import { api } from '../../shared/api';
 import { Slider, Checkbox, Select, Badge, Button, ContextHelp } from '../../components/ui';
 import { useDebouncedCallback } from '../../shared/hooks/useDebouncedCallback';
 import { useFormField } from '../../shared/hooks/useFormField';

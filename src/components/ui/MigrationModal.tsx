@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { formatError } from '../../shared/utils/errorMapping';
-import { api, type DetectedLauncher, type MigrateableInstance, type MigrationIssue, type MigrationFixResult } from '../../api';
+import { api, type DetectedLauncher, type MigrateableInstance, type MigrationIssue, type MigrationFixResult } from '../../shared/api';
 import { Button } from './Button';
 import { Modal } from './Modal';
 import { Icon } from './Icon';

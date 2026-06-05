@@ -7,7 +7,7 @@ import { ModpackPreview } from './ModpackPreview';
 import { WorkflowProgress } from './WorkflowProgress';
 import { CrashAnalysisPanel } from './CrashAnalysisPanel';
 import { ConfirmDialog } from './ConfirmDialog';
-import { workflowApi } from '../../api/workflow';
+import { workflowApi } from '../../shared/api/workflow';
 import type { ModpackPlan } from '../../shared/ai/types';
 import styles from './ChatPanel.module.css';
 

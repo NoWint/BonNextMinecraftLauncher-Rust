@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api, type AuditEntry } from '../../api';
+import { api, type AuditEntry } from '../../shared/api';
 import { Icon } from './Icon';
 import styles from './AuditLogViewer.module.css';
 

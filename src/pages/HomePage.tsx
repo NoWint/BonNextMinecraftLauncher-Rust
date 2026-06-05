@@ -10,7 +10,7 @@ import {
   type SystemInfo,
   type JreDownloadProgress,
   type MinecraftNewsEntry,
-} from '../api';
+} from '../shared/api';
 import { useAuth } from '../shared/stores/authStore';
 import { useInstances } from '../shared/stores/instanceStore';
 import { useToast } from '../shared/stores/toastStore';

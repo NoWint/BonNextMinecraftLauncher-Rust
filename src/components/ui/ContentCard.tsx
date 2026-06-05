@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { type ModResult } from '../../api';
+import { type ModResult } from '../../shared/api';
 import { Badge } from './Status';
 import { Button } from './Button';
 import { CollectionButton } from './CollectionButton';

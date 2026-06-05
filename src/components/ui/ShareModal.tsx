@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { formatError } from '../../shared/utils/errorMapping';
-import { api } from '../../api';
+import { api } from '../../shared/api';
 import { Modal } from './Modal';
 import { Button } from './Button';
 import { Icon } from './Icon';

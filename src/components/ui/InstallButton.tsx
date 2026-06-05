@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { formatError } from '../../shared/utils/errorMapping';
-import { api } from '../../api';
+import { api } from '../../shared/api';
 import { useToast } from '../../shared/stores/toastStore';
 import { useDownloads } from '../../shared/stores/downloadStore';
 import type { DownloadTask } from '../../shared/stores/downloadStore';

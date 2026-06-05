@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { formatError } from '../shared/utils/errorMapping';
-import { api, type VersionEntry } from '../api';
+import { api, type VersionEntry } from '../shared/api';
 import { useI18n } from '../shared/i18n';
 import { SectionHeader } from '../components/layout';
 import { Badge, Button, Select } from '../components/ui';

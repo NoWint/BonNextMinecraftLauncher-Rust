@@ -11,7 +11,7 @@ import {
   type RunningGameInfo,
   type PreLaunchReport,
   type HealthCheckReport,
-} from '../api';
+} from '../shared/api';
 import { useAuth } from '../shared/stores/authStore';
 import { useInstances } from '../shared/stores/instanceStore';
 import { useToast } from '../shared/stores/toastStore';

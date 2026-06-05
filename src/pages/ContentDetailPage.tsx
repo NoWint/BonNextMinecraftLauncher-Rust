@@ -2,7 +2,7 @@ import DOMPurify from 'dompurify';
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { formatError } from '../shared/utils/errorMapping';
-import { api, type ModProjectFull, type ModVersion } from '../api';
+import { api, type ModProjectFull, type ModVersion } from '../shared/api';
 import { useInstances } from '../shared/stores/instanceStore';
 import { useI18n } from '../shared/i18n';
 import { Breadcrumb, Button, Badge, StatBadge, StatusDot, Tabs } from '../components/ui';

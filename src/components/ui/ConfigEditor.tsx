@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { readConfigFile, writeConfigFile } from '../../api/instances';
+import { readConfigFile, writeConfigFile } from '../../shared/api/instances';
 import { Button } from './Button';
 import styles from './ConfigEditor.module.css';
 

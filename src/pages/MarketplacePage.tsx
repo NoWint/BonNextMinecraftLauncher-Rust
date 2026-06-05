@@ -17,7 +17,7 @@ import {
 } from '../components/marketplace/types';
 import { useConfig } from '../shared/stores/configStore';
 import { useInstances } from '../shared/stores/instanceStore';
-import { api } from '../api';
+import { api } from '../shared/api';
 import styles from './MarketplacePage.module.css';
 import badgeStyles from '../components/ui/Status.module.css';
 

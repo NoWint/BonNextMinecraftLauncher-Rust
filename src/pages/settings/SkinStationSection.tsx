@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { api, type YggdrasilServerPreset, type YggdrasilTexturesValue, type StoredAccount, type McSkinInfo, type MojangProfile } from '../../api';
+import { api, type YggdrasilServerPreset, type YggdrasilTexturesValue, type StoredAccount, type McSkinInfo, type MojangProfile } from '../../shared/api';
 import { useAuth } from '../../shared/stores/authStore';
 import { useI18n } from '../../shared/i18n';
 import { StatusDot, Badge, Button, TextInput, Select, SkinViewer3D, SkinPreview } from '../../components/ui';

@@ -18,7 +18,7 @@ import {
   type JavaInfo,
   type RecommendedConfig,
   type StoredAccount,
-} from '../../api';
+} from '../../shared/api';
 import { useAuth } from '../../shared/stores/authStore';
 import { useConfig } from '../../shared/stores/configStore';
 import { useInstances } from '../../shared/stores/instanceStore';

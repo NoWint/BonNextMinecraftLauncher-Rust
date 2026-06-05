@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, type VersionEntry, type GameInstance, type DetectedLauncher, type MigrateableInstance } from '../api';
+import { api, type VersionEntry, type GameInstance, type DetectedLauncher, type MigrateableInstance } from '../shared/api';
 import { useInstances } from '../shared/stores/instanceStore';
 import { useI18n } from '../shared/i18n';
 import { formatError } from '../shared/utils/errorMapping';
