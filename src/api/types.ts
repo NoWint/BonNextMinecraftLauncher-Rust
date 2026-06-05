@@ -47,6 +47,8 @@ export interface AppConfig {
   java_download_source: string;
   force_memory: boolean;
   force_java_path: boolean;
+  git_proxy_enabled: boolean;
+  git_proxy_url: string;
   security: SecurityConfig;
 }
 
@@ -638,6 +640,13 @@ export interface RepairResult {
   instance_id: string;
   actions: RepairAction[];
   fixed: boolean;
+}
+
+export interface InstanceCheckResult {
+  instance_id: string;
+  is_ready: boolean;
+  has_anomalies: boolean;
+  anomaly_details: string[];
 }
 
 export interface AtomicInstallFile {

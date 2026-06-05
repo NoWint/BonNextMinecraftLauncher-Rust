@@ -71,3 +71,114 @@
   line-height: 1.4;
   clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
 }
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 8px;
+  max-width: 550px;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.dividerText {
+  font-family: var(--font-heading);
+  font-size: 0.55em;
+  color: var(--color-text-muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.migrationDesc {
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.launcherGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.launcherCard {
+  background: var(--color-panel);
+  border: 1px solid var(--color-panel-alt);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
+}
+
+.launcherCard:hover {
+  border-color: var(--color-border-light);
+}
+
+.launcherCardActive {
+  background: var(--color-panel-alt);
+  border-color: var(--color-accent);
+}
+
+.launcherCard:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.launcherName {
+  font-size: 0.65em;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: 0.5px;
+}
+
+.scanHint {
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.instanceList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.migrationRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-panel-alt);
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
+}
+
+.migrationInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.migrationName {
+  font-size: 0.65em;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.migrationMeta {
+  font-size: 0.45em;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}

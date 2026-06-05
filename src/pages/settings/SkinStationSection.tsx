@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { api, type YggdrasilTexturesValue, type StoredAccount, type McSkinInfo } from '../../api';
+import { api, type YggdrasilServerPreset, type YggdrasilTexturesValue, type StoredAccount, type McSkinInfo, type MojangProfile } from '../../api';
 import { useAuth } from '../../stores/authStore';
 import { useI18n } from '../../i18n';
-import { StatusDot, Badge, Button, TextInput, Select, SkinViewer3D } from '../../components/ui';
+import { StatusDot, Badge, Button, TextInput, Select, SkinViewer3D, SkinPreview } from '../../components/ui';
 import { useFormField } from '../../hooks/useFormField';
 import { url } from '../../utils/validators';
 import formStyles from '../../components/ui/FormField.module.css';
@@ -18,12 +18,13 @@ export default function SkinStationSection({
 }) {
   const { t } = useI18n();
   const { state: authState, yggdrasilLogin, refreshAccounts } = useAuth();
-  const [presets, setPresets] = useState<[string, string][]>([]);
-  const [selectedPreset, setSelectedPreset] = useState('https://littleskin.cn/api/yggdrasil');
+  const [presets, setPresets] = useState<YggdrasilServerPreset[]>([]);
+  const [selectedPresetName, setSelectedPresetName] = useState('');
   const [customUrl, setCustomUrl] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
+  const [showLoginForm, setShowLoginForm] = useState(false);
 
   const yggdrasilUrlRules = useMemo(() => [url], []);
   const yggdrasilUrlField = useFormField(customUrl, yggdrasilUrlRules);
@@ -40,14 +41,25 @@ export default function SkinStationSection({
   const [msSkins, setMsSkins] = useState<McSkinInfo[]>([]);
   const [msCapeAlias, setMsCapeAlias] = useState<string | null>(null);
   const [msLoading, setMsLoading] = useState(false);
+  const [mojangProfile, setMojangProfile] = useState<MojangProfile | null>(null);
+  const [selectedCapeId, setSelectedCapeId] = useState<string>('');
 
-  const serverUrl = selectedPreset === '' ? customUrl : selectedPreset;
+  const selectedPreset = presets.find((p) => p.name === selectedPresetName);
+  const isCustom = selectedPresetName === '__custom__';
+  const serverUrl = isCustom ? customUrl : (selectedPreset?.base_url || '');
 
   useEffect(() => {
     api
-      .getYggdrasilPresets()
-      .then(setPresets)
-      .catch(() => {});
+      .getYggdrasilServerPresets()
+      .then((data) => {
+        setPresets(data);
+        const nonCustom = data.find((p) => p.base_url !== '');
+        if (nonCustom) setSelectedPresetName(nonCustom.name);
+        else setSelectedPresetName('__custom__');
+      })
+      .catch(() => {
+        setSelectedPresetName('__custom__');
+      });
   }, []);
 
   useEffect(() => {
@@ -85,28 +97,51 @@ export default function SkinStationSection({
     }
   }, [activeAccount?.local_skin_path, activeAccount?.local_skin_model]);
 
-  const fetchYggdrasilProfile = () => {
+  const fetchYggdrasilProfile = async () => {
     if (!yggdrasilAccount?.uuid || !yggdrasilAccount?.yggdrasil_server_url || !yggdrasilAccount?.access_token) {
       setSkinUrl(null);
       setCapeUrl(null);
       return;
     }
-    api
-      .yggdrasilGetProfile(yggdrasilAccount.uuid, yggdrasilAccount.yggdrasil_server_url, yggdrasilAccount.access_token)
-      .then((profile) => {
-        const texturesProp = profile.properties.find((p) => p.name === 'textures');
-        if (texturesProp) {
-          try {
-            const decoded: YggdrasilTexturesValue = JSON.parse(atob(texturesProp.value));
-            setSkinUrl(decoded.textures.SKIN?.url || null);
-            if (decoded.textures.SKIN?.metadata?.model === 'slim') setSkinModel('slim');
-            setCapeUrl(decoded.textures.CAPE?.url || null);
-          } catch {
-            console.warn('[SkinStation] Failed to decode skin textures');
-          }
+    try {
+      const profile = await api.yggdrasilGetProfile(yggdrasilAccount.uuid, yggdrasilAccount.yggdrasil_server_url, yggdrasilAccount.access_token);
+      const texturesProp = profile.properties.find((p) => p.name === 'textures');
+      if (texturesProp) {
+        try {
+          const decoded: YggdrasilTexturesValue = JSON.parse(atob(texturesProp.value));
+          setSkinUrl(decoded.textures.SKIN?.url || null);
+          if (decoded.textures.SKIN?.metadata?.model === 'slim') setSkinModel('slim');
+          setCapeUrl(decoded.textures.CAPE?.url || null);
+        } catch {
+          console.warn('[SkinStation] Failed to decode skin textures');
         }
-      })
-      .catch((e: unknown) => console.warn('[SkinStation] Failed to fetch Yggdrasil profile:', e));
+      }
+    } catch (e: unknown) {
+      const errMsg = formatError(e);
+      if (errMsg.includes('expired') || errMsg.includes('失效') || errMsg.includes('AuthExpired')) {
+        console.warn('[SkinStation] Token expired, attempting refresh...');
+        try {
+          await api.yggdrasilRefreshToken();
+          await refreshAccounts();
+          const refreshed = authState.accounts.find((a: StoredAccount) => a.id === authState.activeAccountId);
+          if (refreshed?.uuid && refreshed?.yggdrasil_server_url && refreshed?.access_token) {
+            const profile = await api.yggdrasilGetProfile(refreshed.uuid, refreshed.yggdrasil_server_url, refreshed.access_token);
+            const texturesProp = profile.properties.find((p) => p.name === 'textures');
+            if (texturesProp) {
+              const decoded: YggdrasilTexturesValue = JSON.parse(atob(texturesProp.value));
+              setSkinUrl(decoded.textures.SKIN?.url || null);
+              if (decoded.textures.SKIN?.metadata?.model === 'slim') setSkinModel('slim');
+              setCapeUrl(decoded.textures.CAPE?.url || null);
+            }
+          }
+        } catch (refreshErr) {
+          console.warn('[SkinStation] Token refresh failed:', refreshErr);
+          addToast({ type: 'error', title: t('skinStation.errorSessionExpired'), message: t('skinStation.reloginRequired') });
+        }
+      } else {
+        console.warn('[SkinStation] Failed to fetch Yggdrasil profile:', e);
+      }
+    }
   };
 
   useEffect(() => {
@@ -131,6 +166,14 @@ export default function SkinStationSection({
       })
       .catch((e: unknown) => console.warn('[SkinStation] Failed to fetch Microsoft profile:', e))
       .finally(() => setMsLoading(false));
+    api
+      .getMojangProfile(microsoftAccount.access_token)
+      .then((profile) => {
+        setMojangProfile(profile);
+        const activeCape = profile.capes.find((c) => c.state === 'ACTIVE');
+        setSelectedCapeId(activeCape?.id || '');
+      })
+      .catch((e: unknown) => console.warn('[SkinStation] Failed to fetch Mojang profile:', e));
   };
 
   useEffect(() => {
@@ -242,31 +285,6 @@ export default function SkinStationSection({
     }
   };
 
-  const handleMicrosoftUploadSkin = async () => {
-    if (!microsoftAccount) return;
-    const selected = await validateAndOpenSkin();
-    if (!selected) return;
-    try {
-      setUploading(true);
-      const variant = skinModel === 'slim' ? 'SLIM' : 'CLASSIC';
-      console.log(
-        '[SkinStation] Uploading skin for Microsoft account:',
-        microsoftAccount.username,
-        'variant:',
-        variant,
-      );
-      await api.microsoftUploadSkin(microsoftAccount.access_token, selected, variant);
-      addToast({ type: 'success', title: t('skinStation.uploadSuccess') });
-      await refreshAccounts();
-      fetchMicrosoftProfile();
-    } catch (e: unknown) {
-      console.error('[SkinStation] Microsoft upload failed:', e);
-      addToast({ type: 'error', title: t('skinStation.uploadFailed'), message: formatError(e) });
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const handleMicrosoftDeleteSkin = async (skinId: string) => {
     if (!microsoftAccount) return;
     try {
@@ -276,6 +294,62 @@ export default function SkinStationSection({
     } catch (e: unknown) {
       console.error('[SkinStation] Delete skin failed:', e);
       addToast({ type: 'error', title: t('skinStation.deleteSkinFailed'), message: formatError(e) });
+    }
+  };
+
+  const handleEquipCape = async () => {
+    if (!microsoftAccount || !selectedCapeId) return;
+    try {
+      await api.equipCape(microsoftAccount.access_token, selectedCapeId);
+      addToast({ type: 'success', title: t('skinStation.capeEquipSuccess') });
+      fetchMicrosoftProfile();
+    } catch (e: unknown) {
+      console.error('[SkinStation] Equip cape failed:', e);
+      addToast({ type: 'error', title: t('skinStation.capeEquipFailed'), message: formatError(e) });
+    }
+  };
+
+  const handleHideCape = async () => {
+    if (!microsoftAccount) return;
+    try {
+      await api.hideCape(microsoftAccount.access_token);
+      addToast({ type: 'success', title: t('skinStation.capeHideSuccess') });
+      setSelectedCapeId('');
+      fetchMicrosoftProfile();
+    } catch (e: unknown) {
+      console.error('[SkinStation] Hide cape failed:', e);
+      addToast({ type: 'error', title: t('skinStation.capeHideFailed'), message: formatError(e) });
+    }
+  };
+
+  const handleMojangUploadSkin = async () => {
+    if (!microsoftAccount) return;
+    const selected = await validateAndOpenSkin();
+    if (!selected) return;
+    try {
+      setUploading(true);
+      const variant = skinModel === 'slim' ? 'slim' : 'classic';
+      await api.uploadSkin(microsoftAccount.access_token, selected, variant);
+      addToast({ type: 'success', title: t('skinStation.uploadSuccess') });
+      await refreshAccounts();
+      fetchMicrosoftProfile();
+    } catch (e: unknown) {
+      console.error('[SkinStation] Mojang upload failed:', e);
+      addToast({ type: 'error', title: t('skinStation.uploadFailed'), message: formatError(e) });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleMojangResetSkin = async () => {
+    if (!microsoftAccount) return;
+    try {
+      await api.resetSkin(microsoftAccount.access_token);
+      addToast({ type: 'success', title: t('skinStation.resetSuccess') });
+      fetchMicrosoftProfile();
+    } catch (e: unknown) {
+      console.error('[SkinStation] Mojang reset failed:', e);
+      addToast({ type: 'error', title: t('skinStation.resetFailed'), message: formatError(e) });
     }
   };
 
@@ -394,24 +468,32 @@ export default function SkinStationSection({
             width={140}
             height={210}
           />
-          <div className={styles.skinPreview__label}>
-            {previewSkinUrl ? t('skinStation.skinPreview') : t('skinStation.noSkin')}
+          <div className={styles.skinPreview__headRow}>
+            <SkinPreview skinUrl={previewSkinUrl} size={32} />
+            <span className={styles.skinPreview__label}>
+              {previewSkinUrl ? t('skinStation.skinPreview') : t('skinStation.noSkin')}
+            </span>
           </div>
         </div>
 
         <div className={styles.skinControls}>
-          {!yggdrasilAccount && !isMicrosoftAccount && (
+          {(!yggdrasilAccount || showLoginForm) && !isMicrosoftAccount && (
             <div className={styles.skinLoginSection}>
               <div className={styles.skinSubTitle}>{t('skinStation.onlineLogin')}</div>
               <div className={styles.skinDesc}>{t('skinStation.desc')}</div>
               <SettingRow label={t('skinStation.server')}>
                 <div className={styles.skinInputFlex}>
                   <Select
-                    value={selectedPreset}
-                    onChange={(e) => setSelectedPreset(e.target.value)}
-                    options={presets.map(([name, url]) => ({ value: url, label: name }))}
+                    value={selectedPresetName}
+                    onChange={(e) => setSelectedPresetName(e.target.value)}
+                    options={[
+                      ...presets
+                        .filter((p) => p.base_url !== '')
+                        .map((p) => ({ value: p.name, label: p.name })),
+                      { value: '__custom__', label: t('skinStation.customServer') },
+                    ]}
                   />
-                  {selectedPreset === '' && (
+                  {isCustom && (
                     <div className={styles.skinInputGap}>
                       <div className={formStyles.fieldWrapper}>
                         <TextInput
@@ -474,7 +556,30 @@ export default function SkinStationSection({
                     {yggdrasilAccount.yggdrasil_server_url.replace(/https?:\/\//, '').replace(/\/api\/yggdrasil.*/, '')}
                   </span>
                 )}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      await api.removeAccount(yggdrasilAccount.id);
+                      setShowLoginForm(false);
+                      await refreshAccounts();
+                      addToast({ type: 'info', title: t('skinStation.disconnected') });
+                    } catch (e: unknown) {
+                      addToast({ type: 'error', title: t('skinStation.loginFailed'), message: formatError(e) });
+                    }
+                  }}
+                >
+                  {t('skinStation.disconnect')}
+                </Button>
               </div>
+              {!showLoginForm && (
+                <div className={styles.actions}>
+                  <Button variant="secondary" size="sm" onClick={() => setShowLoginForm(true)}>
+                    {t('skinStation.switchAccount')}
+                  </Button>
+                </div>
+              )}
               {yggdrasilAccount.yggdrasil_selected_profile && (
                 <SettingRow label={t('skinStation.currentProfile')}>
                   <span className={styles.skinProfileId}>{yggdrasilAccount.yggdrasil_selected_profile}</span>
@@ -512,9 +617,16 @@ export default function SkinStationSection({
                   variant="primary"
                   size="sm"
                   disabled={uploading || msLoading}
-                  onClick={handleMicrosoftUploadSkin}
+                  onClick={handleMojangUploadSkin}
                 >
                   {uploading ? t('skinStation.uploading') : t('skinStation.uploadSkin')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleMojangResetSkin}
+                >
+                  {t('skinStation.resetSkin')}
                 </Button>
               </div>
               {msSkins.length > 0 && (
@@ -522,6 +634,7 @@ export default function SkinStationSection({
               )}
               {msSkins.map((skin: McSkinInfo) => (
                 <div key={skin.id} className={styles.skinCapeHint}>
+                  <SkinPreview skinUrl={skin.url} size={20} />
                   <span
                     className={styles.skinCapeHint__dot}
                     style={{ background: skin.state === 'ACTIVE' ? 'var(--color-success)' : 'var(--color-text-muted)' }}
@@ -537,7 +650,40 @@ export default function SkinStationSection({
                   )}
                 </div>
               ))}
-              {msCapeAlias && (
+              {mojangProfile && mojangProfile.capes.length > 0 && (
+                <>
+                  <div className={`${styles.skinSubTitle} ${styles.skinSubTitleGap}`}>{t('skinStation.capeManagement')}</div>
+                  <SettingRow label={t('skinStation.selectCape')}>
+                    <div className={styles.skinInputFlex}>
+                      <Select
+                        value={selectedCapeId}
+                        onChange={(e) => setSelectedCapeId(e.target.value)}
+                        options={[
+                          { value: '', label: t('skinStation.noCape') },
+                          ...mojangProfile.capes.map((c) => ({
+                            value: c.id,
+                            label: `${c.alias}${c.state === 'ACTIVE' ? ` (${t('skinStation.active')})` : ''}`,
+                          })),
+                        ]}
+                      />
+                    </div>
+                  </SettingRow>
+                  <div className={styles.actions}>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={!selectedCapeId}
+                      onClick={handleEquipCape}
+                    >
+                      {t('skinStation.equipCape')}
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={handleHideCape}>
+                      {t('skinStation.hideCape')}
+                    </Button>
+                  </div>
+                </>
+              )}
+              {msCapeAlias && !mojangProfile?.capes.length && (
                 <div className={`${styles.skinCapeHint} ${styles.skinCapeHintGap}`}>
                   <span className={styles.skinCapeHint__dot} />
                   {t('skinStation.cape')}: {msCapeAlias}

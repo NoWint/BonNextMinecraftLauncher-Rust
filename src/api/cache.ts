@@ -8,4 +8,17 @@ export function cachedInvoke<T>(key: string, fn: () => Promise<T>): Promise<T> {
   return promise;
 }
 
-export function invalidateCache(_keys?: string[]) {}
+export function invalidateCache(_keys?: string[]) {
+  if (!_keys || _keys.length === 0) {
+    ipcInflight.clear();
+    return;
+  }
+
+  for (const prefix of _keys) {
+    for (const key of [...ipcInflight.keys()]) {
+      if (key.startsWith(prefix) || key.includes(prefix)) {
+        ipcInflight.delete(key);
+      }
+    }
+  }
+}

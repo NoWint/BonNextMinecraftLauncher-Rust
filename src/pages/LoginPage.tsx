@@ -1,17 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { formatError } from '../utils/errorMapping';
 import { api, type DeviceCodeResponse } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useI18n } from '../i18n';
 import { SubLabel } from '../components/layout';
-import { StatusDot, ProgressBar, Button, TextInput } from '../components/ui';
+import { StatusDot, ProgressBar, Button, TextInput, Select } from '../components/ui';
 import { Icon } from '../components/ui/Icon';
 import { useGreeting, getRandomLoadingMessage } from '../hooks/useGreeting';
 import { useConfetti } from '../hooks/useConfetti';
 import styles from './LoginPage.module.css';
 
 export default function LoginPage() {
-  const { state, offlineLogin } = useAuth();
+  const navigate = useNavigate();
+  const { state, offlineLogin, yggdrasilLogin } = useAuth();
   const { t } = useI18n();
   const greeting = useGreeting(t);
   const fireConfetti = useConfetti();
@@ -26,10 +28,25 @@ export default function LoginPage() {
   const [guestLoading, setGuestLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const [showYggForm, setShowYggForm] = useState(false);
+  const [yggPresets, setYggPresets] = useState<[string, string][]>([]);
+  const [yggServer, setYggServer] = useState('https://littleskin.cn/api/yggdrasil');
+  const [yggCustomUrl, setYggCustomUrl] = useState('');
+  const [yggEmail, setYggEmail] = useState('');
+  const [yggPassword, setYggPassword] = useState('');
+  const [yggLoading, setYggLoading] = useState(false);
+  const [yggError, setYggError] = useState('');
+
+  const yggServerUrl = yggServer === '' ? yggCustomUrl : yggServer;
+
   // Auto-focus input
   useEffect(() => {
     const timer = setTimeout(() => inputRef.current?.focus(), 400);
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    api.getYggdrasilPresets().then(setYggPresets).catch(() => {});
   }, []);
 
   // Animated dots while loading
@@ -50,7 +67,7 @@ export default function LoginPage() {
     try {
       await offlineLogin(username.trim());
       fireConfetti();
-      window.location.hash = '#/home';
+      navigate('/home');
     } catch (e: unknown) {
       setError(formatError(e) || t('login.error.default'));
       setShakeInput(true);
@@ -114,11 +131,42 @@ export default function LoginPage() {
       await api.createGuestInstance();
       await offlineLogin('Guest_' + Math.random().toString(36).slice(2, 8));
       fireConfetti();
-      window.location.hash = '#/home';
+      navigate('/home');
     } catch (e: unknown) {
       setError(formatError(e) || t('login.error.default'));
     } finally {
       setGuestLoading(false);
+    }
+  };
+
+  const handleYggdrasilLogin = async () => {
+    if (!yggServerUrl || !yggEmail || !yggPassword) {
+      setYggError(t('skinStation.fillAllFields'));
+      return;
+    }
+    setYggLoading(true);
+    setYggError('');
+    try {
+      await yggdrasilLogin(yggServerUrl, yggEmail, yggPassword);
+      fireConfetti();
+      navigate('/home');
+    } catch (e: unknown) {
+      const raw = formatError(e);
+      let msg = raw;
+      if (raw.includes('ForbiddenOperationException') || raw.includes('邮箱或密码错误')) {
+        msg = t('skinStation.errorWrongPassword');
+      } else if (raw.includes('RateLimitedException') || raw.includes('频繁')) {
+        msg = t('skinStation.errorRateLimited');
+      } else if (raw.includes('ResourceNotFoundException') || raw.includes('未找到')) {
+        msg = t('skinStation.errorServerNotFound');
+      } else if (raw.includes('No game profile') || raw.includes('No game profile')) {
+        msg = t('skinStation.errorNoProfile');
+      } else if (raw.includes('连接') || raw.includes('timeout') || raw.includes('network')) {
+        msg = t('skinStation.errorNetwork');
+      }
+      setYggError(msg || t('skinStation.loginFailed'));
+    } finally {
+      setYggLoading(false);
     }
   };
 
@@ -266,6 +314,69 @@ export default function LoginPage() {
               </>
             )}
           </Button>
+        </div>
+
+        {/* Yggdrasil / Skin Station login */}
+        <div className={styles.yggSection}>
+          <span className={styles.yggToggle} onClick={() => setShowYggForm(!showYggForm)}>
+            <Icon name="globe" size={12} />{' '}
+            {showYggForm ? t('login.yggHide') : t('login.yggShow')}
+          </span>
+          {showYggForm && (
+            <div className={styles.yggForm}>
+              <div className={styles.yggFormRow}>
+                <Select
+                  value={yggServer}
+                  onChange={(e) => setYggServer(e.target.value)}
+                  options={yggPresets.map(([name, url]) => ({ value: url, label: name }))}
+                  className={styles.yggServerSelect}
+                />
+              </div>
+              {yggServer === '' && (
+                <div className={styles.yggFormRow}>
+                  <div className={styles.yggFormInput}>
+                    <TextInput
+                      value={yggCustomUrl}
+                      onChange={(e) => setYggCustomUrl(e.target.value)}
+                      placeholder="https://example.com/api/yggdrasil"
+                    />
+                  </div>
+                </div>
+              )}
+              <div className={styles.yggFormRow}>
+                <div className={styles.yggFormInput}>
+                  <TextInput
+                    type="email"
+                    value={yggEmail}
+                    onChange={(e) => { setYggEmail(e.target.value); setYggError(''); }}
+                    placeholder={t('skinStation.email')}
+                  />
+                </div>
+              </div>
+              <div className={styles.yggFormRow}>
+                <div className={styles.yggFormInput}>
+                  <TextInput
+                    type="password"
+                    value={yggPassword}
+                    onChange={(e) => { setYggPassword(e.target.value); setYggError(''); }}
+                    placeholder={t('skinStation.password')}
+                    onKeyDown={(e) => e.key === 'Enter' && handleYggdrasilLogin()}
+                  />
+                </div>
+              </div>
+              {yggError && <div className={styles.yggError}>{yggError}</div>}
+              <div className={styles.yggFormActions}>
+                <Button
+                  variant="secondary-highlight"
+                  size="sm"
+                  disabled={yggLoading || !yggEmail || !yggPassword}
+                  onClick={handleYggdrasilLogin}
+                >
+                  {yggLoading ? `${loadingMsg}${'.'.repeat(dots)}` : t('skinStation.loginBtn')}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Status */}

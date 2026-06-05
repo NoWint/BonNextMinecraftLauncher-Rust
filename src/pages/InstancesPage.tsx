@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type GameInstance, type ServerStatus, type PlaytimeStats, type RepairResult } from '../api';
 import { useAuth } from '../stores/authStore';
 import { useInstances } from '../stores/instanceStore';
@@ -45,6 +46,7 @@ function formatTodayPlaytime(seconds: number): string {
 type SortKey = 'recent' | 'name' | 'playtime' | 'version';
 
 export default function InstancesPage() {
+  const navigate = useNavigate();
   const { state: authState } = useAuth();
   const { state, deleteInstance, reloadInstances } = useInstances();
   const { t } = useI18n();
@@ -349,7 +351,7 @@ export default function InstancesPage() {
         title: t('instances.imported'),
         message: t('instances.importedReady', { name: inst.name }),
       });
-      window.location.hash = `#/instances/${inst.id}`;
+      navigate(`/instances/${inst.id}`);
     } catch (e: unknown) {
       setImporting(false);
       addToast({ type: 'error', title: t('instances.importFailed'), message: formatError(e) || '' });
@@ -546,7 +548,7 @@ export default function InstancesPage() {
                   className={styles.hero__contextBtn}
                   onClick={(e) => {
                     e.stopPropagation();
-                    window.location.hash = `#/instances/${heroInstance.id}`;
+                    navigate(`/instances/${heroInstance.id}`);
                   }}
                 >
                   <><Icon name="settings" size={14} /> {t('instances.details')}</>
@@ -570,7 +572,7 @@ export default function InstancesPage() {
             <Button variant="secondary" size="sm" onClick={() => setShowMigration(true)}>
               <><Icon name="arrowCurveLeft" size={14} /> {t('migration.btn')}</>
             </Button>
-            <Button variant="primary" size="sm" onClick={() => (window.location.hash = '#/instances/new')}>
+            <Button variant="primary" size="sm" onClick={() => navigate('/instances/new')}>
               {'+ ' + t('instances.newBtn')}
             </Button>
           </div>
@@ -599,7 +601,7 @@ export default function InstancesPage() {
             <div className={styles.emptyState__icon}><Icon name="cube" size={16} /></div>
             <div className={styles.emptyState__title}>{t('instances.noInstancesTitle')}</div>
             <div className={styles.emptyState__desc}>{t('instances.noInstancesDesc')}</div>
-            <Button variant="primary" size="md" onClick={() => (window.location.hash = '#/instances/new')}>
+            <Button variant="primary" size="md" onClick={() => navigate('/instances/new')}>
               {'+ ' + t('instances.createInstance')}
             </Button>
           </div>
@@ -615,7 +617,7 @@ export default function InstancesPage() {
                 <div
                   key={inst.id}
                   className={`${styles.instanceRow} card-glow-hover`}
-                  onClick={() => { window.location.hash = `#/instances/${inst.id}`; }}
+                  onClick={() => { navigate(`/instances/${inst.id}`); }}
                   onContextMenu={(e) => handleContextMenu(e, inst)}
                 >
                   <div className={`${styles.instanceRow__icon} ${styles[`instanceRow__icon--${ldrClass}`]}`}>
@@ -681,7 +683,7 @@ export default function InstancesPage() {
                       className={`${styles.instanceRow__actionBtn} ${styles['instanceRow__actionBtn--manage']}`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        window.location.hash = `#/instances/${inst.id}`;
+                        navigate(`/instances/${inst.id}`);
                       }}
                     >
                       <><Icon name="settings" size={14} /> {t('instances.manage')}</>
@@ -1159,7 +1161,7 @@ export default function InstancesPage() {
           <button
             className={styles.contextMenu__item}
             onClick={() => {
-              window.location.hash = `#/instances/${contextMenu.inst.id}`;
+              navigate(`/instances/${contextMenu.inst.id}`);
               setContextMenu(null);
             }}
           >

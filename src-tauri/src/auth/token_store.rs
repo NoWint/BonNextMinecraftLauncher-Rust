@@ -131,7 +131,7 @@ pub async fn refresh_microsoft_token(
 }
 
 pub async fn ensure_fresh_token() -> Result<Option<String>, LauncherError> {
-    let refresh_token = {
+    let (account_type, access_token, refresh_token, yggdrasil_server_url, yggdrasil_client_token, expires_at) = {
         let _lock = STORE_LOCK.lock();
         let store = AccountStore::load()?;
         let active_id = match store.active_account_id {
@@ -139,43 +139,85 @@ pub async fn ensure_fresh_token() -> Result<Option<String>, LauncherError> {
             None => return Ok(None),
         };
         match store.accounts.iter().find(|a| a.id == active_id) {
-            Some(acct) if acct.account_type == "microsoft" => {
-                if acct.expires_at.as_ref().map_or(true, |exp| {
-                    chrono::DateTime::parse_from_rfc3339(exp)
-                        .map(|dt| {
-                            let utc_dt: chrono::DateTime<chrono::Utc> = dt.into();
-                            chrono::Utc::now() + chrono::Duration::minutes(10) >= utc_dt
-                        })
-                        .unwrap_or(true)
-                }) {
-                    acct.refresh_token.clone()
-                } else {
-                    return Ok(Some(acct.access_token.clone()));
-                }
-            }
-            _ => return Ok(None),
+            Some(acct) => (
+                acct.account_type.clone(),
+                acct.access_token.clone(),
+                acct.refresh_token.clone(),
+                acct.yggdrasil_server_url.clone(),
+                acct.yggdrasil_client_token.clone(),
+                acct.expires_at.clone(),
+            ),
+            None => return Ok(None),
         }
     };
 
-    let rt = match refresh_token {
-        Some(rt) => rt,
-        None => return Ok(None),
-    };
+    let needs_refresh = expires_at.as_ref().map_or(true, |exp| {
+        chrono::DateTime::parse_from_rfc3339(exp)
+            .map(|dt| {
+                let utc_dt: chrono::DateTime<chrono::Utc> = dt.into();
+                chrono::Utc::now() + chrono::Duration::minutes(10) >= utc_dt
+            })
+            .unwrap_or(true)
+    });
 
-    let (new_access, new_refresh) = refresh_microsoft_token(&rt).await?;
-
-    let _lock = STORE_LOCK.lock();
-    let mut store = AccountStore::load()?;
-    let active_id = store.active_account_id.clone().unwrap_or_default();
-    if let Some(ref mut acct) = store.accounts.iter_mut().find(|a| a.id == active_id) {
-        acct.access_token = new_access.clone();
-        acct.refresh_token = Some(new_refresh);
-        let now = chrono::Utc::now();
-        acct.expires_at = Some((now + chrono::Duration::minutes(50)).to_rfc3339());
-        store.save()?;
+    if !needs_refresh {
+        return Ok(Some(access_token));
     }
 
-    Ok(Some(new_access))
+    match account_type.as_str() {
+        "microsoft" => {
+            let rt = match refresh_token {
+                Some(rt) => rt,
+                None => return Ok(None),
+            };
+            let (new_access, new_refresh) = refresh_microsoft_token(&rt).await?;
+            let _lock = STORE_LOCK.lock();
+            let mut store = AccountStore::load()?;
+            let active_id = store.active_account_id.clone().unwrap_or_default();
+            if let Some(ref mut acct) = store.accounts.iter_mut().find(|a| a.id == active_id) {
+                acct.access_token = new_access.clone();
+                acct.refresh_token = Some(new_refresh);
+                let now = chrono::Utc::now();
+                acct.expires_at = Some((now + chrono::Duration::minutes(50)).to_rfc3339());
+                store.save()?;
+            }
+            Ok(Some(new_access))
+        }
+        "yggdrasil" => {
+            let server_url = match yggdrasil_server_url {
+                Some(u) => u,
+                None => return Ok(None),
+            };
+            let client_token = match yggdrasil_client_token {
+                Some(t) => t,
+                None => return Ok(None),
+            };
+            match crate::auth::yggdrasil::refresh_token(&server_url, &access_token, &client_token).await {
+                Ok((new_access, new_client_token, new_profile)) => {
+                    let _lock = STORE_LOCK.lock();
+                    let mut store = AccountStore::load()?;
+                    let active_id = store.active_account_id.clone().unwrap_or_default();
+                    if let Some(ref mut acct) = store.accounts.iter_mut().find(|a| a.id == active_id) {
+                        acct.access_token = new_access.clone();
+                        acct.yggdrasil_client_token = Some(new_client_token);
+                        if let Some(p) = new_profile {
+                            acct.username = p.name;
+                            acct.yggdrasil_selected_profile = Some(p.id);
+                        }
+                        let now = chrono::Utc::now();
+                        acct.expires_at = Some((now + chrono::Duration::hours(24)).to_rfc3339());
+                        store.save()?;
+                    }
+                    Ok(Some(new_access))
+                }
+                Err(e) => {
+                    tracing::warn!("Yggdrasil token refresh failed: {}", e);
+                    Err(e)
+                }
+            }
+        }
+        _ => Ok(None),
+    }
 }
 
 #[cfg(test)]

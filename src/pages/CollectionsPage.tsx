@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type CollectionItem } from '../api';
 import { useI18n } from '../i18n';
 import { SectionHeader, Ticker } from '../components/layout';
@@ -8,6 +9,7 @@ import { useSkeleton } from '../hooks/useSkeleton';
 import styles from './CollectionsPage.module.css';
 
 export default function CollectionsPage() {
+  const navigate = useNavigate();
   const { t } = useI18n();
   const TYPE_TABS = [
     { id: 'all', label: t('versions.all') },
@@ -60,7 +62,7 @@ export default function CollectionsPage() {
             {items.length === 0 ? t('collections.emptyDesc') : t('collections.tryDifferent')}
           </div>
           {items.length === 0 && (
-            <Button variant="primary" size="md" onClick={() => (window.location.hash = '#/store')}>
+            <Button variant="primary" size="md" onClick={() => navigate('/store')}>
               {t('collections.browseMarketplace')}
             </Button>
           )}
@@ -90,7 +92,7 @@ export default function CollectionsPage() {
                 }}
                 variant="list"
                 onNavigate={(slug) => {
-                  window.location.hash = `#/store/${content.content_type}/${slug}`;
+                  navigate(`/store/${content.content_type}/${slug}`);
                 }}
               />
             ))}

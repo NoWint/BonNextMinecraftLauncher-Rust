@@ -5,6 +5,7 @@ import type {
   MicrosoftAuthResult,
   DeviceCodeResponse,
   YggdrasilAuthResult,
+  YggdrasilProfile,
   YggdrasilSkinProfile,
   StoredAccount,
   McSkinProfile,
@@ -38,7 +39,44 @@ export const yggdrasilResetSkin = (uuid: string, serverUrl: string, accessToken:
   invoke<void>('yggdrasil_reset_skin', { uuid, serverUrl, accessToken });
 export const yggdrasilSelectProfile = (accountId: string, profileId: string) =>
   invoke<void>('yggdrasil_select_profile', { accountId, profileId });
+export interface YggdrasilServerPreset {
+  name: string;
+  base_url: string;
+  client_id: string | null;
+  client_secret: string | null;
+  auth_mode: string;
+  authorize_path: string | null;
+  token_path: string | null;
+  profile_path: string | null;
+  scope: string | null;
+}
+
+export interface YggdrasilOAuthStartResult {
+  auth_url: string;
+  state: string;
+}
+
+export interface YggdrasilOAuthResult {
+  access_token: string;
+  refresh_token: string | null;
+  token_type: string;
+  expires_in: number | null;
+  profiles: YggdrasilProfile[];
+}
+
+export const getYggdrasilServerPresets = () => invoke<YggdrasilServerPreset[]>('get_yggdrasil_server_presets');
+
+export const startYggdrasilOAuth = (serverName: string) =>
+  invoke<YggdrasilOAuthStartResult>('start_yggdrasil_oauth', { serverName });
+
+export const completeYggdrasilOAuth = (serverName: string, code: string) =>
+  invoke<YggdrasilOAuthResult>('complete_yggdrasil_oauth', { serverName, code });
+
 export const getYggdrasilPresets = () => invoke<[string, string][]>('get_yggdrasil_presets');
+export const testYggdrasilServer = (serverUrl: string) =>
+  invoke<void>('test_yggdrasil_server', { serverUrl });
+export const yggdrasilValidateToken = (serverUrl: string, accessToken: string, clientToken: string) =>
+  invoke<boolean>('yggdrasil_validate_token', { serverUrl, accessToken, clientToken });
 export const ensureAuthlibInjector = () => invoke<string>('ensure_authlib_injector');
 export const setLocalSkin = (accountId: string, skinPath: string | null, skinModel: string | null) =>
   invoke<void>('set_local_skin', { accountId, skinPath, skinModel });
@@ -50,4 +88,21 @@ export const microsoftUploadSkin = (accessToken: string, filePath: string, varia
   invoke<void>('microsoft_upload_skin', { accessToken, filePath, variant });
 export const microsoftDeleteSkin = (accessToken: string, skinId: string) =>
   invoke<void>('microsoft_delete_skin', { accessToken, skinId });
+
+export interface MojangProfile {
+  id: string;
+  name: string;
+  skins: { id: string; state: string; url: string; variant: string }[];
+  capes: { id: string; state: string; url: string; alias: string }[];
+}
+
+export const uploadSkin = (accessToken: string, filePath: string, variant: string) =>
+  invoke<void>('upload_skin', { accessToken, filePath, variant });
+export const resetSkin = (accessToken: string) => invoke<void>('reset_skin', { accessToken });
+export const equipCape = (accessToken: string, capeId: string) =>
+  invoke<void>('equip_cape', { accessToken, capeId });
+export const hideCape = (accessToken: string) => invoke<void>('hide_cape', { accessToken });
+export const getMojangProfile = (accessToken: string) =>
+  invoke<MojangProfile>('get_mojang_profile', { accessToken });
+
 export const checkAuthlibInjector = () => invoke<AuthlibCheckResult>('check_authlib_injector');

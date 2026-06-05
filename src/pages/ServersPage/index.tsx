@@ -5,24 +5,11 @@ import { formatError } from '../../utils/errorMapping';
 import { useToast } from '../../stores/toastStore';
 import { SectionHeader, Ticker } from '../../components/layout';
 import { Button, Modal } from '../../components/ui';
+import { ServerPingBadge } from '../../components/ui';
 import { Icon } from '../../components/ui/Icon';
 import { CardSkeleton } from '../../components/ui/Skeleton';
 import styles from './ServersPage.module.css';
 import TextComponentRenderer from '../../components/ui/TextComponentRenderer';
-
-function formatPing(ms: number | null): string {
-  if (ms === null) return '—';
-  if (ms < 50) return `${ms}ms`;
-  if (ms < 150) return `${ms}ms`;
-  return `${ms}ms`;
-}
-
-function pingColor(ms: number | null): string {
-  if (ms === null) return 'var(--color-text-muted)';
-  if (ms < 50) return 'var(--color-success)';
-  if (ms < 150) return 'var(--color-accent)';
-  return 'var(--color-error)';
-}
 
 function extractDescription(info: MinecraftServerInfo): string {
   if (!info) return '';
@@ -92,13 +79,7 @@ function ServerCard({ server, onPing, onFavorite, onRemove, pinging }: ServerCar
       </div>
 
       <div className={styles.card__status}>
-        {info ? (
-          <span className={styles.card__ping} style={{ color: pingColor(server.last_ping_at) }}>
-            {formatPing(server.last_ping_at)}
-          </span>
-        ) : (
-          <span className={styles.card__pingOffline}>OFFLINE</span>
-        )}
+        <ServerPingBadge online={!!info} latencyMs={server.latency_ms} />
       </div>
 
       <div className={styles.card__actions}>
@@ -155,16 +136,19 @@ export default function ServersPage() {
     setPingingIds((prev) => new Set(prev).add(id));
     try {
       const result = await api.servers.pingServer(server.address, server.port);
+      const info = result?.info ?? null;
+      const latency = result?.latency_ms ?? null;
       setServers((prev) =>
         prev.map((s) =>
           s.id === id
-            ? { ...s, last_ping_result: result, last_ping_at: result ? Date.now() : null }
+            ? { ...s, last_ping_result: info, last_ping_at: info ? Date.now() : null, latency_ms: latency }
             : s,
         ),
       );
+      api.servers.updateServerPing(id, info, latency).catch(() => {});
     } catch (e) {
       setServers((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, last_ping_result: null, last_ping_at: null } : s)),
+        prev.map((s) => (s.id === id ? { ...s, last_ping_result: null, last_ping_at: null, latency_ms: null } : s)),
       );
       addToast({ type: 'error', title: 'Ping Failed', message: formatError(e) });
     } finally {
@@ -182,17 +166,20 @@ export default function ServersPage() {
       setPingingIds((prev) => new Set(prev).add(server.id));
       try {
         const result = await api.servers.pingServer(server.address, server.port);
+        const info = result?.info ?? null;
+        const latency = result?.latency_ms ?? null;
         setServers((prev) =>
           prev.map((s) =>
             s.id === server.id
-              ? { ...s, last_ping_result: result, last_ping_at: result ? Date.now() : null }
+              ? { ...s, last_ping_result: info, last_ping_at: info ? Date.now() : null, latency_ms: latency }
               : s,
           ),
         );
+        api.servers.updateServerPing(server.id, info, latency).catch(() => {});
       } catch {
         setServers((prev) =>
           prev.map((s) =>
-            s.id === server.id ? { ...s, last_ping_result: null, last_ping_at: null } : s,
+            s.id === server.id ? { ...s, last_ping_result: null, last_ping_at: null, latency_ms: null } : s,
           ),
         );
       } finally {

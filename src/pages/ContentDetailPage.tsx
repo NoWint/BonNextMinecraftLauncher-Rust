@@ -1,6 +1,6 @@
 import DOMPurify from 'dompurify';
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { formatError } from '../utils/errorMapping';
 import { api, type ModProjectFull, type ModVersion } from '../api';
 import { useInstances } from '../stores/instanceStore';
@@ -104,6 +104,7 @@ function sanitizeHtml(html: string): string {
 }
 
 export default function ContentDetailPage() {
+  const navigate = useNavigate();
   const parsed = useRouteParams();
   const { state: instState } = useInstances();
 
@@ -224,7 +225,36 @@ export default function ContentDetailPage() {
   }
 
   if (error) {
-    return <div className={styles.notFound}>{error}</div>;
+    return (
+      <div className={styles.notFound}>
+        <div className={styles.notFound__icon}>⚠</div>
+        <div className={styles.notFound__title}>{error}</div>
+        <div className={styles.notFound__hint}>
+          {error.includes('HTTP') || error.includes('network') || error.includes('Network')
+            ? t('contentDetail.networkErrorHint')
+            : ''}
+        </div>
+        <div className={styles.notFound__actions}>
+          <button
+            className={styles.notFound__retryBtn}
+            onClick={() => {
+              setError('');
+              setLoading(true);
+              setProject(null);
+              setAllVersions([]);
+            }}
+          >
+            {t('common.retry')}
+          </button>
+          <button
+            className={styles.notFound__settingsBtn}
+            onClick={() => { navigate('/settings'); }}
+          >
+            {t('contentDetail.goToSettings')}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {

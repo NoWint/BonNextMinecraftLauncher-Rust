@@ -97,6 +97,10 @@ pub struct AppConfig {
     pub auto_update_java: bool,
     #[serde(default)]
     pub java_download_source: String,
+    #[serde(default = "default_git_proxy_enabled")]
+    pub git_proxy_enabled: bool,
+    #[serde(default = "default_git_proxy_url")]
+    pub git_proxy_url: String,
     #[serde(default)]
     pub force_memory: bool,
     #[serde(default)]
@@ -126,11 +130,19 @@ fn default_fullscreen() -> bool {
 }
 
 fn default_download_source() -> String {
-    "official".to_string()
+    "bmclapi".to_string()
 }
 
 fn default_max_concurrent_downloads() -> usize {
     8
+}
+
+fn default_git_proxy_enabled() -> bool {
+    true
+}
+
+fn default_git_proxy_url() -> String {
+    "https://gh-proxy.com".to_string()
 }
 
 impl Default for AppConfig {
@@ -152,6 +164,8 @@ impl Default for AppConfig {
             show_log_on_crash: true,
             auto_update_java: false,
             java_download_source: "adoptium".to_string(),
+            git_proxy_enabled: default_git_proxy_enabled(),
+            git_proxy_url: default_git_proxy_url(),
             force_memory: false,
             force_java_path: false,
             security: SecurityConfig::default(),

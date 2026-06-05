@@ -1,3 +1,5 @@
+import { parseStructuredError } from '../api/errors';
+
 export interface MappedError {
   type: string;
   code?: string;
@@ -274,13 +276,9 @@ const ERROR_TYPE_MAP: Record<string, Omit<MappedError, 'type'>> = {
 function tryParseStructuredError(
   raw: string,
 ): { type?: string; code?: string; message?: string; suggestion?: string } | null {
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && typeof parsed.type === 'string') {
-      return { type: parsed.type, code: parsed.code, message: parsed.message, suggestion: parsed.suggestion };
-    }
-  } catch {
-    /* empty */
+  const structured = parseStructuredError(raw);
+  if (structured.type !== 'Unknown' || structured.code || structured.suggestion) {
+    return { type: structured.type, code: structured.code, message: structured.message, suggestion: structured.suggestion };
   }
   return null;
 }
@@ -357,6 +355,7 @@ export function mapError(error: unknown): MappedError {
         ...codeMapped,
         type: structured.type || codeMapped.type,
         message: structured.message || codeMapped.message,
+        suggestion: structured.suggestion || codeMapped.suggestion,
       };
     }
   }
@@ -381,6 +380,7 @@ export function mapError(error: unknown): MappedError {
 
   if (typeof error === 'object' && error !== null && !(error instanceof Error)) {
     const obj = error as Record<string, unknown>;
+    const backendSuggestion = typeof obj.suggestion === 'string' ? obj.suggestion : undefined;
     if (typeof obj.code === 'string') {
       const codeMapped = resolveFromCode(obj.code);
       if (codeMapped) {
@@ -388,6 +388,7 @@ export function mapError(error: unknown): MappedError {
           ...codeMapped,
           type: typeof obj.type === 'string' ? obj.type : codeMapped.type,
           message: typeof obj.message === 'string' ? obj.message : codeMapped.message,
+          suggestion: backendSuggestion || codeMapped.suggestion,
         };
       }
     }
@@ -398,11 +399,13 @@ export function mapError(error: unknown): MappedError {
           ...mapped,
           type: obj.type,
           message: typeof obj.message === 'string' ? obj.message : mapped.message,
+          suggestion: backendSuggestion || mapped.suggestion,
         };
       }
       return {
         type: obj.type,
         message: typeof obj.message === 'string' ? obj.message : obj.type,
+        suggestion: backendSuggestion,
       };
     }
   }

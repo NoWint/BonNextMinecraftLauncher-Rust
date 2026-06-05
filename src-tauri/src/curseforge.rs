@@ -8,7 +8,19 @@ use crate::modrinth::{ModDependency, ModFile, ModGalleryImage, ModHashes, ModPro
 use serde::Deserialize;
 use tauri::Emitter;
 
-const CF_API_BASE: &str = "https://api.curseforge.com/v1";
+use crate::download::source;
+
+fn api_base() -> &'static str {
+    source::curseforge_api_base()
+}
+
+fn all_api_bases() -> Vec<&'static str> {
+    source::all_curseforge_bases()
+}
+
+fn is_mirror_base(base: &str) -> bool {
+    base.contains("bmclapi") || base.contains("mcbbs") || base.contains("bangbang93")
+}
 
 fn get_cf_api_key() -> String {
     if let Ok(key) = std::env::var("BONNEXT_CF_API_KEY") {
@@ -29,19 +41,55 @@ fn get_cf_api_key() -> String {
 }
 
 fn has_cf_api_key() -> bool {
+    let bases = all_api_bases();
+    for base in &bases {
+        if is_mirror_base(base) {
+            return true;
+        }
+    }
     !get_cf_api_key().is_empty()
 }
 
-fn cf_headers() -> reqwest::header::HeaderMap {
+fn cf_headers_for(base: &str) -> reqwest::header::HeaderMap {
     let mut headers = reqwest::header::HeaderMap::new();
-    let key = get_cf_api_key();
-    if !key.is_empty() {
-        if let Ok(val) = key.parse() {
-            headers.insert("x-api-key", val);
+    if !is_mirror_base(base) {
+        let key = get_cf_api_key();
+        if !key.is_empty() {
+            if let Ok(val) = key.parse() {
+                headers.insert("x-api-key", val);
+            }
         }
     }
     headers.insert("Accept", "application/json".parse().unwrap());
     headers
+}
+
+fn cf_headers() -> reqwest::header::HeaderMap {
+    cf_headers_for(api_base())
+}
+
+async fn cf_get_with_fallback(url_template: &str) -> Result<reqwest::Response, LauncherError> {
+    let bases = all_api_bases();
+    let mut last_err = None;
+    for (base_idx, base) in bases.iter().enumerate() {
+        let url = url_template.replace("{API_BASE}", base);
+        let headers = cf_headers_for(base);
+        if base_idx > 0 {
+            tracing::info!("CurseForge API fallback: trying base {}", base);
+        }
+        match http_client::retry_get_with_headers(&url, 2, Some(headers)).await {
+            Ok(resp) => return Ok(resp),
+            Err(e) => {
+                tracing::warn!(
+                    "CurseForge API with base {} failed: {}, trying next ({}/{})",
+                    base, e, base_idx + 1, bases.len()
+                );
+                last_err = Some(e);
+                continue;
+            }
+        }
+    }
+    Err(last_err.unwrap_or_else(|| LauncherError::NetworkUnreachable))
 }
 
 // ---------------------------------------------------------------
@@ -308,8 +356,7 @@ pub async fn search_mods(
         return Ok((Vec::new(), 0));
     }
 
-    let client = http_client::build_client();
-    let mut url = format!("{}/mods/search", CF_API_BASE);
+    let mut url = format!("{{API_BASE}}/mods/search");
     url.push_str(&format!("?searchFilter={}&gameId=432", urlencoding::encode(query)));
 
     if let Some(ver) = game_version {
@@ -334,12 +381,8 @@ pub async fn search_mods(
 
     tracing::debug!("CurseForge search: {}", url);
 
-    let resp: CfPaginated<Vec<CfMod>> = client
-        .get(&url)
-        .headers(cf_headers())
-        .send()
+    let resp: CfPaginated<Vec<CfMod>> = cf_get_with_fallback(&url)
         .await?
-        .error_for_status()?
         .json()
         .await?;
 
@@ -353,15 +396,10 @@ pub async fn get_mod(mod_id: u64) -> Result<ModResult, LauncherError> {
         return Err(LauncherError::AuthFailed("CurseForge API key not configured. Set BONNEXT_CF_API_KEY env var or configure in Settings.".into()));
     }
 
-    let client = http_client::build_client();
-    let url = format!("{}/mods/{}", CF_API_BASE, mod_id);
+    let url = format!("{{API_BASE}}/mods/{}", mod_id);
 
-    let resp: CfResponse<CfMod> = client
-        .get(&url)
-        .headers(cf_headers())
-        .send()
+    let resp: CfResponse<CfMod> = cf_get_with_fallback(&url)
         .await?
-        .error_for_status()?
         .json()
         .await?;
 
@@ -373,15 +411,10 @@ pub async fn get_mod_full(mod_id: u64) -> Result<ModProjectFull, LauncherError> 
         return Err(LauncherError::AuthFailed("CurseForge API key not configured. Set BONNEXT_CF_API_KEY env var or configure in Settings.".into()));
     }
 
-    let client = http_client::build_client();
-    let url = format!("{}/mods/{}", CF_API_BASE, mod_id);
+    let url = format!("{{API_BASE}}/mods/{}", mod_id);
 
-    let resp: CfResponse<CfMod> = client
-        .get(&url)
-        .headers(cf_headers())
-        .send()
+    let resp: CfResponse<CfMod> = cf_get_with_fallback(&url)
         .await?
-        .error_for_status()?
         .json()
         .await?;
 
@@ -393,15 +426,10 @@ pub async fn get_mod_versions(mod_id: u64) -> Result<Vec<ModVersion>, LauncherEr
         return Ok(Vec::new());
     }
 
-    let client = http_client::build_client();
-    let url = format!("{}/mods/{}/files", CF_API_BASE, mod_id);
+    let url = format!("{{API_BASE}}/mods/{}/files", mod_id);
 
-    let resp: CfPaginated<Vec<CfFile>> = client
-        .get(&url)
-        .headers(cf_headers())
-        .send()
+    let resp: CfPaginated<Vec<CfFile>> = cf_get_with_fallback(&url)
         .await?
-        .error_for_status()?
         .json()
         .await?;
 
@@ -413,17 +441,12 @@ pub async fn get_featured() -> Result<Vec<ModResult>, LauncherError> {
         return Ok(Vec::new());
     }
 
-    let client = http_client::build_client();
-    let url = format!("{}/mods/featured?gameId=432", CF_API_BASE);
+    let url = format!("{{API_BASE}}/mods/featured?gameId=432");
 
     tracing::debug!("CurseForge featured: {}", url);
 
-    let resp: CfResponse<Vec<CfMod>> = client
-        .get(&url)
-        .headers(cf_headers())
-        .send()
+    let resp: CfResponse<Vec<CfMod>> = cf_get_with_fallback(&url)
         .await?
-        .error_for_status()?
         .json()
         .await?;
 
@@ -435,15 +458,10 @@ pub async fn get_mod_files(mod_id: u64) -> Result<Vec<ModFile>, LauncherError> {
         return Ok(Vec::new());
     }
 
-    let client = http_client::build_client();
-    let url = format!("{}/mods/{}/files", CF_API_BASE, mod_id);
+    let url = format!("{{API_BASE}}/mods/{}/files", mod_id);
 
-    let resp: CfPaginated<Vec<CfFile>> = client
-        .get(&url)
-        .headers(cf_headers())
-        .send()
+    let resp: CfPaginated<Vec<CfFile>> = cf_get_with_fallback(&url)
         .await?
-        .error_for_status()?
         .json()
         .await?;
 

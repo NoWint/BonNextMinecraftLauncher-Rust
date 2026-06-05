@@ -11,6 +11,14 @@ use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InstanceCheckResult {
+    pub instance_id: String,
+    pub is_ready: bool,
+    pub has_anomalies: bool,
+    pub anomaly_details: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthCheckItem {
     pub name: String,
     pub status: String,
@@ -336,6 +344,21 @@ pub async fn check_instance_ready(instance_id: String) -> Result<bool, LauncherE
 }
 
 #[tauri::command]
+pub async fn batch_check_instances(instance_ids: Vec<String>) -> Result<Vec<InstanceCheckResult>, LauncherError> {
+    let mut results = Vec::with_capacity(instance_ids.len());
+    for id in instance_ids {
+        let is_ready = instance::manager::check_instance_ready(&id).unwrap_or(false);
+        results.push(InstanceCheckResult {
+            instance_id: id,
+            is_ready,
+            has_anomalies: false,
+            anomaly_details: Vec::new(),
+        });
+    }
+    Ok(results)
+}
+
+#[tauri::command]
 pub async fn open_folder(path: String) -> Result<(), LauncherError> {
     let p = std::path::PathBuf::from(&path);
     if !p.exists() {
@@ -581,6 +604,10 @@ pub async fn migrate_instance(
     loader_version: Option<String>,
     source_game_dir: String,
     launcher_type: String,
+    java_path: Option<String>,
+    jvm_args: Option<String>,
+    min_memory: Option<u32>,
+    max_memory: Option<u32>,
 ) -> Result<instance::manager::GameInstance, LauncherError> {
     let _ = app.emit("migration-progress", serde_json::json!({"stage": "migrating", "name": name}));
     let result = instance::migration::migrate_instance(
@@ -590,10 +617,29 @@ pub async fn migrate_instance(
         loader_version.as_deref(),
         &source_game_dir,
         &launcher_type,
+        java_path.as_deref(),
+        jvm_args.as_deref(),
+        min_memory,
+        max_memory,
     ).await?;
     crate::commands::achievement::try_unlock_achievement(&app, "import_modpack");
     let _ = app.emit("migration-progress", serde_json::json!({"stage": "completed", "instanceId": result.id}));
     Ok(result)
+}
+
+#[tauri::command]
+pub async fn diagnose_migration(
+    instance_id: String,
+) -> Result<Vec<instance::migration::MigrationIssue>, LauncherError> {
+    instance::migration::diagnose_migration_issues(&instance_id)
+}
+
+#[tauri::command]
+pub async fn fix_migration_issues(
+    instance_id: String,
+    issues: Vec<instance::migration::MigrationIssue>,
+) -> Result<instance::migration::MigrationFixResult, LauncherError> {
+    instance::migration::fix_migration_issues(&instance_id, &issues)
 }
 
 #[tauri::command]
@@ -676,4 +722,199 @@ pub async fn write_config_file(instance_id: String, relative_path: String, conte
 
     std::fs::write(&file_path, &content)?;
     Ok(())
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RepairAction {
+    pub action: String,
+    pub description: String,
+    pub success: bool,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RepairResult {
+    pub instance_id: String,
+    pub actions: Vec<RepairAction>,
+    pub fixed: bool,
+}
+
+#[tauri::command]
+pub async fn repair_instance(
+    app: tauri::AppHandle,
+    instance_id: String,
+    control: tauri::State<'_, crate::download::queue::DownloadControlState>,
+) -> Result<RepairResult, LauncherError> {
+    let inst = instance::manager::get_instance(&instance_id)?
+        .ok_or_else(|| LauncherError::InstanceNotReady(format!("Instance not found: {}", instance_id)))?;
+
+    let report = health_check(instance_id.clone()).await?;
+    let mut actions: Vec<RepairAction> = Vec::new();
+    let mut any_fix_applied = false;
+
+    for item in &report.items {
+        if item.status == "pass" {
+            continue;
+        }
+
+        match item.name.as_str() {
+            "version_jar" => {
+                tracing::info!("Repair: re-downloading version {} for instance {}", inst.version_id, instance_id);
+                match crate::commands::launch::download_version_inner(
+                    &inst.version_id,
+                    &inst.version_url,
+                    app.clone(),
+                    &control,
+                ).await {
+                    Ok(()) => {
+                        actions.push(RepairAction {
+                            action: "redownload_version".into(),
+                            description: format!("Re-downloaded version {} files", inst.version_id),
+                            success: true,
+                            message: "Version files restored successfully".into(),
+                        });
+                        any_fix_applied = true;
+                    }
+                    Err(e) => {
+                        actions.push(RepairAction {
+                            action: "redownload_version".into(),
+                            description: format!("Re-download version {} failed", inst.version_id),
+                            success: false,
+                            message: format!("{}", e),
+                        });
+                    }
+                }
+            }
+            "libraries" => {
+                tracing::info!("Repair: re-downloading libraries for instance {}", instance_id);
+                match crate::commands::launch::download_version_inner(
+                    &inst.version_id,
+                    &inst.version_url,
+                    app.clone(),
+                    &control,
+                ).await {
+                    Ok(()) => {
+                        actions.push(RepairAction {
+                            action: "redownload_libraries".into(),
+                            description: "Re-downloaded library files".into(),
+                            success: true,
+                            message: "Libraries restored successfully".into(),
+                        });
+                        any_fix_applied = true;
+                    }
+                    Err(e) => {
+                        actions.push(RepairAction {
+                            action: "redownload_libraries".into(),
+                            description: "Re-download libraries failed".into(),
+                            success: false,
+                            message: format!("{}", e),
+                        });
+                    }
+                }
+            }
+            "jre_compatibility" => {
+                tracing::info!("Repair: attempting auto-download of compatible Java for instance {}", instance_id);
+                let required_java = version::resolver::resolve_version_with_parents(&inst.version_id, &inst.version_url)
+                    .await
+                    .map(|v| v.java_version.major_version)
+                    .unwrap_or(17);
+                match crate::platform::java_download::download_java(required_java).await {
+                    Ok(java_path) => {
+                        let mut updated = inst.clone();
+                        updated.java_path = Some(java_path.clone());
+                        if let Err(e) = instance::manager::update_instance(&updated) {
+                            actions.push(RepairAction {
+                                action: "auto_download_java".into(),
+                                description: "Auto-downloaded compatible Java".into(),
+                                success: false,
+                                message: format!("Java downloaded but failed to update instance: {}", e),
+                            });
+                        } else {
+                            actions.push(RepairAction {
+                                action: "auto_download_java".into(),
+                                description: format!("Auto-downloaded Java {} to {}", required_java, java_path),
+                                success: true,
+                                message: "Java updated successfully".into(),
+                            });
+                            any_fix_applied = true;
+                        }
+                    }
+                    Err(e) => {
+                        actions.push(RepairAction {
+                            action: "auto_download_java".into(),
+                            description: "Auto-download Java failed".into(),
+                            success: false,
+                            message: format!("{}", e),
+                        });
+                    }
+                }
+            }
+            "disk_space" => {
+                actions.push(RepairAction {
+                    action: "disk_space".into(),
+                    description: "Cannot auto-fix disk space".into(),
+                    success: false,
+                    message: item.suggestion.clone().unwrap_or_else(|| "Free up disk space manually".into()),
+                });
+            }
+            _ => {
+                actions.push(RepairAction {
+                    action: "unknown".into(),
+                    description: format!("Unknown issue: {}", item.message),
+                    success: false,
+                    message: item.suggestion.clone().unwrap_or_default(),
+                });
+            }
+        }
+    }
+
+    if any_fix_applied {
+        if let Some(loader_type_str) = &inst.loader_type {
+            if let Some(loader_version) = &inst.loader_version {
+                tracing::info!("Repair: reinstalling {} {} for instance {}", loader_type_str, loader_version, instance_id);
+                let lt = loader::LoaderType::from_str(loader_type_str);
+                if let Some(lt) = lt {
+                    let details = version::resolver::resolve_version_with_parents(&inst.version_id, &inst.version_url).await;
+                    match details {
+                        Ok(details) => {
+                            match loader::install_loader(&lt, &details, loader_version, &instance_id).await {
+                                Ok(_) => {
+                                    actions.push(RepairAction {
+                                        action: "reinstall_loader".into(),
+                                        description: format!("Re-installed {} {}", loader_type_str, loader_version),
+                                        success: true,
+                                        message: "Loader re-installed successfully".into(),
+                                    });
+                                }
+                                Err(e) => {
+                                    actions.push(RepairAction {
+                                        action: "reinstall_loader".into(),
+                                        description: format!("Re-install {} {} failed", loader_type_str, loader_version),
+                                        success: false,
+                                        message: format!("{}", e),
+                                    });
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            actions.push(RepairAction {
+                                action: "reinstall_loader".into(),
+                                description: "Failed to resolve version for loader reinstall".into(),
+                                success: false,
+                                message: format!("{}", e),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let fixed = actions.iter().any(|a| a.success);
+
+    Ok(RepairResult {
+        instance_id,
+        actions,
+        fixed,
+    })
 }

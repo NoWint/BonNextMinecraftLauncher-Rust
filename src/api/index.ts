@@ -21,7 +21,7 @@ import * as p2p from './p2p';
 
 export type * from './types';
 export type { MojangProfile, YggdrasilServerPreset } from './auth';
-export type { ServerListEntry, MinecraftServerInfo } from './servers';
+export type { ServerListEntry, MinecraftServerInfo, PingResult, ServerAddress } from './servers';
 export { invalidateCache } from './cache';
 
 const downloadVersion = (versionId: string, versionUrl: string) =>
@@ -136,6 +136,7 @@ export const api = {
   getPlaytimeStats: system.getPlaytimeStats,
   recordPlaytime: instances.recordPlaytime,
   checkInstanceReady: instances.checkInstanceReady,
+  batchCheckInstances: instances.batchCheckInstances,
   healthCheck: instances.healthCheck,
   getInstanceCoverImage: instances.getInstanceCoverImage,
   getLastPlayedInstance: instances.getLastPlayedInstance,

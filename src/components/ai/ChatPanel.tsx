@@ -3,6 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../i18n';
 import { useAIAssistant } from '../../stores/aiAssistantStore';
 import { ChatMessage } from './ChatMessage';
+import { ModpackPreview } from './ModpackPreview';
+import { WorkflowProgress } from './WorkflowProgress';
+import { CrashAnalysisPanel } from './CrashAnalysisPanel';
+import { ConfirmDialog } from './ConfirmDialog';
+import { workflowApi } from '../../api/workflow';
+import type { ModpackPlan } from '../../ai/types';
 import styles from './ChatPanel.module.css';
 
 const SUGGESTIONS = [
@@ -17,8 +23,9 @@ const SUGGESTIONS = [
 export const ChatPanel: React.FC = () => {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const { state, sendMessage, setPanelOpen, confirmTask, cancelTask, retryTask, clearMessages } = useAIAssistant();
+  const { state, sendMessage, setPanelOpen, confirmTask, cancelTask, retryTask, clearMessages, dismissCrashAlert, abortWorkflow, abortAgent } = useAIAssistant();
   const [input, setInput] = useState('');
+  const [pendingPlan, setPendingPlan] = useState<ModpackPlan | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -56,7 +63,7 @@ export const ChatPanel: React.FC = () => {
 
   return (
     <>
-      {/* Rainbow ripple border — 4 edges, right-to-left cascade */}
+      <ConfirmDialog />
       <div className={`${styles.rainbowBorder} ${state.isOpen ? styles['rainbowBorder--visible'] : ''}`}>
         <div className={`${styles.rainbowBorder__edge} ${styles['rainbowBorder__edge--right']}`} />
         <div className={`${styles.rainbowBorder__edge} ${styles['rainbowBorder__edge--top']}`} />
@@ -68,14 +75,17 @@ export const ChatPanel: React.FC = () => {
         className={`${styles.panel__overlay} ${state.isOpen ? styles['panel__overlay--visible'] : ''}`}
         onClick={handleClose}
       />
-      {/* Background layer — gradient blur only */}
       <div className={`${styles.panel} ${state.isOpen ? styles['panel--open'] : ''}`} />
 
-      {/* Controls card — Gaussian blur, right-aligned */}
       <div className={`${styles.controlsCard} ${state.isOpen ? styles['controlsCard--open'] : ''}`}>
         <div className={styles.controlsCard__header}>
           <span className={styles.controlsCard__title}>{t('ai.title')}</span>
           <div className={styles.controlsCard__actions}>
+            {state.isLoading && (
+              <button className={styles.controlsCard__actionBtn} onClick={abortAgent} title="Stop">
+                ■ Stop
+              </button>
+            )}
             <button className={styles.controlsCard__actionBtn} onClick={clearMessages} title={t('ai.clear')}>
               {t('ai.clear')}
             </button>
@@ -124,6 +134,47 @@ export const ChatPanel: React.FC = () => {
           ))}
           <div ref={messagesEndRef} />
         </div>
+
+        {Object.keys(state.activeWorkflows).length > 0 && (
+          <div className={styles.controlsCard__workflows}>
+            {Object.values(state.activeWorkflows).map((wf) => (
+              <WorkflowProgress
+                key={wf.id}
+                workflowId={wf.id}
+                step={wf.step}
+                totalSteps={wf.totalSteps}
+                stepName={wf.stepName}
+                status="running"
+                onAbort={abortWorkflow}
+                onRetry={() => {}}
+              />
+            ))}
+          </div>
+        )}
+
+        {pendingPlan && (
+          <ModpackPreview
+            plan={pendingPlan}
+            onInstall={async (plan) => {
+              try { await workflowApi.executeModpackPlan(plan); } catch { /* error handled by event */ }
+              setPendingPlan(null);
+            }}
+            onCancel={() => setPendingPlan(null)}
+          />
+        )}
+
+        {state.crashAlert && (
+          <CrashAnalysisPanel
+            instanceId={state.crashAlert.instanceId}
+            crashReportPath={state.crashAlert.crashReportPath}
+            severity={state.crashAlert.severity}
+            onFix={(instanceId, crashReportPath) => {
+              sendMessage(`Analyze and fix the crash for instance ${instanceId}. The crash report is at ${crashReportPath}. Apply the fix automatically.`);
+              dismissCrashAlert();
+            }}
+            onDismiss={dismissCrashAlert}
+          />
+        )}
 
         {state.error && <div className={styles.controlsCard__error}>{state.error}</div>}
 

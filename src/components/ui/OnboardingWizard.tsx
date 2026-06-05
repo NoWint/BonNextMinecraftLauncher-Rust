@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../i18n';
 import { Icon } from './Icon';
 import { SpotlightOverlay } from './SpotlightOverlay';
@@ -75,6 +76,7 @@ interface Props {
 }
 
 export default function OnboardingWizard({ open, onClose }: Props) {
+  const navigate = useNavigate();
   const { t } = useI18n();
   const [mode, setMode] = useState<TourMode>('select');
   const [quickStep, setQuickStep] = useState(0);
@@ -168,13 +170,13 @@ export default function OnboardingWizard({ open, onClose }: Props) {
   const handleQuickStart = () => {
     setMode('quick');
     setQuickStep(0);
-    window.location.hash = '#/home';
+    navigate('/home');
   };
 
   const handleDetailedStart = () => {
     setMode('detailed');
     setDetailedStep(0);
-    window.location.hash = '#/home';
+    navigate('/home');
   };
 
   const handleQuickComplete = () => {
@@ -190,12 +192,12 @@ export default function OnboardingWizard({ open, onClose }: Props) {
     }
     setQuickStep(next);
     const targetPage = quickSteps[next].page;
-    if (targetPage === 'home') window.location.hash = '#/home';
-    else if (targetPage === 'new') window.location.hash = '#/instances/new';
-    else if (targetPage === 'instances') window.location.hash = '#/instances';
-    else if (targetPage === 'store') window.location.hash = '#/store';
-    else if (targetPage === 'settings') window.location.hash = '#/settings';
-    else if (targetPage === 'collections') window.location.hash = '#/collections';
+    if (targetPage === 'home') navigate('/home');
+    else if (targetPage === 'new') navigate('/instances/new');
+    else if (targetPage === 'instances') navigate('/instances');
+    else if (targetPage === 'store') navigate('/store');
+    else if (targetPage === 'settings') navigate('/settings');
+    else if (targetPage === 'collections') navigate('/collections');
   };
 
   const handleDetailedNext = useCallback(() => {
@@ -207,11 +209,11 @@ export default function OnboardingWizard({ open, onClose }: Props) {
         return prev;
       }
       const p = detailedSteps[next].page;
-      if (p === 'home') window.location.hash = '#/home';
-      else if (p === 'instances') window.location.hash = '#/instances';
-      else if (p === 'store') window.location.hash = '#/store';
-      else if (p === 'settings') window.location.hash = '#/settings';
-      else if (p === 'collections') window.location.hash = '#/collections';
+      if (p === 'home') navigate('/home');
+      else if (p === 'instances') navigate('/instances');
+      else if (p === 'store') navigate('/store');
+      else if (p === 'settings') navigate('/settings');
+      else if (p === 'collections') navigate('/collections');
       return next;
     });
   }, [detailedSteps, onClose]);

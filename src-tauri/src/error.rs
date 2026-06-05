@@ -6,6 +6,9 @@ pub enum LauncherError {
     #[error("HTTP request failed: {0}")]
     Http(#[from] reqwest::Error),
 
+    #[error("HTTP {status} error for {url}")]
+    HttpError { status: u16, url: String },
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
@@ -108,6 +111,45 @@ pub enum LauncherError {
     #[error("Configuration error: {0}")]
     ConfigError(String),
 
+    #[error("Workflow error: {0}")]
+    WorkflowError(String),
+
+    #[error("Workflow not found: {0}")]
+    WorkflowNotFound(String),
+
+    #[error("Workflow step failed: {step} — {reason}")]
+    WorkflowStepFailed { step: String, reason: String },
+
+    #[error("Crash watcher error: {0}")]
+    CrashWatcherError(String),
+
+    #[error("Mod compatibility error: {0}")]
+    ModCompatError(String),
+
+    #[error("Modpack plan validation failed: {0}")]
+    ModpackPlanValidation(String),
+
+    #[error("Crash knowledge base error: {0}")]
+    CrashKnowledgeError(String),
+
+    #[error("Mod scan error: {0}")]
+    ModScan(String),
+
+    #[error("Fingerprint calculation error: {0}")]
+    FingerprintCalculation(String),
+
+    #[error("Database error: {0}")]
+    Database(String),
+
+    #[error("URL config error: {0}")]
+    UrlConfig(String),
+
+    #[error("Server ping error: {0}")]
+    ServerPing(String),
+
+    #[error("File watch error: {0}")]
+    FileWatch(String),
+
     #[deprecated(note = "Use a specific variant instead of Other")]
     #[error("{0}")]
     Other(String),
@@ -117,6 +159,7 @@ impl LauncherError {
     pub fn error_code(&self) -> &str {
         match self {
             Self::Http(_) => "HTTP_ERROR",
+            Self::HttpError { .. } => "HTTP_ERROR",
             Self::Io(_) => "IO_ERROR",
             Self::Json(_) => "JSON_ERROR",
             Self::Url(_) => "URL_ERROR",
@@ -151,6 +194,19 @@ impl LauncherError {
             Self::InvalidInput(_) => "INVALID_INPUT",
             Self::ServerConnectionFailed(_) => "SERVER_CONNECTION_FAILED",
             Self::ConfigError(_) => "CONFIG_ERROR",
+            Self::WorkflowError(_) => "WORKFLOW_ERROR",
+            Self::WorkflowNotFound(_) => "WORKFLOW_NOT_FOUND",
+            Self::WorkflowStepFailed { .. } => "WORKFLOW_STEP_FAILED",
+            Self::CrashWatcherError(_) => "CRASH_WATCHER_ERROR",
+            Self::ModCompatError(_) => "MOD_COMPAT_ERROR",
+            Self::ModpackPlanValidation(_) => "MODPACK_PLAN_VALIDATION",
+            Self::CrashKnowledgeError(_) => "CRASH_KNOWLEDGE_ERROR",
+            Self::ModScan(_) => "MOD_SCAN",
+            Self::FingerprintCalculation(_) => "FINGERPRINT_CALCULATION",
+            Self::Database(_) => "DATABASE",
+            Self::UrlConfig(_) => "URL_CONFIG",
+            Self::ServerPing(_) => "SERVER_PING",
+            Self::FileWatch(_) => "FILE_WATCH",
             #[allow(deprecated)]
             Self::Other(_) => "OTHER",
         }
@@ -161,12 +217,19 @@ impl LauncherError {
             Self::AuthExpired(_) => Some("Please re-login to refresh your credentials"),
             Self::RateLimited { .. } => Some("Wait a moment and try again"),
             Self::NetworkUnreachable => Some("Check your internet connection"),
+            Self::HttpError { .. } => Some("Check your internet connection or try switching download source in settings"),
             Self::DiskFull { .. } => Some("Free up disk space or change the game directory"),
             Self::JavaNotFound => Some("Install Java or configure the Java path in settings"),
             Self::AuthFailed(_) => Some("Please re-login"),
             Self::ModConflict { .. } => Some("Remove one of the conflicting mods"),
             Self::VersionIncompatible { .. } => Some("Update the mod or use a compatible version"),
             Self::InstanceLocked(_) => Some("Wait for the current operation to finish"),
+            Self::ModScan(_) => Some("Check that the mod file is valid and not corrupted"),
+            Self::FingerprintCalculation(_) => Some("Ensure the file is accessible and not locked by another process"),
+            Self::Database(_) => Some("Try clearing the mod cache in settings"),
+            Self::UrlConfig(_) => Some("Check your network configuration"),
+            Self::ServerPing(_) => Some("Check that the server address is correct and the server is online"),
+            Self::FileWatch(_) => Some("Check that the directory exists and is accessible"),
             _ => None,
         }
     }
@@ -199,6 +262,7 @@ impl serde::Serialize for LauncherError {
         use serde::ser::SerializeMap;
         let type_str = match self {
             LauncherError::Http(_) => "Http",
+            LauncherError::HttpError { .. } => "HttpError",
             LauncherError::Io(_) => "Io",
             LauncherError::Json(_) => "Json",
             LauncherError::Url(_) => "Url",
@@ -233,6 +297,19 @@ impl serde::Serialize for LauncherError {
             LauncherError::InvalidInput(_) => "InvalidInput",
             LauncherError::ServerConnectionFailed(_) => "ServerConnectionFailed",
             LauncherError::ConfigError(_) => "ConfigError",
+            LauncherError::WorkflowError(_) => "WorkflowError",
+            LauncherError::WorkflowNotFound(_) => "WorkflowNotFound",
+            LauncherError::WorkflowStepFailed { .. } => "WorkflowStepFailed",
+            LauncherError::CrashWatcherError(_) => "CrashWatcherError",
+            LauncherError::ModCompatError(_) => "ModCompatError",
+            LauncherError::ModpackPlanValidation(_) => "ModpackPlanValidation",
+            LauncherError::CrashKnowledgeError(_) => "CrashKnowledgeError",
+            LauncherError::ModScan(_) => "ModScan",
+            LauncherError::FingerprintCalculation(_) => "FingerprintCalculation",
+            LauncherError::Database(_) => "Database",
+            LauncherError::UrlConfig(_) => "UrlConfig",
+            LauncherError::ServerPing(_) => "ServerPing",
+            LauncherError::FileWatch(_) => "FileWatch",
             #[allow(deprecated)]
             LauncherError::Other(_) => "Other",
         };

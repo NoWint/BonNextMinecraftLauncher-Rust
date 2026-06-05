@@ -7,6 +7,12 @@ pub trait DownloadSource: Send + Sync {
     fn name(&self) -> &'static str;
     fn version_manifest_url(&self) -> &'static str;
     fn transform_url(&self, original: &str) -> String;
+    fn modrinth_api_base(&self) -> &'static str {
+        "https://api.modrinth.com/v2"
+    }
+    fn curseforge_api_base(&self) -> &'static str {
+        "https://api.curseforge.com/v1"
+    }
 }
 
 // ---------------------------------------------------------------
@@ -33,6 +39,12 @@ impl DownloadSource for BmclapiSource {
     fn name(&self) -> &'static str { "bmclapi" }
     fn version_manifest_url(&self) -> &'static str {
         "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json"
+    }
+    fn modrinth_api_base(&self) -> &'static str {
+        "https://bmclapi2.bangbang93.com/modrinth/v2"
+    }
+    fn curseforge_api_base(&self) -> &'static str {
+        "https://bmclapi2.bangbang93.com/curseforge/v1"
     }
     fn transform_url(&self, original: &str) -> String {
         if original.starts_with("https://libraries.minecraft.net/") {
@@ -78,6 +90,12 @@ impl DownloadSource for McbbsSource {
     fn name(&self) -> &'static str { "mcbbs" }
     fn version_manifest_url(&self) -> &'static str {
         "https://download.mcbbs.net/mc/game/version_manifest_v2.json"
+    }
+    fn modrinth_api_base(&self) -> &'static str {
+        "https://download.mcbbs.net/modrinth/v2"
+    }
+    fn curseforge_api_base(&self) -> &'static str {
+        "https://download.mcbbs.net/curseforge/v1"
     }
     fn transform_url(&self, original: &str) -> String {
         if original.starts_with("https://libraries.minecraft.net/") {
@@ -148,23 +166,19 @@ impl SourceManager {
             .unwrap_or(0)
     }
 
-    // Reserved for source management UI
-    #[allow(dead_code)]
-pub fn active_source_name() -> String {
+    pub fn active_source_name() -> String {
         let mgr = source_manager().read().unwrap();
         mgr.sources[mgr.active_index].name().to_string()
     }
 
-    #[allow(dead_code)]
-pub fn set_active(name: &str) {
+    pub fn set_active(name: &str) {
         let mut mgr = source_manager().write().unwrap();
         if let Some(idx) = mgr.sources.iter().position(|s| s.name() == name) {
             mgr.active_index = idx;
         }
     }
 
-    #[allow(dead_code)]
-pub fn version_manifest_url() -> String {
+    pub fn version_manifest_url() -> String {
         let mgr = source_manager().read().unwrap();
         mgr.sources[mgr.active_index].version_manifest_url().to_string()
     }
@@ -172,6 +186,16 @@ pub fn version_manifest_url() -> String {
     pub fn transform_url(original: &str) -> String {
         let mgr = source_manager().read().unwrap();
         mgr.sources[mgr.active_index].transform_url(original)
+    }
+
+    pub fn modrinth_api_base() -> &'static str {
+        let mgr = source_manager().read().unwrap();
+        mgr.sources[mgr.active_index].modrinth_api_base()
+    }
+
+    pub fn curseforge_api_base() -> &'static str {
+        let mgr = source_manager().read().unwrap();
+        mgr.sources[mgr.active_index].curseforge_api_base()
     }
 
     /// Try all sources for a URL, returning all possible URL variants
@@ -200,8 +224,54 @@ pub fn transform_url(original: &str) -> String {
     SourceManager::transform_url(original)
 }
 
+pub fn modrinth_api_base() -> &'static str {
+    SourceManager::modrinth_api_base()
+}
+
+pub fn curseforge_api_base() -> &'static str {
+    SourceManager::curseforge_api_base()
+}
+
+pub fn set_active(name: &str) {
+    SourceManager::set_active(name)
+}
+
+pub fn active_source_name() -> String {
+    SourceManager::active_source_name()
+}
+
 pub fn version_manifest_url() -> String {
-    OfficialSource.version_manifest_url().to_string()
+    SourceManager::version_manifest_url()
+}
+
+pub fn all_modrinth_bases() -> Vec<&'static str> {
+    let mgr = source_manager().read().unwrap();
+    let active = mgr.sources[mgr.active_index].modrinth_api_base();
+    let mut bases = vec![active];
+    for (i, source) in mgr.sources.iter().enumerate() {
+        if i != mgr.active_index {
+            let base = source.modrinth_api_base();
+            if !bases.contains(&base) {
+                bases.push(base);
+            }
+        }
+    }
+    bases
+}
+
+pub fn all_curseforge_bases() -> Vec<&'static str> {
+    let mgr = source_manager().read().unwrap();
+    let active = mgr.sources[mgr.active_index].curseforge_api_base();
+    let mut bases = vec![active];
+    for (i, source) in mgr.sources.iter().enumerate() {
+        if i != mgr.active_index {
+            let base = source.curseforge_api_base();
+            if !bases.contains(&base) {
+                bases.push(base);
+            }
+        }
+    }
+    bases
 }
 
 pub fn asset_download_url(hash: &str) -> String {

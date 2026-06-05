@@ -7,6 +7,8 @@ import type {
   LoaderInstallResult,
   HealthCheckReport,
   PreLaunchReport,
+  RepairResult,
+  InstanceCheckResult,
 } from './types';
 
 export const getConfig = () => cachedInvoke('config', () => invoke<AppConfig>('get_config'));
@@ -93,6 +95,8 @@ export const detectModpackFormat = (path: string) => invoke<string>('detect_modp
 export const exportMrpack = (instanceId: string, outputPath: string) =>
   invoke<void>('export_mrpack', { id: instanceId, outputPath });
 export const checkInstanceReady = (instanceId: string) => invoke<boolean>('check_instance_ready', { instanceId });
+export const batchCheckInstances = (instanceIds: string[]) =>
+  invoke<InstanceCheckResult[]>('batch_check_instances', { instanceIds });
 export const healthCheck = (instanceId: string) => invoke<HealthCheckReport>('health_check', { instanceId });
 export const getInstanceCoverImage = (instanceId: string) =>
   invoke<string | null>('get_instance_cover_image', { instanceId });
@@ -173,6 +177,10 @@ export const migrateInstance = (params: {
   loaderVersion: string | null;
   sourceGameDir: string;
   launcherType: string;
+  javaPath: string | null;
+  jvmArgs: string | null;
+  minMemory: number | null;
+  maxMemory: number | null;
 }) =>
   invoke<GameInstance>('migrate_instance', {
     name: params.name,
@@ -181,9 +189,18 @@ export const migrateInstance = (params: {
     loaderVersion: params.loaderVersion,
     sourceGameDir: params.sourceGameDir,
     launcherType: params.launcherType,
+    javaPath: params.javaPath,
+    jvmArgs: params.jvmArgs,
+    minMemory: params.minMemory,
+    maxMemory: params.maxMemory,
   });
+export const diagnoseMigration = (instanceId: string) =>
+  invoke<import('./types').MigrationIssue[]>('diagnose_migration', { instanceId });
+export const fixMigrationIssues = (instanceId: string, issues: import('./types').MigrationIssue[]) =>
+  invoke<import('./types').MigrationFixResult>('fix_migration_issues', { instanceId, issues });
 export const readConfigFile = (instanceId: string, relativePath: string) =>
   invoke<string>('read_config_file', { instanceId, relativePath });
 export const writeConfigFile = (instanceId: string, relativePath: string, content: string) =>
   invoke<void>('write_config_file', { instanceId, relativePath, content });
 export const preLaunchCheck = (instanceId: string) => invoke<PreLaunchReport>('pre_launch_check', { instanceId });
+export const repairInstance = (instanceId: string) => invoke<RepairResult>('repair_instance', { instanceId });

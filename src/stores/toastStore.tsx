@@ -19,10 +19,13 @@ const DEFAULT_DURATIONS: Record<Toast['type'], number> = {
 
 export function errorToast(error: unknown, fallbackTitle?: string): Omit<Toast, 'id'> {
   const mapped = mapError(error);
+  const message = mapped.suggestion
+    ? `${mapped.message}\n💡 ${mapped.suggestion}`
+    : mapped.message;
   return {
     type: 'error',
     title: fallbackTitle || mapped.message,
-    message: mapped.suggestion || mapped.message,
+    message,
   };
 }
 

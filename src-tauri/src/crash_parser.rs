@@ -1,8 +1,8 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::error::LauncherError;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrashInfo {
     pub description: String,
     pub suggestion: String,
@@ -10,7 +10,7 @@ pub struct CrashInfo {
     pub error_type: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrashDiagnosis {
     pub crash_info: CrashInfo,
     pub additional_findings: Vec<CrashFinding>,
@@ -18,7 +18,7 @@ pub struct CrashDiagnosis {
     pub auto_fix_action: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrashFinding {
     pub finding: String,
     pub severity: String,

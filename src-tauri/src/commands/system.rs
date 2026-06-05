@@ -148,6 +148,8 @@ pub async fn select_fastest_mirror() -> Result<String, LauncherError> {
     let mut cfg = config::load_config()?;
     cfg.download_source = best.clone();
     config::save_config(&cfg)?;
+    crate::download::source::set_active(&best);
+    tracing::info!("Fastest mirror selected: {}", best);
     Ok(best)
 }
 

@@ -113,3 +113,28 @@ export interface StreamChunk {
     finish_reason: string | null;
   }>;
 }
+
+export interface ModpackPlan {
+  plan_id: string;
+  theme: string;
+  game_version: string;
+  loader: { loader_type: string; version: string };
+  mods: Array<{
+    slug: string;
+    name: string;
+    version_id: string;
+    source: string;
+    category: string;
+    required: boolean;
+  }>;
+  jvm_config: { max_memory_mb: number; min_memory_mb: number; jvm_args: string };
+  estimated_size_mb: number;
+  warnings: Array<{ warning_type: string; message: string }>;
+}
+
+export interface CompatibilityReport {
+  conflicts: Array<{ mod_a: string; mod_b: string; reason: string; severity: string }>;
+  missing_deps: Array<{ mod_slug: string; required_by: string }>;
+  warnings: Array<{ mod_slug: string; issue: string }>;
+  score: number;
+}

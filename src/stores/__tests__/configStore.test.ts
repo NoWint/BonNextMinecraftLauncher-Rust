@@ -27,6 +27,8 @@ const mockConfig: AppConfig = {
   java_download_source: 'official',
   force_memory: false,
   force_java_path: false,
+  git_proxy_enabled: false,
+  git_proxy_url: '',
   security: {
     credential_encryption: false,
     strict_verification: false,

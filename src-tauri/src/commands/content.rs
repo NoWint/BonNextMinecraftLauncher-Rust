@@ -184,6 +184,11 @@ pub async fn check_content_updates(instance_id: String) -> Result<Vec<content::U
 }
 
 #[tauri::command]
+pub async fn check_mod_updates(instance_id: String) -> Result<Vec<content::ModUpdateInfo>, LauncherError> {
+    content::check_mod_updates(&instance_id).await
+}
+
+#[tauri::command]
 pub async fn pin_mod(instance_id: String, slug: String) -> Result<bool, LauncherError> {
     content::pin_mod(&instance_id, &slug)
 }

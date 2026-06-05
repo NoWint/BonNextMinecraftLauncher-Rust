@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../api';
 import { formatError } from '../../utils/errorMapping';
-import { Button, Checkbox, Select } from '../../components/ui';
+import { Button, Select, Checkbox } from '../../components/ui';
 import { SectionCard, SettingRow } from './MemorySection';
 import styles from '../SettingsPage.module.css';
 
@@ -20,6 +20,14 @@ export default function DownloadSection({
       return { maxSpeed: 0, pauseDuringGame: true, priority: 'normal' };
     }
   });
+
+  const [downloadSource, setDownloadSource] = useState('bmclapi');
+  const [selectingMirror, setSelectingMirror] = useState(false);
+  const [savingSource, setSavingSource] = useState(false);
+
+  useEffect(() => {
+    api.getActiveDownloadSource().then(setDownloadSource).catch(() => {});
+  }, []);
 
   useEffect(() => {
     try {
@@ -42,8 +50,60 @@ export default function DownloadSection({
     }
   };
 
+  const handleSourceChange = async (newSource: string) => {
+    setSavingSource(true);
+    try {
+      const config = await api.getConfig();
+      config.download_source = newSource;
+      await api.saveConfig(config);
+      setDownloadSource(newSource);
+      addToast({ type: 'success', title: t('settings.downloadSourceChanged') || 'Download source changed' });
+    } catch (e) {
+      addToast({ type: 'error', title: t('settings.saveFailed') || 'Save failed', message: formatError(e) });
+    } finally {
+      setSavingSource(false);
+    }
+  };
+
+  const handleSelectFastest = async () => {
+    setSelectingMirror(true);
+    try {
+      const best = await api.selectFastestMirror();
+      setDownloadSource(best);
+      addToast({ type: 'success', title: t('settings.fastestMirrorSelected') || 'Fastest mirror selected', message: best });
+    } catch (e) {
+      addToast({ type: 'error', title: t('settings.fastestMirrorFailed') || 'Failed to select mirror', message: formatError(e) });
+    } finally {
+      setSelectingMirror(false);
+    }
+  };
+
   return (
     <SectionCard id="sec-download" title={t('settings.download')}>
+      <SettingRow label={t('settings.downloadSource')}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+          <div style={{ minWidth: 160 }}>
+            <Select
+              value={downloadSource}
+              onChange={(e) => handleSourceChange(e.target.value)}
+              disabled={savingSource}
+              options={[
+                { value: 'bmclapi', label: 'BMCLAPI (' + t('settings.mirrorChina') + ')' },
+                { value: 'mcbbs', label: 'MCBBS (' + t('settings.mirrorChina') + ')' },
+                { value: 'official', label: t('settings.sourceOfficial') },
+              ]}
+            />
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={selectingMirror}
+            onClick={handleSelectFastest}
+          >
+            {selectingMirror ? t('settings.selecting') : t('settings.selectFastest')}
+          </Button>
+        </div>
+      </SettingRow>
       <SettingRow label={t('settings.downloadSpeed')}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
           <input

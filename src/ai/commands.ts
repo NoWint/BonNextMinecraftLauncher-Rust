@@ -10,7 +10,7 @@ export interface AICommand {
   execute: (params: Record<string, unknown>) => Promise<CommandResult>;
 }
 
-const commandRegistry: Record<string, AICommand> = {
+export const commandRegistry: Record<string, AICommand> = {
   search_mods: {
     name: 'search_mods',
     description: 'Search for Minecraft mods on Modrinth or CurseForge',
@@ -532,6 +532,136 @@ const commandRegistry: Record<string, AICommand> = {
       }
     },
   },
+
+  generate_modpack_plan: {
+    name: 'generate_modpack_plan',
+    description:
+      'Generate a modpack installation plan from a theme, game version, loader type, and mod list. Validates the plan on the backend and returns a ModpackPlan with plan_id. Call this AFTER searching for mods and checking compatibility.',
+    riskLevel: 'low',
+    paramDefs: {
+      theme: { type: 'string', description: 'Modpack theme (e.g. "farming", "magic adventure")', required: true },
+      game_version: { type: 'string', description: 'Minecraft version (e.g. "1.20.1")', required: true },
+      loader_type: {
+        type: 'string',
+        description: 'Mod loader type',
+        required: true,
+        enum: ['fabric', 'forge', 'neoforge'],
+      },
+      mods: {
+        type: 'string',
+        description:
+          'JSON array of mods: [{"slug":"...","name":"...","version_id":"...","source":"modrinth|curseforge","category":"core|automation|decoration|optimization|library","required":true}]',
+        required: true,
+      },
+      jvm_args: { type: 'string', description: 'Recommended JVM arguments (optional)' },
+      max_memory_mb: { type: 'number', description: 'Max memory in MB (optional, auto-calculated if omitted)' },
+    },
+    execute: async (params) => {
+      try {
+        const theme = String(params.theme || '');
+        const gameVersion = String(params.game_version || '');
+        const loaderType = String(params.loader_type || '');
+        const modsRaw = String(params.mods || '[]');
+        if (!theme || !gameVersion || !loaderType)
+          return { success: false, error: 'theme, game_version, and loader_type are required' };
+        let mods;
+        try { mods = JSON.parse(modsRaw); } catch { return { success: false, error: 'mods must be a valid JSON array' }; }
+        const request = {
+          theme, game_version: gameVersion, loader_type: loaderType, mods,
+          jvm_args: params.jvm_args ? String(params.jvm_args) : undefined,
+          max_memory_mb: params.max_memory_mb ? Number(params.max_memory_mb) : undefined,
+        };
+        const plan = await (await import('../api/workflow')).workflowApi.generateModpackPlan(request);
+        return {
+          success: true, data: plan,
+          message: `Modpack plan "${theme}" generated with ${plan.mods.length} mods. Plan ID: ${plan.plan_id}. Call execute_modpack_plan with the plan to install.`,
+        };
+      } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Plan generation failed' }; }
+    },
+  },
+
+  execute_modpack_plan: {
+    name: 'execute_modpack_plan',
+    description:
+      'Execute a previously generated modpack installation plan. Triggers a backend workflow that creates the instance, installs the loader, downloads all mods, and verifies. Returns a workflow_id for progress tracking.',
+    riskLevel: 'high',
+    paramDefs: {
+      plan: { type: 'string', description: 'The full ModpackPlan JSON object returned by generate_modpack_plan', required: true },
+    },
+    execute: async (params) => {
+      try {
+        const planRaw = String(params.plan || '');
+        let plan;
+        try { plan = JSON.parse(planRaw); } catch { return { success: false, error: 'plan must be a valid JSON ModpackPlan object' }; }
+        const workflowId = await (await import('../api/workflow')).workflowApi.executeModpackPlan(plan);
+        return {
+          success: true, data: { workflow_id: workflowId },
+          message: `Modpack installation started. Workflow ID: ${workflowId}. Progress will be shown in the download panel.`,
+        };
+      } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Plan execution failed' }; }
+    },
+  },
+
+  check_mod_conflicts: {
+    name: 'check_mod_conflicts',
+    description:
+      'Check compatibility between a set of mods for a specific game version and loader. Returns conflicts, missing dependencies, and warnings with a compatibility score (0-100).',
+    riskLevel: 'low',
+    paramDefs: {
+      mods: { type: 'string', description: 'JSON array of mod references: [{"slug":"...","version_id":"...","source":"modrinth|curseforge"}]', required: true },
+      game_version: { type: 'string', description: 'Target Minecraft version', required: true },
+      loader_type: { type: 'string', description: 'Target loader type', enum: ['fabric', 'forge', 'neoforge'] },
+    },
+    execute: async (params) => {
+      try {
+        const modsRaw = String(params.mods || '[]');
+        const gameVersion = String(params.game_version || '');
+        if (!gameVersion) return { success: false, error: 'game_version is required' };
+        let mods;
+        try { mods = JSON.parse(modsRaw); } catch { return { success: false, error: 'mods must be a valid JSON array' }; }
+        const report = await (await import('../api/modpack')).modpackApi.checkModCompatibility(
+          mods, gameVersion, params.loader_type ? String(params.loader_type) : undefined,
+        );
+        return {
+          success: true, data: report,
+          message: `Compatibility score: ${report.score}/100. ${report.conflicts.length} conflicts, ${report.warnings.length} warnings.`,
+        };
+      } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Compatibility check failed' }; }
+    },
+  },
+
+  analyze_and_fix_crash: {
+    name: 'analyze_and_fix_crash',
+    description:
+      'Analyze a crash report for an instance and generate a fix plan. If auto_fix is true, automatically executes the fix via a backend workflow. Returns diagnosis, fix actions, and knowledge base matches.',
+    riskLevel: 'high',
+    paramDefs: {
+      instance_id: { type: 'string', description: 'Instance ID that crashed', required: true },
+      crash_report_path: { type: 'string', description: 'Path to the crash report file', required: true },
+      auto_fix: { type: 'boolean', description: 'Whether to automatically execute the fix (default: false)' },
+    },
+    execute: async (params) => {
+      try {
+        const instanceId = String(params.instance_id || '');
+        const crashReportPath = String(params.crash_report_path || '');
+        const autoFix = params.auto_fix === true;
+        if (!instanceId || !crashReportPath) return { success: false, error: 'instance_id and crash_report_path are required' };
+        const diagnosis = await crashApi.diagnoseInstanceCrash(instanceId);
+        if (!autoFix) {
+          return {
+            success: true, data: diagnosis,
+            message: `Crash analyzed: ${diagnosis.crash_info?.description || 'Unknown'}. Set auto_fix=true to execute the fix automatically.`,
+          };
+        }
+        const fixPlan = { instance_id: instanceId, crash_report_path: crashReportPath, diagnosis, fix_actions: [], knowledge_base_matches: [] };
+        const workflowId = await (await import('../api/workflow')).workflowApi.executeCrashFix(instanceId, fixPlan as never);
+        return {
+          success: true, data: { workflow_id: workflowId, diagnosis },
+          message: `Crash fix workflow started. Workflow ID: ${workflowId}`,
+        };
+      } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Crash fix failed' }; }
+    },
+  },
 };
 
 export function getCommand(name: string): AICommand | undefined {
@@ -573,12 +703,22 @@ export function buildSystemPrompt(): string {
 
 IMPORTANT: After each tool result comes back, you MUST call the NEXT tool in the workflow. Do NOT just describe the result — continue executing. Keep going until the full task is complete, then summarize.
 
-MODPACK WORKFLOW (for requests like "I want X pack", "make me a Y modpack", etc.):
+MODPACK GENERATION WORKFLOW (for requests like "I want X pack", "make me a Y modpack", "我想玩养老种田", etc.):
 Step 1: Call search_versions(type="release") to find the latest Minecraft version.
-Step 2: Call create_instance with a descriptive name and the version from step 1.
-Step 3: Call search_mods with 2-4 relevant search queries based on the user's theme.
-Step 4: For EACH good mod found, call install_mod into the new instance.
-Step 5: Summarize what was built.
+Step 2: Call search_mods with 2-4 relevant search queries based on the user's theme. Use different keywords each time.
+Step 3: For each good mod found, note its slug, name, version_id, and source.
+Step 4: Call check_mod_conflicts with the selected mods to verify compatibility.
+Step 5: Call generate_modpack_plan with the complete mod list, game version, and loader type.
+Step 6: Call execute_modpack_plan with the returned plan to start installation.
+Step 7: Summarize what was built.
+
+IMPORTANT MODPACK RULES:
+- Always include optimization mods (Sodium, Lithium for Fabric; Embeddium for Forge/NeoForge)
+- Always include at least one minimap mod (JourneyMap, Xaero's) unless the theme is hardcore survival
+- Prefer Fabric loader for modpacks (more mod compatibility)
+- Prefer stable releases over beta/alpha versions
+- Include required dependencies even if not explicitly requested
+- For the mods parameter in generate_modpack_plan, pass a JSON array string
 
 SETUP WORKFLOW (for "install Fabric/Forge X.Y.Z"):
 Step 1: Call search_versions to find the requested version.
@@ -590,11 +730,12 @@ Step 6: Summarize.
 
 CRASH WORKFLOW:
 Step 1: Call analyze_crash with the instance ID. Do NOT ask for file paths.
-Step 2: If auto-fix is available, offer apply_fix.
+Step 2: If auto-fix is available, call analyze_and_fix_crash with auto_fix=true.
+Step 3: Summarize the fix applied.
 
 CRITICAL RULES:
 - NEVER stop after just one tool call. Continue until the workflow is complete.
-- After search_mods returns results, immediately call install_mod for the relevant ones.
+- After search_mods returns results, continue to the next step (check conflicts or generate plan).
 - After create_instance returns the new instance ID, use it for subsequent install calls.
 - Always use the instance ID from create_instance, not an empty string.
 - Be concise. Don't describe what you "will" do — just call the tools.`;

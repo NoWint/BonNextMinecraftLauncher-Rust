@@ -890,7 +890,7 @@ export default function HomePage() {
                 variant="secondary"
                 size="sm"
                 style={{ justifyContent: 'center', fontSize: '0.55em' }}
-                onClick={() => (window.location.hash = '#/instances/new')}
+                onClick={() => navigate('/instances/new')}
               >
                 + {t('home.quickActions.newInstance')}
               </Button>
@@ -898,7 +898,7 @@ export default function HomePage() {
                 variant="secondary"
                 size="sm"
                 style={{ justifyContent: 'center', fontSize: '0.55em' }}
-                onClick={() => (window.location.hash = '#/mods')}
+                onClick={() => navigate('/mods')}
               >
                 <Icon name="download" size={14} /> {t('home.quickActions.browseMods')}
               </Button>
@@ -906,7 +906,7 @@ export default function HomePage() {
                 variant="secondary"
                 size="sm"
                 style={{ justifyContent: 'center', fontSize: '0.55em' }}
-                onClick={() => (window.location.hash = '#/versions')}
+                onClick={() => navigate('/versions')}
               >
                 <Icon name="hexagon" size={14} /> {t('home.quickActions.versions')}
               </Button>
@@ -914,7 +914,7 @@ export default function HomePage() {
                 variant="secondary"
                 size="sm"
                 style={{ justifyContent: 'center', fontSize: '0.55em' }}
-                onClick={() => (window.location.hash = '#/settings')}
+                onClick={() => navigate('/settings')}
               >
                 <Icon name="settings" size={14} /> {t('home.quickActions.settings')}
               </Button>

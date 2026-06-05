@@ -1,9 +1,13 @@
 import React, { createContext, useContext, useReducer, useCallback, useMemo, useRef } from 'react';
-import type { ChatMessage as ChatMessageType, AIConfig, Task, ChatCompletionMessage, ToolCall } from '../ai/types';
+import type { ChatMessage as ChatMessageType, AIConfig, Task } from '../ai/types';
 import { DEFAULT_AI_CONFIG } from '../ai/types';
-import { streamChatCompletion } from '../ai/api';
-import { buildOpenAITools, buildSystemPrompt, parseToolCallsToCommands, getCommand } from '../ai/commands';
+import { getCommand } from '../ai/commands';
 import { taskQueue } from '../ai/taskQueue';
+import { workflowApi } from '../api/workflow';
+import type { WorkflowProgressEvent, WorkflowErrorEvent, WorkflowCompleteEvent, CrashDetectedEvent } from '../api/types';
+import { PiAgent } from '../ai/pi/agent';
+import { requestConfirmation } from '../ai/pi/session';
+import type { PiEvent } from '../ai/pi/types';
 
 interface AIAssistantState {
   messages: ChatMessageType[];
@@ -12,6 +16,9 @@ interface AIAssistantState {
   error: string;
   config: AIConfig;
   tasks: Record<string, Task>;
+  activeWorkflows: Record<string, { id: string; step: number; totalSteps: number; stepName: string }>;
+  crashAlert: { instanceId: string; crashReportPath: string; severity: string } | null;
+  piAgent: PiAgent | null;
 }
 
 type AIAssistantAction =
@@ -22,7 +29,11 @@ type AIAssistantAction =
   | { type: 'SET_ERROR'; error: string }
   | { type: 'SET_CONFIG'; config: AIConfig }
   | { type: 'UPDATE_TASK'; task: Task }
-  | { type: 'CLEAR_MESSAGES' };
+  | { type: 'CLEAR_MESSAGES' }
+  | { type: 'UPDATE_WORKFLOW'; payload: { id: string; step: number; totalSteps: number; stepName: string } }
+  | { type: 'REMOVE_WORKFLOW'; id: string }
+  | { type: 'SET_CRASH_ALERT'; payload: { instanceId: string; crashReportPath: string; severity: string } | null }
+  | { type: 'SET_PI_AGENT'; agent: PiAgent | null };
 
 const STORAGE_KEY = 'bonnext_ai_config';
 
@@ -59,6 +70,9 @@ const initialState: AIAssistantState = {
   error: '',
   config: loadStoredConfig(),
   tasks: {},
+  activeWorkflows: {},
+  crashAlert: null,
+  piAgent: null,
 };
 
 export function aiAssistantReducer(state: AIAssistantState, action: AIAssistantAction): AIAssistantState {
@@ -87,6 +101,19 @@ export function aiAssistantReducer(state: AIAssistantState, action: AIAssistantA
       };
     case 'CLEAR_MESSAGES':
       return { ...state, messages: [] };
+    case 'UPDATE_WORKFLOW':
+      return {
+        ...state,
+        activeWorkflows: { ...state.activeWorkflows, [action.payload.id]: action.payload },
+      };
+    case 'REMOVE_WORKFLOW': {
+      const { [action.id]: _, ...rest } = state.activeWorkflows;
+      return { ...state, activeWorkflows: rest };
+    }
+    case 'SET_CRASH_ALERT':
+      return { ...state, crashAlert: action.payload };
+    case 'SET_PI_AGENT':
+      return { ...state, piAgent: action.agent };
     default:
       return state;
   }
@@ -102,12 +129,16 @@ const AIAssistantContext = createContext<{
   cancelTask: (taskId: string) => void;
   retryTask: (taskId: string) => void;
   clearMessages: () => void;
+  dismissCrashAlert: () => void;
+  abortWorkflow: (workflowId: string) => void;
+  abortAgent: () => void;
 } | null>(null);
 
 export function AIAssistantProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(aiAssistantReducer, initialState);
   const tasksRef = useRef(state.tasks);
   tasksRef.current = state.tasks;
+  const currentStreamMsgIdRef = useRef<string | null>(null);
 
   const togglePanel = useCallback(() => {
     dispatch({ type: 'SET_OPEN', isOpen: !state.isOpen });
@@ -123,7 +154,24 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
 
   const clearMessages = useCallback(() => {
     dispatch({ type: 'CLEAR_MESSAGES' });
+    if (state.piAgent) {
+      state.piAgent.clearHistory();
+    }
+  }, [state.piAgent]);
+
+  const dismissCrashAlert = useCallback(() => {
+    dispatch({ type: 'SET_CRASH_ALERT', payload: null });
   }, []);
+
+  const abortWorkflow = useCallback(async (workflowId: string) => {
+    try { await workflowApi.abortWorkflow(workflowId); dispatch({ type: 'REMOVE_WORKFLOW', id: workflowId }); } catch { /* ignore */ }
+  }, []);
+
+  const abortAgent = useCallback(() => {
+    if (state.piAgent) {
+      state.piAgent.abort();
+    }
+  }, [state.piAgent]);
 
   const confirmTask = useCallback((taskId: string) => {
     const task = tasksRef.current[taskId];
@@ -232,86 +280,7 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
       });
   }, []);
 
-  const executeToolCalls = useCallback(
-    async (toolCalls: ToolCall[], assistantMessageId: string): Promise<ChatCompletionMessage[]> => {
-      const toolMessages: ChatCompletionMessage[] = [];
-      const commands = parseToolCallsToCommands(toolCalls);
-
-      dispatch({
-        type: 'UPDATE_MESSAGE',
-        id: assistantMessageId,
-        updates: { commands },
-      });
-
-      for (const tc of toolCalls) {
-        const cmd = getCommand(tc.function.name);
-        if (!cmd) {
-          toolMessages.push({
-            role: 'tool',
-            content: JSON.stringify({ success: false, error: `Unknown tool: ${tc.function.name}` }),
-            tool_call_id: tc.id,
-          });
-          continue;
-        }
-
-        let params: Record<string, unknown>;
-        try {
-          params = JSON.parse(tc.function.arguments || '{}');
-        } catch {
-          toolMessages.push({
-            role: 'tool',
-            content: JSON.stringify({ success: false, error: 'Invalid arguments' }),
-            tool_call_id: tc.id,
-          });
-          continue;
-        }
-
-        const task: Task = {
-          id: tc.id,
-          command: tc.function.name,
-          params,
-          riskLevel: cmd.riskLevel,
-          status: 'confirmed',
-          messageId: assistantMessageId,
-          createdAt: Date.now(),
-        };
-        dispatch({ type: 'UPDATE_TASK', task });
-
-        try {
-          dispatch({
-            type: 'UPDATE_TASK',
-            task: { ...task, status: 'executing' },
-          });
-          const result = await cmd.execute(params);
-          dispatch({
-            type: 'UPDATE_TASK',
-            task: { ...task, status: result.success ? 'completed' : 'failed', result },
-          });
-          toolMessages.push({
-            role: 'tool',
-            content: JSON.stringify(result),
-            tool_call_id: tc.id,
-          });
-        } catch (e) {
-          const errorResult = { success: false, error: e instanceof Error ? e.message : 'Execution failed' };
-          dispatch({
-            type: 'UPDATE_TASK',
-            task: { ...task, status: 'failed', result: errorResult },
-          });
-          toolMessages.push({
-            role: 'tool',
-            content: JSON.stringify(errorResult),
-            tool_call_id: tc.id,
-          });
-        }
-      }
-
-      return toolMessages;
-    },
-    [],
-  );
-
-  const sendMessage = useCallback(
+  const sendMessageViaPi = useCallback(
     async (text: string) => {
       if (!text.trim() || state.isLoading) return;
       if (!state.config.enabled) {
@@ -329,117 +298,118 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
         timestamp: Date.now(),
       };
       dispatch({ type: 'ADD_MESSAGE', message: userMessage });
-      dispatch({ type: 'SET_LOADING', isLoading: true });
 
-      const tools = buildOpenAITools();
-      const systemPrompt = buildSystemPrompt();
+      currentStreamMsgIdRef.current = null;
 
-      const apiMessages: ChatCompletionMessage[] = [
-        { role: 'system', content: systemPrompt },
-        ...[...state.messages, userMessage]
-          .filter((m) => m.role !== 'system')
-          .map((m) => {
-            if (m.role === 'tool') {
-              return { role: 'tool' as const, content: m.content, tool_call_id: m.toolCallId || '' };
+      const agent = new PiAgent({
+        llmConfig: state.config,
+        maxRounds: 15,
+        confirmHighRisk: true,
+        onEvent: (event: PiEvent) => {
+          switch (event.type) {
+            case 'agent_start':
+              dispatch({ type: 'SET_LOADING', isLoading: true });
+              break;
+            case 'text_delta': {
+              const existingId = currentStreamMsgIdRef.current;
+              if (existingId) {
+                dispatch({ type: 'UPDATE_MESSAGE', id: existingId, updates: { content: event.content } });
+              } else {
+                const newId = nextMessageId();
+                currentStreamMsgIdRef.current = newId;
+                dispatch({
+                  type: 'ADD_MESSAGE',
+                  message: {
+                    id: newId, role: 'assistant', content: event.content,
+                    commands: [], timestamp: Date.now(), isStreaming: true,
+                  },
+                });
+              }
+              break;
             }
-            return { role: m.role as 'user' | 'assistant', content: m.content };
-          }),
-      ];
-
-      const assistantMessageId = nextMessageId();
-      const assistantMessage: ChatMessageType = {
-        id: assistantMessageId,
-        role: 'assistant',
-        content: '',
-        commands: [],
-        timestamp: Date.now(),
-        isStreaming: true,
-      };
-      dispatch({ type: 'ADD_MESSAGE', message: assistantMessage });
-
-      try {
-        let accumulatedContent = '';
-
-        let result = await streamChatCompletion(state.config, apiMessages, tools, (content) => {
-          accumulatedContent += content;
-          dispatch({ type: 'UPDATE_MESSAGE', id: assistantMessageId, updates: { content: accumulatedContent } });
-        });
-
-        dispatch({
-          type: 'UPDATE_MESSAGE',
-          id: assistantMessageId,
-          updates: { content: accumulatedContent || result.content, isStreaming: false },
-        });
-
-        // Multi-round tool execution with fallback summary
-        const noop = () => {};
-        let maxRounds = 5;
-        let anyToolExecuted = false;
-        while (maxRounds > 0 && result.toolCalls.length > 0) {
-          maxRounds--;
-          apiMessages.push({ role: 'assistant', content: result.content || null, tool_calls: result.toolCalls });
-
-          const toolResults = await executeToolCalls(result.toolCalls, assistantMessageId);
-          apiMessages.push(...toolResults);
-          anyToolExecuted = true;
-
-          // Try to get AI follow-up, with silent fallback on failure
-          try {
-            result = await streamChatCompletion(state.config, apiMessages, tools, noop);
-          } catch {
-            result = { content: '', toolCalls: [], finishReason: 'error' };
-          }
-
-          // Show follow-up content if any
-          if (result.content && result.content.trim()) {
+            case 'text_complete': {
+              const streamId = currentStreamMsgIdRef.current;
+              if (streamId) {
+                dispatch({ type: 'UPDATE_MESSAGE', id: streamId, updates: { isStreaming: false } });
+                currentStreamMsgIdRef.current = null;
+              }
+              break;
+            }
+              case 'tool_call_start':
+                dispatch({
+                  type: 'UPDATE_TASK',
+                  task: {
+                    id: event.toolCallId,
+                    command: event.toolName,
+                    params: event.args,
+                    riskLevel: event.isHighRisk ? 'high' : 'low',
+                    status: 'executing',
+                    messageId: '',
+                    createdAt: Date.now(),
+                  },
+                });
+                break;
+              case 'tool_call_end': {
+                const taskResult = event.isError
+                  ? { success: false, error: String(event.result) }
+                  : { success: true, data: event.result, message: '' };
+                dispatch({
+                  type: 'UPDATE_TASK',
+                  task: {
+                    id: event.toolCallId,
+                    command: '',
+                    params: {},
+                    riskLevel: 'low',
+                    status: event.isError ? 'failed' : 'completed',
+                    result: taskResult,
+                    messageId: '',
+                    createdAt: Date.now(),
+                  },
+                });
+                break;
+              }
+              case 'agent_end':
+                dispatch({ type: 'SET_LOADING', isLoading: false });
+                break;
+              case 'error':
+                dispatch({ type: 'SET_ERROR', error: event.message });
+                dispatch({ type: 'SET_LOADING', isLoading: false });
+                break;
+            }
+          },
+          onConfirmTool: async (toolCallId, toolName, args) => {
             dispatch({
-              type: 'ADD_MESSAGE',
-              message: {
-                id: nextMessageId(),
-                role: 'assistant',
-                content: result.content,
-                commands: [],
-                timestamp: Date.now(),
+              type: 'UPDATE_TASK',
+              task: {
+                id: toolCallId, command: toolName, params: args,
+                riskLevel: 'high', status: 'pending', messageId: '', createdAt: Date.now(),
               },
             });
-            apiMessages.push({ role: 'assistant', content: result.content });
-          }
-
-          // Auto-continue if AI is asking for confirmation
-          if (result.toolCalls.length === 0) {
-            const text = (result.content || '').toLowerCase();
-            if (/[?？]|吗|要不要|需要我|would you|should i|want me|shall i/.test(text)) {
-              maxRounds--;
-              apiMessages.push({ role: 'user', content: 'Yes, continue. Do not ask — just execute.' });
-              result = await streamChatCompletion(state.config, apiMessages, tools, noop);
-            }
-          }
-        }
-        // Ensure at least a minimal response when tools executed but AI went silent
-        if (anyToolExecuted && !result.content?.trim() && result.toolCalls.length === 0) {
-          dispatch({
-            type: 'ADD_MESSAGE',
-            message: { id: nextMessageId(), role: 'assistant', content: 'Done.', commands: [], timestamp: Date.now() },
-          });
-        }
-      } catch (e) {
-        dispatch({
-          type: 'UPDATE_MESSAGE',
-          id: assistantMessageId,
-          updates: {
-            content: 'Sorry, I encountered an error connecting to the AI service.',
-            isStreaming: false,
+            window.dispatchEvent(new CustomEvent('ai:confirm-required', {
+              detail: { taskId: toolCallId, toolName, args },
+            }));
+            return requestConfirmation(toolCallId);
           },
         });
+
+      try {
+        await agent.run(text.trim());
+      } catch (e) {
+        dispatch({ type: 'SET_PI_AGENT', agent: null });
         dispatch({
           type: 'SET_ERROR',
-          error: e instanceof Error ? e.message : 'Failed to get AI response',
+          error: e instanceof Error ? e.message : 'Pi Agent failed',
         });
       }
-
-      dispatch({ type: 'SET_LOADING', isLoading: false });
     },
-    [state.config, state.isLoading, state.messages, executeToolCalls],
+    [state.config, state.isLoading, state.piAgent],
+  );
+
+  const sendMessage = useCallback(
+    async (text: string) => {
+      return sendMessageViaPi(text);
+    },
+    [sendMessageViaPi],
   );
 
   React.useEffect(() => {
@@ -447,6 +417,30 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
       dispatch({ type: 'UPDATE_TASK', task });
     });
     return unsubscribe;
+  }, []);
+
+  React.useEffect(() => {
+    const unlisteners: Array<() => void> = [];
+    (async () => {
+      const u1 = await workflowApi.onWorkflowProgress((e: WorkflowProgressEvent) => {
+        dispatch({ type: 'UPDATE_WORKFLOW', payload: { id: e.workflow_id, step: e.step, totalSteps: e.total_steps, stepName: e.step_name } });
+      });
+      unlisteners.push(u1);
+      const u2 = await workflowApi.onWorkflowComplete((e: WorkflowCompleteEvent) => {
+        dispatch({ type: 'REMOVE_WORKFLOW', id: e.workflow_id });
+        dispatch({ type: 'ADD_MESSAGE', message: { id: nextMessageId(), role: 'assistant', content: e.result === 'success' ? `✅ Workflow completed!${e.instance_id ? ` Instance: ${e.instance_id}` : ''}` : '⚠️ Workflow finished with issues', commands: [], timestamp: Date.now() } });
+      });
+      unlisteners.push(u2);
+      const u3 = await workflowApi.onWorkflowError((e: WorkflowErrorEvent) => {
+        dispatch({ type: 'ADD_MESSAGE', message: { id: nextMessageId(), role: 'assistant', content: `❌ Workflow error (${e.step}): ${e.error}${e.recoverable ? ' — can retry' : ''}`, commands: [], timestamp: Date.now() } });
+      });
+      unlisteners.push(u3);
+      const u4 = await workflowApi.onCrashDetected((e: CrashDetectedEvent) => {
+        dispatch({ type: 'SET_CRASH_ALERT', payload: { instanceId: e.instance_id, crashReportPath: e.crash_report_path, severity: e.severity } });
+      });
+      unlisteners.push(u4);
+    })();
+    return () => { unlisteners.forEach((fn) => fn()); };
   }, []);
 
   const contextValue = useMemo(
@@ -460,8 +454,11 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
       cancelTask,
       retryTask,
       clearMessages,
+      dismissCrashAlert,
+      abortWorkflow,
+      abortAgent,
     }),
-    [state, sendMessage, togglePanel, setPanelOpen, updateConfig, confirmTask, cancelTask, retryTask, clearMessages],
+    [state, sendMessage, togglePanel, setPanelOpen, updateConfig, confirmTask, cancelTask, retryTask, clearMessages, dismissCrashAlert, abortWorkflow, abortAgent],
   );
 
   return <AIAssistantContext.Provider value={contextValue}>{children}</AIAssistantContext.Provider>;

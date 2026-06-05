@@ -427,7 +427,7 @@ pub async fn import_modpack(path: &str) -> Result<GameInstance, LauncherError> {
     Ok(instance)
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ModpackFormat {
     MrPack,
     CurseForge,

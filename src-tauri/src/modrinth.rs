@@ -4,11 +4,18 @@
 
 use crate::error::LauncherError;
 use crate::http_client;
+use crate::download::source;
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tokio::io::AsyncWriteExt;
 
-const MODRINTH_API_BASE: &str = "https://api.modrinth.com/v2";
+fn api_base() -> &'static str {
+    source::modrinth_api_base()
+}
+
+fn all_api_bases() -> Vec<&'static str> {
+    source::all_modrinth_bases()
+}
 
 fn deserialize_null_string<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
@@ -314,8 +321,6 @@ pub async fn search_mods(
     limit: u64,
     offset: u64,
 ) -> Result<(Vec<ModResult>, u64), LauncherError> {
-    let client = http_client::build_client();
-    let base = format!("{}/search", MODRINTH_API_BASE);
     let mut facets = vec![r#"["project_type:mod"]"#.to_string()];
 
     if let Some(ver) = game_version {
@@ -326,18 +331,16 @@ pub async fn search_mods(
     }
 
     let facets_param = format!("[{}]", facets.join(","));
-    let url = format!(
-        "{}?query={}&facets={}&limit={}&offset={}",
-        base, urlencoding::encode(query), facets_param, limit.min(50), offset
+    let url_template = format!(
+        "{{API_BASE}}/search?query={}&facets={}&limit={}&offset={}",
+        urlencoding::encode(query), facets_param, limit.min(50), offset
     );
 
-    tracing::debug!("Modrinth search: {}", url);
+    tracing::debug!("Modrinth search: {}", url_template);
 
-    let resp: ModrinthSearchResponse = client
-        .get(&url)
-        .send()
+    let bases = all_api_bases();
+    let resp: ModrinthSearchResponse = http_client::retry_get_with_fallback(&url_template, &bases, 2, None)
         .await?
-        .error_for_status()?
         .json()
         .await?;
 
@@ -348,16 +351,17 @@ pub async fn search_mods(
 
 /// Get detailed information about a specific mod.
 pub async fn get_mod(slug: &str) -> Result<ModResult, LauncherError> {
-    let client = http_client::build_client();
-    let url = format!("{}/project/{}", MODRINTH_API_BASE, slug);
+    let url_template = format!("{{API_BASE}}/project/{}", slug);
+    let bases = all_api_bases();
 
-    let resp: ModrinthProject = client
-        .get(&url)
-        .send()
+    let resp: ModrinthProject = http_client::retry_get_with_fallback(&url_template, &bases, 2, None)
         .await?
-        .error_for_status()?
         .json()
-        .await?;
+        .await
+        .map_err(|e| {
+            tracing::error!("Modrinth mod JSON parse failed for {}: {}", slug, e);
+            LauncherError::Http(e)
+        })?;
 
     Ok(resp.into())
 }
@@ -368,8 +372,7 @@ pub async fn get_mod_versions(
     game_version: Option<&str>,
     loader: Option<&str>,
 ) -> Result<Vec<ModVersion>, LauncherError> {
-    let client = http_client::build_client();
-    let mut url = format!("{}/project/{}/version", MODRINTH_API_BASE, slug);
+    let mut url_template = format!("{{API_BASE}}/project/{}/version", slug);
 
     let mut params = Vec::new();
     if let Some(ver) = game_version {
@@ -379,24 +382,20 @@ pub async fn get_mod_versions(
         params.push(format!("loaders=[\"{}\"]", ldr));
     }
     if !params.is_empty() {
-        url.push('?');
-        url.push_str(&params.join("&"));
+        url_template.push('?');
+        url_template.push_str(&params.join("&"));
     }
 
-    let response = client
-        .get(&url)
-        .send()
+    let bases = all_api_bases();
+
+    let resp: Vec<ModrinthVersion> = http_client::retry_get_with_fallback(&url_template, &bases, 2, None)
         .await?
-        .error_for_status()
+        .json()
+        .await
         .map_err(|e| {
-            tracing::error!("Modrinth versions request failed for {}: {}", slug, e);
+            tracing::error!("Modrinth versions JSON parse failed for {}: {}", slug, e);
             LauncherError::Http(e)
         })?;
-
-    let resp: Vec<ModrinthVersion> = response.json().await.map_err(|e| {
-        tracing::error!("Modrinth versions JSON parse failed for {}: {}", slug, e);
-        LauncherError::Http(e)
-    })?;
 
     Ok(resp
         .into_iter()
@@ -427,8 +426,6 @@ pub async fn get_popular_mods(
     game_version: Option<&str>,
     limit: u64,
 ) -> Result<Vec<ModResult>, LauncherError> {
-    let client = http_client::build_client();
-    let base = format!("{}/search", MODRINTH_API_BASE);
     let mut facets = vec![r#"["project_type:mod"]"#.to_string()];
 
     if let Some(ver) = game_version {
@@ -436,16 +433,14 @@ pub async fn get_popular_mods(
     }
 
     let facets_param = format!("[{}]", facets.join(","));
-    let url = format!(
-        "{}?facets={}&limit={}&order=desc",
-        base, facets_param, limit.min(50)
+    let url_template = format!(
+        "{{API_BASE}}/search?facets={}&limit={}&order=desc",
+        facets_param, limit.min(50)
     );
 
-    let resp: ModrinthSearchResponse = client
-        .get(&url)
-        .send()
+    let bases = all_api_bases();
+    let resp: ModrinthSearchResponse = http_client::retry_get_with_fallback(&url_template, &bases, 2, None)
         .await?
-        .error_for_status()?
         .json()
         .await?;
 
@@ -463,9 +458,6 @@ pub async fn search_with_facets(
     limit: u64,
     offset: u64,
 ) -> Result<(Vec<ModResult>, u64), LauncherError> {
-    let client = http_client::build_client();
-    let base = format!("{}/search", MODRINTH_API_BASE);
-
     let mut facets = vec![format!(r#"["project_type:{}"]"#, project_type)];
 
     if let Some(ver) = game_version {
@@ -487,9 +479,8 @@ pub async fn search_with_facets(
         _ => "relevance",
     };
 
-    let url = format!(
-        "{}?query={}&facets={}&limit={}&offset={}&index={}",
-        base,
+    let url_template = format!(
+        "{{API_BASE}}/search?query={}&facets={}&limit={}&offset={}&index={}",
         urlencoding::encode(query),
         facets_param,
         limit.min(50),
@@ -497,13 +488,11 @@ pub async fn search_with_facets(
         sort_order,
     );
 
-    tracing::debug!("Modrinth search (facets): {}", url);
+    tracing::debug!("Modrinth search (facets): {}", url_template);
 
-    let resp: ModrinthSearchResponse = client
-        .get(&url)
-        .send()
+    let bases = all_api_bases();
+    let resp: ModrinthSearchResponse = http_client::retry_get_with_fallback(&url_template, &bases, 2, None)
         .await?
-        .error_for_status()?
         .json()
         .await?;
 
@@ -514,23 +503,17 @@ pub async fn search_with_facets(
 
 /// Get full project details including body HTML, gallery, and license.
 pub async fn get_project_full(slug: &str) -> Result<ModProjectFull, LauncherError> {
-    let client = http_client::build_client();
-    let url = format!("{}/project/{}", MODRINTH_API_BASE, slug);
+    let url_template = format!("{{API_BASE}}/project/{}", slug);
+    let bases = all_api_bases();
 
-    let response = client
-        .get(&url)
-        .send()
+    let resp: ModrinthProjectFull = http_client::retry_get_with_fallback(&url_template, &bases, 2, None)
         .await?
-        .error_for_status()
+        .json()
+        .await
         .map_err(|e| {
-            tracing::error!("Modrinth project request failed for {}: {}", slug, e);
+            tracing::error!("Modrinth project JSON parse failed for {}: {}", slug, e);
             LauncherError::Http(e)
         })?;
-
-    let resp: ModrinthProjectFull = response.json().await.map_err(|e| {
-        tracing::error!("Modrinth project JSON parse failed for {}: {}", slug, e);
-        LauncherError::Http(e)
-    })?;
 
     Ok(ModProjectFull {
         slug: resp.slug,
@@ -572,14 +555,11 @@ pub async fn get_project_full(slug: &str) -> Result<ModProjectFull, LauncherErro
 
 /// Get a single version by its ID.
 pub async fn get_version_by_id(version_id: &str) -> Result<ModVersion, LauncherError> {
-    let client = http_client::build_client();
-    let url = format!("{}/version/{}", MODRINTH_API_BASE, version_id);
+    let url_template = format!("{{API_BASE}}/version/{}", version_id);
+    let bases = all_api_bases();
 
-    let v: ModrinthVersion = client
-        .get(&url)
-        .send()
+    let v: ModrinthVersion = http_client::retry_get_with_fallback(&url_template, &bases, 2, None)
         .await?
-        .error_for_status()?
         .json()
         .await?;
 
@@ -610,9 +590,6 @@ pub async fn get_popular_by_type(
     game_version: Option<&str>,
     limit: u64,
 ) -> Result<Vec<ModResult>, LauncherError> {
-    let client = http_client::build_client();
-    let base = format!("{}/search", MODRINTH_API_BASE);
-
     let mut facets = vec![format!(r#"["project_type:{}"]"#, project_type)];
     if let Some(ver) = game_version {
         if !ver.is_empty() {
@@ -621,18 +598,16 @@ pub async fn get_popular_by_type(
     }
 
     let facets_param = format!("[{}]", facets.join(","));
-    let url = format!(
-        "{}?facets={}&limit={}&index=downloads",
-        base, facets_param, limit.min(50)
+    let url_template = format!(
+        "{{API_BASE}}/search?facets={}&limit={}&index=downloads",
+        facets_param, limit.min(50)
     );
 
-    tracing::debug!("Modrinth popular by type: {}", url);
+    tracing::debug!("Modrinth popular by type: {}", url_template);
 
-    let resp: ModrinthSearchResponse = client
-        .get(&url)
-        .send()
+    let bases = all_api_bases();
+    let resp: ModrinthSearchResponse = http_client::retry_get_with_fallback(&url_template, &bases, 2, None)
         .await?
-        .error_for_status()?
         .json()
         .await?;
 
@@ -644,9 +619,6 @@ pub async fn get_recently_updated(
     project_type: Option<&str>,
     limit: u64,
 ) -> Result<Vec<ModResult>, LauncherError> {
-    let client = http_client::build_client();
-    let base = format!("{}/search", MODRINTH_API_BASE);
-
     let mut facets = Vec::new();
     if let Some(pt) = project_type {
         if !pt.is_empty() {
@@ -654,20 +626,18 @@ pub async fn get_recently_updated(
         }
     }
 
-    let url = if facets.is_empty() {
-        format!("{}?limit={}&index=updated", base, limit.min(50))
+    let url_template = if facets.is_empty() {
+        format!("{{API_BASE}}/search?limit={}&index=updated", limit.min(50))
     } else {
         let facets_param = format!("[{}]", facets.join(","));
-        format!("{}?facets={}&limit={}&index=updated", base, facets_param, limit.min(50))
+        format!("{{API_BASE}}/search?facets={}&limit={}&index=updated", facets_param, limit.min(50))
     };
 
-    tracing::debug!("Modrinth recently updated: {}", url);
+    tracing::debug!("Modrinth recently updated: {}", url_template);
 
-    let resp: ModrinthSearchResponse = client
-        .get(&url)
-        .send()
+    let bases = all_api_bases();
+    let resp: ModrinthSearchResponse = http_client::retry_get_with_fallback(&url_template, &bases, 2, None)
         .await?
-        .error_for_status()?
         .json()
         .await?;
 

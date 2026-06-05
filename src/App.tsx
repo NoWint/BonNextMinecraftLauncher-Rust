@@ -33,6 +33,7 @@ import ContentDetailPage from './pages/ContentDetailPage';
 import LibraryPage from './pages/LibraryPage';
 import CollectionsPage from './pages/CollectionsPage';
 import SettingsPage from './pages/SettingsPage';
+import ServersPage from './pages/ServersPage';
 
 const PAGE_ID_TO_PATH: Record<string, string> = {
   home: '/home',
@@ -44,6 +45,7 @@ const PAGE_ID_TO_PATH: Record<string, string> = {
   content_detail: '/store',
   library: '/library',
   versions: '/versions',
+  servers: '/servers',
   settings: '/settings',
   mods: '/mods',
   store: '/store',
@@ -69,6 +71,7 @@ function AppShell() {
     { id: 'instances', label: t('nav.instances'), shortcut: 'I', path: '/instances' },
     { id: 'library', label: t('nav.library'), shortcut: 'L', path: '/library' },
     { id: 'versions', label: t('nav.versions'), shortcut: 'V', path: '/versions' },
+    { id: 'servers', label: t('nav.servers') || 'Servers', shortcut: 'R', path: '/servers' },
     { id: 'settings', label: t('nav.settings'), shortcut: ',', path: '/settings' },
   ];
 
@@ -144,6 +147,7 @@ function AppShell() {
               <Route path="/store/:type/:slug" element={<ContentDetailPage />} />
               <Route path="/collections" element={<CollectionsPage />} />
               <Route path="/library" element={<LibraryPage />} />
+              <Route path="/servers" element={<ServersPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/" element={<Navigate to="/home" replace />} />
               <Route path="*" element={<Navigate to="/home" replace />} />

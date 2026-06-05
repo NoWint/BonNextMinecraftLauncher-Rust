@@ -2,6 +2,7 @@
 use crate::error::LauncherError;
 use crate::modrinth;
 use serde::{Deserialize, Serialize};
+use sha1::{Digest, Sha1};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -176,6 +177,104 @@ pub async fn check_updates(instance_id: &str) -> Result<Vec<UpdateInfo>, Launche
             Err(e) => {
                 tracing::warn!("Failed to check updates for {}: {}", slug, e);
             }
+        }
+    }
+
+    Ok(updates)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModUpdateInfo {
+    pub file_name: String,
+    pub project_id: String,
+    pub project_slug: Option<String>,
+    pub current_hash: String,
+    pub latest_hash: String,
+    pub latest_version: String,
+    pub latest_version_id: String,
+    pub download_url: String,
+}
+
+fn compute_file_sha1(path: &std::path::Path) -> Result<String, LauncherError> {
+    let data = std::fs::read(path)?;
+    let mut hasher = Sha1::new();
+    hasher.update(&data);
+    Ok(hex::encode(hasher.finalize()))
+}
+
+pub async fn check_mod_updates(instance_id: &str) -> Result<Vec<ModUpdateInfo>, LauncherError> {
+    let metadata = load_metadata(instance_id)?;
+    if metadata.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mods_dir = crate::platform::paths::get_instance_mods_dir(instance_id);
+
+    let futures: Vec<_> = metadata.iter().map(|(filename, record)| {
+        let filename = filename.clone();
+        let slug = record.slug.clone();
+        let source = record.source.clone();
+        let local_path = mods_dir.join(&filename);
+        async move {
+            let current_hash = match compute_file_sha1(&local_path) {
+                Ok(h) => h,
+                Err(e) => {
+                    tracing::warn!("Failed to compute SHA1 for {}: {}", filename, e);
+                    return (filename, slug, source, None, None);
+                }
+            };
+
+            let versions_result = if source == "curseforge" {
+                if let Ok(mod_id) = slug.parse::<u64>() {
+                    crate::curseforge::get_mod_versions(mod_id).await
+                } else {
+                    modrinth::get_mod_versions(&slug, None, None).await
+                }
+            } else {
+                modrinth::get_mod_versions(&slug, None, None).await
+            };
+
+            match versions_result {
+                Ok(versions) => {
+                    if let Some(latest) = versions.first() {
+                        if let Some(primary_file) = latest.files.first() {
+                            let latest_hash = primary_file.hashes.sha1.clone().unwrap_or_default();
+                            if current_hash.eq_ignore_ascii_case(&latest_hash) {
+                                return (filename, slug, source, Some(current_hash), None);
+                            }
+                            return (filename, slug, source, Some(current_hash), Some((
+                                latest.id.clone(),
+                                latest.version_number.clone(),
+                                primary_file.url.clone(),
+                                latest_hash,
+                            )));
+                        }
+                    }
+                    (filename, slug, source, Some(current_hash), None)
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to fetch versions for {}: {}", slug, e);
+                    (filename, slug, source, Some(current_hash), None)
+                }
+            }
+        }
+    }).collect();
+
+    let results = futures_util::future::join_all(futures).await;
+
+    let mut updates = Vec::new();
+    for (filename, slug, _source, current_hash, latest_info) in results {
+        if let (Some(current_hash), Some((latest_version_id, latest_version, download_url, latest_hash))) = (current_hash, latest_info) {
+            updates.push(ModUpdateInfo {
+                file_name: filename,
+                project_id: slug.clone(),
+                project_slug: Some(slug),
+                current_hash,
+                latest_hash,
+                latest_version,
+                latest_version_id,
+                download_url,
+            });
         }
     }
 

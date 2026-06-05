@@ -1,4 +1,5 @@
 import { useReducer, useCallback, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { SectionHeader } from '../components/layout';
 import TypeTabs from '../components/marketplace/TypeTabs';
 import FilterBar from '../components/marketplace/FilterBar';
@@ -28,6 +29,7 @@ interface RecommendationItem {
 }
 
 export default function MarketplacePage() {
+  const navigate = useNavigate();
   const [state, dispatch] = useReducer(marketplaceReducer, INITIAL_STATE);
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
   const [recsLoading, setRecsLoading] = useState(true);
@@ -103,7 +105,7 @@ export default function MarketplacePage() {
   const handleNavigate = useCallback(
     (slug: string) => {
       const sourceParam = state.source === 'curseforge' ? '?source=curseforge' : '';
-      window.location.hash = `#/store/${state.activeTab}/${slug}${sourceParam}`;
+      navigate(`/store/${state.activeTab}/${slug}${sourceParam}`);
     },
     [state.source, state.activeTab],
   );
@@ -131,7 +133,7 @@ export default function MarketplacePage() {
                     key={rec.slug}
                     className={styles.recommendations__card}
                     onClick={() => {
-                      window.location.hash = `#/store/mod/${rec.slug}`;
+                      navigate(`/store/mod/${rec.slug}`);
                     }}
                   >
                     <div className={styles.recommendations__cardName}>{rec.name}</div>

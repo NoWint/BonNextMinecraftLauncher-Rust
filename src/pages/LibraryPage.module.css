@@ -281,3 +281,57 @@
   flex-direction: column;
   gap: 8px;
 }
+
+/* Scan Mods */
+.scanRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.scanProgress {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-accent);
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
+.scanCount {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-text-dim);
+  background: var(--color-accent-10);
+  padding: 2px 8px;
+  clip-path: var(--clip-badge);
+}
+
+.scanResults {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.modUpdateBadge {
+  font-family: var(--font-mono);
+  font-size: 0.45em;
+  color: var(--color-accent);
+  background: var(--color-accent-10);
+  padding: 2px 8px;
+  clip-path: var(--clip-badge);
+  white-space: nowrap;
+  flex-shrink: 0;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.dirChangedBadge {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-warning, #f0ad4e);
+  background: var(--color-accent-10);
+  padding: 2px 8px;
+  clip-path: var(--clip-badge);
+  white-space: nowrap;
+  flex-shrink: 0;
+}

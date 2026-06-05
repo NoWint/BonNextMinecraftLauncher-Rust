@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { formatError } from '../../utils/errorMapping';
-import { api, type DetectedLauncher, type MigrateableInstance } from '../../api';
+import { api, type DetectedLauncher, type MigrateableInstance, type MigrationIssue, type MigrationFixResult } from '../../api';
 import { Button } from './Button';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
@@ -15,7 +15,7 @@ interface Props {
   onMigrated: () => void;
 }
 
-type Step = 'select-launcher' | 'select-instances' | 'migrating';
+type Step = 'select-launcher' | 'select-instances' | 'migrating' | 'fixing';
 
 export function MigrationModal({ open: isOpen, onClose, onMigrated }: Props) {
   const { t } = useI18n();
@@ -30,6 +30,10 @@ export function MigrationModal({ open: isOpen, onClose, onMigrated }: Props) {
   const [migrating, setMigrating] = useState(false);
   const [migratedCount, setMigratedCount] = useState(0);
   const [_customPath, setCustomPath] = useState('');
+  const [_migratedInstanceIds, setMigratedInstanceIds] = useState<string[]>([]);
+  const [fixIssues, setFixIssues] = useState<Map<string, MigrationIssue[]>>(new Map());
+  const [fixResults, setFixResults] = useState<Map<string, MigrationFixResult>>(new Map());
+  const [fixing, setFixing] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
@@ -110,19 +114,25 @@ export function MigrationModal({ open: isOpen, onClose, onMigrated }: Props) {
     setMigrating(true);
     setStep('migrating');
     let count = 0;
+    const newIds: string[] = [];
     for (const idx of selectedInstances) {
       const inst = instances[idx];
       try {
-        await api.migrateInstance({
+        const result = await api.migrateInstance({
           name: inst.name,
           versionId: inst.version_id,
           loaderType: inst.loader_type,
           loaderVersion: inst.loader_version,
           sourceGameDir: inst.game_dir,
           launcherType: inst.launcher_type,
+          javaPath: inst.java_path,
+          jvmArgs: inst.jvm_args,
+          minMemory: inst.min_memory,
+          maxMemory: inst.max_memory,
         });
         count++;
         setMigratedCount(count);
+        if (result?.id) newIds.push(result.id);
       } catch (e: unknown) {
         addToast({
           type: 'error',
@@ -131,7 +141,23 @@ export function MigrationModal({ open: isOpen, onClose, onMigrated }: Props) {
         });
       }
     }
+    setMigratedInstanceIds(newIds);
     setMigrating(false);
+
+    if (newIds.length > 0) {
+      const issuesMap = new Map<string, MigrationIssue[]>();
+      for (const instId of newIds) {
+        try {
+          const issues = await api.diagnoseMigration(instId);
+          if (issues.length > 0) issuesMap.set(instId, issues);
+        } catch { /* skip */ }
+      }
+      setFixIssues(issuesMap);
+      if (issuesMap.size > 0) {
+        setStep('fixing');
+      }
+    }
+
     addToast({
       type: 'success',
       title: t('migration.migrated'),
@@ -141,9 +167,29 @@ export function MigrationModal({ open: isOpen, onClose, onMigrated }: Props) {
   }, [selectedInstances, instances, addToast, t, onMigrated]);
 
   const handleClose = useCallback(() => {
-    if (migrating) return;
+    if (migrating || fixing) return;
     onClose();
-  }, [migrating, onClose]);
+  }, [migrating, fixing, onClose]);
+
+  const handleOneClickFix = useCallback(async () => {
+    setFixing(true);
+    const resultsMap = new Map<string, MigrationFixResult>();
+    for (const [instId, issues] of fixIssues) {
+      try {
+        const result = await api.fixMigrationIssues(instId, issues);
+        resultsMap.set(instId, result);
+      } catch (e: unknown) {
+        addToast({ type: 'error', title: t('migration.fixFailed'), message: formatError(e) });
+      }
+    }
+    setFixResults(resultsMap);
+    setFixing(false);
+    const totalFixed = Array.from(resultsMap.values()).reduce((sum, r) => sum + r.fixed, 0);
+    if (totalFixed > 0) {
+      addToast({ type: 'success', title: t('migration.fixComplete'), message: t('migration.fixCount', { count: String(totalFixed) }) });
+    }
+    onMigrated();
+  }, [fixIssues, addToast, t, onMigrated]);
 
   const launcherIcon = (type: string) => {
     switch (type) {
@@ -271,6 +317,50 @@ export function MigrationModal({ open: isOpen, onClose, onMigrated }: Props) {
           <p>
             {t('migration.migratingProgress', { count: String(migratedCount), total: String(selectedInstances.size) })}
           </p>
+        </div>
+      )}
+
+      {step === 'fixing' && (
+        <div className={styles.fixSection}>
+          <p className={styles.hint}>{t('migration.fixTitle')}</p>
+          {Array.from(fixIssues.entries()).map(([instId, issues]) => (
+            <div key={instId} className={styles.fixInstance}>
+              <div className={styles.fixInstanceHeader}>
+                <span className={styles.fixInstanceName}>{instId.replace(/^migrated_[^_]+_/, '')}</span>
+                <span className={styles.fixIssueCount}>{issues.length} {t('migration.issues')}</span>
+              </div>
+              {issues.map((issue, i) => (
+                <div key={i} className={`${styles.fixIssue} ${styles[`fixIssue--${issue.severity}`] || ''}`}>
+                  <span className={styles.fixIssueType}>{issue.issue_type}</span>
+                  <span className={styles.fixIssueDesc}>{issue.description}</span>
+                  {issue.auto_fixable && <span className={styles.fixAutoTag}>{t('migration.autoFixable')}</span>}
+                </div>
+              ))}
+              {fixResults.has(instId) && (
+                <div className={styles.fixResult}>
+                  {fixResults.get(instId)!.details.map((d, i) => (
+                    <div key={i} className={styles.fixResultLine}>{d}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+          {fixResults.size === 0 ? (
+            <div className={styles.fixActions}>
+              <Button variant="primary" size="sm" onClick={handleOneClickFix} disabled={fixing}>
+                {fixing ? t('migration.fixing') : t('migration.oneClickFix')}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={handleClose}>
+                {t('common.skip')}
+              </Button>
+            </div>
+          ) : (
+            <div className={styles.fixActions}>
+              <Button variant="primary" size="sm" onClick={handleClose}>
+                {t('common.done')}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </Modal>

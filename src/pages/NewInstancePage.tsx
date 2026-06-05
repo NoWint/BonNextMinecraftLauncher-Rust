@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type VersionEntry, type GameInstance, type DetectedLauncher, type MigrateableInstance } from '../api';
 import { useInstances } from '../stores/instanceStore';
 import { useI18n } from '../i18n';
@@ -47,6 +48,7 @@ const getTemplates = (t: (key: string) => string): Template[] => [
 ];
 
 export default function NewInstancePage() {
+  const navigate = useNavigate();
   const { createInstance } = useInstances();
   const { t } = useI18n();
   const TEMPLATES = getTemplates(t);
@@ -134,7 +136,7 @@ export default function NewInstancePage() {
           return;
         }
       }
-      window.location.hash = '#/';
+      navigate('/');
     } catch (e: unknown) {
       setError(formatError(e) || t('newInstance.createFailed'));
     } finally {
@@ -194,7 +196,7 @@ export default function NewInstancePage() {
         minMemory: inst.min_memory,
         maxMemory: inst.max_memory,
       });
-      window.location.hash = '#/';
+      navigate('/');
     } catch (e: unknown) {
       setMigrationError(formatError(e) || t('newInstance.migrateFailed'));
     } finally {

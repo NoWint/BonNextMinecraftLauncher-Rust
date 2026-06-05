@@ -169,7 +169,34 @@ pub async fn yggdrasil_login(
 
 #[tauri::command]
 pub async fn yggdrasil_refresh_token() -> Result<(), crate::error::LauncherError> {
-    crate::auth::token_store::ensure_fresh_token().await?;
+    let store = crate::auth::token_store::AccountStore::load()?;
+    let active = store.get_active()
+        .ok_or_else(|| crate::error::LauncherError::AuthFailed("No active account".to_string()))?;
+    if active.account_type != "yggdrasil" {
+        crate::auth::token_store::ensure_fresh_token().await?;
+        return Ok(());
+    }
+    let server_url = active.yggdrasil_server_url.clone()
+        .ok_or_else(|| crate::error::LauncherError::AuthFailed("Missing Yggdrasil server URL".to_string()))?;
+    let client_token = active.yggdrasil_client_token.clone()
+        .ok_or_else(|| crate::error::LauncherError::AuthFailed("Missing Yggdrasil client token".to_string()))?;
+    let (new_access, new_client_token, new_profile) = crate::auth::yggdrasil::refresh_token(
+        &server_url,
+        &active.access_token,
+        &client_token,
+    ).await?;
+    let mut store = crate::auth::token_store::AccountStore::load()?;
+    let active_id = store.active_account_id.clone().unwrap_or_default();
+    if let Some(ref mut acct) = store.accounts.iter_mut().find(|a| a.id == active_id) {
+        acct.access_token = new_access;
+        acct.yggdrasil_client_token = Some(new_client_token);
+        if let Some(p) = new_profile {
+            acct.username = p.name;
+            acct.yggdrasil_selected_profile = Some(p.id);
+        }
+        acct.expires_at = Some((chrono::Utc::now() + chrono::Duration::hours(24)).to_rfc3339());
+        store.save()?;
+    }
     Ok(())
 }
 
@@ -225,6 +252,29 @@ pub async fn yggdrasil_select_profile(
 #[tauri::command]
 pub async fn get_yggdrasil_presets() -> Result<Vec<(String, String)>, crate::error::LauncherError> {
     Ok(crate::auth::yggdrasil::get_presets())
+}
+
+#[tauri::command]
+pub async fn get_yggdrasil_server_presets() -> Result<Vec<crate::auth::yggdrasil::YggdrasilServerPreset>, crate::error::LauncherError> {
+    Ok(crate::auth::yggdrasil::get_server_presets())
+}
+
+#[tauri::command]
+pub async fn test_yggdrasil_server(
+    server_url: String,
+) -> Result<(), crate::error::LauncherError> {
+    crate::security::sanitizer::sanitize_url(&server_url)?;
+    crate::auth::yggdrasil::test_server_connection(&server_url).await
+}
+
+#[tauri::command]
+pub async fn yggdrasil_validate_token(
+    server_url: String,
+    access_token: String,
+    client_token: String,
+) -> Result<bool, crate::error::LauncherError> {
+    crate::security::sanitizer::sanitize_url(&server_url)?;
+    crate::auth::yggdrasil::validate_token(&server_url, &access_token, &client_token).await
 }
 
 #[tauri::command]
@@ -451,4 +501,140 @@ pub async fn check_authlib_injector() -> Result<serde_json::Value, crate::error:
         "size": size,
         "ready": exists && size > 0,
     }))
+}
+
+#[tauri::command]
+pub async fn start_yggdrasil_oauth(
+    server_name: String,
+) -> Result<crate::auth::yggdrasil::YggdrasilOAuthStartResult, crate::error::LauncherError> {
+    crate::security::sanitizer::sanitize_general_string(&server_name)?;
+    crate::auth::yggdrasil::start_yggdrasil_oauth(&server_name).await
+}
+
+#[tauri::command]
+pub async fn complete_yggdrasil_oauth(
+    server_name: String,
+    code: String,
+) -> Result<crate::auth::yggdrasil::YggdrasilOAuthResult, crate::error::LauncherError> {
+    crate::security::sanitizer::sanitize_general_string(&server_name)?;
+    crate::security::sanitizer::sanitize_general_string(&code)?;
+
+    let result = crate::auth::yggdrasil::complete_yggdrasil_oauth(&server_name, &code).await?;
+
+    // Determine username/uuid from profiles
+    let (username, uuid, selected_profile) = if let Some(profile) = result.profiles.first() {
+        (profile.name.clone(), profile.id.clone(), Some(profile.clone()))
+    } else {
+        (String::new(), String::new(), None)
+    };
+
+    // Store the account
+    let account = crate::auth::token_store::StoredAccount {
+        id: if uuid.is_empty() { uuid::Uuid::new_v4().to_string() } else { uuid.clone() },
+        username: username.clone(),
+        uuid: if uuid.is_empty() { uuid::Uuid::new_v4().to_string() } else { uuid.clone() },
+        access_token: result.access_token.clone(),
+        refresh_token: result.refresh_token.clone(),
+        account_type: "yggdrasil".to_string(),
+        last_used: chrono::Utc::now().to_rfc3339(),
+        expires_at: result.expires_in.map(|secs| {
+            (chrono::Utc::now() + chrono::Duration::seconds(secs as i64)).to_rfc3339()
+        }).or_else(|| Some((chrono::Utc::now() + chrono::Duration::hours(24)).to_rfc3339())),
+        avatar_url: None,
+        yggdrasil_client_token: None,
+        yggdrasil_server_url: {
+            let preset = crate::auth::yggdrasil::get_server_presets()
+                .into_iter()
+                .find(|p| p.name == server_name);
+            preset.map(|p| p.base_url)
+        },
+        yggdrasil_selected_profile: selected_profile.map(|p| p.id),
+        local_skin_path: None,
+        local_skin_model: None,
+    };
+
+    let mut store = crate::auth::token_store::AccountStore::load()?;
+    store.upsert_account(account)?;
+    store.set_active(&if uuid.is_empty() { store.accounts.last().map(|a| a.id.clone()).unwrap_or_default() } else { uuid.clone() })?;
+
+    crate::security::audit::record_login("yggdrasil_oauth2", true, &username)?;
+
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn upload_skin(
+    _access_token: String,
+    file_path: String,
+    variant: String,
+) -> Result<(), crate::error::LauncherError> {
+    crate::security::sanitizer::sanitize_general_string(&variant)?;
+    let normalized = normalize_file_path(&file_path);
+    crate::security::sanitizer::sanitize_path(&normalized)?;
+    crate::auth::token_store::ensure_fresh_token().await?;
+    let store = crate::auth::token_store::AccountStore::load()?;
+    let active = store.get_active()
+        .ok_or_else(|| crate::error::LauncherError::AuthFailed("No active account".to_string()))?;
+    if active.account_type != "microsoft" {
+        return Err(crate::error::LauncherError::AuthFailed("Active account is not a Microsoft account".to_string()));
+    }
+    crate::auth::skin_server::upload_skin_mojang(&active.access_token, &normalized, &variant).await
+}
+
+#[tauri::command]
+pub async fn reset_skin(
+    _access_token: String,
+) -> Result<(), crate::error::LauncherError> {
+    crate::auth::token_store::ensure_fresh_token().await?;
+    let store = crate::auth::token_store::AccountStore::load()?;
+    let active = store.get_active()
+        .ok_or_else(|| crate::error::LauncherError::AuthFailed("No active account".to_string()))?;
+    if active.account_type != "microsoft" {
+        return Err(crate::error::LauncherError::AuthFailed("Active account is not a Microsoft account".to_string()));
+    }
+    crate::auth::skin_server::reset_skin_mojang(&active.access_token).await
+}
+
+#[tauri::command]
+pub async fn equip_cape(
+    _access_token: String,
+    cape_id: String,
+) -> Result<(), crate::error::LauncherError> {
+    crate::security::sanitizer::sanitize_id(&cape_id)?;
+    crate::auth::token_store::ensure_fresh_token().await?;
+    let store = crate::auth::token_store::AccountStore::load()?;
+    let active = store.get_active()
+        .ok_or_else(|| crate::error::LauncherError::AuthFailed("No active account".to_string()))?;
+    if active.account_type != "microsoft" {
+        return Err(crate::error::LauncherError::AuthFailed("Active account is not a Microsoft account".to_string()));
+    }
+    crate::auth::skin_server::equip_cape_mojang(&active.access_token, &cape_id).await
+}
+
+#[tauri::command]
+pub async fn hide_cape(
+    _access_token: String,
+) -> Result<(), crate::error::LauncherError> {
+    crate::auth::token_store::ensure_fresh_token().await?;
+    let store = crate::auth::token_store::AccountStore::load()?;
+    let active = store.get_active()
+        .ok_or_else(|| crate::error::LauncherError::AuthFailed("No active account".to_string()))?;
+    if active.account_type != "microsoft" {
+        return Err(crate::error::LauncherError::AuthFailed("Active account is not a Microsoft account".to_string()));
+    }
+    crate::auth::skin_server::hide_cape_mojang(&active.access_token).await
+}
+
+#[tauri::command]
+pub async fn get_mojang_profile(
+    _access_token: String,
+) -> Result<crate::auth::skin_server::MojangProfile, crate::error::LauncherError> {
+    crate::auth::token_store::ensure_fresh_token().await?;
+    let store = crate::auth::token_store::AccountStore::load()?;
+    let active = store.get_active()
+        .ok_or_else(|| crate::error::LauncherError::AuthFailed("No active account".to_string()))?;
+    if active.account_type != "microsoft" {
+        return Err(crate::error::LauncherError::AuthFailed("Active account is not a Microsoft account".to_string()));
+    }
+    crate::auth::skin_server::get_mojang_profile(&active.access_token).await
 }

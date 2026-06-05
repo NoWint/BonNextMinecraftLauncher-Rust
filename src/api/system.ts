@@ -16,6 +16,7 @@ import type {
 
 export const quickStart = () => invoke<void>('quick_start');
 export const selectFastestMirror = () => invoke<string>('select_fastest_mirror');
+export const getActiveDownloadSource = () => invoke<string>('get_active_download_source');
 export const getSystemInfo = () => cachedInvoke('system_info', () => invoke<SystemInfo>('get_system_info'));
 export const autoTuneMemory = () => invoke<number>('auto_tune_memory_cmd');
 export const getPlaytimeStats = () => cachedInvoke('playtime_stats', () => invoke<PlaytimeStats>('get_playtime_stats'));
@@ -107,3 +108,12 @@ export const downloadJreVersionCmd = (javaVersion: number) =>
 export const listJreVersions = () => invoke<JreVersionInfo[]>('list_jre_versions');
 export const getCachedImage = (url: string) => invoke<string>('get_cached_image', { url });
 export const getRecommendedConfig = () => invoke<RecommendedConfig>('get_recommended_config');
+
+export interface UrlConfigSnapshot {
+  git_proxy_enabled: boolean;
+  git_proxy_url: string;
+}
+
+export const getUrlConfig = () => invoke<UrlConfigSnapshot>('get_url_config');
+export const setGitProxy = (enabled: boolean, proxyUrl: string | null) =>
+  invoke<void>('set_git_proxy', { enabled, proxyUrl: proxyUrl });

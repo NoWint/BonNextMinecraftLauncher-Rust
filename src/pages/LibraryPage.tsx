@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { listen } from '@tauri-apps/api/event';
 import { formatError } from '../utils/errorMapping';
 import { api, type ContentCounts, type InstalledModInfo, type UpdateInfo } from '../api';
+import { scanModsDirectory, checkModUpdates, watchInstanceMods, unwatchInstanceMods, type ScanResult, type ModUpdateInfo } from '../api/modScanner';
 import { useInstances } from '../stores/instanceStore';
 import { useToast } from '../stores/toastStore';
 import { useI18n } from '../i18n';
 import { SectionHeader, Ticker } from '../components/layout';
-import { Button, Modal, Tabs, Select } from '../components/ui';
+import { Button, Modal, Tabs, Select, ModScanResult } from '../components/ui';
 import { Icon } from '../components/ui/Icon';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import styles from './LibraryPage.module.css';
@@ -19,6 +22,7 @@ function formatSize(bytes: number): string {
 }
 
 export default function LibraryPage() {
+  const navigate = useNavigate();
   const { state: instState } = useInstances();
   const { addToast } = useToast();
   const { t } = useI18n();
@@ -45,6 +49,11 @@ export default function LibraryPage() {
   const [updatingAll, setUpdatingAll] = useState(false);
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ succeeded: number; failed: number; errors: string[] } | null>(null);
+  const [scanResults, setScanResults] = useState<ScanResult[]>([]);
+  const [scanning, setScanning] = useState(false);
+  const [modUpdates, setModUpdates] = useState<ModUpdateInfo[]>([]);
+  const [checkingModUpdates, setCheckingModUpdates] = useState(false);
+  const [dirChanged, setDirChanged] = useState(false);
 
   const instances = instState.instances;
   const selectedInstance = instances.find((i) => i.id === selectedId);
@@ -79,6 +88,40 @@ export default function LibraryPage() {
   useEffect(() => {
     loadContent();
   }, [loadContent]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    let cleanup: (() => void) | undefined;
+    listen<{ instance_id: string; change_type: string }>('mod-directory-changed', (event) => {
+      if (event.payload.instance_id === selectedId) {
+        setDirChanged(true);
+        addToast({
+          type: 'info',
+          title: t('library.modDirectoryChanged') || 'Mods Changed',
+          message: t('library.modDirectoryChangedDesc') || 'Mod directory was modified externally. Refreshing...',
+        });
+        loadContent();
+        setTimeout(() => setDirChanged(false), 3000);
+      }
+    }).then((unlisten) => {
+      cleanup = unlisten;
+    });
+    return () => {
+      cleanup?.();
+    };
+  }, [selectedId, loadContent, addToast, t]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    let cancelled = false;
+    watchInstanceMods(selectedId).catch(() => {});
+    return () => {
+      if (!cancelled) {
+        cancelled = true;
+        unwatchInstanceMods(selectedId).catch(() => {});
+      }
+    };
+  }, [selectedId]);
 
   const checkForUpdates = async () => {
     if (!selectedId) return;
@@ -249,6 +292,40 @@ export default function LibraryPage() {
     }
   };
 
+  const handleScanMods = async () => {
+    if (!selectedId) return;
+    setScanning(true);
+    try {
+      const results = await scanModsDirectory(selectedId);
+      setScanResults(results);
+      if (results.length === 0) {
+        addToast({ type: 'info', title: t('library.scanMods') || 'Scan Mods', message: t('library.noModsFound') || 'No mods found in directory' });
+      }
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('library.scanMods') || 'Scan Mods', message: formatError(e) });
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleCheckModUpdates = async () => {
+    if (!selectedId) return;
+    setCheckingModUpdates(true);
+    try {
+      const result = await checkModUpdates(selectedId);
+      setModUpdates(result);
+      if (result.length === 0) {
+        addToast({ type: 'info', title: t('library.modUpdates') || 'Mod Updates', message: t('library.noModUpdates') || 'All mods are up to date' });
+      } else {
+        addToast({ type: 'info', title: t('library.modUpdates') || 'Mod Updates', message: `${result.length} mod(s) have updates available` });
+      }
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('library.modUpdates') || 'Mod Updates', message: formatError(e) });
+    } finally {
+      setCheckingModUpdates(false);
+    }
+  };
+
   // Build instance options for Select
   const instanceOptions = instances.map((inst) => ({
     value: inst.id,
@@ -395,51 +472,118 @@ export default function LibraryPage() {
       ) : (
         <>
           {/* Mods tab */}
-          {activeTab === 'mods' &&
-            (mods.length === 0 ? (
-              <div className={styles.empty}>
-                <div className={styles.empty__title}>{t('library.noModsInstalled')}</div>
-                <div className={styles.empty__desc}>{t('library.noModsInstalledDesc')}</div>
-                <Button variant="secondary" size="sm" onClick={() => (window.location.hash = '#/mods')}>
-                  {t('library.browseMods')}
+          {activeTab === 'mods' && (
+            <>
+              <div className={styles.scanRow}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={scanning || !selectedId}
+                  onClick={handleScanMods}
+                >
+                  {scanning
+                    ? (t('library.scanning') || 'Scanning...')
+                    : scanResults.length > 0
+                      ? (t('library.rescanMods') || 'Rescan')
+                      : (t('library.scanMods') || 'Scan Mods')}
                 </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={checkingModUpdates || !selectedId}
+                  onClick={handleCheckModUpdates}
+                >
+                  {checkingModUpdates
+                    ? (t('library.checkingModUpdates') || 'Checking...')
+                    : (t('library.checkModUpdates') || 'Check Mod Updates')}
+                </Button>
+                {scanning && (
+                  <span className={styles.scanProgress}>
+                    {t('library.scanningMods') || 'Scanning mods directory...'}
+                  </span>
+                )}
+                {scanResults.length > 0 && !scanning && (
+                  <span className={styles.scanCount}>
+                    {scanResults.length} {t('library.modsFound') || 'mods found'}
+                  </span>
+                )}
+                {dirChanged && (
+                  <span className={styles.dirChangedBadge}>
+                    {t('library.dirChanged') || 'Directory changed'}
+                  </span>
+                )}
               </div>
-            ) : (
-              <div className={styles.list}>
-                {mods.map((mod) => (
-                  <div key={mod.filename} className={styles.item}>
-                    <div className={styles.item__icon}>{'\u{1F9F5}'}</div>
-                    <div className={styles.item__name}>{mod.filename}</div>
-                    <div className={styles.item__meta}>{formatSize(mod.size)}</div>
-                    <div className={styles.item__meta}>
-                      {mod.installed_at ? new Date(mod.installed_at).toLocaleDateString() : ''}
-                    </div>
-                    <div className={styles.item__actions}>
-                      <Button
-                        variant={mod.enabled !== false ? 'secondary' : 'primary'}
-                        size="sm"
-                        onClick={async () => {
-                          if (!selectedId) return;
-                          try {
-                            const newEnabled = await api.toggleMod(selectedId, mod.filename);
-                            setMods((prev) =>
-                              prev.map((m) => (m.filename === mod.filename ? { ...m, enabled: newEnabled } : m)),
-                            );
-                          } catch {
-                            addToast({ type: 'error', title: t('library.toggleModFailed') || 'Toggle failed' });
-                          }
-                        }}
-                      >
-                        {mod.enabled !== false ? t('library.disable') || 'Disable' : t('library.enable') || 'Enable'}
-                      </Button>
-                      <Button variant="danger" size="sm" onClick={() => setRemoveTarget(mod.filename)}>
-                        {t('library.remove')}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ))}
+
+              {scanResults.length > 0 && (
+                <div className={styles.scanResults}>
+                  {scanResults.map((result) => (
+                    <ModScanResult
+                      key={result.file_hash}
+                      result={result}
+                      onClick={() => {
+                        if (result.project_slug) {
+                          navigate(`/store/mod/${result.project_slug}`);
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {mods.length === 0 && scanResults.length === 0 ? (
+                <div className={styles.empty}>
+                  <div className={styles.empty__title}>{t('library.noModsInstalled')}</div>
+                  <div className={styles.empty__desc}>{t('library.noModsInstalledDesc')}</div>
+                  <Button variant="secondary" size="sm" onClick={() => navigate('/mods')}>
+                    {t('library.browseMods')}
+                  </Button>
+                </div>
+              ) : scanResults.length === 0 ? (
+                <div className={styles.list}>
+                  {mods.map((mod) => {
+                    const modUpdate = modUpdates.find((u) => u.file_name === mod.filename);
+                    return (
+                      <div key={mod.filename} className={styles.item}>
+                        <div className={styles.item__icon}>{'\u{1F9F5}'}</div>
+                        <div className={styles.item__name}>{mod.filename}</div>
+                        {modUpdate && (
+                          <span className={styles.modUpdateBadge}>
+                            {t('library.updateAvailable') || 'Update'}: {modUpdate.latest_version}
+                          </span>
+                        )}
+                        <div className={styles.item__meta}>{formatSize(mod.size)}</div>
+                        <div className={styles.item__meta}>
+                          {mod.installed_at ? new Date(mod.installed_at).toLocaleDateString() : ''}
+                        </div>
+                        <div className={styles.item__actions}>
+                          <Button
+                            variant={mod.enabled !== false ? 'secondary' : 'primary'}
+                            size="sm"
+                            onClick={async () => {
+                              if (!selectedId) return;
+                              try {
+                                const newEnabled = await api.toggleMod(selectedId, mod.filename);
+                                setMods((prev) =>
+                                  prev.map((m) => (m.filename === mod.filename ? { ...m, enabled: newEnabled } : m)),
+                                );
+                              } catch {
+                                addToast({ type: 'error', title: t('library.toggleModFailed') || 'Toggle failed' });
+                              }
+                            }}
+                          >
+                            {mod.enabled !== false ? t('library.disable') || 'Disable' : t('library.enable') || 'Enable'}
+                          </Button>
+                          <Button variant="danger" size="sm" onClick={() => setRemoveTarget(mod.filename)}>
+                            {t('library.remove')}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </>
+          )}
 
           {/* Resource packs tab */}
           {activeTab === 'resourcepacks' &&

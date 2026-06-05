@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { formatError } from '../../utils/errorMapping';
 import { api, type ModResult } from '../../api';
 import { useInstances } from '../../stores/instanceStore';
@@ -49,6 +50,7 @@ export default function ResultsView({
   viewMode,
   onNavigate,
 }: ResultsViewProps) {
+  const navigate = useNavigate();
   const { state: instState } = useInstances();
   const { addToast } = useToast();
 
@@ -283,7 +285,7 @@ export default function ResultsView({
           <span className={styles.warning__text}>
             You need an instance before you can install content. Create one first.
           </span>
-          <Button variant="secondary" size="sm" onClick={() => (window.location.hash = '#/instances/new')}>
+          <Button variant="secondary" size="sm" onClick={() => navigate('/instances/new')}>
             + New instance
           </Button>
         </div>

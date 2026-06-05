@@ -52,6 +52,7 @@ import WindowEffectsSection from './WindowEffectsSection';
 import SoundThemesSection from './SoundThemesSection';
 import DynamicBgSection from './DynamicBgSection';
 import DownloadSection from './DownloadSection';
+import NetworkSection from './NetworkSection';
 import AccessibilitySection from './AccessibilitySection';
 import MiniModeSection from './MiniModeSection';
 import DiscordSection from './DiscordSection';
@@ -135,6 +136,7 @@ export default function SettingsPage() {
   const [cfKeyValue, setCfKeyValue] = useState('');
   const [showCfKey, setShowCfKey] = useState(false);
   const [recommendedConfig, setRecommendedConfig] = useState<RecommendedConfig | null>(null);
+  const [settingsSearch, setSettingsSearch] = useState('');
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
 
   const javaPathRules = useMemo(() => [javaPath], []);
@@ -356,6 +358,63 @@ export default function SettingsPage() {
     return `${(bytes / 1_048_576).toFixed(1)} MB`;
   };
 
+  const sectionKeywords: Record<string, string[]> = useMemo(() => ({
+    'sec-account': [t('settings.account'), 'account', 'login', 'microsoft', 'offline', t('settings.logout')],
+    'sec-skin-station': ['skin', t('settings.skinStation')],
+    'sec-language': [t('settings.language'), 'language', 'i18n', 'locale'],
+    'sec-theme': [t('settings.theme'), 'theme', 'dark', 'light', 'oled', 'md3'],
+    'sec-font-custom': [t('settings.fontCustom'), 'font'],
+    'sec-guide': [t('settings.guide'), 'guide', 'onboarding'],
+    'sec-java': [t('settings.javaPath'), 'java', 'jvm', 'jdk', 'runtime'],
+    'sec-jre-management': [t('settings.jreManagement'), 'jre', 'download java'],
+    'sec-memory': [t('settings.memory'), 'memory', 'ram', 'heap'],
+    'sec-gc-tuning': [t('settings.gcTuning'), 'gc', 'garbage', 'zgc', 'g1gc', 'shenandoah'],
+    'sec-disk-usage': [t('settings.diskUsage'), 'disk', 'storage', t('settings.cleanup')],
+    'sec-file-mgmt': [t('settings.fileManagement'), 'file', 'manage', 'versions'],
+    'sec-launch-behavior': [t('settings.launchBehavior'), 'launch', 'start', 'auto close'],
+    'sec-data-dir': [t('settings.dataDirectory'), 'directory', 'path', 'game dir'],
+    'sec-dynamic-bg': [t('settings.dynamicBackground'), 'background', 'wallpaper', 'bg'],
+    'sec-sound-themes': [t('settings.soundThemes'), 'sound', 'audio', 'sfx'],
+    'sec-window-effects': [t('settings.windowEffects'), 'window', 'effects', 'animation'],
+    'sec-mini-mode': [t('settings.miniMode'), 'mini', 'compact', 'overlay'],
+    'sec-hardware': [t('settings.hardware'), 'hardware', 'cpu', 'gpu', 'system'],
+    'sec-battery': [t('settings.battery'), 'battery', 'power'],
+    'sec-download': [t('settings.download'), 'download', 'source', 'mirror', 'bmclapi', 'mcbbs', 'speed', 'priority'],
+    'sec-network': [t('settings.network') || 'Network', 'network', 'github', 'proxy', 'git', 'mirror', 'gh-proxy'],
+    'sec-discord': [t('settings.discord'), 'discord', 'rpc', 'rich presence'],
+    'sec-accessibility': [t('settings.accessibility'), 'accessibility', 'colorblind', 'a11y'],
+    'sec-screenshots': [t('settings.screenshots'), 'screenshot', 'capture'],
+    'sec-security-overview': [t('settings.securityOverview'), 'security', 'score'],
+    'sec-credential-protection': [t('settings.credentialProtection'), 'credential', 'encrypt', 'password'],
+    'sec-network-security': [t('settings.networkSecurity'), 'network', 'proxy', 'ssl', 'tls'],
+    'sec-launch-security': [t('settings.launchSecurity'), 'sandbox', 'jvm whitelist', 'launch security'],
+    'sec-api-key-management': [t('settings.apiKeyManagement'), 'api key', 'curseforge', 'cf key'],
+    'sec-security-audit': [t('settings.securityAudit'), 'audit', 'log'],
+    'sec-ai-assistant': [t('settings.aiAssistant'), 'ai', 'assistant', 'chat'],
+    'sec-achievements': [t('settings.achievements'), 'achievement', 'unlock'],
+  }), [t]);
+
+  useEffect(() => {
+    if (!settingsSearch.trim()) return;
+    const query = settingsSearch.toLowerCase().trim();
+    for (const [sectionId, keywords] of Object.entries(sectionKeywords)) {
+      const matched = keywords.some((kw) => kw.toLowerCase().includes(query));
+      if (matched) {
+        const el = document.getElementById(sectionId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.style.outline = '2px solid var(--color-accent)';
+          el.style.outlineOffset = '4px';
+          el.style.transition = 'outline 0.3s ease';
+          setTimeout(() => {
+            el.style.outline = 'none';
+          }, 2000);
+        }
+        break;
+      }
+    }
+  }, [settingsSearch, sectionKeywords]);
+
   const navCategories: NavCategory[] = useMemo(
     () => [
       {
@@ -388,7 +447,7 @@ export default function SettingsPage() {
       {
         id: 'system',
         label: t('settings.nav.system'),
-        sectionIds: ['sec-hardware', 'sec-battery', 'sec-download'],
+        sectionIds: ['sec-hardware', 'sec-battery', 'sec-download', 'sec-network'],
       },
       {
         id: 'social',
@@ -424,6 +483,21 @@ export default function SettingsPage() {
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
+        <div className={styles.searchBox}>
+          <Icon name="search" size={14} />
+          <input
+            type="text"
+            className={styles.searchInput}
+            placeholder={t('settings.searchPlaceholder')}
+            value={settingsSearch}
+            onChange={(e) => setSettingsSearch(e.target.value)}
+          />
+          {settingsSearch && (
+            <button className={styles.searchClear} onClick={() => setSettingsSearch('')}>
+              ✕
+            </button>
+          )}
+        </div>
         <div className={styles.actions}>
           <Button variant="secondary" size="sm" onClick={() => setLocalConfig(config)}>
             {t('settings.reset')}
@@ -1638,6 +1712,7 @@ export default function SettingsPage() {
 
       <BatterySection t={t} />
       <DownloadSection t={t} addToast={addToast} />
+      <NetworkSection t={t} addToast={addToast} />
       <AISection />
 
       <SectionCard id="sec-achievements" title={t('settings.nav.achievements')}>

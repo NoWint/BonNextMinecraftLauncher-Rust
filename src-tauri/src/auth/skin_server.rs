@@ -6,6 +6,8 @@ use axum::{
     routing::get,
 };
 use base64::Engine;
+use reqwest::multipart;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -226,4 +228,112 @@ async fn handle_cape(
         },
         None => (StatusCode::NOT_FOUND, "Profile not found").into_response(),
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MojangProfile {
+    pub id: String,
+    pub name: String,
+    pub skins: Vec<MojangSkin>,
+    pub capes: Vec<MojangCape>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MojangSkin {
+    pub id: String,
+    pub state: String,
+    pub url: String,
+    pub variant: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MojangCape {
+    pub id: String,
+    pub state: String,
+    pub url: String,
+    pub alias: String,
+}
+
+pub async fn upload_skin_mojang(access_token: &str, file_path: &str, variant: &str) -> Result<(), crate::error::LauncherError> {
+    let file_data = std::fs::read(file_path)?;
+    let file_name = std::path::Path::new(file_path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("skin.png")
+        .to_string();
+    let client = crate::http_client::build_client();
+    let part = multipart::Part::bytes(file_data)
+        .file_name(file_name)
+        .mime_str("image/png")
+        .map_err(|e| crate::error::LauncherError::Other(format!("MIME error: {}", e)))?;
+    let form = multipart::Form::new()
+        .part("file", part)
+        .text("variant", variant.to_string());
+    let resp = client
+        .post("https://api.minecraftservices.com/minecraft/profile/skins")
+        .bearer_auth(access_token)
+        .multipart(form)
+        .send()
+        .await?;
+    match resp.status().as_u16() {
+        200..=204 => Ok(()),
+        400 => Err(crate::error::LauncherError::AuthFailed("Invalid skin file".to_string())),
+        401 => Err(crate::error::LauncherError::AuthExpired("Token expired".to_string())),
+        403 => Err(crate::error::LauncherError::AuthFailed("Not allowed".to_string())),
+        429 => Err(crate::error::LauncherError::RateLimited { retry_after: None }),
+        s => Err(crate::error::LauncherError::AuthFailed(format!("Upload failed: HTTP {}", s))),
+    }
+}
+
+pub async fn reset_skin_mojang(access_token: &str) -> Result<(), crate::error::LauncherError> {
+    let client = crate::http_client::build_client();
+    let resp = client
+        .delete("https://api.minecraftservices.com/minecraft/profile/skins/active")
+        .bearer_auth(access_token)
+        .send()
+        .await?;
+    if resp.status().is_success() {
+        Ok(())
+    } else {
+        Err(crate::error::LauncherError::AuthFailed("Reset skin failed".to_string()))
+    }
+}
+
+pub async fn equip_cape_mojang(access_token: &str, cape_id: &str) -> Result<(), crate::error::LauncherError> {
+    let client = crate::http_client::build_client();
+    let resp = client
+        .put("https://api.minecraftservices.com/minecraft/profile/capes/active")
+        .bearer_auth(access_token)
+        .json(&serde_json::json!({ "capeId": cape_id }))
+        .send()
+        .await?;
+    if resp.status().is_success() {
+        Ok(())
+    } else {
+        Err(crate::error::LauncherError::AuthFailed("Equip cape failed".to_string()))
+    }
+}
+
+pub async fn hide_cape_mojang(access_token: &str) -> Result<(), crate::error::LauncherError> {
+    let client = crate::http_client::build_client();
+    let resp = client
+        .delete("https://api.minecraftservices.com/minecraft/profile/capes/active")
+        .bearer_auth(access_token)
+        .send()
+        .await?;
+    if resp.status().is_success() {
+        Ok(())
+    } else {
+        Err(crate::error::LauncherError::AuthFailed("Hide cape failed".to_string()))
+    }
+}
+
+pub async fn get_mojang_profile(access_token: &str) -> Result<MojangProfile, crate::error::LauncherError> {
+    let client = crate::http_client::build_client();
+    let resp = client
+        .get("https://api.minecraftservices.com/minecraft/profile")
+        .bearer_auth(access_token)
+        .send()
+        .await?;
+    resp.json().await.map_err(|e| crate::error::LauncherError::AuthFailed(format!("Parse profile failed: {}", e)))
 }
