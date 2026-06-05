@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { useChat } from '../../stores/chatStore';
-import { useSocial } from '../../stores/socialStore';
+import { useChat } from '../../shared/stores/chatStore';
+import { useSocial } from '../../shared/stores/socialStore';
 import styles from './ChatWindow.module.css';
 
 export default function ChatWindow() {

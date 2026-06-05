@@ -15,8 +15,8 @@ import {
   type SubView,
   type ViewMode,
 } from '../components/marketplace/types';
-import { useConfig } from '../stores/configStore';
-import { useInstances } from '../stores/instanceStore';
+import { useConfig } from '../shared/stores/configStore';
+import { useInstances } from '../shared/stores/instanceStore';
 import { api } from '../api';
 import styles from './MarketplacePage.module.css';
 import badgeStyles from '../components/ui/Status.module.css';

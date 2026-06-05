@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ModpackPlan } from '../../ai/types';
+import type { ModpackPlan } from '../../shared/ai/types';
 import styles from './ModpackPreview.module.css';
 
 interface ModpackPreviewProps {

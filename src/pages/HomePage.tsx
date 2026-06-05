@@ -11,11 +11,11 @@ import {
   type JreDownloadProgress,
   type MinecraftNewsEntry,
 } from '../api';
-import { useAuth } from '../stores/authStore';
-import { useInstances } from '../stores/instanceStore';
-import { useToast } from '../stores/toastStore';
-import { useI18n } from '../i18n';
-import { useGreeting } from '../hooks/useGreeting';
+import { useAuth } from '../shared/stores/authStore';
+import { useInstances } from '../shared/stores/instanceStore';
+import { useToast } from '../shared/stores/toastStore';
+import { useI18n } from '../shared/i18n';
+import { useGreeting } from '../shared/hooks/useGreeting';
 import { Heading, SubLabel, AccentCorner, Ticker } from '../components/layout';
 import { StatusDot, Badge, ProgressBar, Tooltip } from '../components/ui';
 import { Button } from '../components/ui';

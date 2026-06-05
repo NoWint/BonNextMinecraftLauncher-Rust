@@ -12,10 +12,10 @@ import {
   type PreLaunchReport,
   type HealthCheckReport,
 } from '../api';
-import { useAuth } from '../stores/authStore';
-import { useInstances } from '../stores/instanceStore';
-import { useToast } from '../stores/toastStore';
-import { useI18n } from '../i18n';
+import { useAuth } from '../shared/stores/authStore';
+import { useInstances } from '../shared/stores/instanceStore';
+import { useToast } from '../shared/stores/toastStore';
+import { useI18n } from '../shared/i18n';
 import { Badge, Tabs, Modal, Breadcrumb as BreadcrumbComp, TextInput, Tooltip } from '../components/ui';
 import { Button } from '../components/ui';
 import { Icon } from '../components/ui/Icon';

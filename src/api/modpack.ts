@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { CompatibilityReport } from '../ai/types';
+import type { CompatibilityReport } from '../shared/ai/types';
 
 export const modpackApi = {
   checkModCompatibility: (

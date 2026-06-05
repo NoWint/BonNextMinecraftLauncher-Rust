@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { formatError } from '../utils/errorMapping';
 import { api, type VersionEntry } from '../api';
-import { useI18n } from '../i18n';
+import { useI18n } from '../shared/i18n';
 import { SectionHeader } from '../components/layout';
 import { Badge, Button, Select } from '../components/ui';
 import { Icon } from '../components/ui/Icon';
 import { Skeleton } from '../components/ui/Skeleton';
-import { useSkeleton } from '../hooks/useSkeleton';
+import { useSkeleton } from '../shared/hooks/useSkeleton';
 import styles from './VersionsPage.module.css';
 
 export default function VersionsPage() {

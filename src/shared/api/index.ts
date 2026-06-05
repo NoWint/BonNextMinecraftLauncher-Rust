@@ -18,11 +18,13 @@ import { modpackApi } from './modpack';
 import * as modScanner from './modScanner';
 import * as servers from './servers';
 import * as p2p from './p2p';
+import * as shell from './shell';
 
 export type * from './types';
 export type { MojangProfile, YggdrasilServerPreset } from './auth';
 export type { ServerListEntry, MinecraftServerInfo, PingResult, ServerAddress, BatchPingResult } from './servers';
 export { invalidateCache, persistentCacheGet, persistentCacheSet, persistentCacheInvalidate, persistentCacheEvictExpired, twoLayerCachedInvoke } from './cache';
+export { getActiveShell, setActiveShell } from './shell';
 
 const downloadVersion = (versionId: string, versionUrl: string) =>
   invoke<void>('download_version', { versionId, versionUrl });
@@ -319,4 +321,7 @@ export const api = {
     connect: p2p.p2pConnect,
     disconnect: p2p.p2pDisconnect,
   },
+
+  getActiveShell: shell.getActiveShell,
+  setActiveShell: shell.setActiveShell,
 };

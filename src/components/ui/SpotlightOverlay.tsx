@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useI18n } from '../../i18n';
+import { useI18n } from '../../shared/i18n';
 import styles from './SpotlightOverlay.module.css';
 
 export interface TourStep {

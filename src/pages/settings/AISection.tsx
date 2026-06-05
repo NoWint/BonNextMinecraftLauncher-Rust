@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { useAIAssistant } from '../../stores/aiAssistantStore';
-import { testConnection } from '../../ai/api';
+import { useAIAssistant } from '../../shared/stores/aiAssistantStore';
+import { testConnection } from '../../shared/ai/api';
 import { SectionCard, SettingRow } from './MemorySection';
 import { Button, Checkbox, TextInput } from '../../components/ui';
 import { Icon } from '../../components/ui/Icon';
-import { useI18n } from '../../i18n';
+import { useI18n } from '../../shared/i18n';
 import styles from '../SettingsPage.module.css';
 
 export default function AISection() {

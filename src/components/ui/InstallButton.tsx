@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { formatError } from '../../utils/errorMapping';
 import { api } from '../../api';
-import { useToast } from '../../stores/toastStore';
-import { useDownloads } from '../../stores/downloadStore';
-import type { DownloadTask } from '../../stores/downloadStore';
+import { useToast } from '../../shared/stores/toastStore';
+import { useDownloads } from '../../shared/stores/downloadStore';
+import type { DownloadTask } from '../../shared/stores/downloadStore';
 import { Button } from './Button';
 
 interface InstallButtonProps {

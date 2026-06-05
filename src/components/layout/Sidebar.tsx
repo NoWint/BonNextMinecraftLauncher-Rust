@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronRight, User, X, Bot, Users } from 'lucide-react';
-import { useI18n } from '../../i18n';
+import { useI18n } from '../../shared/i18n';
 import { StatusDot } from '../ui/Status';
-import { useSocial } from '../../stores/socialStore';
-import { useChat } from '../../stores/chatStore';
+import { useSocial } from '../../shared/stores/socialStore';
+import { useChat } from '../../shared/stores/chatStore';
 import styles from './Sidebar.module.css';
 
 interface NavItem {

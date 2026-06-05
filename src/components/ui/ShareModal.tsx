@@ -4,7 +4,7 @@ import { api } from '../../api';
 import { Modal } from './Modal';
 import { Button } from './Button';
 import { Icon } from './Icon';
-import { useToast } from '../../stores/toastStore';
+import { useToast } from '../../shared/stores/toastStore';
 import styles from './ShareModal.module.css';
 
 interface ShareModalProps {

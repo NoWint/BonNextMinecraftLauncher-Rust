@@ -4,8 +4,8 @@ import { api, type DetectedLauncher, type MigrateableInstance, type MigrationIss
 import { Button } from './Button';
 import { Modal } from './Modal';
 import { Icon } from './Icon';
-import { useI18n } from '../../i18n';
-import { useToast } from '../../stores/toastStore';
+import { useI18n } from '../../shared/i18n';
+import { useToast } from '../../shared/stores/toastStore';
 import { open } from '@tauri-apps/plugin-dialog';
 import styles from './MigrationModal.module.css';
 

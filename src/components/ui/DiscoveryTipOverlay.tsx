@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { DiscoveryTip } from '../../hooks/useDiscoveryTips';
+import type { DiscoveryTip } from '../../shared/hooks/useDiscoveryTips';
 import styles from './DiscoveryTipOverlay.module.css';
 
 interface Props {

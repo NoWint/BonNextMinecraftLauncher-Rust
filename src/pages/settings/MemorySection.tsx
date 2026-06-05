@@ -3,11 +3,11 @@ import type { AppConfig } from '../../api';
 import type { HardwareProfile, RecommendedConfig } from '../../api';
 import { api } from '../../api';
 import { Slider, Checkbox, Select, Badge, Button, ContextHelp } from '../../components/ui';
-import { useDebouncedCallback } from '../../hooks/useDebouncedCallback';
-import { useFormField } from '../../hooks/useFormField';
+import { useDebouncedCallback } from '../../shared/hooks/useDebouncedCallback';
+import { useFormField } from '../../shared/hooks/useFormField';
 import { memoryRange } from '../../utils/validators';
-import { useConfig } from '../../stores/configStore';
-import { useToast } from '../../stores/toastStore';
+import { useConfig } from '../../shared/stores/configStore';
+import { useToast } from '../../shared/stores/toastStore';
 import formStyles from '../../components/ui/FormField.module.css';
 import styles from '../SettingsPage.module.css';
 

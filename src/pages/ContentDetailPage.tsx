@@ -3,8 +3,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { formatError } from '../utils/errorMapping';
 import { api, type ModProjectFull, type ModVersion } from '../api';
-import { useInstances } from '../stores/instanceStore';
-import { useI18n } from '../i18n';
+import { useInstances } from '../shared/stores/instanceStore';
+import { useI18n } from '../shared/i18n';
 import { Breadcrumb, Button, Badge, StatBadge, StatusDot, Tabs } from '../components/ui';
 import { Icon } from '../components/ui/Icon';
 import { InstallButton } from '../components/ui/InstallButton';
@@ -112,6 +112,7 @@ export default function ContentDetailPage() {
   const [allVersions, setAllVersions] = useState<ModVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [errorType, setErrorType] = useState<'not_found' | 'timeout' | 'network' | 'other'>('other');
   const [selectedInstance, setSelectedInstance] = useState('');
   const [activeTab, setActiveTab] = useState('versions');
   const [galleryIndex, setGalleryIndex] = useState(0);
@@ -171,7 +172,19 @@ export default function ContentDetailPage() {
         }
       } catch (e: unknown) {
         console.error('[ContentDetailPage] Failed to load project:', e);
-        if (!cancelled) setError(formatError(e) || 'Failed to load project');
+        if (!cancelled) {
+          const msg = formatError(e) || 'Failed to load project';
+          setError(msg);
+          if (msg.includes('404') || msg.includes('not found') || msg.includes('Not Found')) {
+            setErrorType('not_found');
+          } else if (msg.includes('timeout') || msg.includes('Timeout') || msg.includes('timed out')) {
+            setErrorType('timeout');
+          } else if (msg.includes('HTTP') || msg.includes('network') || msg.includes('Network') || msg.includes('connect')) {
+            setErrorType('network');
+          } else {
+            setErrorType('other');
+          }
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -239,26 +252,43 @@ export default function ContentDetailPage() {
   }
 
   if (error) {
+    const otherSource = parsed.source === 'curseforge' ? 'modrinth' : 'curseforge';
+    const otherSourceLabel = otherSource === 'curseforge' ? 'CurseForge' : 'Modrinth';
+    const currentSourceLabel = parsed.source === 'curseforge' ? 'CurseForge' : 'Modrinth';
+
+    const errorHint = errorType === 'not_found'
+      ? `This project was not found on ${currentSourceLabel}. It may have been removed or the ID is incorrect.`
+      : errorType === 'timeout'
+        ? 'The request timed out. The server may be slow or unreachable. Try again later.'
+        : errorType === 'network'
+          ? 'A network error occurred. Check your internet connection and try again.'
+          : '';
+
     return (
       <div className={styles.notFound}>
-        <div className={styles.notFound__icon}>⚠</div>
-        <div className={styles.notFound__title}>{error}</div>
-        <div className={styles.notFound__hint}>
-          {error.includes('HTTP') || error.includes('network') || error.includes('Network')
-            ? t('contentDetail.networkErrorHint')
-            : ''}
+        <div className={styles.notFound__icon}>
+          {errorType === 'not_found' ? '🔍' : errorType === 'timeout' ? '⏱' : '⚠'}
         </div>
+        <div className={styles.notFound__title}>{error}</div>
+        {errorHint && <div className={styles.notFound__hint}>{errorHint}</div>}
         <div className={styles.notFound__actions}>
           <button
             className={styles.notFound__retryBtn}
             onClick={() => {
               setError('');
+              setErrorType('other');
               setLoading(true);
               setProject(null);
               setAllVersions([]);
             }}
           >
             {t('common.retry')}
+          </button>
+          <button
+            className={styles.notFound__settingsBtn}
+            onClick={() => navigate(`/store/mod/${parsed.slug}?source=${otherSource}`)}
+          >
+            Try {otherSourceLabel}
           </button>
           <button
             className={styles.notFound__settingsBtn}

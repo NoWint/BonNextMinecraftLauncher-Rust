@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../api';
-import type { ServerListEntry, MinecraftServerInfo, ServerAddress, BatchPingResult } from '../../api/servers';
+import type { ServerListEntry, MinecraftServerInfo, BatchPingResult } from '../../api/servers';
+import type { ServerAddress } from '../../api/servers';
 import type { GameInstance } from '../../api/types';
 import { formatError } from '../../utils/errorMapping';
-import { useToast } from '../../stores/toastStore';
-import { useInstances } from '../../stores/instanceStore';
+import { useToast } from '../../shared/stores/toastStore';
+import { useInstances } from '../../shared/stores/instanceStore';
 import { SectionHeader, Ticker } from '../../components/layout';
 import { Button, Modal } from '../../components/ui';
 import { ServerPingBadge } from '../../components/ui';

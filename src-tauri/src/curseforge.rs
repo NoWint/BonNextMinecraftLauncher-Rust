@@ -77,7 +77,7 @@ async fn cf_get_with_fallback(url_template: &str) -> Result<reqwest::Response, L
         if base_idx > 0 {
             tracing::info!("CurseForge API fallback: trying base {}", base);
         }
-        match http_client::retry_get_with_headers(&url, 2, Some(headers)).await {
+        match http_client::retry_api_get_with_headers(&url, 2, Some(headers)).await {
             Ok(resp) => return Ok(resp),
             Err(e) => {
                 tracing::warn!(

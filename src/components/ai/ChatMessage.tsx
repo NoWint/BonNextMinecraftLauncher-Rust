@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { useI18n } from '../../i18n';
-import type { ChatMessage as ChatMessageType, Task } from '../../ai/types';
+import { useI18n } from '../../shared/i18n';
+import type { ChatMessage as ChatMessageType, Task } from '../../shared/ai/types';
 import styles from './ChatMessage.module.css';
 
 interface ChatMessageProps {

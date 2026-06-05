@@ -354,7 +354,7 @@ pub async fn get_mod(slug: &str) -> Result<ModResult, LauncherError> {
     let url_template = format!("{{API_BASE}}/project/{}", slug);
     let bases = all_api_bases();
 
-    let resp: ModrinthProject = http_client::retry_get_with_fallback(&url_template, &bases, 2, None)
+    let resp: ModrinthProject = http_client::retry_api_get_with_fallback(&url_template, &bases, 2, None)
         .await?
         .json()
         .await
@@ -388,7 +388,7 @@ pub async fn get_mod_versions(
 
     let bases = all_api_bases();
 
-    let resp: Vec<ModrinthVersion> = http_client::retry_get_with_fallback(&url_template, &bases, 2, None)
+    let resp: Vec<ModrinthVersion> = http_client::retry_api_get_with_fallback(&url_template, &bases, 2, None)
         .await?
         .json()
         .await
@@ -506,7 +506,7 @@ pub async fn get_project_full(slug: &str) -> Result<ModProjectFull, LauncherErro
     let url_template = format!("{{API_BASE}}/project/{}", slug);
     let bases = all_api_bases();
 
-    let resp: ModrinthProjectFull = http_client::retry_get_with_fallback(&url_template, &bases, 2, None)
+    let resp: ModrinthProjectFull = http_client::retry_api_get_with_fallback(&url_template, &bases, 2, None)
         .await?
         .json()
         .await
@@ -558,7 +558,7 @@ pub async fn get_version_by_id(version_id: &str) -> Result<ModVersion, LauncherE
     let url_template = format!("{{API_BASE}}/version/{}", version_id);
     let bases = all_api_bases();
 
-    let v: ModrinthVersion = http_client::retry_get_with_fallback(&url_template, &bases, 2, None)
+    let v: ModrinthVersion = http_client::retry_api_get_with_fallback(&url_template, &bases, 2, None)
         .await?
         .json()
         .await?;

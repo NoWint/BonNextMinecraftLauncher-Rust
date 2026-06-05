@@ -1,7 +1,7 @@
 import { useLocation, useNavigate, Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense, type ReactNode, Component } from 'react';
 import type { LayoutContribution } from '@/plugins/extensions';
-import { useAuth } from '@/stores/authStore';
+import { useAuth } from '@/shared/stores/authStore';
 import type { IconName } from '@/components/ui/Icon';
 import LoginPage from '@/pages/LoginPage';
 import s from './MD3AppShell.module.css';

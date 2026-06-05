@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { IconName } from '../components/ui/Icon';
+import type { IconName } from '../../components/ui/Icon';
 
 const ICONS: Record<string, IconName[]> = {
   morning: ['sunrise', 'sun', 'pickaxe', 'sunset'],

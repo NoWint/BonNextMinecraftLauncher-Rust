@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatError } from '../../utils/errorMapping';
 import { formatDate } from '../../utils/format';
-import { useFormField } from '../../hooks/useFormField';
+import { useFormField } from '../../shared/hooks/useFormField';
 import { javaPath, proxyUrl } from '../../utils/validators';
 import formStyles from '../../components/ui/FormField.module.css';
 import {
@@ -19,11 +19,11 @@ import {
   type RecommendedConfig,
   type StoredAccount,
 } from '../../api';
-import { useAuth } from '../../stores/authStore';
-import { useConfig } from '../../stores/configStore';
-import { useInstances } from '../../stores/instanceStore';
-import { useI18n } from '../../i18n';
-import { useToast } from '../../stores/toastStore';
+import { useAuth } from '../../shared/stores/authStore';
+import { useConfig } from '../../shared/stores/configStore';
+import { useInstances } from '../../shared/stores/instanceStore';
+import { useI18n } from '../../shared/i18n';
+import { useToast } from '../../shared/stores/toastStore';
 import {
   StatusDot,
   Badge,

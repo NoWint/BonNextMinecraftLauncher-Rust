@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type GameInstance, type VersionEntry } from '../../api';
-import { useI18n } from '../../i18n';
+import { useI18n } from '../../shared/i18n';
 import { Icon } from './Icon';
 import styles from './SearchPalette.module.css';
 

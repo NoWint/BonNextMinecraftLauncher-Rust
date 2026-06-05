@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useI18n } from '../i18n';
 import { useInstances } from '../stores/instanceStore';
-import type { Crumb } from '../components/ui/Breadcrumb';
+import type { Crumb } from '../../components/ui/Breadcrumb';
 
 interface BreadcrumbRoute {
   pattern: RegExp;

@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import type { ModpackPlan } from '../ai/types';
+import type { ModpackPlan } from '../shared/ai/types';
 import type { WorkflowProgressEvent, WorkflowErrorEvent, WorkflowCompleteEvent, CrashDetectedEvent } from './types';
 
 export interface GenerateModpackPlanRequest {

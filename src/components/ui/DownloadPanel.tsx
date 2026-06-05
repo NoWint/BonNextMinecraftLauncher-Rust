@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useDownloads } from '../../stores/downloadStore';
+import { useDownloads } from '../../shared/stores/downloadStore';
 import { api } from '../../api';
 import styles from './DownloadPanel.module.css';
 
