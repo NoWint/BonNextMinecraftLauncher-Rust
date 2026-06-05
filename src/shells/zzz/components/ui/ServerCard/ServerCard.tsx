@@ -1,4 +1,4 @@
-import type { ServerListEntry } from '../../../../shared/api/servers';
+import type { ServerListEntry } from '../../../../../shared/api/servers';
 import ServerPingBadge from '../ServerPingBadge/ServerPingBadge';
 import styles from './ServerCard.module.css';
 
