@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../../../shared/api';
 import type { ServerListEntry, MinecraftServerInfo, BatchPingResult } from '../../../../shared/api/servers';
-import type { ServerAddress } from '../../../../shared/api/servers';
 import type { GameInstance } from '../../../../shared/api/types';
 import { formatError } from '../../../../shared/utils/errorMapping';
 import { useToast } from '../../../../shared/stores/toastStore';

@@ -8,7 +8,10 @@ import { useAIAssistant } from '../../shared/stores/aiAssistantStore';
 import { useShortcutBindings } from '../../shared/hooks/useKeyboardShortcuts';
 import { Sidebar } from './components/layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { CommandPalette } from './components/CommandPalette';
 import { SearchPalette } from './components/ui/SearchPalette';
+import { DownloadPanel } from './components/ui/DownloadPanel';
+import { UpdateNotification } from './components/ui';
 import { ChatPanel } from './components/ai/ChatPanel';
 import FriendsPanel from './components/social/FriendsPanel';
 import LoginPage from './pages/LoginPage';
@@ -155,6 +158,9 @@ function ZZZAppShell() {
 
       <ChatPanel />
       <FriendsPanel isOpen={socialOpen} onClose={() => setSocialOpen(false)} />
+      <UpdateNotification />
+      <CommandPalette />
+      <DownloadPanel />
     </>
   );
 }
