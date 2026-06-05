@@ -1,0 +1,96 @@
+/* SwiftUI Shell — Global Base Styles */
+
+/* ===== Import Design System ===== */
+@import './tokens.css';
+@import './themes.css';
+@import './animations.css';
+
+/* ===== Shell Root ===== */
+.swiftui-shell {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  font: var(--swift-font-body);
+  color: var(--swift-text-primary);
+  background: var(--swift-bg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== Liquid Glass Utility ===== */
+.liquid-glass {
+  backdrop-filter: blur(var(--swift-glass-blur)) saturate(var(--swift-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--swift-glass-blur)) saturate(var(--swift-glass-saturate));
+}
+
+.liquid-glass-sidebar {
+  background: var(--swift-sidebar-bg);
+  backdrop-filter: blur(var(--swift-glass-blur)) saturate(var(--swift-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--swift-glass-blur)) saturate(var(--swift-glass-saturate));
+}
+
+/* ===== Scrollbar (macOS style) ===== */
+.swiftui-shell ::-webkit-scrollbar {
+  width: 8px;
+}
+
+.swiftui-shell ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.swiftui-shell ::-webkit-scrollbar-thumb {
+  background: var(--swift-border);
+  border-radius: 4px;
+}
+
+.swiftui-shell ::-webkit-scrollbar-thumb:hover {
+  background: var(--swift-text-quaternary);
+}
+
+/* ===== Selection ===== */
+.swiftui-shell ::selection {
+  background: var(--swift-accent-tint);
+  color: var(--swift-accent-text-tint);
+}
+
+/* ===== Focus Ring (macOS style) ===== */
+.swiftui-shell :focus-visible {
+  outline: 2px solid var(--swift-border-focus);
+  outline-offset: 2px;
+  border-radius: var(--swift-radius-sm);
+}
+
+/* ===== Content Area ===== */
+.swiftui-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--swift-spacing-xl) var(--swift-spacing-2xl);
+  background: var(--swift-bg-primary);
+}
+
+/* ===== Page Title ===== */
+.swiftui-page-title {
+  font: var(--swift-font-page-title);
+  letter-spacing: -0.3px;
+  margin: 0 0 var(--swift-spacing-sm);
+}
+
+.swiftui-page-subtitle {
+  font: var(--swift-font-body);
+  color: var(--swift-text-tertiary);
+  margin: 0 0 var(--swift-spacing-xl);
+}
+
+/* ===== Section ===== */
+.swiftui-section-title {
+  font: var(--swift-font-section-title);
+  margin: var(--swift-spacing-xl) 0 var(--swift-spacing-md);
+}
+
+/* ===== Hairline Separator ===== */
+.swiftui-hairline {
+  border: none;
+  border-top: 0.5px solid var(--swift-border-hairline);
+  margin: var(--swift-spacing-md) 0;
+}

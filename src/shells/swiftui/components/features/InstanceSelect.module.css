@@ -1,0 +1,10 @@
+.select { position: relative; }
+.trigger { display: flex; align-items: center; gap: var(--swift-spacing-md); padding: var(--swift-spacing-sm) var(--swift-spacing-md); background: var(--swift-bg-card); border: 0.5px solid var(--swift-border); border-radius: var(--swift-radius-md); cursor: pointer; min-height: var(--swift-hit-region); transition: all var(--swift-duration-fast) var(--swift-spring-default); }
+.trigger:hover { background: var(--swift-bg-card-hover); }
+.instanceName { font: var(--swift-font-body); color: var(--swift-text-primary); font-weight: 500; }
+.instanceVersion { font: var(--swift-font-metadata); color: var(--swift-text-tertiary); font-family: var(--swift-font-mono); }
+.dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--swift-modal-bg); border: 0.5px solid var(--swift-border); border-radius: var(--swift-radius-lg); box-shadow: var(--swift-shadow-elevated); z-index: 200; animation: swift-scale-in var(--swift-duration-fast) var(--swift-spring-bouncy) both; }
+.option { display: flex; align-items: center; gap: var(--swift-spacing-md); padding: var(--swift-spacing-sm) var(--swift-spacing-md); cursor: pointer; transition: background var(--swift-duration-fast) var(--swift-spring-default); }
+.option:hover { background: var(--swift-bg-card-hover); }
+.option:first-child { border-radius: var(--swift-radius-lg) var(--swift-radius-lg) 0 0; }
+.option:last-child { border-radius: 0 0 var(--swift-radius-lg) var(--swift-radius-lg); }

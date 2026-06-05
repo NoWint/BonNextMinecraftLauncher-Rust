@@ -1,0 +1,60 @@
+.header {
+  display: flex;
+  gap: var(--swift-spacing-xl);
+  margin-bottom: var(--swift-spacing-xl);
+}
+
+.icon {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--swift-radius-lg);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.info {
+  flex: 1;
+}
+
+.title {
+  font: var(--swift-font-page-title);
+  color: var(--swift-text-primary);
+  margin: 0 0 var(--swift-spacing-sm);
+}
+
+.description {
+  font: var(--swift-font-body);
+  color: var(--swift-text-tertiary);
+  line-height: 1.6;
+}
+
+.meta {
+  display: flex;
+  gap: var(--swift-spacing-lg);
+  margin-top: var(--swift-spacing-md);
+  font: var(--swift-font-body);
+  color: var(--swift-text-secondary);
+}
+
+.versions {
+  margin-top: var(--swift-spacing-xl);
+}
+
+.versionRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--swift-spacing-md) 0;
+  border-bottom: 0.5px solid var(--swift-border);
+}
+
+.versionName {
+  font: var(--swift-font-body);
+  color: var(--swift-text-primary);
+  font-family: var(--swift-font-mono);
+}
+
+.versionDate {
+  font: var(--swift-font-metadata);
+  color: var(--swift-text-tertiary);
+}

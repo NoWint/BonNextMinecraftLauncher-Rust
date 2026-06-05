@@ -1,0 +1,53 @@
+.quickLaunch {
+  background: var(--swift-bg-card);
+  border: 0.5px solid var(--swift-border);
+  border-radius: var(--swift-radius-lg);
+  padding: var(--swift-spacing-lg);
+  margin-bottom: var(--swift-spacing-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.launchLabel {
+  font: var(--swift-font-caption);
+  color: var(--swift-text-quaternary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.launchTitle {
+  font: var(--swift-font-section-title);
+  color: var(--swift-text-primary);
+  margin: var(--swift-spacing-xs) 0;
+}
+
+.launchMeta {
+  font: var(--swift-font-body);
+  color: var(--swift-text-tertiary);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--swift-spacing-md);
+  margin-bottom: var(--swift-spacing-xl);
+}
+
+.stat {
+  background: var(--swift-bg-card);
+  border: 0.5px solid var(--swift-border);
+  border-radius: var(--swift-radius-lg);
+  padding: var(--swift-spacing-lg);
+}
+
+.statLabel {
+  font: var(--swift-font-caption);
+  color: var(--swift-text-quaternary);
+}
+
+.statValue {
+  font: var(--swift-font-section-title);
+  color: var(--swift-text-primary);
+  margin-top: var(--swift-spacing-xs);
+}

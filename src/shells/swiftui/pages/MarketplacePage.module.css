@@ -1,0 +1,35 @@
+.featured {
+  background: var(--swift-bg-card);
+  border: 0.5px solid var(--swift-border);
+  border-radius: var(--swift-radius-xl);
+  padding: var(--swift-spacing-xl);
+  margin-bottom: var(--swift-spacing-xl);
+  min-height: 160px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.featuredTitle {
+  font: var(--swift-font-page-title);
+  color: var(--swift-text-primary);
+  margin: 0;
+}
+
+.featuredDesc {
+  font: var(--swift-font-body);
+  color: var(--swift-text-tertiary);
+  margin: var(--swift-spacing-sm) 0 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--swift-spacing-md);
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--swift-spacing-md);
+}

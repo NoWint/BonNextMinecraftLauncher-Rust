@@ -1,0 +1,7 @@
+.container { display: flex; flex-direction: column; gap: var(--swift-spacing-lg); }
+.segmentedControl { display: inline-flex; background: var(--swift-bg-card); border: 0.5px solid var(--swift-border); border-radius: var(--swift-radius-md); padding: 2px; gap: 2px; }
+.tab { padding: 5px 14px; border: none; border-radius: var(--swift-radius-sm); background: transparent; color: var(--swift-text-secondary); font: var(--swift-font-body); cursor: pointer; transition: all var(--swift-duration-fast) var(--swift-spring-default); white-space: nowrap; }
+.tab:hover { color: var(--swift-text-primary); }
+.active { background: var(--swift-accent); color: var(--swift-accent-text); font-weight: 500; }
+.active:hover { color: var(--swift-accent-text); }
+.panel { animation: swift-fade-in var(--swift-duration-fast) var(--swift-spring-default) both; }

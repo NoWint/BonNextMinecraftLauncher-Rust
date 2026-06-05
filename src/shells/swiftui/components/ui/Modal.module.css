@@ -1,0 +1,8 @@
+.backdrop { position: fixed; inset: 0; background: var(--swift-modal-backdrop); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: swift-modal-backdrop-enter var(--swift-duration-normal) var(--swift-spring-gentle) both; }
+.modal { background: var(--swift-modal-bg); border: 0.5px solid var(--swift-border); border-radius: var(--swift-radius-xl); box-shadow: var(--swift-shadow-elevated); min-width: 400px; max-width: 560px; max-height: 80vh; overflow: hidden; animation: swift-modal-enter var(--swift-duration-normal) var(--swift-spring-bouncy) both; }
+.header { display: flex; align-items: center; justify-content: space-between; padding: var(--swift-spacing-lg) var(--swift-spacing-lg) var(--swift-spacing-md); }
+.title { font: var(--swift-font-section-title); color: var(--swift-text-primary); margin: 0; }
+.closeButton { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; border-radius: var(--swift-radius-sm); background: transparent; color: var(--swift-text-tertiary); cursor: pointer; transition: all var(--swift-duration-fast) var(--swift-spring-default); }
+.closeButton:hover { background: var(--swift-bg-card-hover); color: var(--swift-text-primary); }
+.body { padding: 0 var(--swift-spacing-lg) var(--swift-spacing-lg); overflow-y: auto; }
+.footer { display: flex; justify-content: flex-end; gap: var(--swift-spacing-md); padding: var(--swift-spacing-md) var(--swift-spacing-lg) var(--swift-spacing-lg); border-top: 0.5px solid var(--swift-border); }

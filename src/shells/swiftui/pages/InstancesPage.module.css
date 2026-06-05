@@ -1,0 +1,37 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--swift-spacing-md);
+}
+
+.instanceCard {
+  background: var(--swift-bg-card);
+  border: 0.5px solid var(--swift-border);
+  border-radius: var(--swift-radius-lg);
+  padding: var(--swift-spacing-lg);
+  cursor: pointer;
+  transition: all var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.instanceCard:hover {
+  background: var(--swift-bg-card-hover);
+  box-shadow: var(--swift-shadow);
+}
+
+.instanceName {
+  font: var(--swift-font-card-title);
+  color: var(--swift-text-primary);
+  margin: 0 0 var(--swift-spacing-xs);
+}
+
+.instanceVersion {
+  font: var(--swift-font-body);
+  color: var(--swift-text-tertiary);
+  font-family: var(--swift-font-mono);
+}
+
+.instanceMeta {
+  display: flex;
+  gap: var(--swift-spacing-md);
+  margin-top: var(--swift-spacing-sm);
+}

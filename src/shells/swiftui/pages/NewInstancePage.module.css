@@ -1,0 +1,16 @@
+.form {
+  max-width: 560px;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--swift-spacing-lg);
+  margin-top: var(--swift-spacing-xl);
+}
+
+.actions {
+  display: flex;
+  gap: var(--swift-spacing-md);
+  margin-top: var(--swift-spacing-xl);
+}

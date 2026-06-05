@@ -1,0 +1,7 @@
+.card { background: var(--swift-bg-card); border: 0.5px solid var(--swift-border); border-radius: var(--swift-radius-lg); overflow: hidden; transition: background var(--swift-duration-fast) var(--swift-spring-default); }
+.card:hover { background: var(--swift-bg-card-hover); }
+.clickable { cursor: pointer; }
+.header { padding: var(--swift-spacing-md) var(--swift-spacing-lg); border-bottom: 0.5px solid var(--swift-border); }
+.body { padding: var(--swift-spacing-lg); }
+.footer { padding: var(--swift-spacing-md) var(--swift-spacing-lg); border-top: 0.5px solid var(--swift-border); }
+.compact .body { padding: var(--swift-spacing-md); }

@@ -1,0 +1,5 @@
+.container { position: fixed; top: var(--swift-spacing-lg); right: var(--swift-spacing-lg); display: flex; flex-direction: column; gap: var(--swift-spacing-md); z-index: 1100; }
+.toast { display: flex; align-items: center; gap: var(--swift-spacing-md); padding: var(--swift-spacing-md) var(--swift-spacing-lg); background: var(--swift-modal-bg); border: 0.5px solid var(--swift-border); border-radius: var(--swift-radius-lg); box-shadow: var(--swift-shadow); animation: swift-slide-up var(--swift-duration-normal) var(--swift-spring-bouncy) both; min-width: 280px; max-width: 420px; }
+.message { flex: 1; font: var(--swift-font-body); color: var(--swift-text-primary); }
+.closeButton { display: flex; align-items: center; justify-content: center; border: none; background: transparent; color: var(--swift-text-tertiary); cursor: pointer; padding: 2px; border-radius: var(--swift-radius-sm); }
+.closeButton:hover { background: var(--swift-bg-card-hover); }

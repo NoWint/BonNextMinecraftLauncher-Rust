@@ -1,0 +1,29 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--swift-spacing-sm);
+  border: none;
+  border-radius: var(--swift-radius-md);
+  font: var(--swift-font-body);
+  font-weight: 500;
+  cursor: pointer;
+  min-height: var(--swift-hit-region);
+  padding: 8px 16px;
+  transition: all var(--swift-duration-fast) var(--swift-spring-default);
+  user-select: none;
+  white-space: nowrap;
+}
+.button:active { transform: scale(0.97); }
+.button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.primary { background: var(--swift-accent); color: var(--swift-accent-text); }
+.primary:hover:not(:disabled) { opacity: 0.85; }
+.secondary { background: transparent; color: var(--swift-text-primary); border: 0.5px solid var(--swift-border); }
+.secondary:hover:not(:disabled) { background: var(--swift-bg-card-hover); }
+.plain { background: transparent; color: var(--swift-accent-text-tint); }
+.plain:hover:not(:disabled) { background: var(--swift-accent-tint); }
+.destructive { background: var(--swift-destructive); color: var(--swift-destructive-text); }
+.destructive:hover:not(:disabled) { opacity: 0.85; }
+.small { min-height: 28px; padding: 4px 10px; font-size: 12px; }
+.large { min-height: 40px; padding: 10px 24px; font-size: 15px; }
+.iconOnly { padding: 8px; min-width: var(--swift-hit-region); }

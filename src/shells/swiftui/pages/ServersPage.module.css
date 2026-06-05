@@ -1,0 +1,5 @@
+.list { display: flex; flex-direction: column; gap: var(--swift-spacing-md); }
+.serverCard { background: var(--swift-bg-card); border: 0.5px solid var(--swift-border); border-radius: var(--swift-radius-lg); padding: var(--swift-spacing-lg); display: flex; justify-content: space-between; align-items: center; }
+.serverName { font: var(--swift-font-card-title); color: var(--swift-text-primary); }
+.serverAddress { font: var(--swift-font-body); color: var(--swift-text-tertiary); font-family: var(--swift-font-mono); margin-top: var(--swift-spacing-xs); }
+.empty { text-align: center; padding: var(--swift-spacing-2xl); color: var(--swift-text-tertiary); }

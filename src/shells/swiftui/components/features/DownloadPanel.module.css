@@ -1,0 +1,7 @@
+.panel { position: fixed; bottom: var(--swift-spacing-lg); right: var(--swift-spacing-lg); width: 360px; background: var(--swift-modal-bg); border: 0.5px solid var(--swift-border); border-radius: var(--swift-radius-xl); box-shadow: var(--swift-shadow-elevated); z-index: 900; animation: swift-slide-up var(--swift-duration-normal) var(--swift-spring-bouncy) both; }
+.header { display: flex; align-items: center; justify-content: space-between; padding: var(--swift-spacing-md) var(--swift-spacing-lg); border-bottom: 0.5px solid var(--swift-border); }
+.title { font: var(--swift-font-card-title); color: var(--swift-text-primary); margin: 0; }
+.items { max-height: 300px; overflow-y: auto; padding: var(--swift-spacing-sm) 0; }
+.item { display: flex; align-items: center; gap: var(--swift-spacing-md); padding: var(--swift-spacing-sm) var(--swift-spacing-lg); }
+.itemName { flex: 1; font: var(--swift-font-body); color: var(--swift-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.itemSpeed { font: var(--swift-font-metadata); color: var(--swift-text-tertiary); font-family: var(--swift-font-mono); }

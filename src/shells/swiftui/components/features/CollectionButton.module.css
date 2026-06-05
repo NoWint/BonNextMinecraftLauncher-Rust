@@ -1,0 +1,4 @@
+.button { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: none; border-radius: var(--swift-radius-sm); background: transparent; color: var(--swift-text-tertiary); cursor: pointer; transition: all var(--swift-duration-fast) var(--swift-spring-default); }
+.button:hover { background: var(--swift-bg-card-hover); }
+.active { color: #FF3B30; }
+.active:hover { background: rgba(255, 59, 48, 0.1); }

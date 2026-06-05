@@ -1,0 +1,11 @@
+.panel { position: fixed; top: 0; right: 0; width: 340px; height: 100vh; background: var(--swift-modal-bg); border-left: 0.5px solid var(--swift-border); box-shadow: var(--swift-shadow); z-index: 800; display: flex; flex-direction: column; transform: translateX(100%); transition: transform var(--swift-duration-normal) var(--swift-spring-default); }
+.panel.open { transform: translateX(0); }
+.header { display: flex; align-items: center; justify-content: space-between; padding: var(--swift-spacing-lg); border-bottom: 0.5px solid var(--swift-border); }
+.title { font: var(--swift-font-section-title); color: var(--swift-text-primary); margin: 0; }
+.messages { flex: 1; overflow-y: auto; padding: var(--swift-spacing-md); display: flex; flex-direction: column; gap: var(--swift-spacing-md); }
+.message { padding: var(--swift-spacing-md); border-radius: var(--swift-radius-lg); font: var(--swift-font-body); max-width: 85%; }
+.user { background: var(--swift-accent-tint); color: var(--swift-accent-text-tint); align-self: flex-end; }
+.assistant { background: var(--swift-bg-card); color: var(--swift-text-primary); align-self: flex-start; }
+.inputArea { display: flex; gap: var(--swift-spacing-sm); padding: var(--swift-spacing-md); border-top: 0.5px solid var(--swift-border); }
+.input { flex: 1; padding: 8px 12px; background: var(--swift-bg-input); border: 0.5px solid var(--swift-border); border-radius: var(--swift-radius-md); font: var(--swift-font-body); color: var(--swift-text-primary); }
+.input:focus { outline: none; border-color: var(--swift-border-focus); }

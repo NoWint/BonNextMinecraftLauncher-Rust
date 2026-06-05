@@ -1,0 +1,5 @@
+.pagination { display: flex; align-items: center; gap: var(--swift-spacing-sm); }
+.pageButton { display: flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; border: none; border-radius: var(--swift-radius-sm); background: transparent; color: var(--swift-text-secondary); font: var(--swift-font-body); cursor: pointer; transition: all var(--swift-duration-fast) var(--swift-spring-default); }
+.pageButton:hover { background: var(--swift-bg-card-hover); }
+.pageButton.active { background: var(--swift-accent); color: var(--swift-accent-text); font-weight: 500; }
+.pageButton:disabled { opacity: 0.3; cursor: not-allowed; }

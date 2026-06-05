@@ -1,0 +1,9 @@
+.group { margin-bottom: var(--swift-spacing-lg); }
+.groupLabel { font: var(--swift-font-caption); color: var(--swift-text-quaternary); text-transform: uppercase; letter-spacing: 0.5px; padding: 0 var(--swift-spacing-lg) var(--swift-spacing-sm); }
+.list { background: var(--swift-bg-card); border: 0.5px solid var(--swift-border); border-radius: var(--swift-radius-lg); overflow: hidden; }
+.item { display: flex; align-items: center; gap: var(--swift-spacing-md); padding: var(--swift-spacing-md) var(--swift-spacing-lg); min-height: var(--swift-hit-region); transition: background var(--swift-duration-fast) var(--swift-spring-default); }
+.item:not(:last-child) { border-bottom: 0.5px solid var(--swift-border); }
+.item:hover { background: var(--swift-bg-card-hover); }
+.itemLabel { flex: 1; font: var(--swift-font-body); color: var(--swift-text-primary); }
+.itemValue { font: var(--swift-font-body); color: var(--swift-text-secondary); }
+.itemIcon { color: var(--swift-accent-text-tint); flex-shrink: 0; }

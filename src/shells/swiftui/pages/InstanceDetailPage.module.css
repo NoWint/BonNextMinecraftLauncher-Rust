@@ -1,0 +1,6 @@
+.header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--swift-spacing-xl); }
+.info { flex: 1; }
+.title { font: var(--swift-font-page-title); color: var(--swift-text-primary); margin: 0 0 var(--swift-spacing-sm); }
+.version { font: var(--swift-font-body); color: var(--swift-text-tertiary); font-family: var(--swift-font-mono); }
+.actions { display: flex; gap: var(--swift-spacing-md); }
+.section { margin-top: var(--swift-spacing-xl); }

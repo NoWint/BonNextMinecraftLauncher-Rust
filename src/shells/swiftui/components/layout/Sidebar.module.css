@@ -1,0 +1,11 @@
+.sidebar { width: var(--swift-sidebar-width); background: var(--swift-sidebar-bg); backdrop-filter: blur(var(--swift-glass-blur)) saturate(var(--swift-glass-saturate)); -webkit-backdrop-filter: blur(var(--swift-glass-blur)) saturate(var(--swift-glass-saturate)); border-right: 0.5px solid var(--swift-sidebar-border); display: flex; flex-direction: column; padding: var(--swift-spacing-sm) 0; flex-shrink: 0; overflow-y: auto; }
+.sectionLabel { padding: var(--swift-spacing-md) var(--swift-spacing-lg) var(--swift-spacing-sm); font: var(--swift-font-caption); color: var(--swift-text-quaternary); text-transform: uppercase; letter-spacing: 0.5px; }
+.navItem { display: flex; align-items: center; gap: var(--swift-spacing-md); padding: 5px 10px; margin: 1px var(--swift-spacing-md); border-radius: var(--swift-radius-sm); border: none; background: transparent; color: var(--swift-text-secondary); font: var(--swift-font-body); cursor: pointer; width: calc(100% - var(--swift-spacing-md) * 2); text-align: left; min-height: 32px; transition: all var(--swift-duration-fast) var(--swift-spring-default); }
+.navItem:hover { background: var(--swift-sidebar-hover); color: var(--swift-text-primary); }
+.navItem.active { background: var(--swift-accent-tint); color: var(--swift-accent-text-tint); font-weight: 500; }
+.navIcon { flex-shrink: 0; display: flex; align-items: center; }
+.separator { border: none; border-top: 0.5px solid var(--swift-sidebar-separator); margin: var(--swift-spacing-sm) var(--swift-spacing-lg); }
+.account { display: flex; align-items: center; gap: var(--swift-spacing-md); padding: var(--swift-spacing-sm) var(--swift-spacing-md); margin: 0 var(--swift-spacing-md); border-top: 0.5px solid var(--swift-sidebar-separator); padding-top: var(--swift-spacing-md); }
+.avatar { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, #FFE600, #FF9500); display: flex; align-items: center; justify-content: center; font: var(--swift-font-metadata); font-weight: 700; color: var(--swift-accent-text); flex-shrink: 0; }
+.accountName { font: var(--swift-font-body); font-weight: 500; color: var(--swift-text-primary); font-size: 12px; }
+.accountType { font: var(--swift-font-metadata); color: var(--swift-text-quaternary); }

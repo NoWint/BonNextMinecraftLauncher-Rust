@@ -1,0 +1,71 @@
+/* SwiftUI Shell — Theme Variables */
+
+/* ===== Dark Theme (default) ===== */
+.theme-dark .swiftui-shell,
+.theme-dark .swiftui-shell * {
+  --swift-bg-primary: #2C2C2E;
+  --swift-bg-secondary: #1C1C1E;
+  --swift-bg-card: rgba(255, 255, 255, 0.06);
+  --swift-bg-card-hover: rgba(255, 255, 255, 0.09);
+  --swift-bg-input: rgba(255, 255, 255, 0.05);
+
+  --swift-border: rgba(255, 255, 255, 0.10);
+  --swift-border-hairline: rgba(255, 255, 255, 0.12);
+  --swift-border-focus: rgba(255, 230, 0, 0.5);
+
+  --swift-text-primary: rgba(255, 255, 255, 0.85);
+  --swift-text-secondary: rgba(255, 255, 255, 0.65);
+  --swift-text-tertiary: rgba(255, 255, 255, 0.45);
+  --swift-text-quaternary: rgba(255, 255, 255, 0.35);
+
+  --swift-accent-tint: rgba(255, 230, 0, 0.12);
+  --swift-accent-text-tint: #FFE600;
+
+  --swift-sidebar-bg: rgba(30, 30, 30, 0.72);
+  --swift-sidebar-border: rgba(255, 255, 255, 0.12);
+  --swift-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --swift-sidebar-separator: rgba(255, 255, 255, 0.12);
+
+  --swift-modal-backdrop: rgba(0, 0, 0, 0.5);
+  --swift-modal-bg: rgba(44, 44, 46, 0.95);
+
+  --swift-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --swift-shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.4);
+
+  --swift-overlay-bg: rgba(0, 0, 0, 0.4);
+}
+
+/* ===== Light Theme ===== */
+.theme-light .swiftui-shell,
+.theme-light .swiftui-shell * {
+  --swift-bg-primary: #FFFFFF;
+  --swift-bg-secondary: #F5F5F7;
+  --swift-bg-card: rgba(0, 0, 0, 0.03);
+  --swift-bg-card-hover: rgba(0, 0, 0, 0.05);
+  --swift-bg-input: rgba(0, 0, 0, 0.03);
+
+  --swift-border: rgba(0, 0, 0, 0.08);
+  --swift-border-hairline: rgba(0, 0, 0, 0.10);
+  --swift-border-focus: rgba(255, 230, 0, 0.6);
+
+  --swift-text-primary: rgba(0, 0, 0, 0.85);
+  --swift-text-secondary: rgba(0, 0, 0, 0.65);
+  --swift-text-tertiary: rgba(0, 0, 0, 0.40);
+  --swift-text-quaternary: rgba(0, 0, 0, 0.30);
+
+  --swift-accent-tint: rgba(255, 230, 0, 0.15);
+  --swift-accent-text-tint: #6B5F00;
+
+  --swift-sidebar-bg: rgba(245, 245, 247, 0.78);
+  --swift-sidebar-border: rgba(0, 0, 0, 0.10);
+  --swift-sidebar-hover: rgba(0, 0, 0, 0.04);
+  --swift-sidebar-separator: rgba(0, 0, 0, 0.10);
+
+  --swift-modal-backdrop: rgba(0, 0, 0, 0.3);
+  --swift-modal-bg: rgba(255, 255, 255, 0.95);
+
+  --swift-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --swift-shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.12);
+
+  --swift-overlay-bg: rgba(0, 0, 0, 0.2);
+}
