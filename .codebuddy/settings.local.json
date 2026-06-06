@@ -1,5 +1,6 @@
 {
   "enabledPlugins": {
-    "skill-creator@cb_teams_marketplace": true
+    "skill-creator@cb_teams_marketplace": true,
+    "modern-webapp@cb_teams_marketplace": true
   }
 }
