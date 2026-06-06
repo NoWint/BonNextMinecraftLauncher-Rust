@@ -13,7 +13,7 @@ crate-type = ["cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["protocol-asset"] }
+tauri = { version = "2", features = ["protocol-asset", "macos-private-api"] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-updater = "2"
@@ -68,7 +68,6 @@ quick-xml = { version = "0.37", features = ["serialize"] }
 str0m = "0.7"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-tauri = { version = "2", features = ["protocol-asset", "macos-private-api"] }
 tauri-plugin-liquid-glass = "0.1"
 
 [dev-dependencies]
