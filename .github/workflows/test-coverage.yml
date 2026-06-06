@@ -15,6 +15,10 @@ jobs:
         with:
           toolchain: stable
           components: llvm-tools-preview
+      - name: Install Linux system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev libjavascriptcoregtk-4.1-dev libsoup-3.0-dev
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov
       - name: Generate coverage

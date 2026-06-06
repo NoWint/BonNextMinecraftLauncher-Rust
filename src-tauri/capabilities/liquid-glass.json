@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "liquid-glass",
+  "description": "macOS-only Liquid Glass window effect",
+  "windows": ["main"],
+  "platforms": ["macOS"],
+  "permissions": ["liquid-glass:default"]
+}
