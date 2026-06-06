@@ -1,19 +1,19 @@
 #![allow(clippy::too_many_arguments)]
-mod auth;
+pub mod auth;
 mod cache;
 mod collections;
 mod config;
 mod content;
 mod crash_parser;
-mod download;
+pub mod download;
 mod error;
 mod http_client;
 mod instance;
-mod launch;
+pub mod launch;
 mod loader;
 mod modrinth;
 mod platform;
-mod security;
+pub mod security;
 mod social;
 mod chat;
 mod social_feed;
@@ -50,7 +50,7 @@ pub use version::manifest::VersionManifest;
 pub use version::manifest::LatestVersions;
 pub use web_api::WebApiServer;
 
-use launch::state::LaunchState;
+pub use launch::state::LaunchState;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
