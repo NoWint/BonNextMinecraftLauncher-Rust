@@ -1,29 +1,103 @@
+/* Button — macOS 26 HIG (Section 4.2) */
+
 .button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--swift-spacing-sm);
   border: none;
-  border-radius: var(--swift-radius-md);
+  border-radius: var(--swift-radius-pill);
   font: var(--swift-font-body);
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
+  padding: 8px 20px;
   min-height: var(--swift-hit-region);
-  padding: 8px 16px;
-  transition: all var(--swift-duration-fast) var(--swift-spring-default);
+  transition:
+    background var(--swift-duration-fast) var(--swift-spring-default),
+    color var(--swift-duration-fast) var(--swift-spring-default),
+    transform var(--swift-duration-fast) var(--swift-spring-default),
+    opacity var(--swift-duration-fast) var(--swift-spring-default);
   user-select: none;
   white-space: nowrap;
 }
-.button:active { transform: scale(0.97); }
-.button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-.primary { background: var(--swift-accent); color: var(--swift-accent-text); }
-.primary:hover:not(:disabled) { opacity: 0.85; }
-.secondary { background: transparent; color: var(--swift-text-primary); border: 0.5px solid var(--swift-border); }
-.secondary:hover:not(:disabled) { background: var(--swift-bg-card-hover); }
-.plain { background: transparent; color: var(--swift-accent-text-tint); }
-.plain:hover:not(:disabled) { background: var(--swift-accent-tint); }
-.destructive { background: var(--swift-destructive); color: var(--swift-destructive-text); }
-.destructive:hover:not(:disabled) { opacity: 0.85; }
-.small { min-height: 28px; padding: 4px 10px; font-size: 12px; }
-.large { min-height: 40px; padding: 10px 24px; font-size: 15px; }
-.iconOnly { padding: 8px; min-width: var(--swift-hit-region); }
+
+.button:active {
+  transform: scale(0.97);
+}
+
+.button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--swift-border-focus);
+  outline-offset: 2px;
+}
+
+/* --- Variants --- */
+
+.primary {
+  background: var(--swift-accent);
+  color: var(--swift-accent-text);
+}
+
+.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--swift-accent) 85%, white);
+  transform: scale(1.02);
+}
+
+.secondary {
+  background: var(--swift-active-primary);
+  color: var(--swift-text-primary);
+  border: 0.5px solid var(--swift-border-hover);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--swift-hover-primary);
+  transform: scale(1.02);
+}
+
+.plain {
+  background: transparent;
+  color: var(--swift-text-tertiary);
+}
+
+.plain:hover:not(:disabled) {
+  background: var(--swift-hover-primary);
+  color: var(--swift-text-primary);
+  transform: scale(1.02);
+}
+
+.destructive {
+  background: var(--swift-destructive);
+  color: var(--swift-destructive-text);
+}
+
+.destructive:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--swift-destructive) 85%, white);
+  transform: scale(1.02);
+}
+
+/* --- Sizes --- */
+
+.small {
+  padding: 6px 14px;
+  font-size: 12px;
+  min-height: 28px;
+}
+
+.large {
+  padding: 10px 24px;
+  font-size: 15px;
+  min-height: 40px;
+}
+
+.iconOnly {
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: var(--swift-radius-xs);
+}

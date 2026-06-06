@@ -1,3 +1,5 @@
+/* LoginPage — SwiftUI Shell HIG Redesign */
+
 .container {
   display: flex;
   align-items: center;
@@ -56,4 +58,13 @@
   font: var(--swift-font-metadata);
   color: var(--swift-text-quaternary);
   margin-top: var(--swift-spacing-xl);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .card {
+    width: calc(100% - var(--swift-spacing-xl) * 2);
+    max-width: 380px;
+    padding: var(--swift-spacing-xl);
+  }
 }

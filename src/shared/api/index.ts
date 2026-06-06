@@ -24,7 +24,7 @@ export type * from './types';
 export type { MojangProfile, YggdrasilServerPreset } from './auth';
 export type { ServerListEntry, MinecraftServerInfo, PingResult, ServerAddress, BatchPingResult } from './servers';
 export { invalidateCache, persistentCacheGet, persistentCacheSet, persistentCacheInvalidate, persistentCacheEvictExpired, twoLayerCachedInvoke } from './cache';
-export { getActiveShell, setActiveShell } from './shell';
+export { getActiveShell, setActiveShell, scanCustomShells, importCustomShell, removeCustomShell, getCustomShellEntry, getCustomShellCss, saveShellConfig, loadShellConfig } from './shell';
 
 const downloadVersion = (versionId: string, versionUrl: string) =>
   invoke<void>('download_version', { versionId, versionUrl });
@@ -324,4 +324,11 @@ export const api = {
 
   getActiveShell: shell.getActiveShell,
   setActiveShell: shell.setActiveShell,
+  scanCustomShells: shell.scanCustomShells,
+  importCustomShell: shell.importCustomShell,
+  removeCustomShell: shell.removeCustomShell,
+  getCustomShellEntry: shell.getCustomShellEntry,
+  getCustomShellCss: shell.getCustomShellCss,
+  saveShellConfig: shell.saveShellConfig,
+  loadShellConfig: shell.loadShellConfig,
 };

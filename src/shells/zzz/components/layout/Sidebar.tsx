@@ -6,6 +6,7 @@ import { useI18n } from '../../../../shared/i18n';
 import { StatusDot } from '../ui/Status';
 import { useSocial } from '../../../../shared/stores/socialStore';
 import { useChat } from '../../../../shared/stores/chatStore';
+import { ShellSwitcher } from '../../../../shared/components/ShellSwitcher';
 import styles from './Sidebar.module.css';
 
 interface NavItem {
@@ -276,6 +277,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <div className={styles.sidebar__bottom}>
+        <ShellSwitcher />
         <div className={styles.sidebar__user}>
           <div className={styles.sidebar__userAvatar}>
             <User size={14} />

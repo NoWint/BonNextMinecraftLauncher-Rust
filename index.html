@@ -28,6 +28,15 @@
     </style>
   </head>
   <body>
+    <script>
+      // Prevent theme flash — apply theme class before React hydrates
+      (function() {
+        try {
+          var theme = localStorage.getItem('bonnext:theme') || 'dark';
+          document.documentElement.className = 'theme-' + theme;
+        } catch(e) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -310,6 +310,7 @@ export interface ModResult {
   icon_url: string;
   client_side: string;
   server_side: string;
+  project_type: string;
   latest_version: string | null;
   date_created: string;
   date_modified: string;

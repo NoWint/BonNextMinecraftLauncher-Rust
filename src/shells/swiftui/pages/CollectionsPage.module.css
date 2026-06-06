@@ -1,2 +1,26 @@
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--swift-spacing-md); }
-.empty { text-align: center; padding: var(--swift-spacing-2xl); color: var(--swift-text-tertiary); }
+/* CollectionsPage — SwiftUI Shell HIG Redesign */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--swift-spacing-md);
+}
+
+.empty {
+  text-align: center;
+  padding: var(--swift-spacing-2xl);
+  color: var(--swift-text-tertiary);
+  font: var(--swift-font-body);
+}
+
+.skeletonCard {
+  aspect-ratio: 16 / 9;
+  border-radius: var(--swift-radius-lg);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+}

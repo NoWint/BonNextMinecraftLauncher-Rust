@@ -1,5 +1,45 @@
-.searchField { position: relative; display: flex; align-items: center; }
-.searchIcon { position: absolute; left: 10px; color: var(--swift-text-quaternary); pointer-events: none; }
-.input { width: 100%; background: var(--swift-bg-input); border: 0.5px solid var(--swift-border); border-radius: var(--swift-radius-lg); padding: 8px 12px 8px 34px; font: var(--swift-font-body); color: var(--swift-text-primary); min-height: var(--swift-hit-region); transition: border-color var(--swift-duration-fast) var(--swift-spring-default); }
-.input:focus { outline: none; border-color: var(--swift-border-focus); }
-.input::placeholder { color: var(--swift-text-quaternary); }
+/* SearchField — macOS 26 HIG — Same base as FormField */
+
+.searchField {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  color: var(--swift-text-quaternary);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.input {
+  width: 100%;
+  background: var(--swift-bg-input);
+  border: 0.5px solid var(--swift-border);
+  border-radius: var(--swift-radius-md);
+  padding: 8px 14px 8px 36px;
+  font: var(--swift-font-body);
+  color: var(--swift-text-primary);
+  min-height: var(--swift-hit-region);
+  transition: border-color var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--swift-border-focus);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--swift-border-focus);
+  outline-offset: 2px;
+}
+
+.input::placeholder {
+  color: var(--swift-text-quaternary);
+}

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useGlassEffect } from '../../hooks/useGlassEffect';
 import styles from './SearchPalette.module.css';
 
 interface SearchItem { id: string; title: string; meta?: string; }
@@ -6,6 +7,7 @@ interface SearchPaletteProps { open: boolean; onClose: () => void; items: Search
 
 export function SearchPalette({ open, onClose, items, onSelect }: SearchPaletteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const panelRef = useGlassEffect<HTMLDivElement>('subtle');
   useEffect(() => {
     if (open) inputRef.current?.focus();
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -15,8 +17,8 @@ export function SearchPalette({ open, onClose, items, onSelect }: SearchPaletteP
   if (!open) return null;
   return (
     <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
-        <input ref={inputRef} className={styles.searchInput} placeholder="Search..." onKeyDown={(e) => { if (e.key === 'Enter' && items[0]) onSelect(items[0].id); }} />
+      <div ref={panelRef} className={`${styles.panel} glass-thin`} onClick={(e) => e.stopPropagation()}>
+        <input ref={inputRef} className={styles.searchInput} placeholder="Search..." role="combobox" aria-expanded={items.length > 0} onKeyDown={(e) => { if (e.key === 'Enter' && items[0]) onSelect(items[0].id); }} />
         <div className={styles.results}>
           {items.map((item) => (
             <div key={item.id} className={styles.result} onClick={() => { onSelect(item.id); onClose(); }}>

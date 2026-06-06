@@ -13,4 +13,6 @@ export interface ShellDefinition {
   supportedRoutes: string[];
   /** Theme variants this shell supports */
   supportedThemes: string[];
+  /** Whether this is a user-installed custom shell */
+  isCustom?: boolean;
 }

@@ -1,3 +1,5 @@
+/* MarketplacePage — SwiftUI Shell HIG Redesign */
+
 .featured {
   background: var(--swift-bg-card);
   border: 0.5px solid var(--swift-border);
@@ -32,4 +34,21 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--swift-spacing-md);
+}
+
+.skeletonCard {
+  aspect-ratio: 16 / 9;
+  border-radius: var(--swift-radius-lg);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+
+  .featured {
+    min-height: 120px;
+    padding: var(--swift-spacing-lg);
+  }
 }

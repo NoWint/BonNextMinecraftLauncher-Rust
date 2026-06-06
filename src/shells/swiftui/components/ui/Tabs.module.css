@@ -1,7 +1,72 @@
-.container { display: flex; flex-direction: column; gap: var(--swift-spacing-lg); }
-.segmentedControl { display: inline-flex; background: var(--swift-bg-card); border: 0.5px solid var(--swift-border); border-radius: var(--swift-radius-md); padding: 2px; gap: 2px; }
-.tab { padding: 5px 14px; border: none; border-radius: var(--swift-radius-sm); background: transparent; color: var(--swift-text-secondary); font: var(--swift-font-body); cursor: pointer; transition: all var(--swift-duration-fast) var(--swift-spring-default); white-space: nowrap; }
-.tab:hover { color: var(--swift-text-primary); }
-.active { background: var(--swift-accent); color: var(--swift-accent-text); font-weight: 500; }
-.active:hover { color: var(--swift-accent-text); }
-.panel { animation: swift-fade-in var(--swift-duration-fast) var(--swift-spring-default) both; }
+/* Tabs — macOS 26 HIG (Section 4.7) — Bottom indicator style */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--swift-spacing-lg);
+}
+
+.segmentedControl {
+  display: flex;
+  gap: 16px;
+  padding: 8px 0;
+  position: relative;
+  border-bottom: none;
+}
+
+.tab {
+  padding: 8px 4px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--swift-text-tertiary);
+  font: var(--swift-font-body);
+  cursor: pointer;
+  position: relative;
+  transition: color var(--swift-duration-normal) var(--swift-spring-gentle);
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: var(--swift-text-secondary);
+}
+
+.tab::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) scaleX(0);
+  width: 100%;
+  height: 2px;
+  border-radius: var(--swift-radius-pill);
+  background: var(--swift-accent);
+  transition: transform var(--swift-duration-normal) var(--swift-spring-gentle);
+}
+
+.active {
+  color: var(--swift-text-primary);
+}
+
+.active:hover {
+  color: var(--swift-text-primary);
+}
+
+.active::after {
+  transform: translateX(-50%) scaleX(1);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--swift-border-focus);
+  outline-offset: 2px;
+  border-radius: var(--swift-radius-xs);
+}
+
+.tab:active {
+  transform: scale(0.97);
+  transition-duration: 50ms;
+}
+
+.panel {
+  animation: swift-fade-in var(--swift-duration-normal) var(--swift-spring-gentle) both;
+}

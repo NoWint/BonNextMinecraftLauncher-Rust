@@ -1,7 +1,53 @@
-.card { background: var(--swift-bg-card); border: 0.5px solid var(--swift-border); border-radius: var(--swift-radius-lg); overflow: hidden; transition: background var(--swift-duration-fast) var(--swift-spring-default); }
-.card:hover { background: var(--swift-bg-card-hover); }
-.clickable { cursor: pointer; }
-.header { padding: var(--swift-spacing-md) var(--swift-spacing-lg); border-bottom: 0.5px solid var(--swift-border); }
-.body { padding: var(--swift-spacing-lg); }
-.footer { padding: var(--swift-spacing-md) var(--swift-spacing-lg); border-top: 0.5px solid var(--swift-border); }
-.compact .body { padding: var(--swift-spacing-md); }
+/* Card — macOS 26 HIG (Section 4.3) */
+
+.card {
+  background: var(--swift-bg-card);
+  border: 0.5px solid var(--swift-border);
+  border-radius: var(--swift-radius-md);
+  overflow: hidden;
+  transition:
+    background var(--swift-duration-fast) var(--swift-spring-default),
+    border-color var(--swift-duration-fast) var(--swift-spring-default),
+    box-shadow var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.card:hover {
+  background: var(--swift-bg-card-hover);
+  border-color: var(--swift-border-hover);
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  box-shadow: var(--shadow-elevated, 0 2px 8px rgba(0, 0, 0, 0.12));
+}
+
+.clickable:focus-visible {
+  outline: 2px solid var(--swift-border-focus);
+  outline-offset: 2px;
+}
+
+.clickable:active {
+  transform: scale(0.97);
+  transition-duration: 50ms;
+}
+
+.header {
+  padding: var(--swift-spacing-md) var(--swift-spacing-lg);
+  border-bottom: 0.5px solid var(--swift-border);
+}
+
+.body {
+  padding: var(--swift-spacing-lg);
+}
+
+.footer {
+  padding: var(--swift-spacing-md) var(--swift-spacing-lg);
+  border-top: 0.5px solid var(--swift-border);
+}
+
+.compact .body {
+  padding: var(--swift-spacing-md);
+}

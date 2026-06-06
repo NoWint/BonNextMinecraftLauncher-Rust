@@ -128,7 +128,7 @@ pub struct MpiProjectFull {
 // Mappers: MPI → shared types
 // ---------------------------------------------------------------
 
-fn map_short(short: &MpiProjectShort, _project_type: &str) -> ModResult {
+fn map_short(short: &MpiProjectShort, project_type: &str) -> ModResult {
     ModResult {
         slug: short.slug.clone(),
         title: short.name.clone(),
@@ -140,6 +140,7 @@ fn map_short(short: &MpiProjectShort, _project_type: &str) -> ModResult {
         icon_url: short.thumbnail_url.clone().unwrap_or_default(),
         client_side: String::new(),
         server_side: String::new(),
+        project_type: project_type.to_string(),
         latest_version: short.latest_release_date.clone(),
         date_created: short.last_modified.clone().unwrap_or_default(),
         date_modified: short.last_updated.clone().unwrap_or_default(),

@@ -1,0 +1,20 @@
+.statusbar {
+  display: flex;
+  align-items: center;
+  height: var(--editor-statusbar-height);
+  padding: 0 12px;
+  background: var(--editor-bg-secondary);
+  border-top: 1px solid var(--editor-border);
+  font-size: 11px;
+  color: var(--editor-text-tertiary);
+  flex-shrink: 0;
+}
+
+.item {
+  color: var(--editor-text-secondary);
+}
+
+.separator {
+  margin: 0 8px;
+  color: var(--editor-border);
+}

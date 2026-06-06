@@ -1,53 +1,292 @@
-.quickLaunch {
+/* HomePage — Minimal, 1-step actions, player skin on right, SwiftUI HIG */
+
+/* ===== Empty State ===== */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+  gap: var(--swift-spacing-lg);
+}
+
+.emptyIcon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--swift-accent-tint-12);
+  color: var(--swift-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emptyTitle {
+  font: var(--swift-font-section-title);
+  color: var(--swift-text-primary);
+  margin: 0;
+}
+
+.emptySubtitle {
+  font: var(--swift-font-body);
+  color: var(--swift-text-tertiary);
+  margin: 0;
+  max-width: 320px;
+}
+
+/* ===== Two-Column Layout ===== */
+.layout {
+  display: flex;
+  gap: var(--swift-spacing-lg);
+  align-items: stretch; /* Key: both columns stretch to same height */
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--swift-spacing-lg);
+}
+
+/* ===== Hero / Primary Launch ===== */
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   background: var(--swift-bg-card);
   border: 0.5px solid var(--swift-border);
   border-radius: var(--swift-radius-lg);
-  padding: var(--swift-spacing-lg);
-  margin-bottom: var(--swift-spacing-lg);
+  padding: var(--swift-spacing-xl) var(--swift-spacing-lg);
+  transition: background var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.hero:hover {
+  background: var(--swift-bg-card-hover);
+}
+
+.heroInfo {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: var(--swift-spacing-xs);
+  min-width: 0;
 }
 
-.launchLabel {
-  font: var(--swift-font-caption);
-  color: var(--swift-text-quaternary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.launchTitle {
-  font: var(--swift-font-section-title);
+.heroTitle {
+  font: var(--swift-font-page-title);
   color: var(--swift-text-primary);
-  margin: var(--swift-spacing-xs) 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.launchMeta {
+.heroMeta {
   font: var(--swift-font-body);
   color: var(--swift-text-tertiary);
 }
 
-.stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--swift-spacing-md);
-  margin-bottom: var(--swift-spacing-xl);
-}
-
-.stat {
+/* ===== Instance List ===== */
+.instanceList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   background: var(--swift-bg-card);
   border: 0.5px solid var(--swift-border);
   border-radius: var(--swift-radius-lg);
-  padding: var(--swift-spacing-lg);
+  overflow: hidden;
 }
 
-.statLabel {
+.instanceItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--swift-spacing-md) var(--swift-spacing-lg);
+  cursor: pointer;
+  transition: background var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.instanceItem:not(:last-child) {
+  border-bottom: 0.5px solid var(--swift-border);
+}
+
+.instanceItem:hover {
+  background: var(--swift-bg-card-hover);
+}
+
+.instanceItem:focus-visible {
+  outline: 2px solid var(--swift-border-focus);
+  outline-offset: -2px;
+}
+
+.instanceInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.instanceName {
+  font: var(--swift-font-card-title);
+  color: var(--swift-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.instanceMeta {
+  font: var(--swift-font-metadata);
+  color: var(--swift-text-tertiary);
+}
+
+.viewAll {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--swift-spacing-xs);
+  width: 100%;
+  padding: var(--swift-spacing-md);
   font: var(--swift-font-caption);
+  color: var(--swift-accent);
+  background: none;
+  border: none;
+  border-top: 0.5px solid var(--swift-border);
+  cursor: pointer;
+  transition: background var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.viewAll:hover {
+  background: var(--swift-accent-tint-10);
+}
+
+/* ===== Player Profile (Right Column) ===== */
+.profile {
+  width: 200px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--swift-spacing-md);
+  background: var(--swift-bg-card);
+  border: 0.5px solid var(--swift-border);
+  border-radius: var(--swift-radius-lg);
+  padding: var(--swift-spacing-xl) var(--swift-spacing-lg);
+  /* Align top with hero card — same border-radius and padding */
+  align-self: flex-start;
+}
+
+.skinViewer {
+  width: 100%;
+  aspect-ratio: 3 / 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--swift-radius-md);
+  background: var(--swift-bg-card-hover);
+}
+
+.skinCanvas {
+  width: 160px;
+  height: 260px;
+  border-radius: var(--swift-radius-md);
+}
+
+.skinImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+  transition: transform var(--swift-duration-normal) var(--swift-spring-gentle);
+}
+
+.skinViewer:hover .skinImage {
+  transform: scale(1.05);
+}
+
+.skinPlaceholder {
+  font: var(--swift-font-page-title);
   color: var(--swift-text-quaternary);
 }
 
-.statValue {
+.profileName {
   font: var(--swift-font-section-title);
   color: var(--swift-text-primary);
-  margin-top: var(--swift-spacing-xs);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.profileStats {
+  display: flex;
+  gap: 0;
+  width: 100%;
+  border-top: 0.5px solid var(--swift-border);
+  padding-top: var(--swift-spacing-md);
+}
+
+.profileStat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.profileStat:not(:last-child) {
+  border-right: 0.5px solid var(--swift-border);
+}
+
+.profileStatValue {
+  font: var(--swift-font-card-title);
+  color: var(--swift-text-primary);
+}
+
+.profileStatLabel {
+  font: var(--swift-font-metadata);
+  color: var(--swift-text-quaternary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .profile {
+    width: 100%;
+    flex-direction: row;
+    padding: var(--swift-spacing-lg);
+    gap: var(--swift-spacing-lg);
+  }
+
+  .skinViewer {
+    width: 60px;
+    aspect-ratio: auto;
+    height: 100px;
+  }
+
+  .profileStats {
+    border-top: none;
+    border-left: 0.5px solid var(--swift-border);
+    padding-top: 0;
+    padding-left: var(--swift-spacing-md);
+    flex-direction: row;
+  }
+
+  .profileStat:not(:last-child) {
+    border-right: none;
+  }
+
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--swift-spacing-md);
+  }
 }

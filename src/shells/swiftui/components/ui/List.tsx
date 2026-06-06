@@ -4,7 +4,7 @@ import styles from './List.module.css';
 interface ListGroupProps { label?: string; children: ReactNode; }
 export function ListGroup({ label, children }: ListGroupProps) {
   return (
-    <div className={styles.group}>
+    <div className={`${styles.group} glass-regular`}>
       {label && <div className={styles.groupLabel}>{label}</div>}
       <div className={styles.list}>{children}</div>
     </div>

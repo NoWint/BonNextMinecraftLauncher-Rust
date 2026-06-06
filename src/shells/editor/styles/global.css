@@ -1,0 +1,24 @@
+@import './tokens.css';
+@import './themes.css';
+
+.editor-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  font-family: var(--editor-font);
+  font-size: 13px;
+  color: var(--editor-text);
+  background: var(--editor-bg);
+  overflow: hidden;
+  user-select: none;
+}
+
+.editor-shell * {
+  box-sizing: border-box;
+}
+
+.editor-shell input,
+.editor-shell select {
+  font-family: var(--editor-font);
+  font-size: 12px;
+}

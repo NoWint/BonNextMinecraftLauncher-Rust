@@ -203,6 +203,8 @@ struct CfMod {
     authors: Vec<CfAuthor>,
     #[serde(default)]
     categories: Vec<CfCategory>,
+    #[serde(rename = "classId", default)]
+    class_id: Option<u64>,
     #[serde(rename = "downloadCount")]
     download_count: f64,
     #[serde(default)]
@@ -216,6 +218,18 @@ struct CfMod {
     latest_files: Vec<CfFile>,
     #[serde(default)]
     screenshots: Vec<CfScreenshot>,
+}
+
+/// Map CF classId to Modrinth-style project_type.
+fn cf_class_to_project_type(class_id: Option<u64>) -> String {
+    match class_id {
+        Some(5) => "modpack".to_string(),       // CF classId 5 = Modpacks
+        Some(12) => "resourcepack".to_string(),  // CF classId 12 = Resource Packs
+        Some(6552) => "shader".to_string(),      // CF classId 6552 = Shaders
+        Some(6945) => "mod".to_string(),         // CF classId 6945 = Data Packs (treated as mod-like)
+        Some(4471) => "mod".to_string(),         // CF classId 4471 = Mods
+        _ => "mod".to_string(),                  // Default fallback
+    }
 }
 
 /// Map a CF mod to our unified ModResult.
@@ -236,6 +250,7 @@ fn map_mod(cf: CfMod) -> ModResult {
         icon_url: icon,
         client_side: "required".to_string(),
         server_side: "unsupported".to_string(),
+        project_type: cf_class_to_project_type(cf.class_id),
         latest_version,
         date_created: cf.date_created,
         date_modified: cf.date_modified,
@@ -268,7 +283,7 @@ fn map_mod_full(cf: CfMod) -> ModProjectFull {
         icon_url: icon,
         client_side: "required".to_string(),
         server_side: "unsupported".to_string(),
-        project_type: "mod".to_string(),
+        project_type: cf_class_to_project_type(cf.class_id),
         gallery,
         issues_url: cf.links.issues_url,
         source_url: cf.links.source_url,

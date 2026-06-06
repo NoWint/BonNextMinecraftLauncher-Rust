@@ -1,0 +1,47 @@
+.panel {
+  width: var(--editor-property-width);
+  background: var(--editor-bg-secondary);
+  border-left: 1px solid var(--editor-border);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--editor-border);
+}
+
+.icon {
+  font-size: 14px;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--editor-text);
+}
+
+.props {
+  padding: 12px;
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 20px;
+  color: var(--editor-text-tertiary);
+  font-size: 12px;
+  text-align: center;
+}
+
+.childrenInfo {
+  padding: 8px 12px;
+  font-size: 10px;
+  color: var(--editor-text-tertiary);
+  border-top: 1px solid var(--editor-border);
+}

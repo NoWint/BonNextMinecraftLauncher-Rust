@@ -96,17 +96,17 @@
 
 /* ===== Animation Classes ===== */
 .swift-animate-page-enter {
-  animation: swift-page-enter var(--swift-duration-normal) var(--swift-spring-gentle) both;
+  animation: swift-page-enter var(--swift-duration-normal) var(--swift-spring-gentle) forwards;
 }
 
 .swift-animate-fade-in {
-  animation: swift-fade-in var(--swift-duration-fast) var(--swift-spring-default) both;
+  animation: swift-fade-in var(--swift-duration-fast) var(--swift-spring-default) forwards;
 }
 
 .swift-animate-slide-up {
-  animation: swift-slide-up var(--swift-duration-normal) var(--swift-spring-default) both;
+  animation: swift-slide-up var(--swift-duration-normal) var(--swift-spring-default) forwards;
 }
 
 .swift-animate-stagger-item {
-  animation: swift-stagger-item var(--swift-duration-normal) var(--swift-spring-default) both;
+  animation: swift-stagger-item var(--swift-duration-normal) var(--swift-spring-default) forwards;
 }

@@ -1,3 +1,5 @@
+/* InstancesPage — SwiftUI Shell HIG Redesign */
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -18,6 +20,11 @@
   box-shadow: var(--swift-shadow);
 }
 
+.instanceCard:active {
+  transform: scale(0.98);
+  transition-duration: var(--swift-duration-fast);
+}
+
 .instanceName {
   font: var(--swift-font-card-title);
   color: var(--swift-text-primary);
@@ -34,4 +41,12 @@
   display: flex;
   gap: var(--swift-spacing-md);
   margin-top: var(--swift-spacing-sm);
+  align-items: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
 }

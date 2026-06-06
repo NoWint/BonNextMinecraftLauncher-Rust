@@ -1,5 +1,8 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { HomeIcon, StoreIcon, InstancesIcon, LibraryIcon, CollectionsIcon, VersionsIcon, ServersIcon, SettingsIcon } from '../icons';
+import { ShellSwitcher } from '../../../../shared/components/ShellSwitcher';
+import { useResponsive } from '../../hooks/useResponsive';
+import { useGlassEffect } from '../../hooks/useGlassEffect';
 import styles from './Sidebar.module.css';
 
 interface NavItem { id: string; label: string; path: string; icon: React.ComponentType<{ className?: string; size?: number }>; }
@@ -23,29 +26,37 @@ interface SidebarProps { username?: string; accountType?: string; }
 export function Sidebar({ username, accountType }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isNarrow, sidebarWidth } = useResponsive();
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
+  const sidebarRef = useGlassEffect<HTMLElement>('strong');
+
   return (
-    <nav className={styles.sidebar}>
+    <nav ref={sidebarRef} className={`${styles.sidebar} ${isNarrow ? styles.sidebarCollapsed : ''}`} style={{ width: sidebarWidth }}>
+      {/* Drag region for window movement — traffic lights are handled by Tauri natively */}
+      <div className={styles.dragRegion} data-tauri-drag-region />
       <div className={styles.sectionLabel}>Favorites</div>
       {NAV_ITEMS.map((item) => (
-        <button key={item.id} className={`${styles.navItem} ${isActive(item.path) ? styles.active : ''}`} onClick={() => navigate(item.path)}>
+        <button key={item.id} className={`${styles.navItem} ${isActive(item.path) ? styles.navItemActive : ''}`} onClick={() => navigate(item.path)}>
           <span className={styles.navIcon}><item.icon size={16} /></span>
-          {item.label}
+          <span className={styles.navLabel}>{item.label}</span>
         </button>
       ))}
-      <hr className={styles.separator} />
+      <div className={styles.divider} />
       {BOTTOM_ITEMS.map((item) => (
-        <button key={item.id} className={`${styles.navItem} ${isActive(item.path) ? styles.active : ''}`} onClick={() => navigate(item.path)}>
+        <button key={item.id} className={`${styles.navItem} ${isActive(item.path) ? styles.navItemActive : ''}`} onClick={() => navigate(item.path)}>
           <span className={styles.navIcon}><item.icon size={16} /></span>
-          {item.label}
+          <span className={styles.navLabel}>{item.label}</span>
         </button>
       ))}
       {username && (
-        <div className={styles.account}>
-          <div className={styles.avatar}>{username[0].toUpperCase()}</div>
-          <div><div className={styles.accountName}>{username}</div><div className={styles.accountType}>{accountType || 'Microsoft'}</div></div>
+        <div className={styles.userInfo}>
+          <div className={styles.userAvatar}>{username[0].toUpperCase()}</div>
+          <div><div className={styles.userName}>{username}</div><div className={styles.accountType}>{accountType || 'Microsoft'}</div></div>
         </div>
       )}
+      <div className={styles.shellSwitcher}>
+        <ShellSwitcher />
+      </div>
     </nav>
   );
 }

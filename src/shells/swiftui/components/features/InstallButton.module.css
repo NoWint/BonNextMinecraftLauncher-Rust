@@ -1,2 +1,83 @@
-.button { position: relative; min-width: 100px; }
-.progress { position: absolute; bottom: 0; left: 0; height: 2px; background: var(--swift-accent-text); border-radius: 0 0 var(--swift-radius-md) var(--swift-radius-md); transition: width var(--swift-duration-normal) var(--swift-spring-gentle); }
+/* InstallButton — HIG Primary Pill Button */
+.button {
+  position: relative;
+  min-width: 100px;
+}
+
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--swift-spacing-sm);
+  padding: var(--swift-spacing-sm) var(--swift-spacing-lg);
+  background: var(--swift-accent);
+  color: var(--swift-accent-text);
+  font: var(--swift-font-body);
+  font-weight: 500;
+  border: none;
+  border-radius: var(--swift-radius-pill);
+  cursor: pointer;
+  min-height: var(--swift-hit-region);
+  transition: all var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.primaryButton:hover {
+  filter: brightness(1.08);
+  transform: scale(1.01);
+}
+
+.primaryButton:active {
+  transform: scale(0.98);
+}
+
+.primaryButton:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--swift-spacing-sm);
+  padding: var(--swift-spacing-sm) var(--swift-spacing-lg);
+  background: var(--swift-bg-card);
+  color: var(--swift-text-primary);
+  font: var(--swift-font-body);
+  font-weight: 500;
+  border: 0.5px solid var(--swift-border);
+  border-radius: var(--swift-radius-pill);
+  cursor: pointer;
+  min-height: var(--swift-hit-region);
+  transition: all var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.secondaryButton:hover {
+  background: var(--swift-bg-card-hover);
+}
+
+.secondaryButton:active {
+  transform: scale(0.98);
+}
+
+/* Loading spinner */
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--swift-accent-tint-20);
+  border-top-color: var(--swift-accent-text);
+  border-radius: 50%;
+  animation: swift-spin var(--swift-duration-normal) linear infinite;
+}
+
+/* Progress bar track */
+.progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--swift-accent), var(--swift-warning));
+  border-radius: 0 0 var(--swift-radius-md) var(--swift-radius-md);
+  transition: width var(--swift-duration-normal) var(--swift-spring-gentle);
+}

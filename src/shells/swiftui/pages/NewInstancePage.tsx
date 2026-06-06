@@ -1,16 +1,47 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../../shared/api';
-import type { GameInstance } from '../../../shared/api';
+import type { GameInstance, VersionEntry } from '../../../shared/api';
+import { useToast } from '../../../shared/stores/toastStore';
 import { Button, FormField, Select } from '../components/ui';
 import styles from './NewInstancePage.module.css';
 
 export default function NewInstancePage() {
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const [name, setName] = useState('');
   const [version, setVersion] = useState('');
   const [loader, setLoader] = useState('none');
+  const [loaderVersion, setLoaderVersion] = useState('');
+  const [loaderVersions, setLoaderVersions] = useState<string[]>([]);
+  const [versions, setVersions] = useState<VersionEntry[]>([]);
   const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    api.getVersions().then((data) => {
+      setVersions(data || []);
+    }).catch((e) => {
+      addToast({ type: 'error', title: 'Failed to load versions', message: e instanceof Error ? e.message : String(e) });
+    });
+  }, [addToast]);
+
+  useEffect(() => {
+    if (loader === 'none') {
+      setLoaderVersions([]);
+      setLoaderVersion('');
+      return;
+    }
+    api.getLoaderVersions(loader).then((data) => {
+      setLoaderVersions(data || []);
+      setLoaderVersion(data?.[0] || '');
+    }).catch((e) => {
+      addToast({ type: 'error', title: 'Failed to load loader versions', message: e instanceof Error ? e.message : String(e) });
+      setLoaderVersions([]);
+      setLoaderVersion('');
+    });
+  }, [loader, addToast]);
+
+  const selectedVersionEntry = versions.find((v) => v.id === version);
 
   const handleCreate = async () => {
     if (!name || !version) return;
@@ -20,9 +51,9 @@ export default function NewInstancePage() {
         id: '',
         name,
         version_id: version,
-        version_url: '',
+        version_url: selectedVersionEntry?.url || '',
         loader_type: loader === 'none' ? null : loader,
-        loader_version: null,
+        loader_version: loader === 'none' ? null : loaderVersion || null,
         description: '',
         max_memory: 2048,
         min_memory: 512,
@@ -35,10 +66,13 @@ export default function NewInstancePage() {
       await api.createInstance(instance);
       navigate('/instances');
     } catch (e) {
-      console.error('Failed to create instance:', e);
+      addToast({ type: 'error', title: 'Failed to create instance', message: e instanceof Error ? e.message : String(e) });
     }
     setCreating(false);
   };
+
+  const releaseVersions = versions.filter((v) => v.type === 'release');
+  const versionOptions = releaseVersions.map((v) => ({ value: v.id, label: v.id }));
 
   return (
     <div className="swift-animate-page-enter">
@@ -52,11 +86,10 @@ export default function NewInstancePage() {
             onChange={(e) => setName(e.target.value)}
             placeholder="My Instance"
           />
-          <FormField
-            label="Version"
+          <Select
+            options={[{ value: '', label: 'Select version...' }, ...versionOptions]}
             value={version}
             onChange={(e) => setVersion(e.target.value)}
-            placeholder="1.21.4"
           />
           <Select
             options={[
@@ -67,6 +100,13 @@ export default function NewInstancePage() {
             value={loader}
             onChange={(e) => setLoader(e.target.value)}
           />
+          {loader !== 'none' && loaderVersions.length > 0 && (
+            <Select
+              options={loaderVersions.map((lv) => ({ value: lv, label: lv }))}
+              value={loaderVersion}
+              onChange={(e) => setLoaderVersion(e.target.value)}
+            />
+          )}
         </div>
         <div className={styles.actions}>
           <Button

@@ -15,8 +15,8 @@ export function CommandPalette({ open, onClose, commands }: CommandPaletteProps)
   if (!open) return null;
   return (
     <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
-        <input ref={inputRef} className={styles.searchInput} placeholder="Type a command..." />
+      <div className={`${styles.panel} glass-thin`} onClick={(e) => e.stopPropagation()}>
+        <input ref={inputRef} className={styles.searchInput} placeholder="Type a command..." role="combobox" aria-expanded={commands.length > 0} />
         <div className={styles.results}>
           {commands.map((cmd) => (
             <div key={cmd.id} className={styles.result} onClick={() => { cmd.action(); onClose(); }}>

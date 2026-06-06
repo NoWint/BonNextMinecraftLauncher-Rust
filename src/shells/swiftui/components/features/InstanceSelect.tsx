@@ -10,14 +10,14 @@ export function InstanceSelect({ instances, selectedId, onSelect }: InstanceSele
   const selected = instances.find((i) => i.id === selectedId);
   return (
     <div className={styles.select}>
-      <div className={styles.trigger} onClick={() => setOpen(!open)}>
+      <div className={styles.trigger} onClick={() => setOpen(!open)} aria-expanded={open}>
         {selected ? (<><span className={styles.instanceName}>{selected.name}</span><span className={styles.instanceVersion}>{selected.version_id}</span></>) : <span className={styles.instanceName}>Select instance</span>}
         <ChevronIcon size={12} direction={open ? 'up' : 'down'} />
       </div>
       {open && (
-        <div className={styles.dropdown}>
+        <div className={`${styles.dropdown} glass-regular`} role="listbox">
           {instances.map((inst) => (
-            <div key={inst.id} className={styles.option} onClick={() => { onSelect(inst.id); setOpen(false); }}>
+            <div key={inst.id} className={styles.option} role="option" onClick={() => { onSelect(inst.id); setOpen(false); }}>
               <span className={styles.instanceName}>{inst.name}</span>
               <span className={styles.instanceVersion}>{inst.version_id}</span>
             </div>

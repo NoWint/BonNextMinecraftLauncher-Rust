@@ -6,7 +6,7 @@ interface BreadcrumbProps { crumbs: Crumb[]; }
 
 export function Breadcrumb({ crumbs }: BreadcrumbProps) {
   return (
-    <nav className={styles.breadcrumb}>
+    <nav className={styles.breadcrumb} aria-label="Breadcrumb">
       {crumbs.map((crumb, i) => (
         <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {i > 0 && <ChevronIcon size={10} direction="right" className={styles.separator} />}

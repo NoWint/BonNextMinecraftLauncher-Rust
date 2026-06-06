@@ -1,5 +1,47 @@
-.pagination { display: flex; align-items: center; gap: var(--swift-spacing-sm); }
-.pageButton { display: flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; border: none; border-radius: var(--swift-radius-sm); background: transparent; color: var(--swift-text-secondary); font: var(--swift-font-body); cursor: pointer; transition: all var(--swift-duration-fast) var(--swift-spring-default); }
-.pageButton:hover { background: var(--swift-bg-card-hover); }
-.pageButton.active { background: var(--swift-accent); color: var(--swift-accent-text); font-weight: 500; }
-.pageButton:disabled { opacity: 0.3; cursor: not-allowed; }
+/* Pagination — macOS 26 HIG — Pill-shaped page buttons */
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--swift-spacing-sm);
+}
+
+.pageButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--swift-radius-pill);
+  background: transparent;
+  color: var(--swift-text-secondary);
+  font: var(--swift-font-body);
+  cursor: pointer;
+  transition: all var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.pageButton:hover {
+  background: var(--swift-bg-card-hover);
+}
+
+.pageButton.active {
+  background: var(--swift-accent-tint-12);
+  color: var(--swift-accent);
+  font-weight: 500;
+}
+
+.pageButton:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pageButton:focus-visible {
+  outline: 2px solid var(--swift-border-focus);
+  outline-offset: 2px;
+}
+
+.pageButton:active {
+  transform: scale(0.97);
+  transition-duration: 50ms;
+}

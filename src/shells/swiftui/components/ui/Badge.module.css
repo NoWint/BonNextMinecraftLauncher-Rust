@@ -1,6 +1,35 @@
-.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font: var(--swift-font-metadata); font-weight: 500; white-space: nowrap; }
-.default { background: var(--swift-bg-card); color: var(--swift-text-secondary); }
-.accent { background: var(--swift-accent-tint); color: var(--swift-accent-text-tint); }
-.success { background: rgba(52, 199, 89, 0.12); color: #34C759; }
-.warning { background: rgba(255, 149, 0, 0.12); color: #FF9500; }
-.error { background: rgba(255, 69, 58, 0.12); color: var(--swift-destructive); }
+/* Badge — macOS 26 HIG (Section 4.5) */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: var(--swift-radius-pill);
+  font: var(--swift-font-caption);
+  white-space: nowrap;
+}
+
+.default {
+  background: var(--swift-active-primary);
+  color: var(--swift-text-tertiary);
+}
+
+.accent {
+  background: var(--swift-accent-tint-12);
+  color: var(--swift-accent);
+}
+
+.success {
+  background: rgba(48, 209, 88, 0.12);
+  color: var(--swift-success);
+}
+
+.warning {
+  background: rgba(255, 159, 10, 0.12);
+  color: var(--swift-warning);
+}
+
+.error {
+  background: var(--swift-destructive);
+  color: var(--swift-destructive-text);
+}

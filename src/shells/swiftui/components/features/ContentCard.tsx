@@ -20,7 +20,7 @@ function formatDownloads(n: number): string {
 
 export function ContentCard({ title, description, imageUrl, author, downloads, categories, variant = 'gallery', onClick }: ContentCardProps) {
   return (
-    <div className={`${styles.card} ${variant === 'list' ? styles.listCard : ''}`} onClick={onClick} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined}>
+    <div className={`${styles.card} ${variant === 'list' ? styles.listCard : ''} glass-regular`} onClick={onClick} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined}>
       {imageUrl && <img className={styles.image} src={imageUrl} alt={title} loading="lazy" />}
       <div className={styles.info}>
         <div className={styles.title}>{title}</div>

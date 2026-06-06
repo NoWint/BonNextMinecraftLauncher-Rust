@@ -61,6 +61,7 @@ import SkinStationSection from './SkinStationSection';
 import AISection from './AISection';
 import AchievementDisplay from '../../components/ui/AchievementDisplay';
 import JreManagementSection from './JreManagementSection';
+import { ShellManagementSection } from './ShellManagementSection';
 
 function getSuitabilityBadge(
   t: (key: string) => string,
@@ -959,6 +960,7 @@ export default function SettingsPage() {
       </SectionCard>
 
       <ThemeSection t={t} />
+      <ShellManagementSection />
 
       <SectionCard id="sec-language" title={t('settings.languageSectionTitle')}>
         <SettingRow label={t('settings.language')}>

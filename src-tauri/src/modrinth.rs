@@ -41,6 +41,7 @@ pub struct ModResult {
     pub icon_url: String,
     pub client_side: String,
     pub server_side: String,
+    pub project_type: String,
     pub latest_version: Option<String>,
     pub date_created: String,
     pub date_modified: String,
@@ -153,6 +154,8 @@ struct ModrinthSearchHit {
     client_side: String,
     #[serde(default)]
     server_side: String,
+    #[serde(default, deserialize_with = "deserialize_null_string")]
+    project_type: String,
     #[serde(default)]
     date_created: String,
     #[serde(default)]
@@ -173,6 +176,7 @@ impl From<ModrinthSearchHit> for ModResult {
             icon_url: h.icon_url,
             client_side: h.client_side,
             server_side: h.server_side,
+            project_type: h.project_type,
             latest_version: h.latest_version,
             date_created: h.date_created,
             date_modified: h.date_modified,
@@ -193,6 +197,7 @@ impl From<ModrinthProject> for ModResult {
             icon_url: p.icon_url,
             client_side: p.client_side,
             server_side: p.server_side,
+            project_type: p.project_type,
             latest_version: None,
             date_created: p.date_created,
             date_modified: p.date_modified,
@@ -212,6 +217,8 @@ struct ModrinthProject {
     icon_url: String,
     client_side: String,
     server_side: String,
+    #[serde(default, deserialize_with = "deserialize_null_string")]
+    project_type: String,
     date_created: String,
     date_modified: String,
 }

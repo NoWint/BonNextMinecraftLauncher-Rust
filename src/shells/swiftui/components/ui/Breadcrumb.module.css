@@ -1,6 +1,42 @@
-.breadcrumb { display: flex; align-items: center; gap: var(--swift-spacing-xs); font: var(--swift-font-body); color: var(--swift-text-tertiary); }
-.crumb { color: var(--swift-accent-text-tint); cursor: pointer; background: none; border: none; padding: 0; font: inherit; }
-.crumb:hover { text-decoration: underline; }
-.separator { color: var(--swift-text-quaternary); }
-.current { color: var(--swift-text-primary); cursor: default; }
-.current:hover { text-decoration: none; }
+/* Breadcrumb — macOS 26 HIG */
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--swift-spacing-xs);
+  font: var(--swift-font-body);
+  color: var(--swift-text-tertiary);
+}
+
+.crumb {
+  color: var(--swift-text-tertiary);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  border-radius: var(--swift-radius-xs);
+  font: inherit;
+  transition: color var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.crumb:hover {
+  color: var(--swift-text-secondary);
+}
+
+.crumb:focus-visible {
+  outline: 2px solid var(--swift-border-focus);
+  outline-offset: 2px;
+}
+
+.separator {
+  color: var(--swift-text-quaternary);
+}
+
+.current {
+  color: var(--swift-text-primary);
+  cursor: default;
+}
+
+.current:hover {
+  color: var(--swift-text-primary);
+}

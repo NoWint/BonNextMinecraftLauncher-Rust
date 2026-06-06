@@ -1,4 +1,37 @@
-.select { position: relative; display: inline-flex; align-items: center; }
-.selectInput { appearance: none; background: var(--swift-bg-input); border: 0.5px solid var(--swift-border); border-radius: var(--swift-radius-sm); padding: 8px 32px 8px 12px; font: var(--swift-font-body); color: var(--swift-text-primary); min-height: var(--swift-hit-region); cursor: pointer; transition: border-color var(--swift-duration-fast) var(--swift-spring-default); }
-.selectInput:focus { outline: none; border-color: var(--swift-border-focus); }
-.chevron { position: absolute; right: 8px; pointer-events: none; color: var(--swift-text-tertiary); }
+/* Select — macOS 26 HIG — Same base as FormField/Input */
+
+.select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.selectInput {
+  appearance: none;
+  background: var(--swift-bg-input);
+  border: 0.5px solid var(--swift-border);
+  border-radius: var(--swift-radius-md);
+  padding: 8px 32px 8px 14px;
+  font: var(--swift-font-body);
+  color: var(--swift-text-primary);
+  min-height: var(--swift-hit-region);
+  cursor: pointer;
+  transition: border-color var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.selectInput:focus {
+  outline: none;
+  border-color: var(--swift-border-focus);
+}
+
+.selectInput:focus-visible {
+  outline: 2px solid var(--swift-border-focus);
+  outline-offset: 2px;
+}
+
+.chevron {
+  position: absolute;
+  right: 10px;
+  pointer-events: none;
+  color: var(--swift-text-tertiary);
+}

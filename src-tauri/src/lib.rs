@@ -118,10 +118,17 @@ pub fn run() {
         tracing::error!("Failed to create directories: {}", e);
     }
 
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build());
+
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder.plugin(tauri_plugin_liquid_glass::init());
+    }
+
+    builder
         .manage(AppState { launch_state: Arc::new(Mutex::new(LaunchState::Idle)), running_games: Arc::new(Mutex::new(HashMap::new())) })
         .manage(download::queue::DownloadControlState::new())
         .manage(cache::ApiCache::new())
@@ -151,6 +158,13 @@ pub fn run() {
             commands::config::get_active_download_source,
             commands::config::get_active_shell,
             commands::config::set_active_shell,
+            commands::shell::scan_custom_shells,
+            commands::shell::import_custom_shell,
+            commands::shell::remove_custom_shell,
+            commands::shell::get_custom_shell_entry,
+            commands::shell::get_custom_shell_css,
+            commands::shell::save_shell_config,
+            commands::shell::load_shell_config,
             commands::misc::find_java,
             commands::misc::find_all_java,
             commands::misc::check_java_version,
@@ -424,6 +438,46 @@ pub fn run() {
             commands::cache::cache_evict_expired,
         ])
         .setup(|app| {
+            // Apply native window effects: Liquid Glass (macOS 26+) or Vibrancy fallback
+            #[cfg(target_os = "macos")]
+            {
+                use tauri_plugin_liquid_glass::LiquidGlassExt;
+                if let Some(window) = app.get_webview_window("main") {
+                    let glass = app.liquid_glass();
+                    if glass.is_supported() {
+                        // macOS 26+: Liquid Glass
+                        match glass.set_effect(&window, tauri_plugin_liquid_glass::LiquidGlassConfig {
+                            variant: tauri_plugin_liquid_glass::GlassMaterialVariant::Sidebar,
+                            ..Default::default()
+                        }) {
+                            Ok(_) => tracing::info!("macOS 26+ Liquid Glass applied (Sidebar variant)"),
+                            Err(e) => tracing::warn!("Failed to apply Liquid Glass: {}", e),
+                        }
+                    } else {
+                        // macOS <26: fallback to Vibrancy via EffectsBuilder
+                        use tauri::window::{EffectsBuilder, Effect, EffectState};
+                        let effects = EffectsBuilder::new()
+                            .effects(vec![Effect::Sidebar])
+                            .state(EffectState::Active)
+                            .build();
+                        let _ = window.set_effects(effects);
+                        tracing::info!("macOS <26: Vibrancy fallback applied (Sidebar)");
+                    }
+                }
+            }
+            #[cfg(target_os = "windows")]
+            {
+                if let Some(window) = app.get_webview_window("main") {
+                    use tauri::window::{EffectsBuilder, Effect, EffectState};
+                    let effects = EffectsBuilder::new()
+                        .effects(vec![Effect::Mica, Effect::Acrylic])
+                        .state(EffectState::Active)
+                        .build();
+                    let _ = window.set_effects(effects);
+                    tracing::info!("Windows: Mica/Acrylic effect applied");
+                }
+            }
+
             app.manage(mod_watcher::watcher::ModWatcherState::new(app.handle().clone()));
             let audit_enabled = config::load_config()
                 .map(|c| c.security.audit_log_enabled)

@@ -7,7 +7,7 @@ interface ToastProps { toasts: ToastItem[]; onDismiss: (id: string) => void; }
 
 export function ToastContainer({ toasts, onDismiss }: ToastProps) {
   return (
-    <div className={styles.container}>
+    <div className={styles.container} aria-live="polite">
       {toasts.map((toast) => <ToastItemComponent key={toast.id} toast={toast} onDismiss={onDismiss} />)}
     </div>
   );
@@ -19,7 +19,7 @@ function ToastItemComponent({ toast, onDismiss }: { toast: ToastItem; onDismiss:
     return () => clearTimeout(timer);
   }, [toast.id, toast.duration, onDismiss]);
   return (
-    <div className={styles.toast}>
+    <div className={`${styles.toast} glass-thin`} role="alert">
       <span className={styles.message}>{toast.message}</span>
       <button className={styles.closeButton} onClick={() => onDismiss(toast.id)}><CloseIcon size={12} /></button>
     </div>

@@ -1,3 +1,5 @@
+/* ContentDetailPage — SwiftUI Shell HIG Redesign */
+
 .header {
   display: flex;
   gap: var(--swift-spacing-xl);
@@ -14,6 +16,7 @@
 
 .info {
   flex: 1;
+  min-width: 0;
 }
 
 .title {
@@ -34,6 +37,7 @@
   margin-top: var(--swift-spacing-md);
   font: var(--swift-font-body);
   color: var(--swift-text-secondary);
+  flex-wrap: wrap;
 }
 
 .versions {
@@ -46,6 +50,14 @@
   align-items: center;
   padding: var(--swift-spacing-md) 0;
   border-bottom: 0.5px solid var(--swift-border);
+  transition: background var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.versionRow:hover {
+  background: var(--swift-bg-card-hover);
+  border-radius: var(--swift-radius-md);
+  margin: 0 calc(-1 * var(--swift-spacing-sm));
+  padding: var(--swift-spacing-md) var(--swift-spacing-sm);
 }
 
 .versionName {
@@ -57,4 +69,27 @@
 .versionDate {
   font: var(--swift-font-metadata);
   color: var(--swift-text-tertiary);
+}
+
+.skeletonShort {
+  width: 80px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--swift-spacing-md);
+  }
+
+  .icon {
+    width: 56px;
+    height: 56px;
+  }
+
+  .versionRow {
+    flex-wrap: wrap;
+    gap: var(--swift-spacing-sm);
+  }
 }

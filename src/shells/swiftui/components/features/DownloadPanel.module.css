@@ -1,7 +1,98 @@
-.panel { position: fixed; bottom: var(--swift-spacing-lg); right: var(--swift-spacing-lg); width: 360px; background: var(--swift-modal-bg); border: 0.5px solid var(--swift-border); border-radius: var(--swift-radius-xl); box-shadow: var(--swift-shadow-elevated); z-index: 900; animation: swift-slide-up var(--swift-duration-normal) var(--swift-spring-bouncy) both; }
-.header { display: flex; align-items: center; justify-content: space-between; padding: var(--swift-spacing-md) var(--swift-spacing-lg); border-bottom: 0.5px solid var(--swift-border); }
-.title { font: var(--swift-font-card-title); color: var(--swift-text-primary); margin: 0; }
-.items { max-height: 300px; overflow-y: auto; padding: var(--swift-spacing-sm) 0; }
-.item { display: flex; align-items: center; gap: var(--swift-spacing-md); padding: var(--swift-spacing-sm) var(--swift-spacing-lg); }
-.itemName { flex: 1; font: var(--swift-font-body); color: var(--swift-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.itemSpeed { font: var(--swift-font-metadata); color: var(--swift-text-tertiary); font-family: var(--swift-font-mono); }
+/* DownloadPanel — HIG Floating Panel with Thick Glass & Accent Gradient Progress */
+.panel {
+  position: fixed;
+  bottom: var(--swift-spacing-lg);
+  right: var(--swift-spacing-lg);
+  width: 360px;
+  background: var(--swift-modal-bg);
+  border: 0.5px solid var(--swift-border);
+  border-radius: var(--swift-radius-lg);
+  box-shadow: var(--swift-shadow-elevated);
+  z-index: var(--swift-z-overlay);
+  animation: swift-slide-up var(--swift-duration-normal) var(--swift-spring-bouncy) both;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--swift-spacing-md) var(--swift-spacing-lg);
+  border-bottom: 0.5px solid var(--swift-border);
+}
+
+.title {
+  font: var(--swift-font-card-title);
+  color: var(--swift-text-primary);
+  margin: 0;
+}
+
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--swift-text-tertiary);
+  padding: var(--swift-spacing-xs);
+  border-radius: var(--swift-radius-xs);
+  transition: all var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.closeBtn:hover {
+  background: var(--swift-bg-card-hover);
+  color: var(--swift-text-primary);
+}
+
+.closeBtn:active {
+  transform: scale(0.97);
+  transition-duration: 50ms;
+}
+
+.items {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: var(--swift-spacing-sm) 0;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--swift-spacing-md);
+  padding: var(--swift-spacing-sm) var(--swift-spacing-lg);
+}
+
+.itemName {
+  flex: 1;
+  font: var(--swift-font-body);
+  color: var(--swift-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemSpeed {
+  font: var(--swift-font-metadata);
+  color: var(--swift-text-tertiary);
+  font-family: var(--swift-font-mono);
+}
+
+.progressWrapper {
+  width: 80px;
+}
+
+/* Accent gradient progress bar */
+.progressBar {
+  width: 100%;
+  height: 4px;
+  background: var(--swift-bg-card);
+  border-radius: var(--swift-radius-xs-half);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--swift-accent), var(--swift-warning));
+  border-radius: var(--swift-radius-xs-half);
+  transition: width var(--swift-duration-normal) var(--swift-spring-gentle);
+}
