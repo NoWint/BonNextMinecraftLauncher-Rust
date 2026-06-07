@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 
 use rand::Rng;
-use ed25519_dalek::Signer;
+use ed25519_dalek::{Signer, Verifier};
 use crate::social::identity::{self, Identity};
 use crate::social::transport::{self, EncryptedMessage, SendSession};
 use crate::chat::messages::{Message, MessageStore};
