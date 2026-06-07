@@ -1,4 +1,3 @@
-use base64::Engine as _;
 use ed25519_dalek::VerifyingKey;
 use crate::chat::messages::MessageStore;
 use crate::error::LauncherError;

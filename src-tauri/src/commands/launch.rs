@@ -231,7 +231,7 @@ pub async fn launch_game(
 
     if let Err(ref e) = result {
         tracing::error!("Launch failed: {}", e);
-        let mut games = state.running_games.lock();
+        let games = state.running_games.lock();
         if let Some(game) = games.get(&iid) {
             let mut s = game.state.lock();
             *s = LaunchState::Error;

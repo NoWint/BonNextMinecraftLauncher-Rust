@@ -6,7 +6,6 @@ use ed25519_dalek::SigningKey;
 use serde::{Serialize, Deserialize};
 use sha2::{Sha256, Sha512, Digest};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-use rand::Rng;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptedMessage {

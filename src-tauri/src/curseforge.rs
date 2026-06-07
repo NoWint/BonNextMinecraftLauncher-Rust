@@ -6,7 +6,6 @@ use crate::error::LauncherError;
 use crate::http_client;
 use crate::modrinth::{ModDependency, ModFile, ModGalleryImage, ModHashes, ModProjectFull, ModResult, ModVersion};
 use serde::Deserialize;
-use tauri::Emitter;
 
 use crate::download::source;
 

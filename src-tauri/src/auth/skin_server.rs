@@ -128,7 +128,7 @@ pub async fn start_skin_server(
     })
 }
 
-async fn handle_api_root(State(state): State<ServerState>) -> Response {
+async fn handle_api_root(State(_state): State<ServerState>) -> Response {
     let metadata = json!({
         "meta": {
             "serverName": "BonNext Local Skin Server",

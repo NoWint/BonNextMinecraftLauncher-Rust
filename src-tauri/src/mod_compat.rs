@@ -102,7 +102,7 @@ pub async fn check_compatibility(
     loader_type: &str,
 ) -> Result<CompatibilityReport, LauncherError> {
     let mut conflicts = Vec::new();
-    let mut missing_deps = Vec::new();
+    let missing_deps = Vec::new();
     let mut warnings = Vec::new();
 
     let slugs: Vec<&str> = mods.iter().map(|m| m.slug.as_str()).collect();

@@ -290,7 +290,7 @@ pub async fn scan_file(path: &Path, cache: &mut ScanCache) -> Result<ScanResult,
         return Ok(result);
     }
 
-    let mut result = scan_file_internal(&file_name, &data, &sha1_hash).await?;
+    let result = scan_file_internal(&file_name, &data, &sha1_hash).await?;
     let hash_for_cache = if result.file_hash.is_empty() { sha1_hash } else { result.file_hash.clone() };
     cache.insert(hash_for_cache, result.clone());
     Ok(result)
@@ -326,7 +326,7 @@ pub async fn scan_file_with_db_cache(
         return Ok(result);
     }
 
-    let mut result = scan_file_internal(&file_name, &data, &sha1_hash).await?;
+    let result = scan_file_internal(&file_name, &data, &sha1_hash).await?;
     let hash_for_cache = if result.file_hash.is_empty() { sha1_hash.clone() } else { result.file_hash.clone() };
     mem_cache.insert(hash_for_cache.clone(), result.clone());
     let _ = db.save_mod_cache(&hash_for_cache, &result);
