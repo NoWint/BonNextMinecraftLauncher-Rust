@@ -150,7 +150,6 @@ pub enum LauncherError {
     #[error("File watch error: {0}")]
     FileWatch(String),
 
-    #[deprecated(note = "Use a specific variant instead of Other")]
     #[error("{0}")]
     Other(String),
 }
@@ -207,7 +206,6 @@ impl LauncherError {
             Self::UrlConfig(_) => "URL_CONFIG",
             Self::ServerPing(_) => "SERVER_PING",
             Self::FileWatch(_) => "FILE_WATCH",
-            #[allow(deprecated)]
             Self::Other(_) => "OTHER",
         }
     }
@@ -310,7 +308,6 @@ impl serde::Serialize for LauncherError {
             LauncherError::UrlConfig(_) => "UrlConfig",
             LauncherError::ServerPing(_) => "ServerPing",
             LauncherError::FileWatch(_) => "FileWatch",
-            #[allow(deprecated)]
             LauncherError::Other(_) => "Other",
         };
         let mut map = serializer.serialize_map(Some(4))?;
