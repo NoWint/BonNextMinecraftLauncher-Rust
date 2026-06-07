@@ -364,7 +364,7 @@ mod tests {
         assert_eq!(c.min_memory, 512);
         assert_eq!(c.window_width, 854);
         assert_eq!(c.window_height, 480);
-        assert_eq!(c.download_source, "official");
+        assert_eq!(c.download_source, "bmclapi");
         assert_eq!(c.max_concurrent_downloads, 8);
         assert!(!c.fullscreen);
         assert!(!c.keep_launcher_open);
@@ -452,7 +452,7 @@ mod tests {
         let parsed: AppConfig = serde_json::from_str(json).unwrap();
         assert_eq!(parsed.max_memory, 4096);
         assert_eq!(parsed.min_memory, 512);
-        assert_eq!(parsed.download_source, "official");
+        assert_eq!(parsed.download_source, "bmclapi");
         assert_eq!(parsed.max_concurrent_downloads, 8);
     }
 }

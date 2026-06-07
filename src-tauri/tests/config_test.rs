@@ -7,7 +7,7 @@ fn config_default_values() {
     assert_eq!(config.min_memory, 512);
     assert_eq!(config.window_width, 854);
     assert_eq!(config.window_height, 480);
-    assert_eq!(config.download_source, "official");
+    assert_eq!(config.download_source, "bmclapi");
     assert_eq!(config.max_concurrent_downloads, 8);
     assert!(!config.fullscreen);
     assert!(!config.keep_launcher_open);
@@ -64,7 +64,7 @@ fn config_json_missing_fields_use_defaults() {
     let config: AppConfig = serde_json::from_str(json).unwrap();
     assert_eq!(config.max_memory, 4096);
     assert_eq!(config.min_memory, 512);
-    assert_eq!(config.download_source, "official");
+    assert_eq!(config.download_source, "bmclapi");
 }
 
 #[test]

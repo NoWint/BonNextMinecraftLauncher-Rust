@@ -148,6 +148,11 @@ pub fn validate_zip_entry_size(entry_size: u64, max_total: u64) -> Result<(), La
 }
 
 pub fn sanitize_filename(input: &str) -> Result<String, LauncherError> {
+    if input.is_empty() {
+        return Err(LauncherError::SecurityValidation(
+            "Filename cannot be empty".to_string(),
+        ));
+    }
     if input.contains('\0') {
         return Err(LauncherError::SecurityValidation(
             "Filename contains null bytes".into(),

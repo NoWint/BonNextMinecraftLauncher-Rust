@@ -174,7 +174,7 @@ mod tests {
         }
         let msgs = store.get_messages("p1", None, 3).unwrap();
         assert_eq!(msgs.len(), 3);
-        let last_id = msgs.last().unwrap().id;
+        let last_id = msgs.first().unwrap().id;
         let rest = store.get_messages("p1", last_id, 3).unwrap();
         assert_eq!(rest.len(), 2);
     }

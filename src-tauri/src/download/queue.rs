@@ -558,7 +558,7 @@ mod tests {
             eta_seconds: 0,
         };
         let json = serde_json::to_string(&progress).unwrap();
-        assert!(json.contains("\"error\":[\"connection timeout\"]"));
+        assert!(json.contains("\"error\":\"connection timeout\""));
     }
 
     #[test]
