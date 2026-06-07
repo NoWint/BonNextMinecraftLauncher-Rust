@@ -9,20 +9,20 @@ jobs:
     name: Send Discord Embed
     runs-on: ubuntu-latest
     steps:
-      - name: Build Discord Embed
+      - name: Send Discord Notification
         uses: actions/github-script@v7
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         with:
           script: |
             const release = context.payload.release;
             const version = release.tag_name.replace('v', '');
             const body = release.body || '';
 
-            // Truncate body for the embed description (Discord limit: 4096)
             const desc = body.length > 2000
               ? body.substring(0, 1997) + '...'
               : body || 'A new BonNext release is here.';
 
-            // Find asset URLs
             const assets = release.assets || [];
             const dmg = assets.find(a => a.name.endsWith('.dmg'));
             const msi = assets.find(a => a.name.endsWith('.msi'));
@@ -30,7 +30,6 @@ jobs:
             const appImage = assets.find(a => a.name.endsWith('.AppImage'));
             const deb = assets.find(a => a.name.endsWith('.deb'));
 
-            // Build download links string
             let downloadLinks = '';
             if (dmg) downloadLinks += `[🍎 macOS .dmg](${dmg.browser_download_url}) · `;
             if (msi) downloadLinks += `[🪟 Windows .msi](${msi.browser_download_url})\n`;
@@ -45,7 +44,7 @@ jobs:
               color: 0xFFE600,
               timestamp: new Date().toISOString(),
               author: {
-                name: 'BonNext · The Launcher, Reimagined',
+                name: 'BonNext · Not a launcher. An entrance.',
                 url: 'https://github.com/NoWint/BonNextMinecraftLauncher-Rust',
               },
               thumbnail: {
@@ -78,8 +77,11 @@ jobs:
               },
             };
 
-            // Send to Discord
             const webhookUrl = process.env.DISCORD_WEBHOOK;
+            if (!webhookUrl) {
+              console.error('DISCORD_WEBHOOK secret is not set!');
+              process.exit(1);
+            }
             const res = await fetch(webhookUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -90,9 +92,7 @@ jobs:
             });
 
             if (!res.ok) {
-              console.error('Discord webhook failed:', await res.text());
+              console.error('Discord webhook failed:', res.status, await res.text());
               process.exit(1);
             }
             console.log('✅ Discord notification sent!');
-          env:
-            DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
