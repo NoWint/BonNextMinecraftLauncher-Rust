@@ -1,47 +1,27 @@
+// src/plugins/core/__tests__/types.test.ts
 import { describe, it, expect } from 'vitest';
-import type { Plugin, PluginState, PluginManifest } from '../types';
+import type { PluginDefinition, PluginContext, SidebarItem } from '../types';
 
-describe('Plugin Types', () => {
-  it('should accept valid Plugin objects', () => {
-    const plugin: Plugin = {
-      id: 'com.bonnext.test',
-      name: 'Test Plugin',
+describe('Plugin types', () => {
+  it('PluginDefinition should accept correct shape', () => {
+    const def: PluginDefinition = {
+      id: 'com.test.plugin',
+      name: 'Test',
       version: '1.0.0',
-      async activate() {},
-      async deactivate() {},
+      activate: (_ctx: PluginContext) => {},
     };
-    expect(plugin.id).toBe('com.bonnext.test');
-    expect(plugin.version).toBe('1.0.0');
+    expect(def.id).toBe('com.test.plugin');
   });
 
-  it('should accept Plugin with optional fields', () => {
-    const plugin: Plugin = {
-      id: 'com.bonnext.test',
-      name: 'Test Plugin',
-      version: '1.0.0',
-      description: 'A test plugin',
-      dependencies: [{ id: 'com.bonnext.core', version: '^1.0.0' }],
-      async activate() {},
-      async deactivate() {},
+  it('SidebarItem should have pluginId', () => {
+    const item: SidebarItem = {
+      id: 'test',
+      label: 'Test',
+      icon: '🧪',
+      route: '/test',
+      order: 1,
+      pluginId: 'com.test.plugin',
     };
-    expect(plugin.dependencies).toHaveLength(1);
-  });
-
-  it('should enumerate all PluginState values', () => {
-    const states: PluginState[] = ['registered', 'activating', 'active', 'deactivating', 'inactive'];
-    expect(states).toHaveLength(5);
-  });
-
-  it('should accept valid PluginManifest', () => {
-    const manifest: PluginManifest = {
-      id: 'com.bonnext.test',
-      name: 'Test Plugin',
-      version: '1.0.0',
-      entry: 'index.js',
-      dependencies: { 'bonnext:theme': '^1.0.0' },
-      permissions: ['theme:read'],
-      minAppVersion: '0.0.3',
-    };
-    expect(manifest.id).toBe('com.bonnext.test');
+    expect(item.pluginId).toBe('com.test.plugin');
   });
 });
