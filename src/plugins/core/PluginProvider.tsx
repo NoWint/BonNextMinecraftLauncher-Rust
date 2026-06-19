@@ -1,73 +1,52 @@
-import React, { createContext, useContext, useMemo, useEffect, useRef, useState } from 'react';
+// src/plugins/core/PluginProvider.tsx
+import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { PluginManager } from './PluginManager';
-import type { Plugin, ExtensionPoint } from './types';
 
-interface PluginContextValue {
+interface PluginProviderContext {
   manager: PluginManager;
   ready: boolean;
 }
 
-const PluginContext = createContext<PluginContextValue | null>(null);
+const Context = createContext<PluginProviderContext | null>(null);
 
-interface PluginProviderProps {
-  children: React.ReactNode;
-  builtinPlugins?: Plugin[];
-  extensionPoints?: ExtensionPoint[];
-}
-
-export function PluginProvider({ children, builtinPlugins = [], extensionPoints = [] }: PluginProviderProps) {
-  const managerRef = useRef<PluginManager | null>(null);
-  const initializedRef = useRef(false);
+export function PluginProvider({ children }: { children: React.ReactNode }) {
+  const [manager] = useState(() => new PluginManager());
   const [ready, setReady] = useState(false);
 
-  if (!managerRef.current) {
-    managerRef.current = new PluginManager();
-  }
-
-  const manager = managerRef.current;
-
   useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
+    let cancelled = false;
 
-    for (const point of extensionPoints) {
-      manager.registerExtensionPoint(point);
+    async function init() {
+      // Register and activate built-in plugins
+      // (Built-in plugins will be added in later phases)
+      await manager.activateAll();
+      if (!cancelled) {
+        setReady(true);
+      }
     }
 
-    for (const plugin of builtinPlugins) {
-      manager.register(plugin);
-    }
-
-    manager
-      .activateAll()
-      .then(() => {
-        setReady(true);
-      })
-      .catch((e: unknown) => {
-        console.error('Failed to activate plugins:', e);
-        setReady(true);
-      });
+    init();
 
     return () => {
-      manager.deactivateAll().catch((e: unknown) => {
-        console.error('Failed to deactivate plugins:', e);
-      });
+      cancelled = true;
+      manager.deactivateAll();
     };
-  }, [manager, builtinPlugins, extensionPoints]);
+  }, [manager]);
 
-  const contextValue = useMemo(() => ({ manager, ready }), [manager, ready]);
+  const value = useMemo(() => ({ manager, ready }), [manager, ready]);
 
-  return <PluginContext.Provider value={contextValue}>{children}</PluginContext.Provider>;
+  return React.createElement(Context.Provider, { value }, children);
 }
 
 export function usePluginManager(): PluginManager {
-  const ctx = useContext(PluginContext);
-  if (!ctx) throw new Error('usePluginManager must be used within PluginProvider');
+  const ctx = useContext(Context);
+  if (!ctx) {
+    throw new Error('usePluginManager must be used within PluginProvider');
+  }
   return ctx.manager;
 }
 
 export function usePluginReady(): boolean {
-  const ctx = useContext(PluginContext);
-  if (!ctx) return false;
-  return ctx.ready;
+  const ctx = useContext(Context);
+  return ctx?.ready ?? false;
 }
