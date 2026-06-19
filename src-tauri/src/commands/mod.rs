@@ -31,3 +31,4 @@ pub mod mod_watcher;
 pub mod p2p;
 pub mod cache;
 pub mod shell;
+pub mod plugin_proxy;

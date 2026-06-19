@@ -307,6 +307,7 @@ pub fn run() {
             commands::misc::list_screenshots,
             commands::achievement::get_achievements,
             commands::achievement::unlock_achievement,
+            commands::achievement::check_achievements,
             commands::misc::set_instance_icon,
             commands::misc::get_download_schedule_config,
             commands::misc::set_download_schedule_config,
@@ -436,6 +437,11 @@ pub fn run() {
             commands::cache::cache_set,
             commands::cache::cache_invalidate,
             commands::cache::cache_evict_expired,
+            commands::plugin_proxy::plugin_http_get,
+            commands::plugin_proxy::plugin_http_post,
+            commands::plugin_proxy::plugin_storage_get,
+            commands::plugin_proxy::plugin_storage_set,
+            commands::plugin_proxy::plugin_storage_delete,
         ])
         .setup(|app| {
             // Apply native window effects: Liquid Glass (macOS 26+) or Vibrancy fallback
