@@ -1,22 +1,24 @@
+// src/plugins/core/__tests__/PluginManager.test.ts
 import { describe, it, expect, beforeEach } from 'vitest';
 import { PluginManager } from '../PluginManager';
-import type { Plugin } from '../types';
+import type { PluginDefinition, PluginContext } from '../types';
 
-const createPlugin = (id: string, deps?: string[]): Plugin & { activated: boolean; deactivated: boolean } =>
-  ({
+function createMockPlugin(id: string) {
+  const state = { activated: false, deactivated: false };
+  const definition: PluginDefinition = {
     id,
     name: `Plugin ${id}`,
     version: '1.0.0',
-    dependencies: deps?.map((d) => ({ id: d })),
-    activated: false,
-    deactivated: false,
-    async activate() {
-      this.activated = true;
+    activate: (ctx: PluginContext) => {
+      state.activated = true;
+      ctx.addSidebarItem({ id: 'test', label: 'Test', icon: '🧪', route: '/test', order: 1 });
     },
-    async deactivate() {
-      this.deactivated = true;
+    deactivate: () => {
+      state.deactivated = true;
     },
-  }) as Plugin & { activated: boolean; deactivated: boolean };
+  };
+  return { definition, state };
+}
 
 describe('PluginManager', () => {
   let manager: PluginManager;
@@ -25,86 +27,69 @@ describe('PluginManager', () => {
     manager = new PluginManager();
   });
 
-  it('should register and activate a plugin', async () => {
-    const plugin = createPlugin('com.test.a');
-    manager.register(plugin);
-    await manager.activate('com.test.a');
-    expect(manager.getState('com.test.a')).toBe('active');
+  it('should register a plugin', () => {
+    const { definition } = createMockPlugin('com.test.a');
+    manager.register(definition);
+    expect(manager.getPlugin('com.test.a')).toBeDefined();
+    expect(manager.getPlugin('com.test.a')?.state).toBe('registered');
   });
 
-  it('should deactivate a plugin', async () => {
-    const plugin = createPlugin('com.test.a');
-    manager.register(plugin);
+  it('should activate a plugin and collect UI injections', async () => {
+    const { definition, state } = createMockPlugin('com.test.a');
+    manager.register(definition);
+    await manager.activate('com.test.a');
+    expect(state.activated).toBe(true);
+    expect(manager.getPlugin('com.test.a')?.state).toBe('active');
+    expect(manager.getSidebarItems()).toHaveLength(1);
+    expect(manager.getSidebarItems()[0].pluginId).toBe('com.test.a');
+  });
+
+  it('should deactivate a plugin and remove its UI injections', async () => {
+    const { definition, state } = createMockPlugin('com.test.a');
+    manager.register(definition);
     await manager.activate('com.test.a');
     await manager.deactivate('com.test.a');
-    expect(manager.getState('com.test.a')).toBe('inactive');
+    expect(state.deactivated).toBe(true);
+    expect(manager.getPlugin('com.test.a')?.state).toBe('inactive');
+    expect(manager.getSidebarItems()).toHaveLength(0);
   });
 
-  it('should activate plugins in dependency order', async () => {
-    const activationOrder: string[] = [];
-    const a: Plugin = {
-      id: 'a',
+  it('should activate all registered plugins', async () => {
+    const a = createMockPlugin('com.test.a');
+    const b = createMockPlugin('com.test.b');
+    manager.register(a.definition);
+    manager.register(b.definition);
+    await manager.activateAll();
+    expect(manager.getPlugin('com.test.a')?.state).toBe('active');
+    expect(manager.getPlugin('com.test.b')?.state).toBe('active');
+  });
+
+  it('should handle activation errors gracefully', async () => {
+    const badPlugin: PluginDefinition = {
+      id: 'com.test.bad',
+      name: 'Bad',
+      version: '1.0.0',
+      activate: () => {
+        throw new Error('Activation failed');
+      },
+    };
+    manager.register(badPlugin);
+    await manager.activate('com.test.bad');
+    expect(manager.getPlugin('com.test.bad')?.state).toBe('error');
+    expect(manager.getPlugin('com.test.bad')?.error).toContain('Activation failed');
+  });
+
+  it('should return routes sorted by registration', async () => {
+    manager.register({
+      id: 'com.test.a',
       name: 'A',
       version: '1.0.0',
-      async activate() {
-        activationOrder.push('a');
+      activate: (ctx: PluginContext) => {
+        ctx.registerRoute('/a', async () => ({ default: () => null as never }));
       },
-      async deactivate() {},
-    };
-    const b: Plugin = {
-      id: 'b',
-      name: 'B',
-      version: '1.0.0',
-      dependencies: [{ id: 'a' }],
-      async activate() {
-        activationOrder.push('b');
-      },
-      async deactivate() {},
-    };
-
-    manager.register(a);
-    manager.register(b);
-    await manager.activateAll();
-    expect(activationOrder).toEqual(['a', 'b']);
-  });
-
-  it('should provide and consume services', async () => {
-    const service = { hello: 'world' };
-    const provider: Plugin = {
-      id: 'provider',
-      name: 'Provider',
-      version: '1.0.0',
-      async activate(ctx) {
-        ctx.provideService('test:service', service);
-      },
-      async deactivate() {},
-    };
-    let consumed: unknown;
-    const consumer: Plugin = {
-      id: 'consumer',
-      name: 'Consumer',
-      version: '1.0.0',
-      dependencies: [{ id: 'provider' }],
-      async activate(ctx) {
-        consumed = ctx.consumeService('test:service');
-      },
-      async deactivate() {},
-    };
-
-    manager.register(provider);
-    manager.register(consumer);
-    await manager.activateAll();
-    expect(consumed).toBe(service);
-  });
-
-  it('should throw when activating unknown plugin', async () => {
-    await expect(manager.activate('unknown')).rejects.toThrow(/not registered/);
-  });
-
-  it('should return all active plugins', async () => {
-    manager.register(createPlugin('a'));
-    manager.register(createPlugin('b'));
-    await manager.activateAll();
-    expect(manager.getActivePlugins()).toHaveLength(2);
+    });
+    await manager.activate('com.test.a');
+    expect(manager.getRoutes()).toHaveLength(1);
+    expect(manager.getRoutes()[0].path).toBe('/a');
   });
 });

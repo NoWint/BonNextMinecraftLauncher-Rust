@@ -4,8 +4,8 @@ export class PermissionValidator {
   private fsReadScopes = new Set<string>();
   private fsWriteScopes = new Set<string>();
   private invokeNamespaces = new Set<string>();
-  private canListenEvents = false;
-  private canEmitEvents = false;
+  private _canListenEvents = false;
+  private _canEmitEvents = false;
 
   constructor(permissions: string[]) {
     for (const perm of permissions) {
@@ -18,9 +18,9 @@ export class PermissionValidator {
       } else if (perm.startsWith('invoke:')) {
         this.invokeNamespaces.add(perm.slice(7));
       } else if (perm === 'events:listen') {
-        this.canListenEvents = true;
+        this._canListenEvents = true;
       } else if (perm === 'events:emit') {
-        this.canEmitEvents = true;
+        this._canEmitEvents = true;
       }
     }
   }
@@ -59,10 +59,10 @@ export class PermissionValidator {
   }
 
   canListenEvents(): boolean {
-    return this.canListenEvents;
+    return this._canListenEvents;
   }
 
   canEmitEvents(): boolean {
-    return this.canEmitEvents;
+    return this._canEmitEvents;
   }
 }
