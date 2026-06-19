@@ -9,6 +9,24 @@ edition = "2021"
 name = "bonnext_lib"
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = [
+    "plugin-marketplace",
+    "plugin-social",
+    "plugin-ai",
+    "plugin-servers",
+    "plugin-security",
+    "plugin-mod-tools",
+    "plugin-system-tools",
+]
+plugin-marketplace = []
+plugin-social = []
+plugin-ai = []
+plugin-servers = []
+plugin-security = []
+plugin-mod-tools = []
+plugin-system-tools = []
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
