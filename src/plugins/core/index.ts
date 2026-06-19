@@ -1,19 +1,28 @@
+// src/plugins/core/index.ts
+export { definePlugin } from './definePlugin';
+export { PluginManager } from './PluginManager';
+export { EventBus } from './EventBus';
+export { PermissionValidator } from './PermissionValidator';
+export { createPluginContext } from './PluginContext';
+export { createPluginLogger } from './PluginLogger';
+export { createPluginStorage } from './PluginStorage';
+export { createPluginHttpClient } from './PluginHttpClient';
+export { createPluginFileSystem } from './PluginFileSystem';
 export type {
-  Plugin,
+  PluginDefinition,
+  PluginManifest,
+  PluginContext,
   PluginState,
-  PluginDependency,
-  PluginContext as PluginContextType,
+  RegisteredPlugin,
+  SidebarItem,
+  SettingsSection,
+  PluginRoute,
+  ContextMenuItem,
+  InstanceTab,
+  ThemeContribution,
+  PluginHttpClient,
+  PluginFileSystem,
+  PluginEventBus,
   PluginStorage,
   PluginLogger,
-  ExtensionPoint,
-  PluginManifest,
-  RegisteredPlugin,
 } from './types';
-
-export { PluginRegistry } from './PluginRegistry';
-export { ServiceRegistry } from './ServiceRegistry';
-export { DependencyResolver } from './DependencyResolver';
-export { PluginContextImpl } from './PluginContext';
-export { PluginLoader } from './PluginLoader';
-export { PluginManager, MemoryPluginStorage } from './PluginManager';
-export { PluginProvider, usePluginManager, usePluginReady } from './PluginProvider';
