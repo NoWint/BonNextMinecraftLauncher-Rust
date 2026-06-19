@@ -1,4 +1,4 @@
-import type { ThemeContribution } from '@/plugins/extensions';
+import type { ThemeContribution } from '@/plugins/core';
 
 export interface ThemeInfo {
   id: string;
@@ -49,7 +49,7 @@ export class ThemeService {
   private listeners: ThemeChangeCallback[] = [];
   private rules: ThemeRule[] = [];
 
-  registerTheme(contribution: ThemeContribution, pluginId: string): void {
+  registerTheme(contribution: Omit<ThemeContribution, 'pluginId'>, pluginId: string): void {
     this.themes.set(contribution.id, {
       info: {
         id: contribution.id,

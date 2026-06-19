@@ -1,15 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ThemeService } from '../ThemeService';
-import type { ThemeContribution } from '@/plugins/extensions';
+import type { ThemeContribution } from '@/plugins/core';
 
-const darkTheme: ThemeContribution = {
+type ThemeContributionWithoutPluginId = Omit<ThemeContribution, 'pluginId'>;
+
+const darkTheme: ThemeContributionWithoutPluginId = {
   id: 'zzz-dark',
   name: 'ZZZ Dark',
   cssVariables: { '--bg-primary': '#0d0d0d', '--text-primary': '#ffffff' },
   mode: 'dark',
 };
 
-const lightTheme: ThemeContribution = {
+const lightTheme: ThemeContributionWithoutPluginId = {
   id: 'zzz-light',
   name: 'ZZZ Light',
   cssVariables: { '--bg-primary': '#fafafa', '--text-primary': '#1a1a1a' },

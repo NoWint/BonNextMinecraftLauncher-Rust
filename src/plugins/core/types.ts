@@ -89,6 +89,7 @@ export interface ThemeContribution {
   id: string;
   name: string;
   cssVariables: Record<string, string>;
+  fonts?: Array<{ family: string; src: string; weight?: number; style?: string }>;
   mode: 'light' | 'dark' | 'auto';
   pluginId: string;
 }

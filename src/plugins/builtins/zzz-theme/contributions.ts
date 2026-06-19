@@ -1,6 +1,8 @@
-import type { ThemeContribution } from '@/plugins/extensions';
+import type { ThemeContribution } from '@/plugins/core';
 
-export const zzzDarkContribution: ThemeContribution = {
+type ThemeContributionWithoutPluginId = Omit<ThemeContribution, 'pluginId'>;
+
+export const zzzDarkContribution: ThemeContributionWithoutPluginId = {
   id: 'zzz-dark',
   name: 'ZZZ Dark',
   mode: 'dark',
@@ -20,7 +22,7 @@ export const zzzDarkContribution: ThemeContribution = {
   },
 };
 
-export const zzzLightContribution: ThemeContribution = {
+export const zzzLightContribution: ThemeContributionWithoutPluginId = {
   id: 'zzz-light',
   name: 'ZZZ Light',
   mode: 'light',
@@ -40,7 +42,7 @@ export const zzzLightContribution: ThemeContribution = {
   },
 };
 
-export const zzzOledContribution: ThemeContribution = {
+export const zzzOledContribution: ThemeContributionWithoutPluginId = {
   id: 'zzz-oled',
   name: 'ZZZ OLED',
   mode: 'dark',

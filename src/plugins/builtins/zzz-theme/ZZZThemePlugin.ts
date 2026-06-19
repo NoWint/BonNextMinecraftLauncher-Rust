@@ -1,34 +1,36 @@
-import type { Plugin, PluginContextType } from '@/plugins/core';
+import { definePlugin } from '@/plugins/core';
+import type { PluginContext } from '@/plugins/core';
 import { ThemeService } from './ThemeService';
 import { zzzDarkContribution, zzzLightContribution, zzzOledContribution } from './contributions';
 
-export class ZZZThemePlugin implements Plugin {
-  id = 'com.bonnext.zzz-theme';
-  name = 'ZZZ Theme';
-  version = '1.0.0';
-  description = 'Default ZZZ Neo-Tokyo cyberpunk theme (dark, light, OLED)';
+let themeService: ThemeService | null = null;
 
-  private themeService: ThemeService | null = null;
+export const zzzThemePlugin = definePlugin({
+  id: 'com.bonnext.zzz-theme',
+  name: 'ZZZ Theme',
+  version: '1.0.0',
+  description: 'Default ZZZ Neo-Tokyo cyberpunk theme (dark, light, OLED)',
 
-  async activate(context: PluginContextType): Promise<void> {
-    this.themeService = new ThemeService();
+  activate(ctx: PluginContext) {
+    themeService = new ThemeService();
 
-    context.provideService('bonnext:theme', this.themeService);
+    // Register themes via the new plugin context
+    ctx.registerTheme(zzzDarkContribution);
+    ctx.registerTheme(zzzLightContribution);
+    ctx.registerTheme(zzzOledContribution);
 
-    this.themeService.registerTheme(zzzDarkContribution, this.id);
-    this.themeService.registerTheme(zzzLightContribution, this.id);
-    this.themeService.registerTheme(zzzOledContribution, this.id);
+    // Also register with ThemeService for runtime switching
+    themeService.registerTheme(zzzDarkContribution, ctx.pluginId);
+    themeService.registerTheme(zzzLightContribution, ctx.pluginId);
+    themeService.registerTheme(zzzOledContribution, ctx.pluginId);
 
-    context.contributeExtension('bonnext:theme', zzzDarkContribution);
-    context.contributeExtension('bonnext:theme', zzzLightContribution);
-    context.contributeExtension('bonnext:theme', zzzOledContribution);
-
+    // Apply initial theme
     let initialTheme = 'zzz-dark';
     try {
       const stored = localStorage.getItem('bonnext:theme');
       if (stored) {
         const migrated = stored === 'dark' || stored === 'light' || stored === 'oled' ? `zzz-${stored}` : stored;
-        const available = this.themeService.getAvailableThemes();
+        const available = themeService.getAvailableThemes();
         if (available.some((t) => t.id === migrated)) {
           initialTheme = migrated;
         }
@@ -37,14 +39,14 @@ export class ZZZThemePlugin implements Plugin {
       /* empty */
     }
 
-    await this.themeService.switchTheme(initialTheme, { animate: false });
-  }
+    themeService.switchTheme(initialTheme, { animate: false });
+  },
 
-  async deactivate(): Promise<void> {
-    this.themeService = null;
-  }
+  deactivate() {
+    themeService = null;
+  },
+});
 
-  getThemeService(): ThemeService | null {
-    return this.themeService;
-  }
+export function getThemeService(): ThemeService | null {
+  return themeService;
 }
