@@ -1,77 +1,79 @@
-import type { PluginStorage, PluginLogger, ExtensionPoint, PluginContext } from './types';
-import type { ServiceRegistry } from './ServiceRegistry';
-import type { PluginManager } from './PluginManager';
+// src/plugins/core/PluginContext.ts
+import type {
+  PluginContext,
+  SidebarItem,
+  SettingsSection,
+  PluginRoute,
+  ContextMenuItem,
+  InstanceTab,
+  ThemeContribution,
+  PluginHttpClient,
+  PluginFileSystem,
+  PluginEventBus,
+  PluginStorage,
+  PluginLogger,
+} from './types';
+import type { PermissionValidator } from './PermissionValidator';
+import { invoke } from '@tauri-apps/api/core';
 
-export class PluginContextImpl implements PluginContext {
-  public readonly pluginId: string;
-  public readonly storage: PluginStorage;
-  public readonly logger: PluginLogger;
-  private serviceRegistry: ServiceRegistry;
-  private pluginManager: PluginManager;
-  private extensionPoints = new Map<string, ExtensionPoint>();
-  private contributedExtensions: Array<{ pointId: string; contribution: unknown }> = [];
+export interface PluginContextCallbacks {
+  onRegisterRoute: (route: PluginRoute) => void;
+  onAddSidebarItem: (item: SidebarItem) => void;
+  onAddSettingsSection: (section: SettingsSection) => void;
+  onAddContextMenuItem: (item: ContextMenuItem) => void;
+  onAddInstanceTab: (tab: InstanceTab) => void;
+  onRegisterTheme: (theme: ThemeContribution) => void;
+}
 
-  constructor(
-    pluginId: string,
-    serviceRegistry: ServiceRegistry,
-    storage: PluginStorage,
-    pluginManager: PluginManager,
-  ) {
-    this.pluginId = pluginId;
-    this.serviceRegistry = serviceRegistry;
-    this.storage = storage;
-    this.pluginManager = pluginManager;
-    this.logger = {
-      info: (msg: string, ...args: unknown[]) => console.info(`[${pluginId}] ${msg}`, ...args),
-      warn: (msg: string, ...args: unknown[]) => console.warn(`[${pluginId}] ${msg}`, ...args),
-      error: (msg: string, ...args: unknown[]) => console.error(`[${pluginId}] ${msg}`, ...args),
-    };
-  }
+export function createPluginContext(
+  pluginId: string,
+  permissions: PermissionValidator,
+  callbacks: PluginContextCallbacks,
+  http: PluginHttpClient,
+  fs: PluginFileSystem,
+  events: PluginEventBus,
+  storage: PluginStorage,
+  logger: PluginLogger,
+): PluginContext {
+  return {
+    pluginId,
 
-  provideService(id: string, service: unknown): void {
-    this.serviceRegistry.provide(id, service, this.pluginId);
-  }
+    registerRoute(path, lazyComponent) {
+      callbacks.onRegisterRoute({ path, component: lazyComponent, pluginId });
+    },
 
-  consumeService(id: string): unknown {
-    return this.serviceRegistry.consume(id);
-  }
+    addSidebarItem(item) {
+      callbacks.onAddSidebarItem({ ...item, pluginId });
+    },
 
-  registerExtensionPoint(point: ExtensionPoint): void {
-    this.extensionPoints.set(point.id, point);
-  }
+    addSettingsSection(section) {
+      callbacks.onAddSettingsSection({ ...section, pluginId });
+    },
 
-  contributeExtension(pointId: string, contribution: unknown): void {
-    this.contributedExtensions.push({ pointId, contribution });
-  }
+    addContextMenuItem(item) {
+      callbacks.onAddContextMenuItem({ ...item, pluginId });
+    },
 
-  contributeExtensionRuntime(pointId: string, contribution: unknown): void {
-    this.contributedExtensions.push({ pointId, contribution });
-    const point = this.pluginManager.getExtensionPoint(pointId);
-    if (point) {
-      point.onContribute(contribution);
-    }
-  }
+    addInstanceTab(tab) {
+      callbacks.onAddInstanceTab({ ...tab, pluginId });
+    },
 
-  retractExtension(pointId: string, contribution: unknown): void {
-    const idx = this.contributedExtensions.findIndex((e) => e.pointId === pointId && e.contribution === contribution);
-    if (idx !== -1) {
-      this.contributedExtensions.splice(idx, 1);
-    }
-    const point = this.pluginManager.getExtensionPoint(pointId);
-    if (point) {
-      point.onRetract(contribution);
-    }
-  }
+    registerTheme(theme) {
+      callbacks.onRegisterTheme({ ...theme, pluginId });
+    },
 
-  getExtensionPoint(id: string): ExtensionPoint | undefined {
-    return this.extensionPoints.get(id);
-  }
+    async invoke<T = unknown>(command: string, args?: Record<string, unknown>): Promise<T> {
+      if (!permissions.canInvoke(command)) {
+        logger.warn(`Invoke denied (no permission): ${command}`);
+        throw new Error(`Permission denied: cannot invoke ${command}`);
+      }
+      return invoke<T>(command, args);
+    },
 
-  getContributedExtensions(): Array<{ pointId: string; contribution: unknown }> {
-    return [...this.contributedExtensions];
-  }
-
-  clearContributions(): void {
-    this.contributedExtensions = [];
-  }
+    http,
+    fs,
+    events,
+    storage,
+    logger,
+  };
 }
