@@ -11,6 +11,7 @@ import { DownloadProvider } from '../stores/downloadStore';
 import { SocialProvider } from '../stores/socialStore';
 import { ChatProvider } from '../stores/chatStore';
 import { AIAssistantProvider } from '../stores/aiAssistantStore';
+import { PluginProvider } from '../../plugins/core/PluginProvider';
 
 export function composeProviders(providers: React.ComponentType<{ children: React.ReactNode }>[]) {
   return ({ children }: { children: React.ReactNode }) =>
@@ -20,6 +21,8 @@ export function composeProviders(providers: React.ComponentType<{ children: Reac
 const providers = [
   // Router must be outermost so hooks like useNavigate work in all providers/shells
   HashRouter as unknown as React.ComponentType<{ children: React.ReactNode }>,
+  // Plugin system — provides PluginManager to all downstream providers/components
+  PluginProvider,
   // Shell state — determines which shell renders (theme variant depends on this)
   ShellProvider,
   // Theme — reads shell state to apply correct theme variant
