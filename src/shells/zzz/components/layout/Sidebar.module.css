@@ -7,7 +7,7 @@
   padding: 20px 0;
   flex-shrink: 0;
   position: relative;
-  z-index: 1;
+  z-index: var(--z-sidebar);
 }
 
 .sidebar__logo {

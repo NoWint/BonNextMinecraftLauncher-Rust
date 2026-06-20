@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listen } from '@tauri-apps/api/event';
 import { formatError } from '../../../shared/utils/errorMapping';
+import { logger } from '../../../shared/utils/logger';
 import { api, type ContentCounts, type InstalledModInfo, type UpdateInfo } from '../../../shared/api';
 import { scanModsDirectory, checkModUpdates, watchInstanceMods, unwatchInstanceMods, type ScanResult, type ModUpdateInfo } from '../../../shared/api/modScanner';
 import { useInstances } from '../../../shared/stores/instanceStore';
@@ -79,7 +80,7 @@ export default function LibraryPage() {
       setShaders(s);
       setCounts(c);
     } catch (e) {
-      console.error('Failed to load library:', e);
+      logger.error('Failed to load library:', e);
     } finally {
       setLoading(false);
     }
@@ -91,8 +92,10 @@ export default function LibraryPage() {
 
   useEffect(() => {
     if (!selectedId) return;
+    let cancelled = false;
     let cleanup: (() => void) | undefined;
     listen<{ instance_id: string; change_type: string }>('mod-directory-changed', (event) => {
+      if (cancelled) return;
       if (event.payload.instance_id === selectedId) {
         setDirChanged(true);
         addToast({
@@ -101,12 +104,19 @@ export default function LibraryPage() {
           message: t('library.modDirectoryChangedDesc') || 'Mod directory was modified externally. Refreshing...',
         });
         loadContent();
-        setTimeout(() => setDirChanged(false), 3000);
+        setTimeout(() => {
+          if (!cancelled) setDirChanged(false);
+        }, 3000);
       }
     }).then((unlisten) => {
-      cleanup = unlisten;
+      if (cancelled) {
+        unlisten();
+      } else {
+        cleanup = unlisten;
+      }
     });
     return () => {
+      cancelled = true;
       cleanup?.();
     };
   }, [selectedId, loadContent, addToast, t]);
@@ -153,7 +163,7 @@ export default function LibraryPage() {
       try {
         await api.removeInstalledMod(selectedId, update.filename);
       } catch (e) {
-        console.error('Failed to remove mod:', e);
+        logger.error('Failed to remove mod:', e);
       }
 
       // Download new version
@@ -228,7 +238,7 @@ export default function LibraryPage() {
       } catch (e: unknown) {
         setUpdateProgress((prev) => ({ ...prev, [update.filename]: 'failed' }));
         failCount++;
-        console.error(`Failed to update ${update.slug}:`, e);
+        logger.error(`Failed to update ${update.slug}:`, e);
       }
     }
 
@@ -652,7 +662,7 @@ export default function LibraryPage() {
                         const gameDir = await api.getGameDir();
                         await api.openFolder(`${gameDir}/instances/${selectedInstance.id}/.minecraft/saves`);
                       } catch (e) {
-                        console.error('Failed to load library:', e);
+                        logger.error('Failed to load library:', e);
                       }
                     }}
                   >

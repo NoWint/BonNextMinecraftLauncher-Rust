@@ -1,6 +1,6 @@
 .menu {
   position: fixed;
-  z-index: 99999;
+  z-index: var(--z-overlay);
   background: var(--color-panel-alt);
   border: 1px solid var(--color-border-light);
   min-width: 160px;

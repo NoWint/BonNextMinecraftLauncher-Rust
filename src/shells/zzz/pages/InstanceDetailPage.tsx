@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense, type LazyExoticComponent, type ComponentType } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   api,
@@ -19,6 +19,7 @@ import { useI18n } from '../../../shared/i18n';
 import { Badge, Tabs, Modal, Breadcrumb as BreadcrumbComp, TextInput, Tooltip } from '../components/ui';
 import { Button } from '../components/ui';
 import { Icon } from '../components/ui/Icon';
+import type { IconName } from '../components/ui/Icon';
 import GameConsole from '../components/ui/GameConsole';
 import LogViewer from '../components/ui/LogViewer';
 import { relativeTime } from '../../../shared/utils/time';
@@ -27,6 +28,8 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import styles from './InstanceDetailPage.module.css';
 import presetStyles from '../components/ui/OptimizationPresets.module.css';
+import { usePluginInstanceTabs } from '../../../app/hooks/usePluginInstanceTabs';
+import { PluginErrorBoundary } from '../../../app/components/PluginErrorBoundary';
 
 type SnapshotInfo = {
   id: string;
@@ -35,18 +38,18 @@ type SnapshotInfo = {
   size_bytes: number;
 };
 
-function getLoaderIcon(loaderType: string | null): string {
+function getLoaderIcon(loaderType: string | null): IconName {
   switch (loaderType) {
     case 'fabric':
-      return '\u{1F9F5}';
+      return 'fabric';
     case 'forge':
-      return '\u{2692}';
+      return 'forge';
     case 'quilt':
-      return '\u{1F9F5}';
+      return 'quilt';
     case 'neoforge':
-      return '\u{2699}';
+      return 'neoforge';
     default:
-      return '\u{1F4E6}';
+      return 'vanilla';
   }
 }
 
@@ -271,17 +274,21 @@ export default function InstanceDetailPage() {
   }, [activeTab, instanceId, fpsData]);
 
   useEffect(() => {
+    let cancelled = false;
     const poll = async () => {
       try {
         const games = await api.getRunningGames();
-        setRunningGames(games);
+        if (!cancelled) setRunningGames(games);
       } catch {
-        setRunningGames([]);
+        if (!cancelled) setRunningGames([]);
       }
     };
     poll();
     const interval = setInterval(poll, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   const handleApplyPreset = async (presetId: string) => {
@@ -562,7 +569,21 @@ export default function InstanceDetailPage() {
     [instance, addToast],
   );
 
-  const DETAIL_TABS = useMemo(() => useDetailTabs(t, installedMods.length), [t, installedMods.length]);
+  const pluginTabs = usePluginInstanceTabs();
+  const pluginTabComponents = useMemo(() => {
+    const map: Record<string, LazyExoticComponent<ComponentType<unknown>>> = {};
+    for (const tab of pluginTabs) {
+      map[tab.id] = lazy(tab.component);
+    }
+    return map;
+  }, [pluginTabs]);
+  const DETAIL_TABS = useMemo(() => {
+    const base = useDetailTabs(t, installedMods.length);
+    return [
+      ...base,
+      ...pluginTabs.map((tab) => ({ id: tab.id, label: tab.label })),
+    ];
+  }, [t, installedMods.length, pluginTabs]);
 
   if (loading) {
     return (
@@ -593,7 +614,7 @@ export default function InstanceDetailPage() {
           {iconUrl ? (
             <img src={iconUrl} alt={instance.name} className={styles.topBarIconImg} onError={() => setIconUrl(null)} />
           ) : (
-            <span className={styles.topBarIconEmoji}>{getLoaderIcon(instance.loader_type)}</span>
+            <span className={styles.topBarIconEmoji}><Icon name={getLoaderIcon(instance.loader_type)} size={28} /></span>
           )}
           {iconStatus === 'loading' && <span className={styles.iconStatusOverlay}><Icon name="hourglass" size={12} /></span>}
           {iconStatus === 'success' && <span className={styles.iconStatusOverlay}><Icon name="check" size={12} /></span>}
@@ -1271,6 +1292,20 @@ export default function InstanceDetailPage() {
           )}
         </div>
       )}
+
+      {pluginTabs.map((tab) => {
+        if (activeTab !== tab.id) return null;
+        const LazyComponent = pluginTabComponents[tab.id];
+        return (
+          <div key={tab.id} className={styles.tabContent}>
+            <PluginErrorBoundary pluginId={tab.pluginId}>
+              <Suspense fallback={<div>Loading...</div>}>
+                {LazyComponent && <LazyComponent />}
+              </Suspense>
+            </PluginErrorBoundary>
+          </div>
+        );
+      })}
 
       {/* Delete modal */}
       <Modal

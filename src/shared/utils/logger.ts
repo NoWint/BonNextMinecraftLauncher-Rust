@@ -1,3 +1,51 @@
+/**
+ * BonNext logger utility
+ *
+ * 提供与 console.debug/info/warn/error 一致的方法签名,
+ * 根据环境自动控制输出:
+ * - 生产环境:仅输出 warn 与 error,debug 与 info 静默
+ * - 开发环境:全部输出,统一带 `[BonNext]` 前缀便于过滤
+ *
+ * 纯原生实现,不依赖任何第三方库。
+ */
+
+const LOG_PREFIX = '[BonNext]';
+
+function isDev(): boolean {
+  // 优先使用 Vite 注入的 DEV 标志,回退到 MODE 判断
+  return import.meta.env.DEV || import.meta.env.MODE !== 'production';
+}
+
+type ConsoleMethod = (...args: unknown[]) => void;
+
+function createDevLog(method: ConsoleMethod): ConsoleMethod {
+  return (...args: unknown[]): void => {
+    method(LOG_PREFIX, ...args);
+  };
+}
+
+function createSilentLog(): ConsoleMethod {
+  return (): void => {
+    /* 静默 */
+  };
+}
+
+function buildLogger() {
+  const dev = isDev();
+  return {
+    debug: dev ? createDevLog(console.debug.bind(console)) : createSilentLog(),
+    info: dev ? createDevLog(console.info.bind(console)) : createSilentLog(),
+    warn: createDevLog(console.warn.bind(console)),
+    error: createDevLog(console.error.bind(console)),
+  };
+}
+
+export const logger = buildLogger();
+
+// ---------------------------------------------------------------------------
+// 以下为历史 API,保留以兼容现有调用方(ErrorBoundary / window.__bonnext_logs)
+// ---------------------------------------------------------------------------
+
 export type LogLevel = 'info' | 'warn' | 'error';
 
 export interface LogEntry {

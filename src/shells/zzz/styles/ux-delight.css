@@ -474,7 +474,7 @@ input[type='checkbox'] {
   width: 6px;
   height: 6px;
   pointer-events: none;
-  z-index: 99999;
+  z-index: var(--z-overlay);
   animation: confetti-fall 2s ease-in forwards;
 }
 
@@ -728,7 +728,7 @@ input[type='checkbox'] {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 9997;
+  z-index: var(--z-overlay);
   background: repeating-linear-gradient(
     0deg,
     transparent,

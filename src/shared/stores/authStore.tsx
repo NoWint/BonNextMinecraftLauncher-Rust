@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useMemo } from 'react';
+import { emit } from '@tauri-apps/api/event';
 import { api } from '../api';
 import { formatError } from '../utils/errorMapping';
 import type { AuthState, AuthAction, DeviceCodeResponse } from './auth/authTypes';
@@ -79,6 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const result = await api.offlineLogin(username);
         dispatch({ type: 'LOGIN', user: result });
+        // 通知插件 EventBus：用户已登录
+        void emit('auth:login', { username: result.username, uuid: result.uuid, method: 'offline' });
         await refreshAccounts();
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Login failed';
@@ -112,6 +115,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           type: 'LOGIN',
           user: { username: result.username, uuid: result.uuid, access_token: result.access_token },
         });
+        // 通知插件 EventBus：用户已登录
+        void emit('auth:login', { username: result.username, uuid: result.uuid, method: 'yggdrasil' });
         await refreshAccounts();
         return result;
       } catch (e) {

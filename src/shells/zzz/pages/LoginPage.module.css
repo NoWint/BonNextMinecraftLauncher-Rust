@@ -33,7 +33,7 @@
 .content {
   text-align: center;
   position: relative;
-  z-index: 1;
+  z-index: var(--z-base);
   width: 360px;
 }
 

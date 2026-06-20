@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../shared/api';
 import { useAuth } from '../../shared/stores/authStore';
 import { useInstances } from '../../shared/stores/instanceStore';
 import { useI18n } from '../../shared/i18n';
 import { useAIAssistant } from '../../shared/stores/aiAssistantStore';
 import { useShortcutBindings } from '../../shared/hooks/useKeyboardShortcuts';
+import { logger } from '../../shared/utils/logger';
 import { Sidebar } from './components/layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CommandPalette } from './components/CommandPalette';
@@ -14,18 +15,9 @@ import { DownloadPanel } from './components/ui/DownloadPanel';
 import { UpdateNotification } from './components/ui';
 import { ChatPanel } from './components/ai/ChatPanel';
 import FriendsPanel from './components/social/FriendsPanel';
+import { AppRoutes } from '../../app/components/AppRoutes';
+import { usePluginSidebarItems } from '../../app/hooks/usePluginSidebarItems';
 import LoginPage from './pages/LoginPage';
-import HomePage from './pages/HomePage';
-import InstancesPage from './pages/InstancesPage';
-import InstanceDetailPage from './pages/InstanceDetailPage';
-import NewInstancePage from './pages/NewInstancePage';
-import VersionsPage from './pages/VersionsPage';
-import MarketplacePage from './pages/MarketplacePage';
-import ContentDetailPage from './pages/ContentDetailPage';
-import LibraryPage from './pages/LibraryPage';
-import CollectionsPage from './pages/CollectionsPage';
-import SettingsPage from './pages/SettingsPage';
-import ServersPage from './pages/ServersPage';
 
 const PAGE_ID_TO_PATH: Record<string, string> = {
   home: '/home',
@@ -51,21 +43,58 @@ function ZZZAppShell() {
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
   const [socialOpen, setSocialOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const pluginSidebarItems = usePluginSidebarItems();
+
+  // 登录后检查是否需要显示新手引导
+  useEffect(() => {
+    if (authState.currentUser) {
+      if (isOnboardingForceShow() || !isOnboardingCompleted()) {
+        setOnboardingOpen(true);
+        clearForceShow();
+      }
+    }
+  }, [authState.currentUser]);
+
+  const handleCloseOnboarding = () => {
+    setOnboardingOpen(false);
+  };
 
   const navigateTo = (id: string) => {
     navigate(PAGE_ID_TO_PATH[id] || `/${id}`);
   };
 
-  const NAV_ITEMS = [
-    { id: 'home', label: t('nav.home'), shortcut: 'H', path: '/home' },
-    { id: 'marketplace', label: t('nav.marketplace') || 'Marketplace', shortcut: 'S', path: '/store' },
-    { id: 'collections', label: t('nav.collections'), shortcut: 'C', path: '/collections' },
-    { id: 'instances', label: t('nav.instances'), shortcut: 'I', path: '/instances' },
-    { id: 'library', label: t('nav.library'), shortcut: 'L', path: '/library' },
-    { id: 'versions', label: t('nav.versions'), shortcut: 'V', path: '/versions' },
-    { id: 'servers', label: t('nav.servers') || 'Servers', shortcut: 'R', path: '/servers' },
-    { id: 'settings', label: t('nav.settings'), shortcut: ',', path: '/settings' },
-  ];
+  // 核心导航项（不可插件化）
+  const coreNavItems = useMemo(
+    () => [
+      { id: 'home', label: t('nav.home'), shortcut: 'H', path: '/home' },
+      { id: 'instances', label: t('nav.instances'), shortcut: 'I', path: '/instances' },
+      { id: 'versions', label: t('nav.versions'), shortcut: 'V', path: '/versions' },
+      { id: 'settings', label: t('nav.settings'), shortcut: ',', path: '/settings' },
+    ],
+    [t],
+  );
+
+  // 合并核心导航项 + 插件侧边栏项
+  const navItems = useMemo(() => {
+    const pluginItems = pluginSidebarItems.map((item) => ({
+      id: item.id,
+      label: item.label,
+      path: item.route,
+      order: item.order,
+    }));
+    // 按 order 排序插件项，核心项保持相对顺序
+    const merged = [...coreNavItems];
+    // 插入插件项到正确位置（在 settings 之前）
+    const settingsIdx = merged.findIndex((i) => i.id === 'settings');
+    const sortedPluginItems = [...pluginItems].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    if (settingsIdx >= 0) {
+      merged.splice(settingsIdx, 0, ...sortedPluginItems);
+    } else {
+      merged.push(...sortedPluginItems);
+    }
+    return merged;
+  }, [coreNavItems, pluginSidebarItems]);
 
   useShortcutBindings({
     navigate: navigateTo,
@@ -86,7 +115,7 @@ function ZZZAppShell() {
           inst.id,
         );
       } catch (e) {
-        console.error('Quick launch failed:', e);
+        logger.error('Quick launch failed:', e);
       }
     },
     setSearchOpen,
@@ -115,7 +144,7 @@ function ZZZAppShell() {
       <div className="scanline-overlay" />
       <div className="app-layout">
         <Sidebar
-          navItems={NAV_ITEMS}
+          navItems={navItems}
           username={authState.currentUser.username}
           accountType={authState.currentUser.access_token?.startsWith('offline_') ? 'OFFLINE' : 'MICROSOFT'}
           playtimeHours={totalPlaytimeHours}
@@ -128,22 +157,7 @@ function ZZZAppShell() {
           <div className="decorative-rect decorative-rect--bottom-left" />
 
           <ErrorBoundary>
-            <Routes>
-              <Route path="/home" element={<HomePage />} />
-              <Route path="/instances" element={<InstancesPage />} />
-              <Route path="/instances/new" element={<NewInstancePage />} />
-              <Route path="/instances/:id" element={<InstanceDetailPage />} />
-              <Route path="/versions" element={<VersionsPage />} />
-              <Route path="/store" element={<MarketplacePage />} />
-              <Route path="/mods" element={<MarketplacePage />} />
-              <Route path="/store/:type/:slug" element={<ContentDetailPage />} />
-              <Route path="/collections" element={<CollectionsPage />} />
-              <Route path="/library" element={<LibraryPage />} />
-              <Route path="/servers" element={<ServersPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/" element={<Navigate to="/home" replace />} />
-              <Route path="*" element={<Navigate to="/home" replace />} />
-            </Routes>
+            <AppRoutes isAuthenticated={!!authState.currentUser} />
           </ErrorBoundary>
         </main>
       </div>
@@ -161,6 +175,7 @@ function ZZZAppShell() {
       <UpdateNotification />
       <CommandPalette />
       <DownloadPanel />
+      <OnboardingWizard open={onboardingOpen} onClose={handleCloseOnboarding} />
     </>
   );
 }

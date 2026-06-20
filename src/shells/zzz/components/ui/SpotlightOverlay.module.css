@@ -1,7 +1,7 @@
 .container {
   position: fixed;
   inset: 0;
-  z-index: 10000;
+  z-index: var(--z-overlay);
   pointer-events: auto;
 }
 
@@ -13,7 +13,7 @@
 
 .spotlight {
   position: absolute;
-  z-index: 1;
+  z-index: var(--z-base);
   border: 2px solid var(--color-accent);
   border-radius: 4px;
   pointer-events: auto;
@@ -28,7 +28,7 @@
 
 .tooltip {
   position: absolute;
-  z-index: 2;
+  z-index: var(--z-base);
   width: 280px;
   max-width: 90vw;
   background: var(--color-panel);
@@ -77,7 +77,7 @@
   position: fixed;
   top: 20px;
   right: 20px;
-  z-index: 3;
+  z-index: var(--z-base);
   background: var(--color-panel);
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);

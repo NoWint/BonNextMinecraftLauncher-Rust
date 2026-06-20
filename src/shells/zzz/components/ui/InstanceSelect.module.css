@@ -63,7 +63,7 @@
   right: 0;
   background: var(--color-panel);
   border: 1px solid var(--color-border-light);
-  z-index: 100;
+  z-index: var(--z-dropdown);
   max-height: 200px;
   overflow-y: auto;
 }

@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type CollectionItem } from '../../../shared/api';
 import { useI18n } from '../../../shared/i18n';
+import { logger } from '../../../shared/utils/logger';
 import { SectionHeader, Ticker } from '../components/layout';
 import { Button, ContentCard, Tabs } from '../components/ui';
+import { Icon } from '../components/ui/Icon';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import { useSkeleton } from '../../../shared/hooks/useSkeleton';
 import styles from './CollectionsPage.module.css';
@@ -28,7 +30,7 @@ export default function CollectionsPage() {
     try {
       setItems(await api.listCollection());
     } catch (e) {
-      console.error('Failed to load collections:', e);
+      logger.error('Failed to load collections:', e);
     } finally {
       setLoading(false);
     }
@@ -54,7 +56,7 @@ export default function CollectionsPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className={styles.emptyState}>
-          <div className={styles.emptyState__icon}>{'\u{2661}'}</div>
+          <div className={styles.emptyState__icon}><Icon name="heart" size={48} /></div>
           <div className={styles.emptyState__title}>
             {items.length === 0 ? `${t('collections.empty')}` : `${t('instances.noMatch')}`}
           </div>

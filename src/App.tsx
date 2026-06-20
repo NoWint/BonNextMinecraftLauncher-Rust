@@ -1,8 +1,15 @@
-import { Suspense, useCallback } from 'react';
-import { getShellComponent } from './shell-registry';
+import { Suspense, lazy } from 'react';
 import { AppProviders } from './shared/utils/composeProviders';
-import { useShellStore } from './shared/stores/shellStore';
 import { ShellErrorBoundary } from './shared/components/ShellErrorBoundary';
+import { useShellStore } from './shared/stores/shellStore';
+
+// 核心 UI：ZZZ Shell（默认且唯一的内置 Shell）
+const ZZZAppShell = lazy(() => import('./shells/zzz/AppShell'));
+
+// 备选 Shell：通过 shell-registry 懒加载（Swift Shell / Editor Shell 等）
+// 这些 Shell 作为插件保留，可通过设置页切换。
+const SwiftUIAppShell = lazy(() => import('./shells/swiftui/AppShell').then((m) => ({ default: m.default })));
+const EditorAppShell = lazy(() => import('./shells/editor/AppShell').then((m) => ({ default: m.default })));
 
 function ShellLoadingScreen() {
   return (
@@ -26,11 +33,25 @@ function ShellLoadingScreen() {
 
 function ShellRenderer() {
   const { state, setActiveShell } = useShellStore();
-  const ShellComponent = getShellComponent(state.activeShell);
 
-  const handleFallback = useCallback(() => {
+  const handleFallback = () => {
     setActiveShell('zzz');
-  }, [setActiveShell]);
+  };
+
+  // 选择当前 Shell 组件
+  let ShellComponent: React.LazyExoticComponent<React.ComponentType>;
+  switch (state.activeShell) {
+    case 'swiftui':
+      ShellComponent = SwiftUIAppShell;
+      break;
+    case 'editor':
+      ShellComponent = EditorAppShell;
+      break;
+    case 'zzz':
+    default:
+      ShellComponent = ZZZAppShell;
+      break;
+  }
 
   return (
     <ShellErrorBoundary onFallback={handleFallback}>

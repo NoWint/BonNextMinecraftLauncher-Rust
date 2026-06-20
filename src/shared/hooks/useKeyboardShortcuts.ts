@@ -51,6 +51,21 @@ export function useShortcutBindings({
 
     if (e.metaKey || e.ctrlKey) {
       switch (e.key.toLowerCase()) {
+        case 'h': {
+          e.preventDefault();
+          refs.current.navigate('home');
+          break;
+        }
+        case 'i': {
+          e.preventDefault();
+          refs.current.navigate('instances');
+          break;
+        }
+        case 'v': {
+          e.preventDefault();
+          refs.current.navigate('versions');
+          break;
+        }
         case 'n': {
           e.preventDefault();
           refs.current.navigate('new_instance');

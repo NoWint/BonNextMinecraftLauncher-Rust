@@ -56,15 +56,9 @@ export function isShellRegistered(id: string): boolean {
   return registry.has(id);
 }
 
-// Register all built-in shells — each index.ts only exports ShellDefinition (tiny, < 1KB)
+// Phase 4: 多 Shell 架构已移除 — ZZZ Shell 是唯一内置 Shell。
+// Swift Shell / Editor Shell 已作为插件存在于 plugins/builtins/ 中，
+// 不再作为内置 Shell 注册。Fluent / TV Shell 已弃用。
 import { zzzShell } from './shells/zzz';
-import { swiftuiShell } from './shells/swiftui';
-import { fluentShell } from './shells/fluent';
-import { tvShell } from './shells/tv';
-import { editorShell } from './shells/editor';
 
 registerShell(zzzShell);
-registerShell(swiftuiShell);
-registerShell(fluentShell);
-registerShell(tvShell);
-registerShell(editorShell);

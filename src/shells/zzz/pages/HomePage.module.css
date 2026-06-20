@@ -339,7 +339,7 @@
 .playArea__content {
   text-align: center;
   position: relative;
-  z-index: 1;
+  z-index: var(--z-base);
 }
 
 .playArea__playIcon {
@@ -447,7 +447,7 @@
   right: 0;
   bottom: 0;
   background: var(--color-overlay-80);
-  z-index: 50;
+  z-index: var(--z-dropdown);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -494,7 +494,7 @@
   position: fixed;
   bottom: 20px;
   right: 20px;
-  z-index: 200;
+  z-index: var(--z-dropdown);
   background: var(--color-panel);
   border: 1px solid var(--color-error);
   padding: 12px 20px;
@@ -596,7 +596,7 @@
 }
 .emptyHero__content {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-base);
   text-align: center;
   padding: 40px;
 }
@@ -697,7 +697,7 @@
   align-items: center;
   gap: 4px;
   position: relative;
-  z-index: 1;
+  z-index: var(--z-base);
 }
 
 .countdownLabel {
@@ -802,7 +802,7 @@
 
 .bannerContent {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-base);
   max-width: 55%;
 }
 
@@ -850,7 +850,7 @@
   right: 28px;
   display: flex;
   gap: 8px;
-  z-index: 2;
+  z-index: var(--z-base);
 }
 .bannerDot {
   width: 6px;
@@ -886,7 +886,7 @@
   justify-content: center;
   cursor: pointer;
   font-size: 0.7em;
-  z-index: 2;
+  z-index: var(--z-base);
   transition: all 200ms;
   opacity: 0;
 }
@@ -930,7 +930,7 @@
 
 .bannerSlide__leftContent {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-base);
   max-width: 45%;
   flex-shrink: 0;
 }
@@ -1089,7 +1089,7 @@
   min-width: 240px;
   max-height: 200px;
   overflow-y: auto;
-  z-index: 10;
+  z-index: var(--z-dropdown);
   clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
@@ -1229,7 +1229,7 @@
 .serverCard__dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  clip-path: var(--clip-diamond);
   display: block;
 }
 

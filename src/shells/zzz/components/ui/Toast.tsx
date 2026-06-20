@@ -13,6 +13,7 @@ const ICONS: Record<Toast['type'], React.ReactNode> = {
 function ToastItem({ toast }: { toast: Toast }) {
   const { removeToast } = useToast();
   const [exiting, setExiting] = useState(false);
+  const isError = toast.type === 'error';
 
   const handleDismiss = () => {
     setExiting(true);
@@ -23,13 +24,15 @@ function ToastItem({ toast }: { toast: Toast }) {
     <div
       className={`${styles.toast} ${styles[`toast--${toast.type}`]} ${exiting ? styles['toast--exiting'] : ''}`}
       onClick={handleDismiss}
+      role={isError ? 'alert' : 'status'}
+      aria-live={isError ? 'assertive' : 'polite'}
     >
       <span className={styles.icon}>{ICONS[toast.type]}</span>
       <div className={styles.content}>
         <div className={styles.title}>{toast.title}</div>
         {toast.message && <div className={styles.message}>{toast.message}</div>}
       </div>
-      <button className={styles.close} onClick={(e) => { e.stopPropagation(); handleDismiss(); }}>
+      <button className={styles.close} aria-label="Close" onClick={(e) => { e.stopPropagation(); handleDismiss(); }}>
         <X size={12} />
       </button>
     </div>

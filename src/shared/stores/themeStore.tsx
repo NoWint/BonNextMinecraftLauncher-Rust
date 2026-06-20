@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { usePluginThemes } from '../../app/hooks/usePluginThemes';
 
 export type Theme = 'dark' | 'light' | 'oled';
 export type AnimationSpeed = 'fast' | 'normal' | 'smooth' | 'custom';
@@ -138,6 +139,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [uiScale, setUiScaleState] = useState<number>(getInitialUiScale);
   const [animationSpeed, setAnimationSpeedState] = useState<AnimationSpeed>(getInitialAnimationSpeed);
   const [animationDuration, setAnimationDurationState] = useState<number>(getInitialAnimationDuration);
+  const pluginThemes = usePluginThemes();
+  const appliedThemeVarsRef = useRef<string[]>([]);
 
   const applyAnimationSpeed = useCallback((speed: AnimationSpeed, customDuration: number) => {
     const root = document.documentElement;
@@ -159,6 +162,29 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       /* empty */
     }
   }, [theme, applyThemeClass]);
+
+  // Apply plugin-contributed theme CSS variables additively.
+  // Only themes matching the current mode are applied; 'auto' matches any mode.
+  useEffect(() => {
+    const root = document.documentElement;
+    // Remove previously applied plugin theme variables
+    for (const key of appliedThemeVarsRef.current) {
+      root.style.removeProperty(key);
+    }
+    const isDark = theme === 'dark' || theme === 'oled';
+    const applied: string[] = [];
+    for (const contribution of pluginThemes) {
+      const matchesMode =
+        contribution.mode === 'auto' ||
+        (isDark ? contribution.mode === 'dark' : contribution.mode === 'light');
+      if (!matchesMode) continue;
+      for (const [key, value] of Object.entries(contribution.cssVariables)) {
+        root.style.setProperty(key, value);
+        applied.push(key);
+      }
+    }
+    appliedThemeVarsRef.current = applied;
+  }, [pluginThemes, theme]);
 
   useEffect(() => {
     applyUiScale(uiScale);

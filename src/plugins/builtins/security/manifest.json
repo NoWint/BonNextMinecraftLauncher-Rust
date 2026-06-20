@@ -1,0 +1,21 @@
+{
+  "id": "com.bonnext.security",
+  "name": "Security",
+  "version": "1.0.0",
+  "description": "Audit log, credential migration, JVM whitelist, sandbox, and file permissions",
+  "author": "BonNext",
+  "minAppVersion": "1.0.0",
+  "dependencies": [],
+  "permissions": [
+    "invoke:core",
+    "invoke:security",
+    "fs:read:config",
+    "fs:write:config",
+    "events:listen"
+  ],
+  "contributes": {
+    "routes": [],
+    "sidebar": [],
+    "settings": []
+  }
+}

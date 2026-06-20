@@ -3,6 +3,7 @@ import { api } from '../../../../shared/api';
 import type { ServerListEntry, MinecraftServerInfo, BatchPingResult } from '../../../../shared/api/servers';
 import type { GameInstance } from '../../../../shared/api/types';
 import { formatError } from '../../../../shared/utils/errorMapping';
+import { logger } from '../../../../shared/utils/logger';
 import { useToast } from '../../../../shared/stores/toastStore';
 import { useInstances } from '../../../../shared/stores/instanceStore';
 import { SectionHeader, Ticker } from '../../components/layout';
@@ -136,7 +137,7 @@ export default function ServersPage() {
       const list = await api.servers.listServers();
       setServers(list);
     } catch (e) {
-      console.error('Failed to load servers:', e);
+      logger.error('Failed to load servers:', e);
     } finally {
       setLoading(false);
     }

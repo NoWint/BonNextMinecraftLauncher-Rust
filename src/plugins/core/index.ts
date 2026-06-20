@@ -1,6 +1,7 @@
 // src/plugins/core/index.ts
 export { definePlugin } from './definePlugin';
 export { PluginManager } from './PluginManager';
+export { PluginLoader, pluginLoader } from './PluginLoader';
 export { EventBus } from './EventBus';
 export { PermissionValidator } from './PermissionValidator';
 export { createPluginContext } from './PluginContext';

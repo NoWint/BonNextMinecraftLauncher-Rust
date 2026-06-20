@@ -68,7 +68,12 @@ export const ContentCard = memo(function ContentCard({
       onClick={handleClick}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter') handleClick(); }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
     >
       <div className={styles.card__icon}>{icon}</div>
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { api, type YggdrasilServerPreset, type YggdrasilTexturesValue, type StoredAccount, type McSkinInfo, type MojangProfile } from '../../../../shared/api';
 import { useAuth } from '../../../../shared/stores/authStore';
 import { useI18n } from '../../../../shared/i18n';
+import { logger } from '../../../../shared/utils/logger';
 import { StatusDot, Badge, Button, TextInput, Select, SkinViewer3D, SkinPreview } from '../../components/ui';
 import { useFormField } from '../../../../shared/hooks/useFormField';
 import { url } from '../../../../shared/utils/validators';
@@ -113,13 +114,13 @@ export default function SkinStationSection({
           if (decoded.textures.SKIN?.metadata?.model === 'slim') setSkinModel('slim');
           setCapeUrl(decoded.textures.CAPE?.url || null);
         } catch {
-          console.warn('[SkinStation] Failed to decode skin textures');
+          logger.warn('[SkinStation] Failed to decode skin textures');
         }
       }
     } catch (e: unknown) {
       const errMsg = formatError(e);
       if (errMsg.includes('expired') || errMsg.includes('失效') || errMsg.includes('AuthExpired')) {
-        console.warn('[SkinStation] Token expired, attempting refresh...');
+        logger.warn('[SkinStation] Token expired, attempting refresh...');
         try {
           await api.yggdrasilRefreshToken();
           await refreshAccounts();
@@ -135,11 +136,11 @@ export default function SkinStationSection({
             }
           }
         } catch (refreshErr) {
-          console.warn('[SkinStation] Token refresh failed:', refreshErr);
+          logger.warn('[SkinStation] Token refresh failed:', refreshErr);
           addToast({ type: 'error', title: t('skinStation.errorSessionExpired'), message: t('skinStation.reloginRequired') });
         }
       } else {
-        console.warn('[SkinStation] Failed to fetch Yggdrasil profile:', e);
+        logger.warn('[SkinStation] Failed to fetch Yggdrasil profile:', e);
       }
     }
   };
@@ -164,7 +165,7 @@ export default function SkinStationSection({
         setMsCapeAlias(activeCape?.alias || null);
         if (activeCape) setCapeUrl(activeCape.url);
       })
-      .catch((e: unknown) => console.warn('[SkinStation] Failed to fetch Microsoft profile:', e))
+      .catch((e: unknown) => logger.warn('[SkinStation] Failed to fetch Microsoft profile:', e))
       .finally(() => setMsLoading(false));
     api
       .getMojangProfile(microsoftAccount.access_token)
@@ -173,7 +174,7 @@ export default function SkinStationSection({
         const activeCape = profile.capes.find((c) => c.state === 'ACTIVE');
         setSelectedCapeId(activeCape?.id || '');
       })
-      .catch((e: unknown) => console.warn('[SkinStation] Failed to fetch Mojang profile:', e));
+      .catch((e: unknown) => logger.warn('[SkinStation] Failed to fetch Mojang profile:', e));
   };
 
   useEffect(() => {
@@ -215,29 +216,29 @@ export default function SkinStationSection({
   };
 
   const validateAndOpenSkin = async (): Promise<string | null> => {
-    console.log('[SkinStation] Opening file dialog...');
+    logger.debug('[SkinStation] Opening file dialog...');
     let selected: string | string[] | null;
     try {
       selected = await open({ multiple: false, filters: [{ name: 'Skin Image', extensions: ['png'] }] });
     } catch (dialogErr) {
-      console.error('[SkinStation] Dialog error:', dialogErr);
+      logger.error('[SkinStation] Dialog error:', dialogErr);
       addToast({ type: 'error', title: t('skinStation.invalidSkin'), message: t('skinStation.dialogFailed') });
       return null;
     }
-    console.log('[SkinStation] Selected:', selected);
+    logger.debug('[SkinStation] Selected:', selected);
 
     if (!selected || typeof selected !== 'string') {
       if (Array.isArray(selected)) selected = selected[0];
       if (!selected || typeof selected !== 'string') return null;
     }
 
-    console.log('[SkinStation] Validating skin file:', selected);
+    logger.debug('[SkinStation] Validating skin file:', selected);
     try {
       const result = await api.validateSkinFile(selected);
-      console.log('[SkinStation] Validation result:', result);
+      logger.debug('[SkinStation] Validation result:', result);
     } catch (e: unknown) {
       const errMsg = formatError(e);
-      console.error('[SkinStation] Validation failed:', e, errMsg);
+      logger.error('[SkinStation] Validation failed:', e, errMsg);
       addToast({ type: 'error', title: t('skinStation.invalidSkin'), message: errMsg });
       return null;
     }
@@ -250,7 +251,7 @@ export default function SkinStationSection({
     if (!selected) return;
     try {
       setUploading(true);
-      console.log('[SkinStation] Uploading skin for Yggdrasil account:', yggdrasilAccount.username);
+      logger.debug('[SkinStation] Uploading skin for Yggdrasil account:', yggdrasilAccount.username);
       await api.yggdrasilUploadSkin(
         yggdrasilAccount.uuid,
         yggdrasilAccount.yggdrasil_server_url!,
@@ -262,7 +263,7 @@ export default function SkinStationSection({
       await refreshAccounts();
       fetchYggdrasilProfile();
     } catch (e: unknown) {
-      console.error('[SkinStation] Upload failed:', e);
+      logger.error('[SkinStation] Upload failed:', e);
       addToast({ type: 'error', title: t('skinStation.uploadFailed'), message: formatError(e) });
     } finally {
       setUploading(false);
@@ -280,7 +281,7 @@ export default function SkinStationSection({
       addToast({ type: 'success', title: t('skinStation.resetSuccess') });
       fetchYggdrasilProfile();
     } catch (e: unknown) {
-      console.error('[SkinStation] Reset failed:', e);
+      logger.error('[SkinStation] Reset failed:', e);
       addToast({ type: 'error', title: t('skinStation.resetFailed'), message: formatError(e) });
     }
   };
@@ -292,7 +293,7 @@ export default function SkinStationSection({
       addToast({ type: 'success', title: t('skinStation.deleteSkinSuccess') });
       fetchMicrosoftProfile();
     } catch (e: unknown) {
-      console.error('[SkinStation] Delete skin failed:', e);
+      logger.error('[SkinStation] Delete skin failed:', e);
       addToast({ type: 'error', title: t('skinStation.deleteSkinFailed'), message: formatError(e) });
     }
   };
@@ -304,7 +305,7 @@ export default function SkinStationSection({
       addToast({ type: 'success', title: t('skinStation.capeEquipSuccess') });
       fetchMicrosoftProfile();
     } catch (e: unknown) {
-      console.error('[SkinStation] Equip cape failed:', e);
+      logger.error('[SkinStation] Equip cape failed:', e);
       addToast({ type: 'error', title: t('skinStation.capeEquipFailed'), message: formatError(e) });
     }
   };
@@ -317,7 +318,7 @@ export default function SkinStationSection({
       setSelectedCapeId('');
       fetchMicrosoftProfile();
     } catch (e: unknown) {
-      console.error('[SkinStation] Hide cape failed:', e);
+      logger.error('[SkinStation] Hide cape failed:', e);
       addToast({ type: 'error', title: t('skinStation.capeHideFailed'), message: formatError(e) });
     }
   };
@@ -334,7 +335,7 @@ export default function SkinStationSection({
       await refreshAccounts();
       fetchMicrosoftProfile();
     } catch (e: unknown) {
-      console.error('[SkinStation] Mojang upload failed:', e);
+      logger.error('[SkinStation] Mojang upload failed:', e);
       addToast({ type: 'error', title: t('skinStation.uploadFailed'), message: formatError(e) });
     } finally {
       setUploading(false);
@@ -348,21 +349,21 @@ export default function SkinStationSection({
       addToast({ type: 'success', title: t('skinStation.resetSuccess') });
       fetchMicrosoftProfile();
     } catch (e: unknown) {
-      console.error('[SkinStation] Mojang reset failed:', e);
+      logger.error('[SkinStation] Mojang reset failed:', e);
       addToast({ type: 'error', title: t('skinStation.resetFailed'), message: formatError(e) });
     }
   };
 
   const handleSelectLocalSkin = async () => {
     if (!activeAccount) {
-      console.warn('[SkinStation] No active account, cannot set local skin');
+      logger.warn('[SkinStation] No active account, cannot set local skin');
       addToast({ type: 'warning', title: t('skinStation.noAccount'), message: t('skinStation.noAccountDesc') });
       return;
     }
     const selected = await validateAndOpenSkin();
     if (!selected) return;
     try {
-      console.log(
+      logger.debug(
         '[SkinStation] Setting local skin for account:',
         activeAccount.id,
         'path:',
@@ -372,7 +373,7 @@ export default function SkinStationSection({
       );
       await api.setLocalSkin(activeAccount.id, selected, skinModel);
     } catch (e: unknown) {
-      console.error('[SkinStation] setLocalSkin failed:', e);
+      logger.error('[SkinStation] setLocalSkin failed:', e);
       addToast({ type: 'error', title: t('skinStation.setFailed'), message: formatError(e) });
       return;
     }
@@ -386,7 +387,7 @@ export default function SkinStationSection({
       const b64 = await api.readSkinFile(selected);
       setLocalSkinUrl(`data:image/png;base64,${b64}`);
     } catch (readErr) {
-      console.error('[SkinStation] readSkinFile failed after setLocalSkin:', readErr);
+      logger.error('[SkinStation] readSkinFile failed after setLocalSkin:', readErr);
       setLocalSkinUrl(null);
     }
   };
@@ -399,7 +400,7 @@ export default function SkinStationSection({
       addToast({ type: 'success', title: t('skinStation.localSkinCleared') });
       await refreshAccounts();
     } catch (e: unknown) {
-      console.error('[SkinStation] Clear local skin failed:', e);
+      logger.error('[SkinStation] Clear local skin failed:', e);
       addToast({ type: 'error', title: t('skinStation.clearFailed'), message: formatError(e) });
     }
   };
@@ -411,7 +412,7 @@ export default function SkinStationSection({
       setAuthlibStatus('ready');
       addToast({ type: 'success', title: t('skinStation.authlibReadyToast') });
     } catch (e: unknown) {
-      console.error('[SkinStation] Download authlib-injector failed:', e);
+      logger.error('[SkinStation] Download authlib-injector failed:', e);
       setAuthlibStatus('idle');
       addToast({ type: 'error', title: t('skinStation.downloadFailed'), message: formatError(e) });
     }

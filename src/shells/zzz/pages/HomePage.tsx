@@ -475,23 +475,33 @@ export default function HomePage() {
   }, [recentInstances]);
 
   useEffect(() => {
+    let cancelled = false;
     const unlisten = api.onDownloadProgress((progress) => {
+      if (cancelled) return;
       setDownloadProgress(progress);
-      if (progress.finished) setTimeout(() => setDownloadProgress(null), 2000);
+      if (progress.finished) setTimeout(() => {
+        if (!cancelled) setDownloadProgress(null);
+      }, 2000);
     });
     return () => {
+      cancelled = true;
       unlisten.then((fn) => fn());
     };
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const unlisten = api.onJreDownloadProgress((p) => {
+      if (cancelled) return;
       setJreDownload(p);
       if (p.downloaded >= p.total && p.total > 0) {
-        setTimeout(() => setJreDownload(null), 3000);
+        setTimeout(() => {
+          if (!cancelled) setJreDownload(null);
+        }, 3000);
       }
     });
     return () => {
+      cancelled = true;
       unlisten.then((fn) => fn());
     };
   }, []);

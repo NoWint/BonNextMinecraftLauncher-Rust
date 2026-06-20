@@ -4,7 +4,7 @@
   background: var(--color-overlay-60);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  z-index: 1100;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;

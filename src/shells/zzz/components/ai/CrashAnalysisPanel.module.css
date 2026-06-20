@@ -6,7 +6,7 @@
   background: var(--color-panel);
   border: 1px solid var(--color-error);
   clip-path: var(--clip-primary);
-  z-index: 1200;
+  z-index: var(--z-modal);
   display: flex;
   flex-direction: column;
   gap: 10px;

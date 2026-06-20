@@ -9,7 +9,7 @@
   app-region: drag;
   user-select: none;
   flex-shrink: 0;
-  z-index: 100;
+  z-index: var(--z-sticky);
   position: relative;
 }
 

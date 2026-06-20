@@ -613,7 +613,7 @@
   font-family: var(--font-mono);
   font-size: 0.45em;
   color: var(--color-text);
-  z-index: 1;
+  z-index: var(--z-base);
 }
 
 .profileDetails {

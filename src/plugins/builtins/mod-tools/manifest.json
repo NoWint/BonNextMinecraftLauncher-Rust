@@ -1,0 +1,21 @@
+{
+  "id": "com.bonnext.mod-tools",
+  "name": "Mod Tools",
+  "version": "1.0.0",
+  "description": "Mod scanning, watching, and compatibility checking",
+  "author": "BonNext",
+  "minAppVersion": "1.0.0",
+  "dependencies": [],
+  "permissions": [
+    "invoke:core",
+    "invoke:mod-tools",
+    "fs:read:instances",
+    "events:listen",
+    "events:emit"
+  ],
+  "contributes": {
+    "routes": [],
+    "sidebar": [],
+    "settings": []
+  }
+}

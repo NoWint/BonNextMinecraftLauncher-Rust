@@ -442,6 +442,10 @@ pub fn run() {
             commands::plugin_proxy::plugin_storage_get,
             commands::plugin_proxy::plugin_storage_set,
             commands::plugin_proxy::plugin_storage_delete,
+            commands::plugin_proxy::list_installed_plugins,
+            commands::plugin_proxy::install_plugin,
+            commands::plugin_proxy::uninstall_plugin,
+            commands::plugin_proxy::get_plugin_manifest,
         ])
         .setup(|app| {
             // Apply native window effects: Liquid Glass (macOS 26+) or Vibrancy fallback

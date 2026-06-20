@@ -50,3 +50,15 @@ secrets.*
 # OS files
 Thumbs.db
 Desktop.ini
+
+# Temp/check files from development
+vitest-output.txt
+vitest-result.json
+cargo-*.txt
+rustup-status.txt
+rust-targets.txt
+gnu-*.txt
+self-contained.txt
+run-cargo-check.ps1
+run-check.ps1
+run-gnu-check.ps1
