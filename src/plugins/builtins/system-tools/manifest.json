@@ -1,0 +1,22 @@
+{
+  "id": "com.bonnext.system-tools",
+  "name": "System Tools",
+  "version": "1.0.0",
+  "description": "Achievements, news, snapshots, migration tools, optimization suggestions, and performance analysis",
+  "author": "BonNext",
+  "minAppVersion": "1.0.0",
+  "dependencies": [],
+  "permissions": [
+    "invoke:core",
+    "invoke:system-tools",
+    "fs:read:instances",
+    "fs:write:instances",
+    "events:listen",
+    "events:emit"
+  ],
+  "contributes": {
+    "routes": [],
+    "sidebar": [],
+    "settings": []
+  }
+}

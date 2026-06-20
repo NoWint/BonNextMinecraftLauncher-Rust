@@ -66,7 +66,7 @@ body,
   opacity: 0.025;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
   pointer-events: none;
-  z-index: 9999;
+  z-index: var(--z-overlay);
   animation: noise-flicker 0.15s steps(2) infinite;
   animation-play-state: var(--overlay-animation-state, running);
 }
@@ -96,7 +96,7 @@ body,
     rgba(255, 255, 255, 1) 3px
   );
   pointer-events: none;
-  z-index: 9998;
+  z-index: var(--z-overlay);
   animation: scanline-scroll 10s linear infinite;
   animation-play-state: var(--overlay-animation-state, running);
 }
@@ -131,7 +131,7 @@ body,
   padding: 20px 0;
   flex-shrink: 0;
   position: relative;
-  z-index: 1;
+  z-index: var(--z-sidebar);
 }
 
 .app-main {
@@ -140,22 +140,21 @@ body,
   min-height: 0;
   padding: 24px 28px;
   position: relative;
-  z-index: 1;
+  z-index: var(--z-base);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   transform: perspective(1500px) rotateY(0deg) scale(1) translateZ(0);
   filter: brightness(1) blur(0);
   transition:
-    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1),
-    filter 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   transform-origin: center center;
 }
 
 .app-main--ai-open {
-  transform: perspective(1500px) rotateY(-3deg) scale(0.88) translateZ(-80px);
-  filter: brightness(0.55) blur(3px);
-  pointer-events: none;
+  transform: perspective(1500px) rotateY(-1deg) scale(0.97) translateZ(-20px);
+  filter: brightness(0.85) blur(1px);
 }
 
 .decorative-rect {
@@ -387,7 +386,7 @@ body {
   background: var(--color-accent);
   color: var(--color-bg);
   padding: 8px 16px;
-  z-index: 10000;
+  z-index: var(--z-skip-link);
   font-weight: bold;
   clip-path: var(--clip-small);
   transition: top 0.2s ease;

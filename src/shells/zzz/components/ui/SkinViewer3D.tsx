@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { SkinViewer, IdleAnimation } from 'skinview3d';
+import { logger } from '../../../../shared/utils/logger';
 import { Icon } from './Icon';
 import styles from './SkinViewer3D.module.css';
 
@@ -47,7 +48,7 @@ export default function SkinViewer3D({
       viewerRef.current = viewer;
       setError(false);
     } catch (e) {
-      console.warn('Failed to create SkinViewer:', e);
+      logger.warn('Failed to create SkinViewer:', e);
       setError(true);
     }
 
@@ -66,10 +67,10 @@ export default function SkinViewer3D({
     if (skinUrl) {
       try {
         viewer.loadSkin(skinUrl, { model }).catch((e: unknown) => {
-          console.warn('Failed to load skin:', e);
+          logger.warn('Failed to load skin:', e);
         });
       } catch (e) {
-        console.warn('Failed to load skin:', e);
+        logger.warn('Failed to load skin:', e);
       }
     } else {
       viewer.resetSkin();
@@ -83,10 +84,10 @@ export default function SkinViewer3D({
     if (capeUrl) {
       try {
         viewer.loadCape(capeUrl).catch((e: unknown) => {
-          console.warn('Failed to load cape:', e);
+          logger.warn('Failed to load cape:', e);
         });
       } catch (e) {
-        console.warn('Failed to load cape:', e);
+        logger.warn('Failed to load cape:', e);
       }
     } else {
       viewer.resetCape();

@@ -9,6 +9,7 @@ export default defineConfig(async () => ({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
+      '@bonnext/plugin-sdk': path.resolve(__dirname, 'src/plugin-sdk/index.ts'),
     },
     dedupe: ['react', 'react-dom'],
   },

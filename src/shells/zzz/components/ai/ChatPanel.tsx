@@ -9,15 +9,17 @@ import { CrashAnalysisPanel } from './CrashAnalysisPanel';
 import { ConfirmDialog } from './ConfirmDialog';
 import { workflowApi } from '../../../../shared/api/workflow';
 import type { ModpackPlan } from '../../../../shared/ai/types';
+import { Icon } from '../ui/Icon';
+import type { IconName } from '../ui/Icon';
 import styles from './ChatPanel.module.css';
 
-const SUGGESTIONS = [
-  { text: '我的游戏崩溃了，帮我分析', icon: '🔍' },
-  { text: '帮我装 Fabric 1.21.1', icon: '⚡' },
-  { text: '我想玩养老种田整合包', icon: '🌾' },
-  { text: '推荐一些好用的优化模组', icon: '💡' },
-  { text: '我的世界 TPS 很低怎么办', icon: '🛠️' },
-  { text: '搜索并安装 JEI 和 Sodium', icon: '📦' },
+const SUGGESTIONS: Array<{ text: string; icon: IconName }> = [
+  { text: '我的游戏崩溃了，帮我分析', icon: 'search' },
+  { text: '帮我装 Fabric 1.21.1', icon: 'bolt' },
+  { text: '我想玩养老种田整合包', icon: 'sparkles' },
+  { text: '推荐一些好用的优化模组', icon: 'lightbulb' },
+  { text: '我的世界 TPS 很低怎么办', icon: 'wrench' },
+  { text: '搜索并安装 JEI 和 Sodium', icon: 'cube' },
 ];
 
 export const ChatPanel: React.FC = () => {
@@ -32,6 +34,13 @@ export const ChatPanel: React.FC = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [state.messages]);
+
+  // 崩溃告警出现时自动打开 AI 面板,确保用户可见
+  useEffect(() => {
+    if (state.crashAlert && !state.isOpen) {
+      setPanelOpen(true);
+    }
+  }, [state.crashAlert, state.isOpen, setPanelOpen]);
 
   const handleSend = async () => {
     if (!input.trim() || state.isLoading) return;
@@ -115,7 +124,7 @@ export const ChatPanel: React.FC = () => {
                     onClick={() => handleSuggestionClick(s.text)}
                     disabled={state.isLoading || !state.config.enabled}
                   >
-                    <span className={styles.controlsCard__suggestionIcon}>{s.icon}</span>
+                    <span className={styles.controlsCard__suggestionIcon}><Icon name={s.icon} size={14} /></span>
                     {s.text}
                   </button>
                 ))}

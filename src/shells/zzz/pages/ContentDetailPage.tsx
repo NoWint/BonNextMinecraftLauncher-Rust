@@ -2,6 +2,7 @@ import DOMPurify from 'dompurify';
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { formatError } from '../../../shared/utils/errorMapping';
+import { logger } from '../../../shared/utils/logger';
 import { api, type ModProjectFull, type ModVersion } from '../../../shared/api';
 import { useInstances } from '../../../shared/stores/instanceStore';
 import { useI18n } from '../../../shared/i18n';
@@ -152,7 +153,7 @@ export default function ContentDetailPage() {
             [proj, vers] = await Promise.all([api.getCfProjectDetails(modId), api.getCfModVersions(modId)]);
           } else {
             // Slug is not a numeric ID — search CurseForge by name to resolve the ID
-            console.error(`[ContentDetailPage] CurseForge slug "${parsed.slug}" is not a numeric ID, searching by name`);
+            logger.error(`[ContentDetailPage] CurseForge slug "${parsed.slug}" is not a numeric ID, searching by name`);
             const [results] = await api.searchCfMods(parsed.slug, undefined, undefined, undefined, 5, 0);
             const match = results.find(
               (r) => r.slug === parsed.slug || r.title.toLowerCase() === parsed.slug.toLowerCase()
@@ -171,7 +172,7 @@ export default function ContentDetailPage() {
           setAllVersions(vers);
         }
       } catch (e: unknown) {
-        console.error('[ContentDetailPage] Failed to load project:', e);
+        logger.error('[ContentDetailPage] Failed to load project:', e);
         if (!cancelled) {
           const msg = formatError(e) || 'Failed to load project';
           setError(msg);

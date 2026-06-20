@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useShellStore } from '../../../../shared/stores/shellStore';
+import { logger } from '../../../../shared/utils/logger';
 import styles from './ShellManagementSection.module.css';
 
 export function ShellManagementSection() {
@@ -15,7 +16,7 @@ export function ShellManagementSection() {
       await importShell(pathInput.trim());
       setPathInput('');
     } catch (e: any) {
-      console.error('Import failed:', e);
+      logger.error('Import failed:', e);
     } finally {
       setImporting(false);
     }
@@ -35,7 +36,7 @@ export function ShellManagementSection() {
         try {
           await importShell(selected);
         } catch (e: any) {
-          console.error('Import failed:', e);
+          logger.error('Import failed:', e);
         } finally {
           setImporting(false);
         }
@@ -56,7 +57,7 @@ export function ShellManagementSection() {
         try {
           await importShell(selected);
         } catch (e: any) {
-          console.error('Import failed:', e);
+          logger.error('Import failed:', e);
         } finally {
           setImporting(false);
         }
@@ -70,7 +71,7 @@ export function ShellManagementSection() {
     try {
       await removeShell(id);
     } catch (e: any) {
-      console.error('Remove failed:', e);
+      logger.error('Remove failed:', e);
     }
   };
 

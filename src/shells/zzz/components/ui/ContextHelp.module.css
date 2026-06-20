@@ -38,7 +38,7 @@
   bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 9999;
+  z-index: var(--z-tooltip);
   min-width: 16em;
   max-width: 24em;
   background: var(--color-bg);

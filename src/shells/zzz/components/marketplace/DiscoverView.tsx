@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { api, type ModResult } from '../../../../shared/api';
+import { logger } from '../../../../shared/utils/logger';
 import { SectionHeader } from '../layout';
 import { Button, ContentCard, contentFromModResult, CollectionButton } from '../ui';
 import { CardSkeleton } from '../ui/Skeleton';
@@ -45,7 +46,7 @@ export default function DiscoverView({ contentType, source, onNavigate }: Discov
           }
         }
       } catch (e) {
-        console.error('Failed to load discover data:', e);
+        logger.error('Failed to load discover data:', e);
       } finally {
         if (!cancelled) setLoading(false);
       }

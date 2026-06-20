@@ -1,0 +1,227 @@
+.section {
+  padding: 1.5em;
+}
+
+.title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.4em;
+  color: var(--text-primary);
+  margin-bottom: 0.3em;
+  letter-spacing: 0.05em;
+}
+
+.subtitle {
+  font-size: 0.78em;
+  color: var(--text-secondary);
+  margin-bottom: 1.2em;
+}
+
+.tabRow {
+  display: flex;
+  gap: 0.5em;
+  margin-bottom: 1em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tab {
+  padding: 0.5em 1em;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 0.85em;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+
+  &:hover {
+    color: var(--text-primary);
+  }
+}
+
+.tabActive {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.pluginList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  margin-bottom: 1.2em;
+}
+
+.pluginCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 1em;
+  padding: 0.8em 1em;
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  clip-path: var(--clip-small);
+}
+
+.pluginCardActive {
+  border-color: rgba(80, 220, 120, 0.4);
+  background: rgba(80, 220, 120, 0.04);
+}
+
+.pluginCardError {
+  border-color: rgba(255, 68, 68, 0.4);
+  background: rgba(255, 68, 68, 0.04);
+}
+
+.pluginCardInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.pluginCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  flex-wrap: wrap;
+}
+
+.pluginCardName {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9em;
+}
+
+.pluginCardVersion {
+  font-size: 0.7em;
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.pluginCardBadge {
+  font-size: 0.62em;
+  padding: 0.12em 0.45em;
+  border-radius: 2px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badgeBuiltin {
+  background: rgba(100, 160, 255, 0.18);
+  color: rgb(140, 190, 255);
+}
+
+.badgeThirdParty {
+  background: rgba(255, 180, 60, 0.18);
+  color: rgb(255, 200, 100);
+}
+
+.badgeStateActive {
+  background: rgba(80, 220, 120, 0.18);
+  color: rgb(120, 230, 150);
+}
+
+.badgeStateInactive {
+  background: rgba(150, 150, 150, 0.18);
+  color: var(--text-secondary);
+}
+
+.badgeStateError {
+  background: rgba(255, 68, 68, 0.18);
+  color: rgb(255, 120, 120);
+}
+
+.pluginCardMeta {
+  font-size: 0.74em;
+  color: var(--text-secondary);
+  margin-top: 0.25em;
+}
+
+.pluginCardDesc {
+  font-size: 0.78em;
+  color: var(--text-secondary);
+  margin-top: 0.3em;
+}
+
+.permissionsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+  margin-top: 0.5em;
+}
+
+.permissionChip {
+  font-size: 0.65em;
+  padding: 0.1em 0.45em;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.pluginCardActions {
+  display: flex;
+  gap: 0.5em;
+  align-items: center;
+}
+
+.actionBtn {
+  padding: 0.4em 0.9em;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  clip-path: var(--clip-small);
+  font-weight: 600;
+  font-size: 0.78em;
+  cursor: pointer;
+  transition: opacity 0.15s;
+
+  &:hover {
+    opacity: 0.85;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.deactivateBtn {
+  background: rgba(255, 200, 60, 0.85);
+}
+
+.uninstallBtn {
+  padding: 0.3em 0.8em;
+  background: transparent;
+  color: var(--danger, #ff4444);
+  border: 1px solid var(--danger, #ff4444);
+  clip-path: var(--clip-small);
+  font-size: 0.72em;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: rgba(255, 68, 68, 0.1);
+  }
+}
+
+.installRow {
+  display: flex;
+  gap: 0.8em;
+  align-items: center;
+  padding: 0.8em;
+  background: var(--bg-secondary, rgba(0, 0, 0, 0.2));
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  clip-path: var(--clip-small);
+}
+
+.emptyState {
+  color: var(--text-secondary);
+  font-size: 0.85em;
+  padding: 1.2em 0;
+  text-align: center;
+}
+
+.errorText {
+  color: var(--danger, #ff4444);
+  font-size: 0.78em;
+  margin-top: 0.5em;
+}

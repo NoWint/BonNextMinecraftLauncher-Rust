@@ -1,7 +1,7 @@
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -27,7 +27,7 @@
   cursor: pointer;
   transition: color 0.15s;
   font-family: var(--font-body);
-  z-index: 1;
+  z-index: var(--z-base);
 }
 
 .skipBtn:hover {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense, lazy, type LazyExoticComponent, type ComponentType } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatError } from '../../../../shared/utils/errorMapping';
 import { formatDate } from '../../../../shared/utils/format';
@@ -62,6 +62,8 @@ import AISection from './AISection';
 import AchievementDisplay from '../../components/ui/AchievementDisplay';
 import JreManagementSection from './JreManagementSection';
 import { ShellManagementSection } from './ShellManagementSection';
+import { PluginManagementSection } from './PluginManagementSection';
+import { PluginErrorBoundary } from '../../../../app/components/PluginErrorBoundary';
 
 function getSuitabilityBadge(
   t: (key: string) => string,
@@ -86,6 +88,14 @@ export default function SettingsPage() {
   } = useInstances();
   const { t, lang, setLang } = useI18n();
   const { addToast } = useToast();
+  const pluginSettingsSections = usePluginSettingsSections();
+  const pluginSettingsComponents = useMemo(() => {
+    const map: Record<string, LazyExoticComponent<ComponentType<unknown>>> = {};
+    for (const section of pluginSettingsSections) {
+      map[section.id] = lazy(section.component);
+    }
+    return map;
+  }, [pluginSettingsSections]);
   const auth = authState.currentUser;
   const config = cfgState.config;
   const [localConfig, setLocalConfig] = useState<AppConfig | null>(config);
@@ -476,6 +486,11 @@ export default function SettingsPage() {
         id: 'achievements',
         label: t('settings.nav.achievements'),
         sectionIds: ['sec-achievements'],
+      },
+      {
+        id: 'plugins',
+        label: t('settings.nav.plugins') || 'Plugins',
+        sectionIds: ['sec-plugins'],
       },
     ],
     [t],
@@ -961,6 +976,22 @@ export default function SettingsPage() {
 
       <ThemeSection t={t} />
       <ShellManagementSection />
+      <SectionCard id="sec-plugins" title={t('settings.nav.plugins') || 'Plugins'}>
+        <PluginManagementSection />
+      </SectionCard>
+
+      {pluginSettingsSections.map((section) => {
+        const LazyComponent = pluginSettingsComponents[section.id];
+        return (
+          <SectionCard key={section.id} id={`sec-plugin-${section.id}`} title={section.label}>
+            <PluginErrorBoundary pluginId={section.pluginId}>
+              <Suspense fallback={<div>Loading...</div>}>
+                {LazyComponent && <LazyComponent />}
+              </Suspense>
+            </PluginErrorBoundary>
+          </SectionCard>
+        );
+      })}
 
       <SectionCard id="sec-language" title={t('settings.languageSectionTitle')}>
         <SettingRow label={t('settings.language')}>

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useId, isValidElement, cloneElement } from 'react';
 import styles from './Tooltip.module.css';
 
 interface TooltipProps {
@@ -18,6 +18,7 @@ export function Tooltip({
 }: TooltipProps) {
   const [visible, setVisible] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const tooltipId = useId();
 
   const show = () => {
     timerRef.current = setTimeout(() => setVisible(true), delay);
@@ -29,6 +30,10 @@ export function Tooltip({
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
+  const trigger = isValidElement(children)
+    ? cloneElement(children as React.ReactElement<React.HTMLAttributes<HTMLElement>>, { 'aria-describedby': tooltipId })
+    : children;
+
   return (
     <div
       className={styles.wrapper}
@@ -37,9 +42,9 @@ export function Tooltip({
       onFocus={show}
       onBlur={hide}
     >
-      {children}
+      {trigger}
       {visible && (
-        <div className={`${styles.tooltip} ${styles[`tooltip--${position}`]}`}>
+        <div id={tooltipId} role="tooltip" className={`${styles.tooltip} ${styles[`tooltip--${position}`]}`}>
           <span className={styles.content}>{content}</span>
           {shortcut && <span className={styles.shortcut}>{shortcut}</span>}
         </div>

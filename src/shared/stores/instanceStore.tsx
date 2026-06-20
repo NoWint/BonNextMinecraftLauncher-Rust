@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useMemo } from 'react';
+import { emit } from '@tauri-apps/api/event';
 import { formatError } from '../utils/errorMapping';
 import { api, invalidateCache, type GameInstance } from '../api';
 
@@ -59,6 +60,8 @@ export function InstanceProvider({ children }: { children: React.ReactNode }) {
     async (inst: GameInstance) => {
       await api.createInstance(inst);
       invalidateCache(['instances', 'config', 'active_account']);
+      // 通知插件 EventBus：新实例已创建
+      void emit('instance:created', { instanceId: inst.id, name: inst.name });
       await reloadInstances();
     },
     [reloadInstances],

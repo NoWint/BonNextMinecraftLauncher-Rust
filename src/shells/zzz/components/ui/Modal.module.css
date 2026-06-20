@@ -5,7 +5,7 @@
   right: 0;
   bottom: 0;
   background: var(--color-overlay-80);
-  z-index: var(--modal-z, 200);
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;

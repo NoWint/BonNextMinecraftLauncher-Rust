@@ -12,6 +12,7 @@ import { SubLabel } from '../components/layout';
 import { open } from '@tauri-apps/plugin-dialog';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { formatError } from '../../../shared/utils/errorMapping';
+import { usePluginContextMenuItems } from '../../../app/hooks/usePluginContextMenuItems';
 import styles from './InstancesPage.module.css';
 
 function getLoaderClass(loader: string | null): string {
@@ -103,6 +104,11 @@ export default function InstancesPage() {
   const [showMigration, setShowMigration] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; inst: GameInstance } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const pluginContextMenuItems = usePluginContextMenuItems();
+  const pluginInstanceMenuItems = useMemo(
+    () => pluginContextMenuItems.filter((item) => item.where.includes('instance')),
+    [pluginContextMenuItems],
+  );
 
   const [servers, setServers] = useState<Array<{ name: string; address: string }>>(() => {
     try {
@@ -1199,6 +1205,23 @@ export default function InstancesPage() {
           >
             <><Icon name="upload" size={14} /> {t('instances.contextExport')}</>
           </button>
+          {pluginInstanceMenuItems.length > 0 && (
+            <>
+              <div className={styles.contextMenu__separator} />
+              {pluginInstanceMenuItems.map((item) => (
+                <button
+                  key={item.id}
+                  className={styles.contextMenu__item}
+                  onClick={() => {
+                    item.action({ type: 'instance', data: contextMenu.inst });
+                    setContextMenu(null);
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </>
+          )}
           <div className={styles.contextMenu__separator} />
           <button
             className={`${styles.contextMenu__item} ${styles['contextMenu__item--danger']}`}

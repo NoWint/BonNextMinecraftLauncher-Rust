@@ -1,0 +1,20 @@
+{
+  "id": "com.bonnext.ai",
+  "name": "AI Assistant",
+  "version": "1.0.0",
+  "description": "AI chat, workflow automation, and crash analysis",
+  "author": "BonNext",
+  "minAppVersion": "1.0.0",
+  "dependencies": [],
+  "permissions": [
+    "invoke:core",
+    "invoke:ai",
+    "events:listen",
+    "events:emit"
+  ],
+  "contributes": {
+    "routes": [],
+    "sidebar": [],
+    "settings": []
+  }
+}

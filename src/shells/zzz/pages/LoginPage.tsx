@@ -211,7 +211,7 @@ export default function LoginPage() {
                 onClick={handleMicrosoftLogin}
                 style={{ width: '100%', justifyContent: 'center', fontSize: '0.9em', padding: '14px 48px' }}
               >
-                {msLoading ? `${loadingMsg}${'.'.repeat(dots)}` : '\u{1F511} ' + t('login.microsoft')}
+                {msLoading ? `${loadingMsg}${'.'.repeat(dots)}` : t('login.microsoft')}
               </Button>
               {msError && (
                 <div className={styles.msError} style={{ animation: 'shake-x 0.5s var(--ease-out-expo)' }}>

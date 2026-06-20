@@ -25,6 +25,8 @@
   --color-accent: var(--accent);
   --color-success: var(--success);
   --color-error: var(--danger);
+  --color-info: #4a9eff;
+  --color-warning: #ffaa00;
   --color-text: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
@@ -76,6 +78,8 @@
   --color-accent: var(--accent);
   --color-success: var(--success);
   --color-error: var(--danger);
+  --color-info: #0066cc;
+  --color-warning: #cc8800;
   --color-text: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
@@ -128,6 +132,8 @@
   --color-accent: var(--accent);
   --color-success: var(--success);
   --color-error: var(--danger);
+  --color-info: #4a9eff;
+  --color-warning: #ffaa00;
   --color-text: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);

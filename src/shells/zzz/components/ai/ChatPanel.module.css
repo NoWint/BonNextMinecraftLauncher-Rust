@@ -5,7 +5,7 @@
 .rainbowBorder {
   position: fixed;
   inset: 0;
-  z-index: 1003;
+  z-index: var(--z-modal);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1);
@@ -145,7 +145,7 @@
   right: 0;
   bottom: 0;
   left: var(--sidebar-width, 190px);
-  z-index: 1000;
+  z-index: var(--z-modal);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1);
@@ -186,7 +186,7 @@
   right: 4%;
   bottom: 40px;
   width: 45%;
-  z-index: 1001;
+  z-index: var(--z-modal);
   display: flex;
   flex-direction: column;
   backdrop-filter: blur(16px);
@@ -465,7 +465,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.12);
-  z-index: 999;
+  z-index: var(--z-modal);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.4s ease;
