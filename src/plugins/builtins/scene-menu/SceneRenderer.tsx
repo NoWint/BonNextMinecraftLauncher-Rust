@@ -72,7 +72,7 @@ export function SceneRenderer({ active, plyUrl, offset }: SceneRendererProps) {
           initialCameraLookAt: [...CAM_LOOK_AT] as [number, number, number],
           cameraUp: [0, 1, 0],
           selfDrivenMode: true,
-          useBuiltInControls: true,
+          useBuiltInControls: false,
           sharedMemoryForWorkers: crossIsolated,
           enableSIMDInSort: crossIsolated,
           gpuAcceleratedSort: false,

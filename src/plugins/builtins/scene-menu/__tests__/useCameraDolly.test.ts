@@ -8,9 +8,9 @@ import {
 } from '../hooks/useCameraDolly';
 
 describe('useCameraDolly math', () => {
-  it('clampPosition clamps translate to ±0.3 and push to [0, 0.5]', () => {
-    expect(clampPosition({ x: 1, y: -1, z: 2 })).toEqual({ x: 0.3, y: -0.3, z: 0.5 });
-    expect(clampPosition({ x: -1, y: 1, z: -1 })).toEqual({ x: -0.3, y: 0.3, z: 0 });
+  it('clampPosition clamps translate to ±0.4 and push to [0, 0.8]', () => {
+    expect(clampPosition({ x: 1, y: -1, z: 2 })).toEqual({ x: 0.4, y: -0.4, z: 0.8 });
+    expect(clampPosition({ x: -1, y: 1, z: -1 })).toEqual({ x: -0.4, y: 0.4, z: 0 });
     expect(clampPosition({ x: 0.1, y: -0.1, z: 0.2 })).toEqual({ x: 0.1, y: -0.1, z: 0.2 });
   });
 

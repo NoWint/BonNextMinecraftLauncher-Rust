@@ -9,8 +9,8 @@ export interface CameraOffset {
 }
 
 export const SAFE_RANGE = {
-  translate: 0.3,
-  push: 0.5,
+  translate: 0.4,
+  push: 0.8,
   rotateDeg: 15,
 };
 
@@ -32,9 +32,9 @@ export function breathingOffset(tSec: number, periodSec: number): CameraOffset {
   const phase = (tSec % periodSec) / periodSec; // [0,1)
   const twoPi = Math.PI * 2;
   return clampPosition({
-    x: 0.1 * Math.sin(phase * twoPi),
-    y: 0.05 * Math.sin(phase * twoPi),
-    z: 0.03 * Math.sin(phase * Math.PI),
+    x: 0.2 * Math.sin(phase * twoPi),
+    y: 0.1 * Math.sin(phase * twoPi),
+    z: 0.05 * Math.sin(phase * Math.PI),
   });
 }
 
@@ -91,7 +91,7 @@ export function useCameraDolly(
     const loop = (now: number) => {
       const tSec = (now - startRef.current) / 1000;
       const breath = breathingOffset(tSec, 6);
-      const par = parallaxOffset(mouseRef.current.x, mouseRef.current.y, 0.15);
+      const par = parallaxOffset(mouseRef.current.x, mouseRef.current.y, 0.25);
       let trans: CameraOffset = { x: 0, y: 0, z: 0 };
       if (transitionTarget) {
         if (transitionStartRef.current === null) transitionStartRef.current = now;

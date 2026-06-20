@@ -18,9 +18,9 @@ export interface SceneOverlayProps {
 
 // 各菜单项转场推进方向（相对原点）
 const TRANSITION_TARGETS: Record<Exclude<MenuAction, 'launch'>, CameraOffset> = {
-  instances: { x: 0.1, y: 0.05, z: 0.4 },
-  store: { x: 0.2, y: -0.05, z: 0.4 },
-  settings: { x: 0.15, y: -0.1, z: 0.4 },
+  instances: { x: 0.15, y: 0.08, z: 0.6 },
+  store: { x: 0.25, y: -0.08, z: 0.6 },
+  settings: { x: 0.2, y: -0.12, z: 0.6 },
 };
 
 export function SceneOverlay({ ctx, plyUrl = null }: SceneOverlayProps) {
@@ -37,7 +37,7 @@ export function SceneOverlay({ ctx, plyUrl = null }: SceneOverlayProps) {
     (action: MenuAction) => {
       if (action === 'launch') {
         // 一键启动：相机快速推进
-        setTransitionTarget({ x: 0, y: 0, z: 0.5 });
+        setTransitionTarget({ x: 0, y: 0, z: 0.8 });
         void launch.launch();
         return;
       }
