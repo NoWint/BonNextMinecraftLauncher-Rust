@@ -5,7 +5,6 @@ import {
   parallaxOffset,
   transitionOffset,
   SAFE_RANGE,
-  type CameraOffset,
 } from '../hooks/useCameraDolly';
 
 describe('useCameraDolly math', () => {
