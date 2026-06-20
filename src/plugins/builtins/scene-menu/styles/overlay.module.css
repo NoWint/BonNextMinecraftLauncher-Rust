@@ -6,7 +6,9 @@
   inset: 0;
   z-index: 9999;
   overflow: hidden;
-  pointer-events: auto;
+  pointer-events: none;
+  /* 深色背景填充 3DGS 点云缝隙 */
+  background: #0a0a0f;
 }
 
 .fadingIn {
@@ -38,6 +40,7 @@
 .sceneFallback {
   position: absolute;
   inset: 0;
+  pointer-events: none;
   /* 赛博都市天台降级渐变 */
   background:
     radial-gradient(ellipse at 50% 70%, rgba(255, 230, 0, 0.08), transparent 60%),
@@ -50,6 +53,66 @@
   width: 100%;
   height: 100%;
   display: block;
+  pointer-events: none;
+}
+
+/* gaussian-splats-3d 会在 canvas 内动态创建子元素，统一禁用指针事件 */
+.sceneCanvas :global(*) {
+  pointer-events: none !important;
+}
+
+.loadingIndicator {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.loadingText {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.7em;
+  letter-spacing: 4px;
+  color: #ffe600;
+  text-shadow: 0 0 12px rgba(255, 230, 0, 0.6);
+  animation: loadingPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes loadingPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.errorOverlay {
+  position: absolute;
+  bottom: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.errorLabel {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.9em;
+  letter-spacing: 3px;
+  color: #ff4444;
+  text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+}
+
+.errorDetail {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.55em;
+  color: rgba(255, 255, 255, 0.6);
+  max-width: 400px;
+  text-align: center;
+  word-break: break-word;
 }
 
 .menuLayer {
