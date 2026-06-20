@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BonNext — 次世代 Minecraft 启动器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #cc785c;
+      --primary-active: #a9583e;
+      --primary-disabled: #e6dfd8;
+      --ink: #141413;
+      --body: #3d3d3a;
+      --body-strong: #252523;
+      --muted: #6c6a64;
+      --muted-soft: #8e8b82;
+      --hairline: #e6dfd8;
+      --hairline-soft: #ebe6df;
+      --canvas: #faf9f5;
+      --surface-soft: #f5f0e8;
+      --surface-card: #efe9de;
+      --surface-cream-strong: #e8e0d2;
+      --surface-dark: #181715;
+      --surface-dark-elevated: #252320;
+      --surface-dark-soft: #1f1e1b;
+      --on-primary: #ffffff;
+      --on-dark: #faf9f5;
+      --on-dark-soft: #a09d96;
+      --accent-teal: #5db8a6;
+      --accent-amber: #e8a55a;
+      --success: #5db872;
+      --warning: #d4a017;
+      --error: #c64545;
+      --font-display: 'Cormorant Garamond', 'Tiempos Headline', Garamond, 'Times New Roman', serif;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-code: 'JetBrains Mono', ui-monospace, monospace;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    body {
+      font-family: var(--font-body);
+      background: var(--canvas);
+      color: var(--body);
+      overflow-x: hidden;
+    }
+    ::selection { background: rgba(204, 120, 92, 0.15); color: var(--ink); }
+
+    .top-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      background: var(--canvas);
+      height: 64px;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 24px;
+    }
+    .top-nav__inner {
+      max-width: 1200px; width: 100%;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .top-nav__logo {
+      font-family: var(--font-body);
+      font-size: 18px; font-weight: 500; color: var(--ink);
+      text-decoration: none; letter-spacing: 0;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .top-nav__logo-mark {
+      width: 20px; height: 20px;
+      position: relative;
+    }
+    .top-nav__logo-mark::before,
+    .top-nav__logo-mark::after {
+      content: ''; position: absolute; top: 50%; left: 50%;
+      width: 16px; height: 2px; background: var(--ink);
+      transform: translate(-50%, -50%);
+    }
+    .top-nav__logo-mark::after {
+      transform: translate(-50%, -50%) rotate(90deg);
+    }
+    .top-nav__logo span { color: var(--primary); }
+    .top-nav__links { display: flex; align-items: center; gap: 28px; list-style: none; }
+    .top-nav__links a {
+      font-family: var(--font-body);
+      font-size: 14px; font-weight: 500; color: var(--muted);
+      text-decoration: none; letter-spacing: 0;
+      transition: color 0.2s;
+    }
+    .top-nav__links a:hover { color: var(--ink); }
+    .top-nav__actions { display: flex; align-items: center; gap: 12px; }
+
+    .btn-primary {
+      background: var(--primary); color: var(--on-primary);
+      font-family: var(--font-body);
+      font-size: 14px; font-weight: 500; letter-spacing: 0;
+      border: none; border-radius: 8px; padding: 12px 20px;
+      height: 40px; cursor: pointer; text-decoration: none;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .btn-primary:hover { background: var(--primary-active); }
+
+    .btn-secondary {
+      background: var(--canvas); color: var(--ink);
+      font-family: var(--font-body);
+      font-size: 14px; font-weight: 500; letter-spacing: 0;
+      border: 1px solid var(--hairline); border-radius: 8px;
+      padding: 11px 19px; height: 40px; cursor: pointer; text-decoration: none;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+
+    .btn-secondary-on-dark {
+      background: var(--surface-dark-elevated); color: var(--on-dark);
+      font-family: var(--font-body);
+      font-size: 14px; font-weight: 500; letter-spacing: 0;
+      border: none; border-radius: 8px;
+      padding: 12px 20px; height: 40px; cursor: pointer; text-decoration: none;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+
+    .text-link {
+      font-family: var(--font-body);
+      font-size: 14px; font-weight: 500; letter-spacing: 0;
+      color: var(--primary); text-decoration: none;
+      transition: color 0.2s;
+    }
+    .text-link:hover { text-decoration: underline; }
+
+    .band {
+      width: 100%; padding: 96px 24px;
+      display: flex; flex-direction: column; align-items: center;
+      position: relative;
+    }
+    .band__content { max-width: 1200px; width: 100%; }
+
+    .hero-band {
+      padding-top: 160px; padding-bottom: 96px;
+    }
+    .hero-band__grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 48px; align-items: center;
+    }
+    .hero-band__text { max-width: 520px; }
+    .hero-band__headline {
+      font-family: var(--font-display);
+      font-size: 64px; font-weight: 400; line-height: 1.05;
+      letter-spacing: -1.5px; color: var(--ink);
+      margin-bottom: 20px;
+    }
+    .hero-band__subhead {
+      font-family: var(--font-body);
+      font-size: 16px; font-weight: 400; line-height: 1.55;
+      letter-spacing: 0; color: var(--body);
+      margin-bottom: 32px;
+    }
+    .hero-band__ctas { display: flex; gap: 12px; }
+
+    .hero-illustration-card {
+      background: var(--surface-dark);
+      border-radius: 16px; overflow: hidden;
+      position: relative;
+    }
+    .hero-illustration-card__bar {
+      height: 36px; background: var(--surface-dark-elevated);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: center; padding: 0 14px; gap: 6px;
+    }
+    .hero-illustration-card__dot { width: 10px; height: 10px; border-radius: 50%; }
+    .hero-illustration-card__body {
+      padding: 28px;
+      font-family: var(--font-code); font-size: 13px; line-height: 1.6;
+      color: var(--on-dark-soft);
+    }
+    .hero-illustration-card__body .kw { color: #cc785c; }
+    .hero-illustration-card__body .fn { color: #e8a55a; }
+    .hero-illustration-card__body .str { color: #5db8a6; }
+    .hero-illustration-card__body .num { color: #9a7ecc; }
+    .hero-illustration-card__body .cm { color: var(--on-dark-soft); }
+    .hero-illustration-card__body .ty { color: #7ab8d4; }
+
+    .section-label {
+      font-family: var(--font-body);
+      font-size: 12px; font-weight: 500; line-height: 1.4;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 16px;
+    }
+
+    .display-xl {
+      font-family: var(--font-display);
+      font-size: 64px; font-weight: 400; line-height: 1.05;
+      letter-spacing: -1.5px; color: var(--ink);
+    }
+    .display-lg {
+      font-family: var(--font-display);
+      font-size: 48px; font-weight: 400; line-height: 1.1;
+      letter-spacing: -1px; color: var(--ink);
+      margin-bottom: 16px;
+    }
+    .display-md {
+      font-family: var(--font-display);
+      font-size: 36px; font-weight: 400; line-height: 1.15;
+      letter-spacing: -0.5px; color: var(--ink);
+      margin-bottom: 12px;
+    }
+    .display-sm {
+      font-family: var(--font-display);
+      font-size: 28px; font-weight: 400; line-height: 1.2;
+      letter-spacing: -0.3px; color: var(--ink);
+      margin-bottom: 12px;
+    }
+    .title-md {
+      font-family: var(--font-body);
+      font-size: 18px; font-weight: 500; line-height: 1.4;
+      color: var(--ink); margin-bottom: 8px;
+    }
+    .title-sm {
+      font-family: var(--font-body);
+      font-size: 16px; font-weight: 500; line-height: 1.4;
+      color: var(--ink); margin-bottom: 6px;
+    }
+    .body-md {
+      font-family: var(--font-body);
+      font-size: 16px; font-weight: 400; line-height: 1.55;
+      color: var(--body); max-width: 520px;
+    }
+    .body-sm {
+      font-family: var(--font-body);
+      font-size: 14px; font-weight: 400; line-height: 1.55;
+      color: var(--body);
+    }
+
+    .feature-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 20px; margin-top: 48px;
+    }
+    .feature-card {
+      background: var(--surface-card);
+      border-radius: 12px; padding: 32px;
+    }
+    .feature-card__icon { font-size: 28px; margin-bottom: 16px; }
+    .feature-card__title {
+      font-family: var(--font-body);
+      font-size: 18px; font-weight: 500; line-height: 1.4;
+      color: var(--ink); margin-bottom: 8px;
+    }
+    .feature-card__desc {
+      font-family: var(--font-body);
+      font-size: 16px; font-weight: 400; line-height: 1.55;
+      color: var(--body);
+    }
+
+    .product-mockup-card-dark {
+      background: var(--surface-dark);
+      border-radius: 12px; padding: 32px;
+      margin-top: 48px;
+    }
+    .product-mockup-card-dark__header {
+      font-family: var(--font-body);
+      font-size: 14px; font-weight: 500; color: var(--on-dark);
+      margin-bottom: 20px;
+    }
+    .code-window-card {
+      background: var(--surface-dark-soft);
+      border-radius: 8px; padding: 24px;
+      font-family: var(--font-code); font-size: 14px; line-height: 1.6;
+      color: var(--on-dark-soft); overflow-x: auto;
+    }
+    .code-window-card .kw { color: #cc785c; }
+    .code-window-card .fn { color: #e8a55a; }
+    .code-window-card .str { color: #5db8a6; }
+    .code-window-card .num { color: #9a7ecc; }
+    .code-window-card .cm { color: var(--on-dark-soft); }
+    .code-window-card .ty { color: #7ab8d4; }
+
+    .model-comparison-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 20px; margin-top: 48px;
+    }
+    .model-comparison-card {
+      background: var(--canvas);
+      border: 1px solid var(--hairline);
+      border-radius: 12px; padding: 32px;
+    }
+    .model-comparison-card__name {
+      font-family: var(--font-display);
+      font-size: 28px; font-weight: 400; line-height: 1.2;
+      letter-spacing: -0.3px; color: var(--ink);
+      margin-bottom: 8px;
+    }
+    .model-comparison-card__desc {
+      font-family: var(--font-body);
+      font-size: 16px; font-weight: 400; line-height: 1.55;
+      color: var(--body); margin-bottom: 16px;
+    }
+
+    .callout-card-coral {
+      background: var(--primary);
+      border-radius: 12px; padding: 48px;
+      text-align: center;
+    }
+    .callout-card-coral__headline {
+      font-family: var(--font-display);
+      font-size: 28px; font-weight: 400; line-height: 1.2;
+      letter-spacing: -0.3px; color: var(--on-primary);
+      margin-bottom: 12px;
+    }
+    .callout-card-coral__subhead {
+      font-family: var(--font-body);
+      font-size: 16px; font-weight: 400; line-height: 1.55;
+      color: rgba(255,255,255,0.85); margin-bottom: 24px;
+    }
+
+    .cta-band-dark {
+      background: var(--surface-dark);
+      border-radius: 12px; padding: 64px;
+      text-align: center;
+    }
+    .cta-band-dark__headline {
+      font-family: var(--font-display);
+      font-size: 36px; font-weight: 400; line-height: 1.15;
+      letter-spacing: -0.5px; color: var(--on-dark);
+      margin-bottom: 12px;
+    }
+    .cta-band-dark__subhead {
+      font-family: var(--font-body);
+      font-size: 16px; font-weight: 400; line-height: 1.55;
+      color: var(--on-dark-soft); margin-bottom: 24px;
+    }
+
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 20px; margin-top: 48px;
+    }
+    .stat-card {
+      background: var(--surface-card);
+      border-radius: 12px; padding: 32px; text-align: center;
+    }
+    .stat-card__value {
+      font-family: var(--font-display);
+      font-size: 48px; font-weight: 400; line-height: 1.1;
+      letter-spacing: -1px; color: var(--primary);
+      margin-bottom: 4px;
+    }
+    .stat-card__label {
+      font-family: var(--font-body);
+      font-size: 14px; font-weight: 400; line-height: 1.55;
+      color: var(--body);
+    }
+
+    .badge-pill {
+      display: inline-block;
+      background: var(--surface-card);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: 13px; font-weight: 500; line-height: 1.4;
+      border-radius: 9999px; padding: 4px 12px;
+    }
+    .badge-coral {
+      display: inline-block;
+      background: var(--primary);
+      color: var(--on-primary);
+      font-family: var(--font-body);
+      font-size: 12px; font-weight: 500; line-height: 1.4;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      border-radius: 9999px; padding: 4px 12px;
+    }
+
+    .site-footer {
+      background: var(--surface-dark);
+      padding: 64px 24px;
+    }
+    .site-footer__inner {
+      max-width: 1200px; margin: 0 auto;
+    }
+    .site-footer__top {
+      display: flex; justify-content: space-between;
+      align-items: flex-start; margin-bottom: 48px;
+    }
+    .site-footer__brand {
+      font-family: var(--font-body);
+      font-size: 18px; font-weight: 500; color: var(--on-dark);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .site-footer__brand-mark {
+      width: 20px; height: 20px;
+      position: relative;
+    }
+    .site-footer__brand-mark::before,
+    .site-footer__brand-mark::after {
+      content: ''; position: absolute; top: 50%; left: 50%;
+      width: 16px; height: 2px; background: var(--on-dark);
+      transform: translate(-50%, -50%);
+    }
+    .site-footer__brand-mark::after {
+      transform: translate(-50%, -50%) rotate(90deg);
+    }
+    .site-footer__brand span { color: var(--primary); }
+    .site-footer__links { display: flex; gap: 64px; }
+    .site-footer__col { display: flex; flex-direction: column; gap: 10px; }
+    .site-footer__col-title {
+      font-family: var(--font-body);
+      font-size: 12px; font-weight: 500; line-height: 1.4;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--on-dark-soft); margin-bottom: 4px;
+    }
+    .site-footer__col a {
+      font-family: var(--font-body);
+      font-size: 14px; font-weight: 400; line-height: 1.55;
+      color: var(--on-dark-soft); text-decoration: none;
+      transition: color 0.2s;
+    }
+    .site-footer__col a:hover { color: var(--on-dark); }
+    .site-footer__legal {
+      font-family: var(--font-body);
+      font-size: 12px; color: var(--on-dark-soft);
+      letter-spacing: 0; line-height: 1.0;
+      padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .reveal {
+      opacity: 0; transform: translateY(16px);
+      transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+                  transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal--visible { opacity: 1; transform: translateY(0); }
+    .reveal--delay-1 { transition-delay: 0.1s; }
+    .reveal--delay-2 { transition-delay: 0.2s; }
+    .reveal--delay-3 { transition-delay: 0.3s; }
+    .reveal--delay-4 { transition-delay: 0.4s; }
+
+    @media (max-width: 1024px) {
+      .hero-band__grid { grid-template-columns: 1fr; }
+      .hero-band__headline { font-size: 48px; letter-spacing: -1px; }
+      .display-xl { font-size: 48px; letter-spacing: -1px; }
+      .display-lg { font-size: 36px; letter-spacing: -0.5px; }
+      .feature-grid { grid-template-columns: repeat(2, 1fr); }
+      .model-comparison-grid { grid-template-columns: repeat(2, 1fr); }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .top-nav__links { display: none; }
+      .hero-band__headline { font-size: 36px; letter-spacing: -0.5px; }
+      .display-xl { font-size: 36px; letter-spacing: -0.5px; }
+      .display-lg { font-size: 28px; letter-spacing: -0.3px; }
+      .display-md { font-size: 24px; letter-spacing: -0.2px; }
+      .feature-grid { grid-template-columns: 1fr; }
+      .model-comparison-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .site-footer__top { flex-direction: column; gap: 32px; }
+      .site-footer__links { flex-wrap: wrap; gap: 32px; }
+      .cta-band-dark { padding: 48px 24px; }
+      .callout-card-coral { padding: 32px 24px; }
+    }
+
+    @media (max-width: 640px) {
+      .hero-band__headline { font-size: 32px; letter-spacing: -0.3px; }
+      .hero-band__ctas { flex-direction: column; align-items: flex-start; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .band { padding: 64px 16px; }
+      .hero-band { padding-top: 120px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .reveal { opacity: 1; transform: none; transition: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="top-nav">
+    <div class="top-nav__inner">
+      <a href="#" class="top-nav__logo">
+        <span class="top-nav__logo-mark"></span>
+        Bon<span>Next</span>
+      </a>
+      <ul class="top-nav__links">
+        <li><a href="#features">功能</a></li>
+        <li><a href="#performance">性能</a></li>
+        <li><a href="#mods">模组</a></li>
+        <li><a href="#design">设计</a></li>
+        <li><a href="#architecture">架构</a></li>
+      </ul>
+      <div class="top-nav__actions">
+        <a href="#" class="text-link">GitHub</a>
+        <a href="#download" class="btn-primary">下载</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="band hero-band">
+    <div class="band__content">
+      <div class="hero-band__grid">
+        <div class="hero-band__text">
+          <h1 class="hero-band__headline reveal">次世代<br>Minecraft 启动器</h1>
+          <p class="hero-band__subhead reveal reveal--delay-1">
+            Rust 核心驱动，React 界面呈现。为 Neo-Tokyo 美学而生。
+            从版本管理到模组生态，重新定义你的方块世界入口。
+          </p>
+          <div class="hero-band__ctas reveal reveal--delay-2">
+            <a href="#download" class="btn-primary">立即下载</a>
+            <a href="#features" class="btn-secondary">了解更多</a>
+          </div>
+        </div>
+        <div class="hero-illustration-card reveal reveal--delay-3">
+          <div class="hero-illustration-card__bar">
+            <span class="hero-illustration-card__dot" style="background:#FF5F57"></span>
+            <span class="hero-illustration-card__dot" style="background:#FEBC2E"></span>
+            <span class="hero-illustration-card__dot" style="background:#28C840"></span>
+            <span style="margin-left:auto;font-family:var(--font-body);font-size:11px;color:var(--on-dark-soft);">launch.rs</span>
+          </div>
+          <div class="hero-illustration-card__body">
+            <span class="cm">// 状态机驱动的启动流程</span><br>
+            <span class="kw">pub enum</span> <span class="ty">LaunchState</span> {<br>
+            &nbsp;&nbsp;<span class="fn">Idle</span>,<br>
+            &nbsp;&nbsp;<span class="fn">Checking</span>,<br>
+            &nbsp;&nbsp;<span class="fn">Downloading</span>,<br>
+            &nbsp;&nbsp;<span class="fn">Validating</span>,<br>
+            &nbsp;&nbsp;<span class="fn">Launching</span>,<br>
+            &nbsp;&nbsp;<span class="fn">Running</span>,<br>
+            &nbsp;&nbsp;<span class="fn">Crashed</span>(<span class="ty">CrashDiagnosis</span>),<br>
+            }<br><br>
+            <span class="kw">impl</span> <span class="ty">LaunchState</span> {<br>
+            &nbsp;&nbsp;<span class="kw">pub fn</span> <span class="fn">transition</span>(<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">&amp;mut</span> <span class="kw">self</span>,<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;next: <span class="ty">LaunchState</span><br>
+            &nbsp;&nbsp;) <span class="kw">-></span> <span class="ty">Result</span>&lt;<span class="ty">()</span>, <span class="ty">LauncherError</span>&gt; { ... }<br>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="features">
+    <div class="band__content">
+      <div class="section-label reveal">Core Features</div>
+      <h2 class="display-lg reveal reveal--delay-1">核心能力</h2>
+      <p class="body-md reveal reveal--delay-2">从底层 Rust 引擎到上层 React 界面，每一个模块都经过精心打磨。</p>
+      <div class="feature-grid">
+        <div class="feature-card reveal reveal--delay-1">
+          <div class="feature-card__icon">⚡</div>
+          <div class="feature-card__title">极速启动</div>
+          <div class="feature-card__desc">Rust 原生性能，状态机驱动的启动流程。从点击到进入世界，每一步都经过优化。</div>
+        </div>
+        <div class="feature-card reveal reveal--delay-2">
+          <div class="feature-card__icon">🔧</div>
+          <div class="feature-card__title">模组生态</div>
+          <div class="feature-card__desc">内置 Modrinth + CurseForge 双平台搜索、安装与更新。依赖自动解析，一键搞定。</div>
+        </div>
+        <div class="feature-card reveal reveal--delay-3">
+          <div class="feature-card__icon">🎨</div>
+          <div class="feature-card__title">视觉体验</div>
+          <div class="feature-card__desc">ZZZ 灵感 Neo-Tokyo 赛博朋克美学。Clip-path 切角、CRT 扫描线、霓虹呼吸灯。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" style="background: var(--surface-soft);">
+    <div class="band__content">
+      <div class="section-label reveal">Performance</div>
+      <h2 class="display-lg reveal reveal--delay-1">并行下载，极速同步。</h2>
+      <p class="body-md reveal reveal--delay-2">8 并发下载队列，智能限速与优先级调度。官方、BMCLAPI 三镜像自动故障转移。</p>
+      <div class="product-mockup-card-dark reveal reveal--delay-3">
+        <div class="product-mockup-card-dark__header">下载引擎状态</div>
+        <div class="code-window-card">
+          <span class="cm">// 并行下载队列 — 8 并发连接</span><br>
+          <span class="kw">let</span> queue = <span class="ty">DownloadQueue</span>::new()<br>
+          &nbsp;&nbsp;.<span class="fn">concurrency</span>(<span class="num">8</span>)<br>
+          &nbsp;&nbsp;.<span class="fn">mirror</span>(<span class="ty">Mirror</span>::<span class="fn">AutoFailover</span>)<br>
+          &nbsp;&nbsp;.<span class="fn">verify</span>(<span class="ty">Verify</span>::<span class="fn">Sha1</span>)<br>
+          &nbsp;&nbsp;.<span class="fn">build</span>();<br><br>
+          <span class="cm">// 实时进度推送</span><br>
+          queue.<span class="fn">on_progress</span>(|<span class="kw">event</span>| {<br>
+          &nbsp;&nbsp;<span class="fn">emit</span>(<span class="str">"download:progress"</span>, event);<br>
+          });
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="mods">
+    <div class="band__content">
+      <div class="section-label reveal">Content Platform</div>
+      <h2 class="display-lg reveal reveal--delay-1">双平台聚合，内容无忧。</h2>
+      <p class="body-md reveal reveal--delay-2">Modrinth API v2 与 CurseForge API v1 统一抽象。搜索、详情、版本、下载，一套接口全搞定。</p>
+      <div class="model-comparison-grid">
+        <div class="model-comparison-card reveal reveal--delay-1">
+          <div class="model-comparison-card__name">Modrinth</div>
+          <div class="model-comparison-card__desc">开源友好的模组平台，API v2 设计精良。搜索、项目详情、版本列表、文件下载。</div>
+          <a href="#" class="text-link">浏览 Modrinth 内容</a>
+        </div>
+        <div class="model-comparison-card reveal reveal--delay-2">
+          <div class="model-comparison-card__name">CurseForge</div>
+          <div class="model-comparison-card__desc">老牌模组平台，内容丰富。API v1 覆盖搜索、精选、模组文件与下载。</div>
+          <a href="#" class="text-link">浏览 CurseForge 内容</a>
+        </div>
+        <div class="model-comparison-card reveal reveal--delay-3">
+          <div class="model-comparison-card__name">统一抽象</div>
+          <div class="model-comparison-card__desc">共享 ModResult / ModFile 类型，一套接口适配双平台。缓存、收藏、更新检查无缝衔接。</div>
+          <a href="#" class="text-link">查看 API 文档</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="design">
+    <div class="band__content">
+      <div class="section-label reveal">Visual System</div>
+      <h2 class="display-lg reveal reveal--delay-1">三主题切换，沉浸美学。</h2>
+      <p class="body-md reveal reveal--delay-2">Dark / Light / OLED 三模式，CSS 变量驱动全局换肤。Clip-path 切角、CRT 扫描线、霓虹呼吸灯。</p>
+      <div class="product-mockup-card-dark reveal reveal--delay-3">
+        <div class="product-mockup-card-dark__header">主题预览</div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+          <div style="background: var(--surface-dark-soft); border-radius: 8px; padding: 24px; text-align: center;">
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: #0D0D0D; border: 2px solid #333; margin: 0 auto 12px;"></div>
+            <div style="font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--on-dark);">Dark</div>
+            <div style="font-family: var(--font-body); font-size: 12px; color: var(--on-dark-soft); margin-top: 4px;">默认深色模式</div>
+          </div>
+          <div style="background: var(--surface-dark-soft); border-radius: 8px; padding: 24px; text-align: center;">
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: #FAFAFA; border: 2px solid #e0e0e0; margin: 0 auto 12px;"></div>
+            <div style="font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--on-dark);">Light</div>
+            <div style="font-family: var(--font-body); font-size: 12px; color: var(--on-dark-soft); margin-top: 4px;">明亮日间模式</div>
+          </div>
+          <div style="background: var(--surface-dark-soft); border-radius: 8px; padding: 24px; text-align: center;">
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: #000000; border: 2px solid #222; margin: 0 auto 12px;"></div>
+            <div style="font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--on-dark);">OLED</div>
+            <div style="font-family: var(--font-body); font-size: 12px; color: var(--on-dark-soft); margin-top: 4px;">纯黑省电模式</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" style="background: var(--surface-soft);">
+    <div class="band__content">
+      <div class="section-label reveal">Architecture</div>
+      <h2 class="display-lg reveal reveal--delay-1">技术架构</h2>
+      <p class="body-md reveal reveal--delay-2">Rust 后端 + React 前端，Tauri v2 桥接。性能与体验的完美平衡。</p>
+      <div class="stats-grid">
+        <div class="stat-card reveal reveal--delay-1">
+          <div class="stat-card__value">100+</div>
+          <div class="stat-card__label">Tauri 命令</div>
+        </div>
+        <div class="stat-card reveal reveal--delay-2">
+          <div class="stat-card__value">3</div>
+          <div class="stat-card__label">下载镜像</div>
+        </div>
+        <div class="stat-card reveal reveal--delay-3">
+          <div class="stat-card__value">2</div>
+          <div class="stat-card__label">模组平台</div>
+        </div>
+        <div class="stat-card reveal reveal--delay-4">
+          <div class="stat-card__value">3</div>
+          <div class="stat-card__label">主题模式</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="band__content">
+      <div class="callout-card-coral reveal">
+        <h2 class="callout-card-coral__headline">准备好进入方块世界了吗？</h2>
+        <p class="callout-card-coral__subhead">下载 BonNext，体验次世代 Minecraft 启动器。</p>
+        <a href="#" class="btn-secondary" style="background: var(--canvas); color: var(--ink);">立即下载</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="download" style="padding-top: 0;">
+    <div class="band__content">
+      <div class="cta-band-dark reveal">
+        <h2 class="cta-band-dark__headline">跨平台支持</h2>
+        <p class="cta-band-dark__subhead">Windows · macOS · Linux，随时随地启动你的方块世界。</p>
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+          <a href="#" class="btn-secondary-on-dark">Windows</a>
+          <a href="#" class="btn-secondary-on-dark">macOS</a>
+          <a href="#" class="btn-secondary-on-dark">Linux</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <div class="site-footer__top">
+        <div class="site-footer__brand">
+          <span class="site-footer__brand-mark"></span>
+          Bon<span>Next</span>
+        </div>
+        <div class="site-footer__links">
+          <div class="site-footer__col">
+            <div class="site-footer__col-title">产品</div>
+            <a href="#">下载</a>
+            <a href="#">功能</a>
+            <a href="#">更新日志</a>
+          </div>
+          <div class="site-footer__col">
+            <div class="site-footer__col-title">开发</div>
+            <a href="#">GitHub</a>
+            <a href="#">文档</a>
+            <a href="#">API</a>
+          </div>
+          <div class="site-footer__col">
+            <div class="site-footer__col-title">社区</div>
+            <a href="#">论坛</a>
+            <a href="#">Discord</a>
+            <a href="#">贡献指南</a>
+          </div>
+          <div class="site-footer__col">
+            <div class="site-footer__col-title">法律</div>
+            <a href="#">隐私政策</a>
+            <a href="#">服务条款</a>
+          </div>
+        </div>
+      </div>
+      <div class="site-footer__legal">
+        © 2026 BonNext. Built with Rust + React + Tauri.
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) entry.target.classList.add('reveal--visible');
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+    document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+  </script>
+</body>
+</html>

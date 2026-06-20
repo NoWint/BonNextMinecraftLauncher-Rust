@@ -1,0 +1,82 @@
+/* SearchPalette — HIG Overlay Modal with Thick Glass */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--swift-overlay-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  justify-content: center;
+  padding-top: 20vh;
+  z-index: var(--swift-z-modal);
+  animation: swift-fade-in var(--swift-duration-fast) var(--swift-spring-gentle) both;
+}
+
+.panel {
+  width: 560px;
+  max-height: 400px;
+  background: var(--swift-modal-bg);
+  border: 0.5px solid var(--swift-border);
+  border-radius: var(--swift-radius-lg);
+  box-shadow: var(--swift-shadow-elevated);
+  overflow: hidden;
+  animation: swift-scale-in var(--swift-duration-normal) var(--swift-spring-bouncy) both;
+}
+
+.searchInput {
+  width: 100%;
+  padding: var(--swift-spacing-lg);
+  background: transparent;
+  border: none;
+  border-bottom: 0.5px solid var(--swift-border);
+  font: var(--swift-font-section-title);
+  color: var(--swift-text-primary);
+}
+
+.searchInput:focus {
+  outline: none;
+}
+
+.searchInput::placeholder {
+  color: var(--swift-text-quaternary);
+}
+
+.results {
+  overflow-y: auto;
+  max-height: 300px;
+  padding: var(--swift-spacing-sm) 0;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: var(--swift-spacing-md);
+  padding: var(--swift-spacing-md) var(--swift-spacing-lg);
+  cursor: pointer;
+  border-radius: var(--swift-radius-sm);
+  margin: 0 var(--swift-spacing-sm);
+  transition: background var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.result:hover {
+  background: var(--swift-accent-tint-10);
+}
+
+.result:active {
+  transform: scale(0.97);
+  transition-duration: 50ms;
+}
+
+.resultActive {
+  background: var(--swift-accent-tint-10);
+}
+
+.resultTitle {
+  font: var(--swift-font-body);
+  color: var(--swift-text-primary);
+}
+
+.resultMeta {
+  font: var(--swift-font-metadata);
+  color: var(--swift-text-tertiary);
+}

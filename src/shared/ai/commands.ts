@@ -1,0 +1,762 @@
+import type { CommandResult, OpenAITool, ToolCall, ParsedCommand } from './types';
+import { api } from '../api';
+import { crashApi } from '../api/crash';
+
+export interface AICommand {
+  name: string;
+  description: string;
+  riskLevel: 'low' | 'high';
+  paramDefs: Record<string, { type: string; description: string; required?: boolean; enum?: string[] }>;
+  execute: (params: Record<string, unknown>) => Promise<CommandResult>;
+}
+
+export const commandRegistry: Record<string, AICommand> = {
+  search_mods: {
+    name: 'search_mods',
+    description: 'Search for Minecraft mods on Modrinth or CurseForge',
+    riskLevel: 'low',
+    paramDefs: {
+      query: { type: 'string', description: 'Search query keywords', required: true },
+      source: { type: 'string', description: 'Search source platform', enum: ['modrinth', 'curseforge'] },
+    },
+    execute: async (params) => {
+      try {
+        const query = String(params.query || '');
+        const source = String(params.source || 'modrinth');
+        if (source === 'curseforge') {
+          const results = await api.searchCfMods(query);
+          const arr = Array.isArray(results) ? results.slice(0, 5) : [];
+          const slim = arr.map((m: any) => ({
+            slug: m.slug || m.id || '',
+            title: m.title || m.name || '',
+            description: String(m.description || '').slice(0, 100),
+            downloads: m.downloads || 0,
+          }));
+          return {
+            success: true,
+            data: slim,
+            message: `Found ${slim.length} mods for "${query}". Call install_mod with the slug to install.`,
+          };
+        }
+        const [mods] = await api.searchMods(query);
+        const arr = Array.isArray(mods) ? mods.slice(0, 5) : [];
+        const slim = arr.map((m: any) => ({
+          slug: m.slug || '',
+          title: m.title || '',
+          description: String(m.description || '').slice(0, 100),
+          downloads: m.downloads || 0,
+        }));
+        return {
+          success: true,
+          data: slim,
+          message: `Found ${slim.length} mods for "${query}". Call install_mod(slug="<slug>", instance_id="<from create_instance>") for each mod you want.`,
+        };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Search failed' };
+      }
+    },
+  },
+
+  install_mod: {
+    name: 'install_mod',
+    description: 'Install a mod to a specific game instance. Requires user confirmation.',
+    riskLevel: 'high',
+    paramDefs: {
+      slug: { type: 'string', description: 'Mod slug or project ID', required: true },
+      instance_id: { type: 'string', description: 'Target instance ID (optional, uses default if omitted)' },
+      version_id: { type: 'string', description: 'Specific version ID to install (optional, uses latest if omitted)' },
+      source: { type: 'string', description: 'Mod source platform', enum: ['modrinth', 'curseforge'] },
+    },
+    execute: async (params) => {
+      try {
+        const slug = String(params.slug || '');
+        const instanceId = params.instance_id ? String(params.instance_id) : '';
+        const versionId = params.version_id ? String(params.version_id) : undefined;
+        const source = String(params.source || 'modrinth');
+
+        if (source === 'curseforge') {
+          const files = await api.getCfModFiles(Number(slug) || 0);
+          const file = files[0];
+          if (!file) return { success: false, error: 'No files found for this mod on CurseForge' };
+          await api.downloadCfMod(
+            file.url,
+            file.filename,
+            instanceId,
+            undefined,
+            file.hashes?.sha1 || undefined,
+            slug,
+            versionId,
+          );
+          return { success: true, message: `Mod ${slug} installed successfully from CurseForge` };
+        }
+
+        const versions = await api.getModVersions(slug);
+        const latest = versions?.[0];
+        if (!latest) return { success: false, error: 'No versions found for this mod' };
+        const targetVersion = versionId ? versions.find((v) => v.id === versionId) || latest : latest;
+        const primaryFile = targetVersion.files?.[0];
+        if (!primaryFile) return { success: false, error: 'No download file found for this version' };
+        await api.installContent(
+          primaryFile.url,
+          primaryFile.filename,
+          instanceId,
+          'mod',
+          primaryFile.hashes?.sha1 ?? undefined,
+          slug,
+          targetVersion.id,
+        );
+        return { success: true, message: `Mod ${slug} installed successfully` };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Install failed' };
+      }
+    },
+  },
+
+  launch_game: {
+    name: 'launch_game',
+    description: 'Launch Minecraft game with a specific instance. Requires user confirmation.',
+    riskLevel: 'high',
+    paramDefs: {
+      instance_id: { type: 'string', description: 'Instance ID to launch (optional, uses first instance if omitted)' },
+    },
+    execute: async (params) => {
+      try {
+        const instanceId = params.instance_id ? String(params.instance_id) : undefined;
+        const instances = await api.listInstances();
+        const target = instanceId ? instances.find((i) => i.id === instanceId) : instances[0];
+
+        if (!target)
+          return { success: false, error: instanceId ? `Instance ${instanceId} not found` : 'No instances available' };
+
+        const active = await api.getActiveAccount();
+        if (!active) return { success: false, error: 'No active account. Please login first.' };
+
+        await api.launchGame(
+          target.version_id,
+          target.version_url,
+          active.username,
+          active.uuid,
+          active.access_token || '',
+          target.max_memory,
+          target.min_memory,
+          target.java_path || undefined,
+          target.jvm_args || undefined,
+          target.id,
+        );
+        return { success: true, message: `Launching ${target.name}...` };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Launch failed' };
+      }
+    },
+  },
+
+  update_settings: {
+    name: 'update_settings',
+    description: 'Update a launcher configuration setting. Requires user confirmation. Only specific keys are allowed.',
+    riskLevel: 'high',
+    paramDefs: {
+      key: {
+        type: 'string',
+        description: 'Setting key to update',
+        required: true,
+        enum: [
+          'max_memory',
+          'min_memory',
+          'fullscreen',
+          'download_source',
+          'keep_launcher_open',
+          'show_log_on_crash',
+          'auto_update_java',
+          'force_memory',
+          'force_java_path',
+          'window_width',
+          'window_height',
+          'jvm_args',
+        ],
+      },
+      value: {
+        type: 'string',
+        description: 'New value for the setting (as string, will be converted automatically)',
+        required: true,
+      },
+    },
+    execute: async (params) => {
+      try {
+        const key = String(params.key || '');
+        const rawValue = params.value;
+        const config = await api.getConfig();
+        const allowedKeys = [
+          'max_memory',
+          'min_memory',
+          'fullscreen',
+          'download_source',
+          'keep_launcher_open',
+          'show_log_on_crash',
+          'auto_update_java',
+          'force_memory',
+          'force_java_path',
+          'window_width',
+          'window_height',
+          'jvm_args',
+        ];
+
+        if (!allowedKeys.includes(key)) {
+          return { success: false, error: `Setting "${key}" is not allowed. Allowed: ${allowedKeys.join(', ')}` };
+        }
+
+        let value: unknown = rawValue;
+        if (['max_memory', 'min_memory', 'window_width', 'window_height'].includes(key)) {
+          value = Number(rawValue);
+        } else if (
+          [
+            'fullscreen',
+            'keep_launcher_open',
+            'show_log_on_crash',
+            'auto_update_java',
+            'force_memory',
+            'force_java_path',
+          ].includes(key)
+        ) {
+          value = String(rawValue).toLowerCase() === 'true';
+        }
+
+        const configObj = config as unknown as Record<string, unknown>;
+        configObj[key] = value;
+        await api.saveConfig(config);
+        return { success: true, message: `Setting "${key}" updated to ${JSON.stringify(value)}` };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Settings update failed' };
+      }
+    },
+  },
+
+  get_instances: {
+    name: 'get_instances',
+    description: 'Get the list of all game instances with their details',
+    riskLevel: 'low',
+    paramDefs: {},
+    execute: async () => {
+      try {
+        const instances = await api.listInstances();
+        return {
+          success: true,
+          data: instances.map((i) => ({
+            id: i.id,
+            name: i.name,
+            version_id: i.version_id,
+            loader_type: i.loader_type,
+          })),
+          message: `Found ${instances.length} instance(s)`,
+        };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Failed to get instances' };
+      }
+    },
+  },
+
+  create_instance: {
+    name: 'create_instance',
+    description:
+      'Create a new Minecraft game instance. Can specify Minecraft version, loader type (vanilla/fabric/forge/neoforge/quilt), and loader version. The AI should search for versions first if unsure about available versions.',
+    riskLevel: 'high',
+    paramDefs: {
+      name: { type: 'string', description: 'Instance name', required: true },
+      version_id: { type: 'string', description: 'Minecraft version ID (e.g. 1.21.1)', required: true },
+      loader_type: {
+        type: 'string',
+        description: 'Loader type',
+        enum: ['vanilla', 'fabric', 'forge', 'neoforge', 'quilt'],
+      },
+      loader_version: { type: 'string', description: 'Loader version (optional, uses latest if omitted)' },
+    },
+    execute: async (params) => {
+      try {
+        const name = String(params.name || '');
+        const versionId = String(params.version_id || '');
+        if (!name || !versionId) return { success: false, error: 'Name and version_id are required' };
+
+        const versions = await api.getVersions();
+        const version = versions.find((v) => v.id === versionId);
+        if (!version)
+          return {
+            success: false,
+            error: `Version ${versionId} not found. Use search_versions to find available versions.`,
+          };
+
+        const instance: Record<string, unknown> = {
+          id: '',
+          name,
+          version_id: versionId,
+          version_url: version.url,
+          loader_type: params.loader_type ? String(params.loader_type) : null,
+          loader_version: params.loader_version ? String(params.loader_version) : null,
+          description: '',
+          max_memory: 4096,
+          min_memory: 512,
+          java_path: null,
+          jvm_args: null,
+          created_at: new Date().toISOString(),
+          last_played: null,
+          playtime_seconds: 0,
+        };
+        await api.createInstance(instance as never);
+        const instances = await api.listInstances();
+        const created = instances.find((i) => i.name === name);
+        const msg = created
+          ? `Instance "${name}" created with ID: ${created.id}. Use this instance_id for all subsequent install_mod and install_loader calls.`
+          : `Instance "${name}" created successfully`;
+        return { success: true, data: created, message: msg };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Instance creation failed' };
+      }
+    },
+  },
+
+  install_loader: {
+    name: 'install_loader',
+    description:
+      'Install a mod loader (Fabric, Forge, NeoForge, Quilt) into an existing instance. Use this after creating an instance to set up the loader.',
+    riskLevel: 'high',
+    paramDefs: {
+      instance_id: { type: 'string', description: 'Target instance ID', required: true },
+      loader_type: {
+        type: 'string',
+        description: 'Loader type to install',
+        required: true,
+        enum: ['fabric', 'forge', 'neoforge', 'quilt'],
+      },
+      loader_version: { type: 'string', description: 'Loader version (optional, uses latest stable if omitted)' },
+    },
+    execute: async (params) => {
+      try {
+        const instanceId = String(params.instance_id || '');
+        const loaderType = String(params.loader_type || '');
+        if (!instanceId || !loaderType) return { success: false, error: 'instance_id and loader_type are required' };
+
+        const instances = await api.listInstances();
+        const inst = instances.find((i) => i.id === instanceId);
+        if (!inst) return { success: false, error: `Instance ${instanceId} not found` };
+
+        const result = await api.installLoader(
+          loaderType,
+          inst.version_id,
+          inst.version_url,
+          params.loader_version ? String(params.loader_version) : '',
+          instanceId,
+        );
+        return { success: true, data: result, message: `${loaderType} loader installed on instance ${instanceId}` };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Loader installation failed' };
+      }
+    },
+  },
+
+  get_config: {
+    name: 'get_config',
+    description: 'Get the current launcher configuration settings',
+    riskLevel: 'low',
+    paramDefs: {},
+    execute: async () => {
+      try {
+        const config = await api.getConfig();
+        const safeConfig = { ...config };
+        if (safeConfig.security) {
+          safeConfig.security = { ...safeConfig.security, proxy_password: null };
+        }
+        return { success: true, data: safeConfig, message: 'Current configuration retrieved' };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Failed to get config' };
+      }
+    },
+  },
+
+  search_versions: {
+    name: 'search_versions',
+    description: 'Search for available Minecraft versions',
+    riskLevel: 'low',
+    paramDefs: {
+      type: { type: 'string', description: 'Version type filter', enum: ['release', 'snapshot', 'all'] },
+    },
+    execute: async (params) => {
+      try {
+        const versions = await api.getVersions();
+        const type = params.type ? String(params.type) : 'release';
+        const filtered = versions.filter((v) => type === 'all' || v.type === type);
+        return {
+          success: true,
+          data: filtered.slice(0, 10).map((v) => ({ id: v.id, type: v.type })),
+          message: `Latest ${type} versions: ${filtered
+            .slice(0, 5)
+            .map((v) => v.id)
+            .join(', ')}. Use create_instance with one of these version_ids.`,
+        };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Failed to search versions' };
+      }
+    },
+  },
+
+  analyze_crash: {
+    name: 'analyze_crash',
+    description:
+      'Automatically find and diagnose the latest Minecraft crash report for an instance. Just provide the instance ID — crash reports are auto-detected. Returns error type, description, suggestions, severity, and whether an automatic fix is available.',
+    riskLevel: 'low',
+    paramDefs: {
+      instance_id: {
+        type: 'string',
+        description: 'The instance ID to analyze (auto-finds latest crash report)',
+        required: true,
+      },
+    },
+    execute: async (params) => {
+      try {
+        const instanceId = String(params.instance_id || '');
+        const diagnosis = await crashApi.diagnoseInstanceCrash(instanceId);
+        return {
+          success: true,
+          data: diagnosis,
+          message: diagnosis.crash_info?.description
+            ? `Crash found: ${diagnosis.crash_info.description}`
+            : 'No crash reports found for this instance',
+        };
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Crash analysis failed' };
+      }
+    },
+  },
+
+  apply_fix: {
+    name: 'apply_fix',
+    description:
+      'Apply an automatic fix for a diagnosed crash. Requires user confirmation. Available actions: increase_memory, increase_metaspace, reinstall_loader, redownload_version, remove_duplicate_mods, check_java, reset_launch_state, relogin.',
+    riskLevel: 'high',
+    paramDefs: {
+      instance_id: { type: 'string', description: 'The instance ID to apply the fix to', required: true },
+      fix_action: {
+        type: 'string',
+        description: 'The fix action to apply',
+        required: true,
+        enum: [
+          'increase_memory',
+          'increase_metaspace',
+          'reinstall_loader',
+          'redownload_version',
+          'remove_duplicate_mods',
+          'check_java',
+          'reset_launch_state',
+          'relogin',
+        ],
+      },
+    },
+    execute: async (params) => {
+      try {
+        const instanceId = String(params.instance_id || '');
+        const action = String(params.fix_action || '');
+        const instances = await api.listInstances();
+        const instance = instances.find((i) => i.id === instanceId);
+        if (!instance) return { success: false, error: `Instance ${instanceId} not found` };
+
+        switch (action) {
+          case 'increase_memory': {
+            const currentMax = instance.max_memory || 2048;
+            const newMax = Math.min(currentMax * 2, 16384);
+            const config = await api.getConfig();
+            const configObj = config as unknown as Record<string, unknown>;
+            configObj.max_memory = newMax;
+            await api.saveConfig(config);
+            return { success: true, message: `Increased max memory from ${currentMax}MB to ${newMax}MB` };
+          }
+          case 'increase_metaspace': {
+            const currentJvm = instance.jvm_args || '';
+            const newArgs = currentJvm.includes('-XX:MaxMetaspaceSize')
+              ? currentJvm.replace(/-XX:MaxMetaspaceSize=\d+m?/i, '-XX:MaxMetaspaceSize=512m')
+              : `${currentJvm} -XX:MaxMetaspaceSize=512m`.trim();
+            const fullInstance = await api.getInstance(instanceId);
+            if (!fullInstance) return { success: false, error: `Instance ${instanceId} not found` };
+            fullInstance.jvm_args = newArgs;
+            await api.updateInstance(fullInstance);
+            return { success: true, message: 'Increased MaxMetaspaceSize to 512m' };
+          }
+          case 'reinstall_loader': {
+            if (instance.loader_type && instance.loader_version) {
+              await api.installLoader(
+                instance.loader_type,
+                instance.version_id,
+                instance.version_url,
+                instance.loader_version,
+                instanceId,
+              );
+              return { success: true, message: `Reinstalled ${instance.loader_type} ${instance.loader_version}` };
+            }
+            return { success: false, error: 'No loader information found for this instance' };
+          }
+          case 'redownload_version': {
+            await api.downloadVersion(instance.version_id, instance.version_url);
+            return { success: true, message: `Redownloaded Minecraft ${instance.version_id}` };
+          }
+          case 'remove_duplicate_mods': {
+            const mods = await api.listInstanceMods(instanceId);
+            const seen = new Map<string, number>();
+            const dupSet = new Set<string>();
+            for (const mod of mods) {
+              const count = seen.get(mod.filename) || 0;
+              if (count === 1) dupSet.add(mod.filename);
+              seen.set(mod.filename, count + 1);
+            }
+            if (dupSet.size === 0) return { success: true, message: 'No duplicate mods found' };
+            const dupList = Array.from(dupSet);
+            return {
+              success: true,
+              message: `Found ${dupList.length} duplicate mod(s): ${dupList.join(', ')}. Please remove duplicates manually from the mods folder.`,
+            };
+          }
+          case 'check_java': {
+            const javaList = await api.findAllJava();
+            return { success: true, data: javaList, message: `Found ${javaList.length} Java installation(s)` };
+          }
+          case 'reset_launch_state': {
+            await api.resetLaunchState();
+            return { success: true, message: 'Launch state reset successfully' };
+          }
+          case 'relogin': {
+            return {
+              success: true,
+              message: 'Please log out and log in again from the settings page to refresh your authentication.',
+            };
+          }
+          default:
+            return { success: false, error: `Unknown fix action: ${action}` };
+        }
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Fix application failed' };
+      }
+    },
+  },
+
+  generate_modpack_plan: {
+    name: 'generate_modpack_plan',
+    description:
+      'Generate a modpack installation plan from a theme, game version, loader type, and mod list. Validates the plan on the backend and returns a ModpackPlan with plan_id. Call this AFTER searching for mods and checking compatibility.',
+    riskLevel: 'low',
+    paramDefs: {
+      theme: { type: 'string', description: 'Modpack theme (e.g. "farming", "magic adventure")', required: true },
+      game_version: { type: 'string', description: 'Minecraft version (e.g. "1.20.1")', required: true },
+      loader_type: {
+        type: 'string',
+        description: 'Mod loader type',
+        required: true,
+        enum: ['fabric', 'forge', 'neoforge'],
+      },
+      mods: {
+        type: 'string',
+        description:
+          'JSON array of mods: [{"slug":"...","name":"...","version_id":"...","source":"modrinth|curseforge","category":"core|automation|decoration|optimization|library","required":true}]',
+        required: true,
+      },
+      jvm_args: { type: 'string', description: 'Recommended JVM arguments (optional)' },
+      max_memory_mb: { type: 'number', description: 'Max memory in MB (optional, auto-calculated if omitted)' },
+    },
+    execute: async (params) => {
+      try {
+        const theme = String(params.theme || '');
+        const gameVersion = String(params.game_version || '');
+        const loaderType = String(params.loader_type || '');
+        const modsRaw = String(params.mods || '[]');
+        if (!theme || !gameVersion || !loaderType)
+          return { success: false, error: 'theme, game_version, and loader_type are required' };
+        let mods;
+        try { mods = JSON.parse(modsRaw); } catch { return { success: false, error: 'mods must be a valid JSON array' }; }
+        const request = {
+          theme, game_version: gameVersion, loader_type: loaderType, mods,
+          jvm_args: params.jvm_args ? String(params.jvm_args) : undefined,
+          max_memory_mb: params.max_memory_mb ? Number(params.max_memory_mb) : undefined,
+        };
+        const plan = await (await import('../api/workflow')).workflowApi.generateModpackPlan(request);
+        return {
+          success: true, data: plan,
+          message: `Modpack plan "${theme}" generated with ${plan.mods.length} mods. Plan ID: ${plan.plan_id}. Call execute_modpack_plan with the plan to install.`,
+        };
+      } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Plan generation failed' }; }
+    },
+  },
+
+  execute_modpack_plan: {
+    name: 'execute_modpack_plan',
+    description:
+      'Execute a previously generated modpack installation plan. Triggers a backend workflow that creates the instance, installs the loader, downloads all mods, and verifies. Returns a workflow_id for progress tracking.',
+    riskLevel: 'high',
+    paramDefs: {
+      plan: { type: 'string', description: 'The full ModpackPlan JSON object returned by generate_modpack_plan', required: true },
+    },
+    execute: async (params) => {
+      try {
+        const planRaw = String(params.plan || '');
+        let plan;
+        try { plan = JSON.parse(planRaw); } catch { return { success: false, error: 'plan must be a valid JSON ModpackPlan object' }; }
+        const workflowId = await (await import('../api/workflow')).workflowApi.executeModpackPlan(plan);
+        return {
+          success: true, data: { workflow_id: workflowId },
+          message: `Modpack installation started. Workflow ID: ${workflowId}. Progress will be shown in the download panel.`,
+        };
+      } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Plan execution failed' }; }
+    },
+  },
+
+  check_mod_conflicts: {
+    name: 'check_mod_conflicts',
+    description:
+      'Check compatibility between a set of mods for a specific game version and loader. Returns conflicts, missing dependencies, and warnings with a compatibility score (0-100).',
+    riskLevel: 'low',
+    paramDefs: {
+      mods: { type: 'string', description: 'JSON array of mod references: [{"slug":"...","version_id":"...","source":"modrinth|curseforge"}]', required: true },
+      game_version: { type: 'string', description: 'Target Minecraft version', required: true },
+      loader_type: { type: 'string', description: 'Target loader type', enum: ['fabric', 'forge', 'neoforge'] },
+    },
+    execute: async (params) => {
+      try {
+        const modsRaw = String(params.mods || '[]');
+        const gameVersion = String(params.game_version || '');
+        if (!gameVersion) return { success: false, error: 'game_version is required' };
+        let mods;
+        try { mods = JSON.parse(modsRaw); } catch { return { success: false, error: 'mods must be a valid JSON array' }; }
+        const report = await (await import('../api/modpack')).modpackApi.checkModCompatibility(
+          mods, gameVersion, params.loader_type ? String(params.loader_type) : undefined,
+        );
+        return {
+          success: true, data: report,
+          message: `Compatibility score: ${report.score}/100. ${report.conflicts.length} conflicts, ${report.warnings.length} warnings.`,
+        };
+      } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Compatibility check failed' }; }
+    },
+  },
+
+  analyze_and_fix_crash: {
+    name: 'analyze_and_fix_crash',
+    description:
+      'Analyze a crash report for an instance and generate a fix plan. If auto_fix is true, automatically executes the fix via a backend workflow. Returns diagnosis, fix actions, and knowledge base matches.',
+    riskLevel: 'high',
+    paramDefs: {
+      instance_id: { type: 'string', description: 'Instance ID that crashed', required: true },
+      crash_report_path: { type: 'string', description: 'Path to the crash report file', required: true },
+      auto_fix: { type: 'boolean', description: 'Whether to automatically execute the fix (default: false)' },
+    },
+    execute: async (params) => {
+      try {
+        const instanceId = String(params.instance_id || '');
+        const crashReportPath = String(params.crash_report_path || '');
+        const autoFix = params.auto_fix === true;
+        if (!instanceId || !crashReportPath) return { success: false, error: 'instance_id and crash_report_path are required' };
+        const diagnosis = await crashApi.diagnoseInstanceCrash(instanceId);
+        if (!autoFix) {
+          return {
+            success: true, data: diagnosis,
+            message: `Crash analyzed: ${diagnosis.crash_info?.description || 'Unknown'}. Set auto_fix=true to execute the fix automatically.`,
+          };
+        }
+        const fixPlan = { instance_id: instanceId, crash_report_path: crashReportPath, diagnosis, fix_actions: [], knowledge_base_matches: [] };
+        const workflowId = await (await import('../api/workflow')).workflowApi.executeCrashFix(instanceId, fixPlan as never);
+        return {
+          success: true, data: { workflow_id: workflowId, diagnosis },
+          message: `Crash fix workflow started. Workflow ID: ${workflowId}`,
+        };
+      } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Crash fix failed' }; }
+    },
+  },
+};
+
+export function getCommand(name: string): AICommand | undefined {
+  return commandRegistry[name];
+}
+
+export function getAllCommands(): AICommand[] {
+  return Object.values(commandRegistry);
+}
+
+export function buildOpenAITools(): OpenAITool[] {
+  return getAllCommands().map((cmd) => ({
+    type: 'function' as const,
+    function: {
+      name: cmd.name,
+      description: cmd.description,
+      parameters: {
+        type: 'object' as const,
+        properties: Object.fromEntries(
+          Object.entries(cmd.paramDefs).map(([key, def]) => [
+            key,
+            {
+              type: def.type,
+              description: def.description,
+              ...(def.enum ? { enum: def.enum } : {}),
+            },
+          ]),
+        ),
+        required: Object.entries(cmd.paramDefs)
+          .filter(([, def]) => def.required)
+          .map(([key]) => key),
+      },
+    },
+  }));
+}
+
+export function buildSystemPrompt(): string {
+  return `You are BonNext AI Assistant, a Minecraft launcher agent. Your job is to complete multi-step tasks autonomously by calling tools one after another until the task is DONE.
+
+IMPORTANT: After each tool result comes back, you MUST call the NEXT tool in the workflow. Do NOT just describe the result — continue executing. Keep going until the full task is complete, then summarize.
+
+MODPACK GENERATION WORKFLOW (for requests like "I want X pack", "make me a Y modpack", "我想玩养老种田", etc.):
+Step 1: Call search_versions(type="release") to find the latest Minecraft version.
+Step 2: Call search_mods with 2-4 relevant search queries based on the user's theme. Use different keywords each time.
+Step 3: For each good mod found, note its slug, name, version_id, and source.
+Step 4: Call check_mod_conflicts with the selected mods to verify compatibility.
+Step 5: Call generate_modpack_plan with the complete mod list, game version, and loader type.
+Step 6: Call execute_modpack_plan with the returned plan to start installation.
+Step 7: Summarize what was built.
+
+IMPORTANT MODPACK RULES:
+- Always include optimization mods (Sodium, Lithium for Fabric; Embeddium for Forge/NeoForge)
+- Always include at least one minimap mod (JourneyMap, Xaero's) unless the theme is hardcore survival
+- Prefer Fabric loader for modpacks (more mod compatibility)
+- Prefer stable releases over beta/alpha versions
+- Include required dependencies even if not explicitly requested
+- For the mods parameter in generate_modpack_plan, pass a JSON array string
+
+SETUP WORKFLOW (for "install Fabric/Forge X.Y.Z"):
+Step 1: Call search_versions to find the requested version.
+Step 2: Call create_instance with the version and loader type.
+Step 3: Call install_loader for the instance.
+Step 4: Call search_mods for essential mods (e.g. "Fabric API", "Sodium").
+Step 5: Call install_mod for the essentials.
+Step 6: Summarize.
+
+CRASH WORKFLOW:
+Step 1: Call analyze_crash with the instance ID. Do NOT ask for file paths.
+Step 2: If auto-fix is available, call analyze_and_fix_crash with auto_fix=true.
+Step 3: Summarize the fix applied.
+
+CRITICAL RULES:
+- NEVER stop after just one tool call. Continue until the workflow is complete.
+- After search_mods returns results, continue to the next step (check conflicts or generate plan).
+- After create_instance returns the new instance ID, use it for subsequent install calls.
+- Always use the instance ID from create_instance, not an empty string.
+- Be concise. Don't describe what you "will" do — just call the tools.`;
+}
+
+export function parseToolCallsToCommands(toolCalls: ToolCall[]): ParsedCommand[] {
+  const commands: ParsedCommand[] = [];
+  for (const tc of toolCalls) {
+    const cmd = commandRegistry[tc.function.name];
+    if (!cmd) continue;
+    try {
+      const params = JSON.parse(tc.function.arguments || '{}');
+      commands.push({
+        id: tc.id,
+        command: tc.function.name,
+        params,
+        risk_level: cmd.riskLevel,
+      });
+    } catch {
+      // skip malformed arguments
+    }
+  }
+  return commands;
+}

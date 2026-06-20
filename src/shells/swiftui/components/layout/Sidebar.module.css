@@ -1,0 +1,157 @@
+/* SwiftUI Shell — Sidebar — Transparent Glass + Capsule Nav */
+
+.sidebar {
+  position: relative;
+  width: var(--swift-sidebar-width);
+  height: 100%;
+  background: var(--swift-sidebar-bg);
+  backdrop-filter: blur(var(--swift-glass-clear-blur)) saturate(var(--swift-glass-clear-saturate));
+  -webkit-backdrop-filter: blur(var(--swift-glass-clear-blur)) saturate(var(--swift-glass-clear-saturate));
+  border-right: 0.5px solid var(--swift-sidebar-border);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: var(--swift-z-sidebar);
+  flex-shrink: 0;
+  contain: layout style paint;
+  transition: width var(--swift-duration-normal) var(--swift-spring-gentle);
+}
+
+/* Drag region at top — for window movement, also reserves space for Tauri native traffic lights */
+.dragRegion {
+  height: 36px;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+/* Navigation items — CAPSULE shape (pill) */
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: var(--swift-spacing-md);
+  padding: 7px 12px;
+  border-radius: var(--swift-radius-pill);
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: var(--swift-text-secondary);
+  font: var(--swift-font-body);
+  transition: background var(--swift-duration-fast) var(--swift-spring-default),
+              color var(--swift-duration-fast) var(--swift-spring-default);
+  margin: 2px var(--swift-spacing-sm);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  width: calc(100% - var(--swift-spacing-md));
+}
+
+.navItem:hover {
+  background: var(--swift-sidebar-hover);
+  color: var(--swift-text-primary);
+}
+
+.navItemActive {
+  background: var(--swift-accent-tint-15);
+  color: var(--swift-accent);
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: var(--swift-radius-xs); /* macOS 15 list selection style */
+}
+
+.navItemActive:hover {
+  background: var(--swift-accent-tint-15);
+  color: var(--swift-accent);
+}
+
+.navIcon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+.navLabel {
+  font: var(--swift-font-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sectionLabel {
+  font: var(--swift-font-caption);
+  color: var(--swift-text-quaternary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: var(--swift-spacing-lg) var(--swift-spacing-lg) var(--swift-spacing-xs);
+}
+
+.divider {
+  height: 0.5px;
+  background: var(--swift-sidebar-separator);
+  margin: var(--swift-spacing-sm) var(--swift-spacing-lg);
+}
+
+.bottomSection {
+  margin-top: auto;
+  padding: var(--swift-spacing-sm) var(--swift-spacing-md);
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--swift-spacing-md);
+  padding: var(--swift-spacing-sm) var(--swift-spacing-md);
+  border-radius: var(--swift-radius-md);
+}
+
+.userAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--swift-accent-tint-12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: var(--swift-font-caption);
+  color: var(--swift-accent);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.userName {
+  font: var(--swift-font-body);
+  color: var(--swift-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accountType {
+  font: var(--swift-font-metadata);
+  color: var(--swift-text-tertiary);
+}
+
+.shellSwitcher {
+  margin-top: var(--swift-spacing-sm);
+}
+
+/* Collapsed state */
+.sidebarCollapsed { width: var(--swift-sidebar-width-collapsed); }
+.sidebarCollapsed .navLabel,
+.sidebarCollapsed .sectionLabel,
+.sidebarCollapsed .userInfo,
+.sidebarCollapsed .shellSwitcher { display: none; }
+.sidebarCollapsed .navItem { justify-content: center; padding: 7px 0; }
+.sidebarCollapsed .navIcon { margin: 0; }
+
+/* Native glass bypass */
+.glass-native-liquid .sidebar {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}

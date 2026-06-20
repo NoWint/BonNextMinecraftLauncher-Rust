@@ -1,0 +1,52 @@
+/* InstanceDetailPage — SwiftUI Shell HIG Redesign */
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--swift-spacing-xl);
+  gap: var(--swift-spacing-md);
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font: var(--swift-font-page-title);
+  color: var(--swift-text-primary);
+  margin: 0 0 var(--swift-spacing-sm);
+}
+
+.version {
+  font: var(--swift-font-body);
+  color: var(--swift-text-tertiary);
+  font-family: var(--swift-font-mono);
+}
+
+.actions {
+  display: flex;
+  gap: var(--swift-spacing-md);
+  flex-shrink: 0;
+}
+
+.section {
+  margin-top: var(--swift-spacing-xl);
+  background: var(--swift-bg-card);
+  border: 0.5px solid var(--swift-border);
+  border-radius: var(--swift-radius-lg);
+  padding: var(--swift-spacing-lg);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .actions {
+    width: 100%;
+  }
+}

@@ -1,0 +1,124 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.card {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border-light);
+  clip-path: var(--clip-medium);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color var(--transition-normal),
+    background var(--transition-normal);
+}
+
+.card:hover {
+  border-color: var(--color-accent-30);
+  background: var(--color-panel-alt);
+}
+
+.cardActive {
+  border-color: var(--color-accent);
+  background: var(--color-accent-06);
+}
+
+.cardActive:hover {
+  background: var(--color-accent-10);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cardName {
+  font-family: var(--font-heading);
+  font-size: 0.85em;
+  color: var(--color-text);
+  letter-spacing: 2px;
+}
+
+.activeDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 6px var(--color-accent-50);
+  animation: breathe-yellow 2s ease-in-out infinite;
+}
+
+.cardDesc {
+  font-size: 0.48em;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.metaLabel {
+  font-size: 0.4em;
+  color: var(--color-text-dim);
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.metaValue {
+  font-size: 0.5em;
+  font-family: var(--font-mono);
+  color: var(--color-accent);
+}
+
+.metaDivider {
+  width: 1px;
+  height: 10px;
+  background: var(--color-border-light);
+}
+
+.expanded {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-light);
+  animation: fade-in-up 0.2s ease-out;
+}
+
+.argsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.argPill {
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border-light);
+  clip-path: var(--clip-badge);
+  padding: 2px 8px;
+  font-size: 0.42em;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+}

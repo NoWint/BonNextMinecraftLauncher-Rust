@@ -1,0 +1,21 @@
+/* LibraryPage — SwiftUI Shell HIG Redesign */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--swift-spacing-md);
+}
+
+.empty {
+  text-align: center;
+  padding: var(--swift-spacing-2xl);
+  color: var(--swift-text-tertiary);
+  font: var(--swift-font-body);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

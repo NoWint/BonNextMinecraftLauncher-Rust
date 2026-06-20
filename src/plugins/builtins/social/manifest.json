@@ -1,0 +1,20 @@
+{
+  "id": "com.bonnext.social",
+  "name": "Social",
+  "version": "1.0.0",
+  "description": "Friends, chat, P2P messaging, and Discord Rich Presence",
+  "author": "BonNext",
+  "minAppVersion": "1.0.0",
+  "dependencies": [],
+  "permissions": [
+    "invoke:core",
+    "invoke:social",
+    "events:listen",
+    "events:emit"
+  ],
+  "contributes": {
+    "routes": [],
+    "sidebar": [],
+    "settings": []
+  }
+}

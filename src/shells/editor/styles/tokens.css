@@ -1,0 +1,16 @@
+:root {
+  --editor-palette-width: 200px;
+  --editor-property-width: 220px;
+  --editor-toolbar-height: 44px;
+  --editor-statusbar-height: 28px;
+  --editor-accent: #007AFF;
+  --editor-accent-hover: #0066d6;
+  --editor-danger: #ff3b30;
+  --editor-success: #34c759;
+  --editor-warning: #ff9500;
+  --editor-border-radius: 8px;
+  --editor-border-radius-sm: 4px;
+  --editor-font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  --editor-font-mono: 'SF Mono', 'Fira Code', monospace;
+  --editor-transition: 150ms ease;
+}

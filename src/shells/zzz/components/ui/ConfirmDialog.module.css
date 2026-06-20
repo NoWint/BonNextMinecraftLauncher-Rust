@@ -1,0 +1,137 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--color-overlay-80);
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 150ms ease forwards;
+}
+
+.dialog {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border-light);
+  padding: 20px;
+  min-width: 320px;
+  max-width: 440px;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  animation: slideDown 200ms var(--ease-out-expo) forwards;
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: 0.85em;
+  color: var(--color-text);
+  letter-spacing: 3px;
+  margin-bottom: 12px;
+}
+
+.message {
+  font-size: 0.6em;
+  color: var(--color-text-tertiary);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.confirmInputWrapper {
+  margin-bottom: 16px;
+}
+
+.confirmInputLabel {
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.confirmInput {
+  width: 100%;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-light);
+  clip-path: var(--clip-small);
+  outline: none;
+  transition: border-color var(--transition-fast);
+
+  &:focus {
+    border-color: var(--color-accent);
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.dangerHigh {
+  border-color: rgba(255, 68, 68, 0.4);
+  animation: pulseBorderRed 2s ease-in-out infinite;
+}
+
+.dangerMedium {
+  border-color: rgba(255, 170, 0, 0.4);
+}
+
+.iconRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.icon {
+  font-size: 1.2em;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.iconHigh {
+  color: var(--color-error);
+}
+
+.iconMedium {
+  color: var(--color-warning);
+}
+
+.iconLow {
+  color: var(--color-accent);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pulseBorderRed {
+  0%,
+  100% {
+    border-color: rgba(255, 68, 68, 0.4);
+  }
+  50% {
+    border-color: rgba(255, 68, 68, 0.8);
+  }
+}

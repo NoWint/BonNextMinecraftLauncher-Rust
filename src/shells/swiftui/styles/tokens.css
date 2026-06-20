@@ -1,0 +1,70 @@
+/* SwiftUI Shell — macOS 26 HIG Design Tokens */
+/* Only theme-INDEPENDENT tokens live here. All color/glass/material variables are in themes.css. */
+
+:root {
+  /* ===== UI Scale ===== */
+  --ui-scale: 1;
+  font-size: calc(var(--ui-scale) * 16px);
+
+  /* ===== Layout ===== */
+  --swift-sidebar-width: 210px;
+  --swift-sidebar-width-collapsed: 52px;
+  --swift-panel-width: 240px;
+  --swift-toolbar-height: 36px;
+  --swift-hit-region: 44px;
+
+  /* ===== Border Radius — Concentric Rounding (Apple HIG) ===== */
+  --swift-radius-xs: 6px;
+  --swift-radius-sm: 10px;
+  --swift-radius-md: 12px;
+  --swift-radius-lg: 16px;
+  --swift-radius-xl: 20px;
+  --swift-radius-2xl: 24px;
+  --swift-radius-pill: 9999px;
+
+  /* Extended radius values for fine-grained components */
+  --swift-radius-2xs: 4px;
+  --swift-radius-xs-half: 3px;  /* half of xs, for tiny elements like scrollbar thumbs, progress bars */
+  --swift-radius-toggle: 11px;  /* iOS toggle track */
+  --swift-radius-toast: 10px;
+  --swift-radius-modal: 14px;
+
+  /* ===== Spacing ===== */
+  --swift-spacing-xs: 2px;
+  --swift-spacing-sm: 4px;
+  --swift-spacing-md: 8px;
+  --swift-spacing-lg: 16px;
+  --swift-spacing-xl: 24px;
+  --swift-spacing-2xl: 32px;
+
+  /* ===== Typography — SF Pro System Font Stack ===== */
+  --swift-font-family: -apple-system, 'SF Pro Text', SF Pro, system-ui, sans-serif;
+  --swift-font-mono: 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  --swift-font-page-title: 700 26px/1.2 var(--swift-font-family);
+  --swift-font-section-title: 600 17px/1.3 var(--swift-font-family);
+  --swift-font-card-title: 500 15px/1.3 var(--swift-font-family);
+  --swift-font-body: 400 13px/1.5 var(--swift-font-family);
+  --swift-font-caption: 500 11px/1.4 var(--swift-font-family);
+  --swift-font-metadata: 400 10px/1.4 var(--swift-font-mono);
+
+  /* ===== Animation — Apple Spring Curves & Durations ===== */
+  --swift-spring-default: cubic-bezier(0.2, 0, 0, 1);
+  --swift-spring-gentle: cubic-bezier(0.2, 0, 0.1, 1);
+  --swift-spring-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --swift-duration-fast: 150ms;
+  --swift-duration-normal: 250ms;
+  --swift-duration-slow: 350ms;
+
+  /* ===== Responsive Breakpoints ===== */
+  --swift-breakpoint-narrow: 768px;
+  --swift-breakpoint-medium: 1024px;
+
+  /* ===== z-index Scale ===== */
+  --swift-z-content: 1;
+  --swift-z-sidebar: 200;
+  --swift-z-dropdown: 800;
+  --swift-z-overlay: 900;
+  --swift-z-modal: 1000;
+  --swift-z-popover: 1100;
+  --swift-z-toast: 1200;
+}

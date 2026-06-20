@@ -1,0 +1,86 @@
+.node {
+  border: 1px solid transparent;
+  border-radius: var(--editor-border-radius-sm);
+  margin: 2px 0;
+  transition: border-color var(--editor-transition);
+}
+
+.node:hover {
+  border-color: var(--editor-border);
+}
+
+.nodeSelected {
+  border-color: var(--editor-accent) !important;
+  background: var(--editor-selection);
+}
+
+.nodeHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.nodeIcon {
+  font-size: 12px;
+}
+
+.nodeType {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--editor-text);
+  flex: 1;
+}
+
+.addChildBtn, .deleteBtn {
+  padding: 0 4px;
+  background: transparent;
+  border: none;
+  color: var(--editor-text-tertiary);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 2px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity var(--editor-transition);
+}
+
+.node:hover .addChildBtn,
+.node:hover .deleteBtn {
+  opacity: 1;
+}
+
+.addChildBtn:hover {
+  color: var(--editor-success);
+  background: rgba(52, 199, 89, 0.1);
+}
+
+.deleteBtn:hover {
+  color: var(--editor-danger);
+  background: rgba(255, 59, 48, 0.1);
+}
+
+.nodeChildren {
+  padding-left: 4px;
+}
+
+.emptyDropZone {
+  padding: 12px;
+  margin: 4px 8px;
+  border: 1px dashed var(--editor-border);
+  border-radius: var(--editor-border-radius-sm);
+  color: var(--editor-text-tertiary);
+  font-size: 10px;
+  text-align: center;
+}
+
+.nodeDropOver {
+  background: var(--editor-drop-target);
+}
+
+.emptyDropZoneOver {
+  border-color: var(--editor-accent);
+  color: var(--editor-accent);
+  background: var(--editor-drop-target);
+}

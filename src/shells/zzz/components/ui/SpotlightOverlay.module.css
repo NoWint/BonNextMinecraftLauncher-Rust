@@ -1,0 +1,94 @@
+.container {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  pointer-events: auto;
+}
+
+.overlayBg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.spotlight {
+  position: absolute;
+  z-index: var(--z-base);
+  border: 2px solid var(--color-accent);
+  border-radius: 4px;
+  pointer-events: auto;
+  animation: spotPulse 2s ease-in-out infinite;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+
+@keyframes spotPulse {
+  0%, 100% { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75), 0 0 0 0 rgba(255, 230, 0, 0.5); }
+  50% { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.78), 0 0 24px 4px rgba(255, 230, 0, 0.3); }
+}
+
+.tooltip {
+  position: absolute;
+  z-index: var(--z-base);
+  width: 280px;
+  max-width: 90vw;
+  background: var(--color-panel);
+  border: 1px solid var(--color-accent);
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  animation: fadeIn 0.2s var(--ease-out-expo);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tooltipStep {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+  letter-spacing: 0.04em;
+}
+
+.tooltipTitle {
+  font-family: var(--font-heading);
+  font-size: 0.75em;
+  color: var(--color-accent);
+  letter-spacing: 0.04em;
+}
+
+.tooltipDesc {
+  font-size: 0.6em;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.tooltipHint {
+  font-size: 0.5em;
+  color: var(--color-accent-30);
+  font-style: italic;
+}
+
+.closeBtn {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: var(--z-base);
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  padding: 6px 14px;
+  font-size: 0.55em;
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.closeBtn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}

@@ -1,0 +1,165 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+  --ui-scale: 1;
+  font-size: calc(var(--ui-scale) * 16px);
+
+  --color-bg: #0d0d0d;
+  --color-panel: #141414;
+  --color-panel-alt: #1a1a1a;
+  --color-sidebar: #0f0f0f;
+  --color-border: #1a1a1a;
+  --color-border-mid: #1f1f1f;
+  --color-border-light: #2a2a2a;
+  --color-accent: #ffe600;
+  --color-success: #00ff88;
+  --color-error: #ff4444;
+  --color-text: #ffffff;
+  --color-text-secondary: #aaa;
+  --color-text-tertiary: #888;
+  --color-text-muted: #666;
+  --color-text-dim: #555;
+  --color-text-faint: #444;
+
+  --color-accent-action: var(--color-accent);
+  --color-accent-action-text: #1a1a1a;
+  --color-accent-06: rgba(255, 230, 0, 0.06);
+  --color-accent-10: rgba(255, 230, 0, 0.1);
+  --color-accent-15: rgba(255, 230, 0, 0.15);
+  --color-accent-20: rgba(255, 230, 0, 0.2);
+  --color-accent-30: rgba(255, 230, 0, 0.3);
+  --color-overlay-30: rgba(0, 0, 0, 0.3);
+  --color-overlay-50: rgba(0, 0, 0, 0.5);
+  --color-overlay-60: rgba(0, 0, 0, 0.6);
+  --color-overlay-80: rgba(0, 0, 0, 0.8);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.2);
+  --selection-bg: rgba(255, 230, 0, 0.3);
+  --selection-color: #ffffff;
+  --scrollbar-thumb-color: var(--color-border-light);
+  --scrollbar-thumb-hover: var(--color-text-muted);
+
+  --font-heading: 'Bebas Neue', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'DM Mono', 'SF Mono', 'Fira Code', monospace;
+
+  --sidebar-width: 190px;
+  --clip-primary: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  --clip-medium: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  --clip-small: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  --clip-icon: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
+  --clip-badge: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+  --clip-diamond: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+
+  --transition-fast: 100ms ease;
+  --transition-normal: 150ms ease;
+  --transition-slow: 300ms ease-out;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* z-index 层级体系 */
+  --z-base: 1;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-sidebar: 300;
+  --z-modal: 1000;
+  --z-toast: 1100;
+  --z-tooltip: 1200;
+  --z-overlay: 9000;
+  --z-skip-link: 10000;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.3);
+  }
+  50% {
+    opacity: 0.55;
+    box-shadow: 0 0 4px 2px rgba(0, 255, 136, 0.08);
+  }
+}
+
+@keyframes breathe-yellow {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(255, 230, 0, 0.3);
+  }
+  50% {
+    opacity: 0.55;
+    box-shadow: 0 0 4px 2px rgba(255, 230, 0, 0.08);
+  }
+}
+
+@keyframes breathe-red {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.3);
+  }
+  50% {
+    opacity: 0.55;
+    box-shadow: 0 0 4px 2px rgba(255, 68, 68, 0.08);
+  }
+}
+
+@keyframes spin-clip {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes scanline-scroll {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 6px;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-border {
+  0%,
+  100% {
+    border-color: rgba(255, 68, 68, 0.4);
+  }
+  50% {
+    border-color: rgba(255, 68, 68, 0.8);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition-fast: 0ms;
+    --transition-normal: 0ms;
+    --transition-slow: 0ms;
+  }
+}

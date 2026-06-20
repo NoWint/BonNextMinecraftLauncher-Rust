@@ -1,0 +1,20 @@
+{
+  "id": "com.bonnext.shell.editor",
+  "name": "Shell Editor",
+  "version": "1.0.0",
+  "description": "Visual shell editor for creating and customizing shells",
+  "author": "BonNext",
+  "minAppVersion": "1.0.0",
+  "dependencies": [],
+  "permissions": [
+    "invoke:core",
+    "fs:read:config",
+    "fs:write:config",
+    "events:listen"
+  ],
+  "contributes": {
+    "routes": [],
+    "sidebar": [],
+    "settings": []
+  }
+}

@@ -1,0 +1,381 @@
+/* SwiftUI Shell — Theme Variables */
+/* HIG Redesign: Dark/Light theme variable system */
+/* This file is the SINGLE source of truth for ALL color/glass/material variables. */
+
+/* ===== Default Theme (prevents flash — applied before theme class resolves) ===== */
+.swiftui-shell,
+.swiftui-shell * {
+  /* --- Semantic Colors --- */
+  --swift-accent: #FFE600;
+  --swift-accent-text: #1C1C1E;
+  --swift-destructive: #FF453A;
+  --swift-destructive-text: #FFFFFF;
+  --swift-success: #30D158;
+  --swift-success-text: #FFFFFF;
+  --swift-warning: #FF9F0A;
+  --swift-warning-text: #1C1C1E;
+  --swift-info: #0A84FF;
+  --swift-info-text: #FFFFFF;
+
+  /* --- Accent Tint Variants --- */
+  --swift-accent-tint-06: rgba(255, 230, 0, 0.06);
+  --swift-accent-tint-10: rgba(255, 230, 0, 0.10);
+  --swift-accent-tint-12: rgba(255, 230, 0, 0.12);
+  --swift-accent-tint-15: rgba(255, 230, 0, 0.15);
+  --swift-accent-tint-20: rgba(255, 230, 0, 0.20);
+
+  /* --- Hover / Active States --- */
+  --swift-hover-primary: rgba(255, 255, 255, 0.06);
+  --swift-hover-secondary: rgba(255, 255, 255, 0.04);
+  --swift-active-primary: rgba(255, 255, 255, 0.10);
+
+  /* --- Content Layer Backgrounds --- */
+  --swift-bg-primary: rgba(30, 30, 30, 0.72);
+  --swift-bg-secondary: rgba(20, 20, 22, 0.78);
+  --swift-bg-card: rgba(255, 255, 255, 0.05);
+  --swift-bg-card-hover: rgba(255, 255, 255, 0.08);
+  --swift-bg-input: rgba(255, 255, 255, 0.04);
+
+  /* --- Borders --- */
+  --swift-border: rgba(255, 255, 255, 0.06);
+  --swift-border-hairline: rgba(255, 255, 255, 0.08);
+  --swift-border-hover: rgba(255, 255, 255, 0.12);
+  --swift-border-focus: rgba(255, 230, 0, 0.4);
+
+  /* --- Text --- */
+  --swift-text-primary: rgba(255, 255, 255, 0.85);
+  --swift-text-secondary: rgba(255, 255, 255, 0.65);
+  --swift-text-tertiary: rgba(255, 255, 255, 0.45);
+  --swift-text-quaternary: rgba(255, 255, 255, 0.35);
+
+  /* --- Liquid Glass Layer: thick variant (sidebar) --- */
+  --swift-glass-thick-bg: rgba(44, 44, 46, 0.92);
+  --swift-glass-thick-blur: 60px;
+  --swift-glass-thick-saturate: 200%;
+  --swift-glass-thick-border: rgba(255, 255, 255, 0.15);
+  --swift-glass-thick-highlight: rgba(255, 255, 255, 0.04);
+
+  /* --- Liquid Glass Layer: regular variant (toolbar, tab bar) --- */
+  --swift-glass-regular-bg: rgba(255, 255, 255, 0.12);
+  --swift-glass-regular-blur: 40px;
+  --swift-glass-regular-saturate: 180%;
+  --swift-glass-regular-border: rgba(255, 255, 255, 0.18);
+  --swift-glass-regular-highlight: inset 0 0.5px 0 rgba(255, 255, 255, 0.25);
+
+  /* --- Liquid Glass Layer: clear variant (media overlays) --- */
+  --swift-glass-clear-bg: rgba(255, 255, 255, 0.06);
+  --swift-glass-clear-blur: 20px;
+  --swift-glass-clear-saturate: 150%;
+  --swift-glass-clear-border: rgba(255, 255, 255, 0.10);
+  --swift-glass-clear-highlight: inset 0 0.5px 0 rgba(255, 255, 255, 0.15);
+
+  /* --- Sidebar — Transparent glass --- */
+  --swift-sidebar-bg: rgba(28, 28, 30, 0.55);
+  --swift-sidebar-border: rgba(255, 255, 255, 0.08);
+  --swift-sidebar-hover: rgba(255, 255, 255, 0.05);
+  --swift-sidebar-separator: rgba(255, 255, 255, 0.07);
+
+  /* --- Right Panel --- */
+  --swift-panel-bg: rgba(30, 30, 30, 0.55);
+
+  /* --- Glass Tint --- */
+  --swift-glass-tint: rgba(255, 255, 255, 0.06);
+
+  /* --- Modal --- */
+  --swift-modal-backdrop: rgba(0, 0, 0, 0.5);
+  --swift-material-modal-bg: rgba(44, 44, 46, 0.95);
+  --swift-modal-bg: var(--swift-material-modal-bg);
+
+  /* --- Shadows --- */
+  --swift-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --swift-shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.35);
+
+  /* --- Overlay --- */
+  --swift-overlay-bg: rgba(0, 0, 0, 0.4);
+
+  /* --- Selection --- */
+  --swift-selection-bg: rgba(255, 230, 0, 0.25);
+  --swift-selection-color: #ffffff;
+  --swift-selection-text: #ffffff;
+
+  /* --- Scrollbar --- */
+  --swift-scrollbar-thumb: rgba(255, 255, 255, 0.10);
+  --swift-scrollbar-thumb-hover: rgba(255, 255, 255, 0.18);
+
+  /* --- Standard Materials (Content Layer) --- */
+  --swift-material-primary-bg: rgba(30, 30, 30, 0.72);
+  --swift-material-secondary-bg: rgba(20, 20, 22, 0.78);
+  --swift-material-card-bg: rgba(38, 38, 40, 0.80);
+  --swift-material-card-hover-bg: rgba(50, 50, 52, 0.85);
+  --swift-material-input-bg: rgba(28, 28, 30, 0.90);
+  --swift-material-modal-bg: rgba(44, 44, 46, 0.95);
+  --swift-material-ultrathin-bg: rgba(255, 255, 255, 0.03);
+  --swift-material-thin-bg: rgba(255, 255, 255, 0.06);
+  --swift-material-regular-bg: rgba(30, 30, 30, 0.45);
+  --swift-material-thick-bg: rgba(44, 44, 46, 0.92);
+  --swift-material-ultrathick-bg: rgba(44, 44, 46, 0.95);
+
+  /* Legacy aliases for backward compatibility */
+  --swift-material-primary: var(--swift-material-primary-bg);
+  --swift-material-secondary: var(--swift-material-secondary-bg);
+  --swift-material-card: var(--swift-material-card-bg);
+  --swift-material-card-hover: var(--swift-material-card-hover-bg);
+  --swift-material-input: var(--swift-material-input-bg);
+  --swift-material-modal: var(--swift-material-modal-bg);
+
+  /* --- Scroll Edge Effect --- */
+  --swift-scroll-edge-blur: 12px;
+  --swift-scroll-edge-bg: rgba(0, 0, 0, 0.15);
+}
+
+/* ===== Dark Theme ===== */
+.theme-dark .swiftui-shell,
+.theme-dark .swiftui-shell * {
+  /* --- Semantic Colors --- */
+  --swift-accent: #FFE600;
+  --swift-accent-text: #1C1C1E;
+  --swift-destructive: #FF453A;
+  --swift-destructive-text: #FFFFFF;
+  --swift-success: #30D158;
+  --swift-success-text: #FFFFFF;
+  --swift-warning: #FF9F0A;
+  --swift-warning-text: #1C1C1E;
+  --swift-info: #0A84FF;
+  --swift-info-text: #FFFFFF;
+
+  /* --- Accent Tint Variants --- */
+  --swift-accent-tint-06: rgba(255, 230, 0, 0.06);
+  --swift-accent-tint-10: rgba(255, 230, 0, 0.10);
+  --swift-accent-tint-12: rgba(255, 230, 0, 0.12);
+  --swift-accent-tint-15: rgba(255, 230, 0, 0.15);
+  --swift-accent-tint-20: rgba(255, 230, 0, 0.20);
+
+  /* --- Hover / Active States --- */
+  --swift-hover-primary: rgba(255, 255, 255, 0.06);
+  --swift-hover-secondary: rgba(255, 255, 255, 0.04);
+  --swift-active-primary: rgba(255, 255, 255, 0.10);
+
+  /* --- Content Layer Backgrounds --- */
+  --swift-bg-primary: rgba(30, 30, 30, 0.72);
+  --swift-bg-secondary: rgba(20, 20, 22, 0.78);
+  --swift-bg-card: rgba(255, 255, 255, 0.05);
+  --swift-bg-card-hover: rgba(255, 255, 255, 0.08);
+  --swift-bg-input: rgba(255, 255, 255, 0.04);
+
+  /* --- Borders --- */
+  --swift-border: rgba(255, 255, 255, 0.06);
+  --swift-border-hairline: rgba(255, 255, 255, 0.08);
+  --swift-border-hover: rgba(255, 255, 255, 0.12);
+  --swift-border-focus: rgba(255, 230, 0, 0.4);
+
+  /* --- Text --- */
+  --swift-text-primary: rgba(255, 255, 255, 0.85);
+  --swift-text-secondary: rgba(255, 255, 255, 0.65);
+  --swift-text-tertiary: rgba(255, 255, 255, 0.45);
+  --swift-text-quaternary: rgba(255, 255, 255, 0.35);
+
+  /* --- Liquid Glass Layer: thick variant (sidebar) --- */
+  --swift-glass-thick-bg: rgba(44, 44, 46, 0.92);
+  --swift-glass-thick-blur: 60px;
+  --swift-glass-thick-saturate: 200%;
+  --swift-glass-thick-border: rgba(255, 255, 255, 0.15);
+  --swift-glass-thick-highlight: rgba(255, 255, 255, 0.04);
+
+  /* --- Liquid Glass Layer: regular variant (toolbar, tab bar) --- */
+  --swift-glass-regular-bg: rgba(255, 255, 255, 0.12);
+  --swift-glass-regular-blur: 40px;
+  --swift-glass-regular-saturate: 180%;
+  --swift-glass-regular-border: rgba(255, 255, 255, 0.18);
+  --swift-glass-regular-highlight: inset 0 0.5px 0 rgba(255, 255, 255, 0.25);
+
+  /* --- Liquid Glass Layer: clear variant (media overlays) --- */
+  --swift-glass-clear-bg: rgba(255, 255, 255, 0.06);
+  --swift-glass-clear-blur: 20px;
+  --swift-glass-clear-saturate: 150%;
+  --swift-glass-clear-border: rgba(255, 255, 255, 0.10);
+  --swift-glass-clear-highlight: inset 0 0.5px 0 rgba(255, 255, 255, 0.15);
+
+  /* --- Sidebar — Transparent glass --- */
+  --swift-sidebar-bg: rgba(28, 28, 30, 0.55);
+  --swift-sidebar-border: rgba(255, 255, 255, 0.08);
+  --swift-sidebar-hover: rgba(255, 255, 255, 0.05);
+  --swift-sidebar-separator: rgba(255, 255, 255, 0.07);
+
+  /* --- Right Panel --- */
+  --swift-panel-bg: rgba(30, 30, 30, 0.55);
+
+  /* --- Glass Tint --- */
+  --swift-glass-tint: rgba(255, 255, 255, 0.06);
+
+  /* --- Modal --- */
+  --swift-modal-backdrop: rgba(0, 0, 0, 0.5);
+  --swift-material-modal-bg: rgba(44, 44, 46, 0.95);
+  --swift-modal-bg: var(--swift-material-modal-bg);
+
+  /* --- Shadows --- */
+  --swift-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --swift-shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.35);
+
+  /* --- Overlay --- */
+  --swift-overlay-bg: rgba(0, 0, 0, 0.4);
+
+  /* --- Selection --- */
+  --swift-selection-bg: rgba(255, 230, 0, 0.25);
+  --swift-selection-color: #ffffff;
+  --swift-selection-text: #ffffff;
+
+  /* --- Scrollbar --- */
+  --swift-scrollbar-thumb: rgba(255, 255, 255, 0.10);
+  --swift-scrollbar-thumb-hover: rgba(255, 255, 255, 0.18);
+
+  /* --- Standard Materials (Content Layer) --- */
+  --swift-material-primary-bg: rgba(30, 30, 30, 0.72);
+  --swift-material-secondary-bg: rgba(20, 20, 22, 0.78);
+  --swift-material-card-bg: rgba(38, 38, 40, 0.80);
+  --swift-material-card-hover-bg: rgba(50, 50, 52, 0.85);
+  --swift-material-input-bg: rgba(28, 28, 30, 0.90);
+  --swift-material-modal-bg: rgba(44, 44, 46, 0.95);
+  --swift-material-ultrathin-bg: rgba(255, 255, 255, 0.03);
+  --swift-material-thin-bg: rgba(255, 255, 255, 0.06);
+  --swift-material-regular-bg: rgba(30, 30, 30, 0.45);
+  --swift-material-thick-bg: rgba(44, 44, 46, 0.92);
+  --swift-material-ultrathick-bg: rgba(44, 44, 46, 0.95);
+
+  /* Legacy aliases */
+  --swift-material-primary: var(--swift-material-primary-bg);
+  --swift-material-secondary: var(--swift-material-secondary-bg);
+  --swift-material-card: var(--swift-material-card-bg);
+  --swift-material-card-hover: var(--swift-material-card-hover-bg);
+  --swift-material-input: var(--swift-material-input-bg);
+  --swift-material-modal: var(--swift-material-modal-bg);
+
+  /* --- Scroll Edge Effect --- */
+  --swift-scroll-edge-blur: 12px;
+  --swift-scroll-edge-bg: rgba(0, 0, 0, 0.15);
+}
+
+/* ===== Light Theme ===== */
+.theme-light .swiftui-shell,
+.theme-light .swiftui-shell * {
+  /* --- Semantic Colors (darker variants for WCAG AA on light bg) --- */
+  --swift-accent: #6B5F00;
+  --swift-accent-text: #FFFFFF;
+  --swift-destructive: #D70015;
+  --swift-destructive-text: #FFFFFF;
+  --swift-success: #248A3D;
+  --swift-success-text: #FFFFFF;
+  --swift-warning: #C77C00;
+  --swift-warning-text: #FFFFFF;
+  --swift-info: #0055D4;
+  --swift-info-text: #FFFFFF;
+
+  /* --- Accent Tint Variants (dark-tinted for visibility on light bg) --- */
+  --swift-accent-tint-06: rgba(107, 95, 0, 0.06);
+  --swift-accent-tint-10: rgba(107, 95, 0, 0.10);
+  --swift-accent-tint-12: rgba(107, 95, 0, 0.12);
+  --swift-accent-tint-15: rgba(107, 95, 0, 0.15);
+  --swift-accent-tint-20: rgba(107, 95, 0, 0.20);
+
+  /* --- Hover / Active States --- */
+  --swift-hover-primary: rgba(0, 0, 0, 0.05);
+  --swift-hover-secondary: rgba(0, 0, 0, 0.03);
+  --swift-active-primary: rgba(0, 0, 0, 0.08);
+
+  /* --- Content Layer Backgrounds --- */
+  --swift-bg-primary: rgba(255, 255, 255, 0.72);
+  --swift-bg-secondary: rgba(245, 245, 247, 0.78);
+  --swift-bg-card: rgba(0, 0, 0, 0.03);
+  --swift-bg-card-hover: rgba(0, 0, 0, 0.05);
+  --swift-bg-input: rgba(0, 0, 0, 0.03);
+
+  /* --- Borders --- */
+  --swift-border: rgba(0, 0, 0, 0.06);
+  --swift-border-hairline: rgba(0, 0, 0, 0.08);
+  --swift-border-hover: rgba(0, 0, 0, 0.12);
+  --swift-border-focus: rgba(107, 95, 0, 0.5);
+
+  /* --- Text --- */
+  --swift-text-primary: rgba(0, 0, 0, 0.85);
+  --swift-text-secondary: rgba(0, 0, 0, 0.55);
+  --swift-text-tertiary: rgba(0, 0, 0, 0.35);
+  --swift-text-quaternary: rgba(0, 0, 0, 0.25);
+
+  /* --- Liquid Glass Layer: thick variant (sidebar) --- */
+  --swift-glass-thick-bg: rgba(255, 255, 255, 0.92);
+  --swift-glass-thick-blur: 60px;
+  --swift-glass-thick-saturate: 180%;
+  --swift-glass-thick-border: rgba(0, 0, 0, 0.08);
+  --swift-glass-thick-highlight: rgba(0, 0, 0, 0.02);
+
+  /* --- Liquid Glass Layer: regular variant (toolbar, tab bar) --- */
+  --swift-glass-regular-bg: rgba(255, 255, 255, 0.65);
+  --swift-glass-regular-blur: 40px;
+  --swift-glass-regular-saturate: 150%;
+  --swift-glass-regular-border: rgba(0, 0, 0, 0.10);
+  --swift-glass-regular-highlight: inset 0 0.5px 0 rgba(255, 255, 255, 0.5);
+
+  /* --- Liquid Glass Layer: clear variant (media overlays) --- */
+  --swift-glass-clear-bg: rgba(255, 255, 255, 0.35);
+  --swift-glass-clear-blur: 20px;
+  --swift-glass-clear-saturate: 120%;
+  --swift-glass-clear-border: rgba(0, 0, 0, 0.06);
+  --swift-glass-clear-highlight: inset 0 0.5px 0 rgba(255, 255, 255, 0.4);
+
+  /* --- Sidebar — Transparent glass --- */
+  --swift-sidebar-bg: rgba(255, 255, 255, 0.55);
+  --swift-sidebar-border: rgba(0, 0, 0, 0.06);
+  --swift-sidebar-hover: rgba(0, 0, 0, 0.04);
+  --swift-sidebar-separator: rgba(0, 0, 0, 0.08);
+
+  /* --- Right Panel --- */
+  --swift-panel-bg: rgba(245, 245, 247, 0.55);
+
+  /* --- Glass Tint --- */
+  --swift-glass-tint: rgba(0, 0, 0, 0.04);
+
+  /* --- Modal --- */
+  --swift-modal-backdrop: rgba(0, 0, 0, 0.3);
+  --swift-material-modal-bg: rgba(255, 255, 255, 0.95);
+  --swift-modal-bg: rgba(255, 255, 255, 0.95);
+
+  /* --- Shadows --- */
+  --swift-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --swift-shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.14);
+
+  /* --- Overlay --- */
+  --swift-overlay-bg: rgba(0, 0, 0, 0.2);
+
+  /* --- Selection --- */
+  --swift-selection-bg: rgba(107, 95, 0, 0.2);
+  --swift-selection-color: #1C1C1E;
+  --swift-selection-text: #1C1C1E;
+
+  /* --- Scrollbar --- */
+  --swift-scrollbar-thumb: rgba(0, 0, 0, 0.15);
+  --swift-scrollbar-thumb-hover: rgba(0, 0, 0, 0.28);
+
+  /* --- Standard Materials (Content Layer) --- */
+  --swift-material-primary-bg: rgba(255, 255, 255, 0.72);
+  --swift-material-secondary-bg: rgba(245, 245, 247, 0.78);
+  --swift-material-card-bg: rgba(0, 0, 0, 0.03);
+  --swift-material-card-hover-bg: rgba(0, 0, 0, 0.05);
+  --swift-material-input-bg: rgba(0, 0, 0, 0.03);
+  --swift-material-modal-bg: rgba(255, 255, 255, 0.95);
+  --swift-material-ultrathin-bg: rgba(0, 0, 0, 0.02);
+  --swift-material-thin-bg: rgba(0, 0, 0, 0.04);
+  --swift-material-regular-bg: rgba(245, 245, 247, 0.45);
+  --swift-material-thick-bg: rgba(255, 255, 255, 0.92);
+  --swift-material-ultrathick-bg: rgba(255, 255, 255, 0.95);
+
+  /* Legacy aliases */
+  --swift-material-primary: var(--swift-material-primary-bg);
+  --swift-material-secondary: var(--swift-material-secondary-bg);
+  --swift-material-card: var(--swift-material-card-bg);
+  --swift-material-card-hover: var(--swift-material-card-hover-bg);
+  --swift-material-input: var(--swift-material-input-bg);
+  --swift-material-modal: var(--swift-material-modal-bg);
+
+  /* --- Scroll Edge Effect --- */
+  --swift-scroll-edge-blur: 12px;
+  --swift-scroll-edge-bg: rgba(0, 0, 0, 0.06);
+}

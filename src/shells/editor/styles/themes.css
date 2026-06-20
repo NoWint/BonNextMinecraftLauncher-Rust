@@ -1,0 +1,37 @@
+.theme-dark .editor-shell,
+.editor-shell[data-theme='dark'] {
+  --editor-bg: #1c1c1e;
+  --editor-bg-secondary: #2c2c2e;
+  --editor-bg-tertiary: #3a3a3c;
+  --editor-bg-hover: #3a3a3c;
+  --editor-surface: #2c2c2e;
+  --editor-text: #ffffff;
+  --editor-text-secondary: #8e8e93;
+  --editor-text-tertiary: #636366;
+  --editor-border: rgba(255, 255, 255, 0.08);
+  --editor-border-active: var(--editor-accent);
+  --editor-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --editor-canvas-bg: #0d0d0d;
+  --editor-canvas-dot: rgba(255, 255, 255, 0.06);
+  --editor-selection: rgba(0, 122, 255, 0.2);
+  --editor-drop-target: rgba(0, 122, 255, 0.15);
+}
+
+.theme-light .editor-shell,
+.editor-shell[data-theme='light'] {
+  --editor-bg: #f5f5f7;
+  --editor-bg-secondary: #e8e8ed;
+  --editor-bg-tertiary: #d1d1d6;
+  --editor-bg-hover: #d1d1d6;
+  --editor-surface: #ffffff;
+  --editor-text: #1c1c1e;
+  --editor-text-secondary: #6e6e73;
+  --editor-text-tertiary: #aeaeb2;
+  --editor-border: rgba(0, 0, 0, 0.08);
+  --editor-border-active: var(--editor-accent);
+  --editor-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --editor-canvas-bg: #fafafa;
+  --editor-canvas-dot: rgba(0, 0, 0, 0.06);
+  --editor-selection: rgba(0, 122, 255, 0.15);
+  --editor-drop-target: rgba(0, 122, 255, 0.1);
+}

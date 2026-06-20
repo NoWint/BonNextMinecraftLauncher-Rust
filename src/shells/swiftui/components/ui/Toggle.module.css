@@ -1,0 +1,57 @@
+/* Toggle — macOS 26 HIG (Section 4.6) */
+
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  cursor: pointer;
+}
+
+.toggleDisabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.track {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--swift-radius-toggle);
+  transition: background var(--swift-duration-normal) var(--swift-spring-default);
+}
+
+.trackOff {
+  background: var(--swift-active-primary);
+}
+
+.trackOn {
+  background: #30D158;
+}
+
+.thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform var(--swift-duration-normal) var(--swift-spring-default);
+}
+
+.thumbOn {
+  transform: translateX(18px);
+}
+
+.input:focus-visible + .track {
+  outline: 2px solid var(--swift-border-focus);
+  outline-offset: 2px;
+}

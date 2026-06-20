@@ -1,0 +1,64 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Tauri / Rust build artifacts
+src-tauri/target/
+src-tauri/icons/
+
+# Build artifacts
+tsconfig.tsbuildinfo
+
+# Session files (not project code)
+.claude/
+.trae/
+.superpowers/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+accounts.json
+secrets.*
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# Temp/check files from development
+vitest-output.txt
+vitest-result.json
+cargo-*.txt
+rustup-status.txt
+rust-targets.txt
+gnu-*.txt
+self-contained.txt
+run-cargo-check.ps1
+run-check.ps1
+run-gnu-check.ps1

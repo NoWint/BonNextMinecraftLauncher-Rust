@@ -1,0 +1,68 @@
+/* List — macOS 26 HIG */
+
+.group {
+  margin-bottom: var(--swift-spacing-lg);
+}
+
+.groupLabel {
+  font: var(--swift-font-caption);
+  color: var(--swift-text-quaternary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0 var(--swift-spacing-lg) var(--swift-spacing-sm);
+}
+
+.list {
+  background: var(--swift-bg-card);
+  border: 0.5px solid var(--swift-border);
+  border-radius: var(--swift-radius-md);
+  overflow: hidden;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--swift-spacing-md);
+  padding: 8px 12px;
+  min-height: var(--swift-hit-region);
+  transition: background var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.item:not(:last-child) {
+  border-bottom: 0.5px solid var(--swift-border);
+}
+
+.item:hover {
+  background: var(--swift-bg-card-hover);
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--swift-border-focus);
+  outline-offset: -2px;
+}
+
+.item:active {
+  transform: scale(0.97);
+  transition-duration: 50ms;
+}
+
+.itemLabel {
+  flex: 1;
+  font: var(--swift-font-body);
+  color: var(--swift-text-primary);
+}
+
+.itemValue {
+  font: var(--swift-font-body);
+  color: var(--swift-text-secondary);
+}
+
+.itemIcon {
+  color: var(--swift-text-tertiary);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}

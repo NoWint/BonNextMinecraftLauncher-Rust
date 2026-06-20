@@ -1,0 +1,81 @@
+/* Modal — macOS 26 HIG (Section 4.10) */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--swift-modal-backdrop);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--swift-z-modal);
+  animation: swift-modal-backdrop-enter var(--swift-duration-normal) var(--swift-spring-gentle) both;
+}
+
+.modal {
+  background: var(--swift-modal-bg);
+  border: 0.5px solid var(--swift-border);
+  border-radius: var(--swift-radius-modal);
+  box-shadow: var(--swift-shadow-elevated);
+  max-width: 480px;
+  width: 100%;
+  max-height: 80vh;
+  overflow: hidden;
+  animation: swift-modal-enter var(--swift-duration-normal) var(--swift-spring-bouncy) both;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 24px var(--swift-spacing-md);
+}
+
+.title {
+  font: var(--swift-font-section-title);
+  color: var(--swift-text-primary);
+  margin: 0;
+}
+
+.closeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--swift-radius-sm);
+  background: transparent;
+  color: var(--swift-text-tertiary);
+  cursor: pointer;
+  transition: all var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.closeButton:hover {
+  background: var(--swift-bg-card-hover);
+  color: var(--swift-text-primary);
+}
+
+.closeButton:focus-visible {
+  outline: 2px solid var(--swift-border-focus);
+  outline-offset: 2px;
+}
+
+.closeButton:active {
+  transform: scale(0.97);
+  transition-duration: 50ms;
+}
+
+.body {
+  padding: 0 24px 24px;
+  overflow-y: auto;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--swift-spacing-md);
+  padding: var(--swift-spacing-md) 24px 24px;
+  border-top: 0.5px solid var(--swift-border);
+}

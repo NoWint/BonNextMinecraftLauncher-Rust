@@ -1,0 +1,94 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--editor-toolbar-height);
+  padding: 0 12px;
+  background: var(--editor-bg-secondary);
+  border-bottom: 1px solid var(--editor-border);
+  flex-shrink: 0;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--editor-accent);
+  white-space: nowrap;
+}
+
+.pageTabs {
+  display: flex;
+  gap: 2px;
+}
+
+.pageTab {
+  padding: 4px 10px;
+  background: transparent;
+  border: none;
+  color: var(--editor-text-secondary);
+  font-size: 11px;
+  border-radius: var(--editor-border-radius-sm);
+  cursor: pointer;
+  transition: all var(--editor-transition);
+  font-family: var(--editor-font);
+}
+
+.pageTab:hover {
+  background: var(--editor-bg-hover);
+  color: var(--editor-text);
+}
+
+.pageTabActive {
+  background: var(--editor-accent);
+  color: #fff;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.iconBtn {
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  color: var(--editor-text-secondary);
+  font-size: 14px;
+  border-radius: var(--editor-border-radius-sm);
+  cursor: pointer;
+  transition: all var(--editor-transition);
+}
+
+.iconBtn:hover:not(:disabled) {
+  background: var(--editor-bg-hover);
+  color: var(--editor-text);
+}
+
+.iconBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.saveBtn {
+  padding: 4px 14px;
+  background: var(--editor-accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--editor-border-radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--editor-transition);
+  font-family: var(--editor-font);
+}
+
+.saveBtn:hover {
+  opacity: 0.85;
+}

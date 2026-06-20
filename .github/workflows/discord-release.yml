@@ -1,0 +1,98 @@
+name: Discord Release Notification
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  notify:
+    name: Send Discord Embed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord Notification
+        uses: actions/github-script@v7
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          script: |
+            const release = context.payload.release;
+            const version = release.tag_name.replace('v', '');
+            const body = release.body || '';
+
+            const desc = body.length > 2000
+              ? body.substring(0, 1997) + '...'
+              : body || 'A new BonNext release is here.';
+
+            const assets = release.assets || [];
+            const dmg = assets.find(a => a.name.endsWith('.dmg'));
+            const msi = assets.find(a => a.name.endsWith('.msi'));
+            const exe = assets.find(a => a.name.endsWith('.exe') && a.name.includes('setup'));
+            const appImage = assets.find(a => a.name.endsWith('.AppImage'));
+            const deb = assets.find(a => a.name.endsWith('.deb'));
+
+            let downloadLinks = '';
+            if (dmg) downloadLinks += `[🍎 macOS .dmg](${dmg.browser_download_url}) · `;
+            if (msi) downloadLinks += `[🪟 Windows .msi](${msi.browser_download_url})\n`;
+            else if (exe) downloadLinks += `[🪟 Windows .exe](${exe.browser_download_url})\n`;
+            if (deb) downloadLinks += `[🐧 Linux .deb](${deb.browser_download_url}) · `;
+            if (appImage) downloadLinks += `[🐧 AppImage](${appImage.browser_download_url})`;
+
+            const embed = {
+              title: `🚀 BonNext v${version} — Now Available`,
+              description: desc,
+              url: release.html_url,
+              color: 0xFFE600,
+              timestamp: new Date().toISOString(),
+              author: {
+                name: 'BonNext · Not a launcher. An entrance.',
+                url: 'https://github.com/NoWint/BonNextMinecraftLauncher-Rust',
+              },
+              thumbnail: {
+                url: 'https://raw.githubusercontent.com/NoWint/BonNextMinecraftLauncher-Rust/main/public/bonnext-icon.svg',
+              },
+              fields: [
+                {
+                  name: '📦 Downloads',
+                  value: downloadLinks || 'Available on [GitHub Releases](' + release.html_url + ')',
+                  inline: false,
+                },
+                {
+                  name: '🏷️ Tag',
+                  value: release.tag_name,
+                  inline: true,
+                },
+                {
+                  name: '📅 Published',
+                  value: new Date(release.published_at).toLocaleDateString('en-US', {
+                    year: 'numeric', month: 'long', day: 'numeric',
+                  }),
+                  inline: true,
+                },
+              ],
+              footer: {
+                text: 'BonNext · Cross-platform Minecraft Launcher',
+              },
+              image: {
+                url: 'https://raw.githubusercontent.com/NoWint/BonNextMinecraftLauncher-Rust/main/banner.png',
+              },
+            };
+
+            const webhookUrl = process.env.DISCORD_WEBHOOK;
+            if (!webhookUrl) {
+              console.error('DISCORD_WEBHOOK secret is not set!');
+              process.exit(1);
+            }
+            const res = await fetch(webhookUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                content: `**BonNext v${version}** has been released! 🎉`,
+                embeds: [embed],
+              }),
+            });
+
+            if (!res.ok) {
+              console.error('Discord webhook failed:', res.status, await res.text());
+              process.exit(1);
+            }
+            console.log('✅ Discord notification sent!');

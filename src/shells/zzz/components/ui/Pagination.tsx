@@ -1,0 +1,50 @@
+import React from 'react';
+import { Icon } from './Icon';
+import styles from './Pagination.module.css';
+
+interface PaginationProps {
+  current: number;
+  total: number;
+  onPage: (page: number) => void;
+  className?: string;
+}
+
+export const Pagination: React.FC<PaginationProps> = ({ current, total, onPage, className = '' }) => {
+  if (total <= 1) return null;
+
+  const pages: number[] = [];
+  for (let i = 1; i <= Math.min(total, 7); i++) {
+    pages.push(i);
+  }
+  if (total > 7) {
+    pages.push(-1);
+    pages.push(total);
+  }
+
+  return (
+    <div className={`${styles.pagination} ${className}`} role="navigation" aria-label="Pagination">
+      <button className={styles.page} aria-label="Previous page" disabled={current <= 1} onClick={() => onPage(current - 1)}>
+        <Icon name="chevronLeft" size={14} />
+      </button>
+      {pages.map((p) =>
+        p === -1 ? (
+          <span key="ellipsis" style={{ color: '#444', padding: '0 4px' }}>
+            ...
+          </span>
+        ) : (
+          <button
+            key={p}
+            className={`${styles.page} ${p === current ? styles['page--active'] : ''}`}
+            onClick={() => onPage(p)}
+            aria-current={p === current ? 'page' : undefined}
+          >
+            {p}
+          </button>
+        ),
+      )}
+      <button className={styles.page} aria-label="Next page" disabled={current >= total} onClick={() => onPage(current + 1)}>
+        <Icon name="chevronRight" size={14} />
+      </button>
+    </div>
+  );
+};

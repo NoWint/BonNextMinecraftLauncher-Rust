@@ -1,0 +1,9 @@
+[advisories]
+ignore = [
+    "RUSTSEC-2025-0098",  # unic-ucd-version is unmaintained
+    "RUSTSEC-2024-0429",  # glib unsoundness (upstream fix pending)
+    "RUSTSEC-2025-0081",  # unic-char-property is unmaintained
+    "RUSTSEC-2025-0075",  # unic-char-range is unmaintained
+    "RUSTSEC-2025-0080",  # unic-common is unmaintained
+    "RUSTSEC-2025-0100",  # unic-ucd-ident is unmaintained
+]

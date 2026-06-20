@@ -1,0 +1,35 @@
+/* Badge — macOS 26 HIG (Section 4.5) */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: var(--swift-radius-pill);
+  font: var(--swift-font-caption);
+  white-space: nowrap;
+}
+
+.default {
+  background: var(--swift-active-primary);
+  color: var(--swift-text-tertiary);
+}
+
+.accent {
+  background: var(--swift-accent-tint-12);
+  color: var(--swift-accent);
+}
+
+.success {
+  background: rgba(48, 209, 88, 0.12);
+  color: var(--swift-success);
+}
+
+.warning {
+  background: rgba(255, 159, 10, 0.12);
+  color: var(--swift-warning);
+}
+
+.error {
+  background: var(--swift-destructive);
+  color: var(--swift-destructive-text);
+}

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文件树功能分析与竞品对比</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 14px; line-height: 1.7; color: #1d1d1f;
+    background: #f5f5f7; padding: 40px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 32px; letter-spacing: -0.5px; }
+  h2 { font-size: 20px; font-weight: 600; margin: 40px 0 20px; padding-bottom: 8px; border-bottom: 2px solid #0071e3; }
+  h3 { font-size: 16px; font-weight: 600; margin: 24px 0 12px; color: #0071e3; }
+
+  .section { background: #fff; border-radius: 12px; padding: 28px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+
+  .problem-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 16px; }
+  .problem-card {
+    background: #fff5f5; border: 1px solid #fed7d7; border-radius: 8px;
+    padding: 16px;
+  }
+  .problem-card .severity { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .problem-card .severity.critical { color: #c53030; }
+  .problem-card .severity.major { color: #c05621; }
+  .problem-card .severity.minor { color: #744210; }
+  .problem-card h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .problem-card p { font-size: 13px; color: #4a5568; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+  th, td { border: 1px solid #e2e8f0; padding: 12px 14px; text-align: left; }
+  th { background: #f7fafc; font-weight: 600; font-size: 12px; color: #4a5568; }
+  td { color: #2d3748; }
+  tr:nth-child(even) td { background: #fafafa; }
+  .check { color: #38a169; font-weight: 600; }
+  .cross { color: #e53e3e; font-weight: 600; }
+  .partial { color: #d69e2e; font-weight: 600; }
+
+  .highlight-box {
+    background: #ebf8ff; border-left: 4px solid #0071e3;
+    padding: 16px 20px; border-radius: 0 8px 8px 0; margin: 16px 0;
+  }
+
+  .approach-card {
+    background: #f0fff4; border: 1px solid #9ae6b4; border-radius: 8px;
+    padding: 20px; margin: 12px 0;
+  }
+  .approach-card h4 { font-size: 15px; font-weight: 600; margin-bottom: 8px; color: #22543d; }
+  .approach-card ul { margin-left: 20px; font-size: 13px; color: #2d3748; }
+  .approach-card li { margin-bottom: 4px; }
+
+  .metric-bar {
+    display: flex; align-items: center; gap: 12px; margin: 8px 0;
+  }
+  .metric-bar .label { width: 140px; font-size: 13px; font-weight: 500; }
+  .metric-bar .bar-bg {
+    flex: 1; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;
+  }
+  .metric-bar .bar-fill {
+    height: 100%; border-radius: 4px;
+  }
+  .metric-bar .value { width: 40px; text-align: right; font-size: 12px; font-weight: 600; }
+
+  .footer { text-align: center; color: #718096; font-size: 12px; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>文件树功能分析与竞品对比报告</h1>
+
+<div class="section">
+<h2>一、当前文件树异常与痛点分析</h2>
+
+<h3>1.1 逻辑结构问题</h3>
+<div class="problem-grid">
+  <div class="problem-card">
+    <div class="severity critical">Critical</div>
+    <h4>文件夹不可点击导航</h4>
+    <p>文件夹仅作为分类容器，点击无任何响应。用户期望点击文件夹标题能展开/折叠，或跳转到该分类的索引页。</p>
+  </div>
+  <div class="problem-card">
+    <div class="severity critical">Critical</div>
+    <h4>无当前位置高亮持久化</h4>
+    <p>刷新页面后，侧边栏折叠状态丢失，用户需要重新展开层级才能看到当前所在位置。无 URL hash 或 localStorage 状态保存。</p>
+  </div>
+  <div class="problem-card">
+    <div class="severity major">Major</div>
+    <h4>搜索仅过滤可见项</h4>
+    <p>搜索时若父文件夹已折叠，子项即使匹配也不会被显示。必须先手动展开所有文件夹才能全局搜索。</p>
+  </div>
+  <div class="problem-card">
+    <div class="severity major">Major</div>
+    <h4>无文件图标/类型区分</h4>
+    <p>所有文件使用相同的文本链接样式，无法一眼区分文档类型（指南、API、教程等）。</p>
+  </div>
+  <div class="problem-card">
+    <div class="severity major">Major</div>
+    <h4>面包屑路径不可交互</h4>
+    <p>面包屑中间节点是静态文本而非链接，用户无法通过面包屑快速跳转到上级分类。</p>
+  </div>
+  <div class="problem-card">
+    <div class="severity minor">Minor</div>
+    <h4>无滚动位置记忆</h4>
+    <p>切换页面后，侧边栏滚动位置重置到顶部，用户在大文档树中容易迷失位置。</p>
+  </div>
+</div>
+
+<h3>1.2 交互体验问题</h3>
+<div class="problem-grid">
+  <div class="problem-card">
+    <div class="severity major">Major</div>
+    <h4>折叠动画生硬</h4>
+    <p>CSS max-height 动画在内容高度不确定时会出现卡顿或跳变，且未处理 prefers-reduced-motion。</p>
+  </div>
+  <div class="problem-card">
+    <div class="severity minor">Minor</div>
+    <h4>移动端遮罩层缺失</h4>
+    <p>打开侧边栏后没有半透明遮罩，点击内容区关闭不够直观。</p>
+  </div>
+  <div class="problem-card">
+    <div class="severity minor">Minor</div>
+    <h4>键盘导航缺失</h4>
+    <p>无法使用 Tab/Arrow 键在导航树中移动，无障碍支持不足。</p>
+  </div>
+</div>
+
+<h3>1.3 性能问题</h3>
+<div class="problem-grid">
+  <div class="problem-card">
+    <div class="severity major">Major</div>
+    <h4>大数据量无虚拟滚动</h4>
+    <p>若文档树超过 100 项，所有节点一次性渲染，DOM 节点过多导致滚动卡顿。</p>
+  </div>
+  <div class="problem-card">
+    <div class="severity minor">Minor</div>
+    <h4>搜索无防抖</h4>
+    <p>每次输入字符都立即执行 DOM 遍历过滤，大数据量时输入卡顿。</p>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h2>二、竞品对比分析</h2>
+
+<h3>2.1 对比维度总览</h3>
+<table>
+<tr>
+  <th>维度</th>
+  <th>VitePress</th>
+  <th>Docusaurus</th>
+  <th>GitBook</th>
+  <th>当前实现</th>
+</tr>
+<tr>
+  <td><strong>文件组织</strong></td>
+  <td><span class="check">✓</span> 配置驱动 + 文件系统</td>
+  <td><span class="check">✓</span> 配置驱动 + 文件系统</td>
+  <td><span class="check">✓</span> 可视化拖拽组织</td>
+  <td><span class="partial">△</span> 纯文件系统（无配置覆盖）</td>
+</tr>
+<tr>
+  <td><strong>节点展开/折叠</strong></td>
+  <td><span class="check">✓</span> 点击箭头展开，记忆状态</td>
+  <td><span class="check">✓</span> 点击分类展开，自动展开当前路径</td>
+  <td><span class="check">✓</span> 平滑动画，自动展开当前页</td>
+  <td><span class="cross">✗</span> 点击标题无响应，状态不持久</td>
+</tr>
+<tr>
+  <td><strong>路径导航</strong></td>
+  <td><span class="check">✓</span> 面包屑 + 页面内 TOC</td>
+  <td><span class="check">✓</span> 面包屑 + 自动分页导航</td>
+  <td><span class="check">✓</span> 面包屑 + 页面内导航</td>
+  <td><span class="partial">△</span> 面包屑静态文本，无交互</td>
+</tr>
+<tr>
+  <td><strong>搜索过滤</strong></td>
+  <td><span class="check">✓</span> 全局搜索（Algolia/本地 MiniSearch）</td>
+  <td><span class="check">✓</span> 全局搜索（Algolia/本地）</td>
+  <td><span class="check">✓</span> 实时全局搜索，高亮匹配</td>
+  <td><span class="cross">✗</span> 仅过滤可见节点，无高亮</td>
+</tr>
+<tr>
+  <td><strong>拖拽交互</strong></td>
+  <td><span class="cross">✗</span> 无（配置驱动）</td>
+  <td><span class="cross">✗</span> 无（配置驱动）</td>
+  <td><span class="check">✓</span> 完整拖拽重排</td>
+  <td><span class="cross">✗</span> 无</td>
+</tr>
+<tr>
+  <td><strong>大数据量性能</strong></td>
+  <td><span class="check">✓</span> 静态生成，按需加载</td>
+  <td><span class="check">✓</span> 代码分割，按需加载</td>
+  <td><span class="check">✓</span> 虚拟滚动 + 懒加载</td>
+  <td><span class="cross">✗</span> 全量渲染，无优化</td>
+</tr>
+<tr>
+  <td><strong>状态持久化</strong></td>
+  <td><span class="check">✓</span> localStorage 记忆折叠</td>
+  <td><span class="check">✓</span> localStorage 记忆折叠</td>
+  <td><span class="check">✓</span> 服务端持久化</td>
+  <td><span class="cross">✗</span> 无持久化</td>
+</tr>
+<tr>
+  <td><strong>键盘无障碍</strong></td>
+  <td><span class="check">✓</span> 完整键盘导航</td>
+  <td><span class="check">✓</span> 完整键盘导航</td>
+  <td><span class="check">✓</span> 完整键盘导航</td>
+  <td><span class="cross">✗</span> 无支持</td>
+</tr>
+</table>
+
+<h3>2.2 各产品详细分析</h3>
+
+<div class="highlight-box">
+<strong>VitePress</strong> — 最轻量的文档站方案。文件树通过 <code>.vitepress/config.js</code> 的 <code>sidebar</code> 配置定义，支持嵌套分组、可折叠、链接分组（点击分组标题跳转）。使用 MiniSearch 实现本地全文搜索。状态通过 localStorage 自动持久化。性能优异，因为所有页面都是预渲染的静态 HTML。
+</div>
+
+<div class="highlight-box">
+<strong>Docusaurus</strong> — 功能最全面的方案。文件树通过 <code>sidebars.js</code> 配置，支持自动生成（基于文件系统）和手动配置混合。自动展开当前路径的所有父节点。内置 @docusaurus/plugin-content-docs 支持分页导航（上一页/下一页）。搜索通过 Algolia DocSearch 或本地搜索插件实现。
+</div>
+
+<div class="highlight-box">
+<strong>GitBook</strong> — 商业化体验标杆。完全可视化编辑，文件树即拖拽式目录管理。实时协作、评论、变更历史。搜索是全文索引 + 实时高亮。性能通过虚拟滚动和分页加载保证。但它是 SaaS 产品，无法本地部署。
+</div>
+</div>
+
+<div class="section">
+<h2>三、优化方案</h2>
+
+<h3>方案 A：最小改动修复（推荐）</h3>
+<div class="approach-card">
+<h4>核心思路：修复现有逻辑异常，不引入新依赖</h4>
+<ul>
+  <li><strong>文件夹可点击</strong>：文件夹标题添加点击展开/折叠，箭头仅作为视觉指示</li>
+  <li><strong>状态持久化</strong>：localStorage 保存折叠状态和滚动位置</li>
+  <li><strong>全局搜索</strong>：搜索时自动展开匹配的父文件夹，高亮匹配文本</li>
+  <li><strong>面包屑可交互</strong>：中间节点变为链接，可跳转到分类索引</li>
+  <li><strong>防抖搜索</strong>：输入防抖 150ms，减少 DOM 操作频率</li>
+  <li><strong>当前路径自动展开</strong>：页面加载时自动展开当前文件的所有父文件夹</li>
+</ul>
+</div>
+
+<h3>方案 B：配置驱动重构</h3>
+<div class="approach-card">
+<h4>核心思路：引入 sidebar 配置文件，分离内容与结构</h4>
+<ul>
+  <li>新增 <code>sidebar.json</code> 定义导航结构，支持手动排序、隐藏文件、自定义标题</li>
+  <li>文件系统作为 fallback，自动扫描未在配置中声明的文件</li>
+  <li>支持"链接分组"——点击文件夹标题跳转到该分类的索引页</li>
+  <li>构建时校验配置与文件系统一致性</li>
+</ul>
+</div>
+
+<h3>方案 C：完整功能增强</h3>
+<div class="approach-card">
+<h4>核心思路：对标 VitePress/Docusaurus 的完整体验</h4>
+<ul>
+  <li>所有方案 A 的修复</li>
+  <li>配置驱动（方案 B）</li>
+  <li>页面内 TOC（Table of Contents）自动生成</li>
+  <li>上一页/下一页分页导航</li>
+  <li>本地全文搜索索引（构建时生成 search.json）</li>
+  <li>键盘导航支持（Tab/Arrow/Enter/Escape）</li>
+  <li>虚拟滚动（文档树 > 50 项时启用）</li>
+</ul>
+</div>
+
+<h3>推荐选择：方案 A + 方案 B 的核心配置驱动</h3>
+<p>理由：当前 Wiki 是纯静态生成器，方案 A 修复所有逻辑异常，方案 B 的配置驱动解决"文件系统即结构"的刚性问题。不引入虚拟滚动和全文搜索（因为文档量小，且会增加构建复杂度）。</p>
+</div>
+
+<div class="section">
+<h2>四、优化前后对比预期</h2>
+
+<h3>用户体验评分（1-10）</h3>
+<div class="metric-bar">
+  <div class="label">导航清晰度</div>
+  <div class="bar-bg"><div class="bar-fill" style="width:40%;background:#e53e3e;"></div></div>
+  <div class="value">4 →</div>
+  <div class="bar-bg"><div class="bar-fill" style="width:85%;background:#38a169;"></div></div>
+  <div class="value">8.5</div>
+</div>
+<div class="metric-bar">
+  <div class="label">搜索效率</div>
+  <div class="bar-bg"><div class="bar-fill" style="width:25%;background:#e53e3e;"></div></div>
+  <div class="value">2.5 →</div>
+  <div class="bar-bg"><div class="bar-fill" style="width:80%;background:#38a169;"></div></div>
+  <div class="value">8</div>
+</div>
+<div class="metric-bar">
+  <div class="label">状态持久化</div>
+  <div class="bar-bg"><div class="bar-fill" style="width:0%;background:#e53e3e;"></div></div>
+  <div class="value">0 →</div>
+  <div class="bar-bg"><div class="bar-fill" style="width:90%;background:#38a169;"></div></div>
+  <div class="value">9</div>
+</div>
+<div class="metric-bar">
+  <div class="label">交互流畅度</div>
+  <div class="bar-bg"><div class="bar-fill" style="width:50%;background:#d69e2e;"></div></div>
+  <div class="value">5 →</div>
+  <div class="bar-bg"><div class="bar-fill" style="width:85%;background:#38a169;"></div></div>
+  <div class="value">8.5</div>
+</div>
+<div class="metric-bar">
+  <div class="label">无障碍支持</div>
+  <div class="bar-bg"><div class="bar-fill" style="width:10%;background:#e53e3e;"></div></div>
+  <div class="value">1 →</div>
+  <div class="bar-bg"><div class="bar-fill" style="width:70%;background:#38a169;"></div></div>
+  <div class="value">7</div>
+</div>
+</div>
+
+<div class="footer">
+  BonNext Wiki v2 文件树优化分析 · 生成于 2026-05-29
+</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,749 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.loadingWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--color-border-light);
+  border-top-color: var(--color-accent);
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  animation: spin-clip 0.8s linear infinite;
+}
+
+.notFound {
+  color: var(--color-text-dim);
+  font-size: 0.7em;
+  padding: 40px;
+  text-align: center;
+}
+
+.topBar {
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border-light);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.topBarIcon {
+  width: 48px;
+  height: 48px;
+  background: var(--color-panel-alt);
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent);
+  font-size: 1.3em;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 2px solid var(--color-border-light);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.topBarIcon:hover {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 12px rgba(255, 230, 0, 0.15);
+}
+
+.topBarIconSuccess {
+  border-color: var(--color-success);
+  box-shadow: 0 0 12px rgba(0, 255, 136, 0.2);
+}
+
+.topBarIconError {
+  border-color: var(--color-error);
+  box-shadow: 0 0 12px rgba(255, 60, 60, 0.2);
+}
+
+.topBarIconLoading {
+  border-color: var(--color-accent);
+  animation: icon-loading-pulse 1s ease-in-out infinite;
+}
+
+.topBarIconImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.topBarIconEmoji {
+  font-size: 1.3em;
+  line-height: 1;
+}
+
+.iconStatusOverlay {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  font-size: 0.7em;
+  background: var(--color-bg);
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 0);
+}
+
+.topBarInfo {
+  flex: 1;
+}
+
+.topBarNameRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topBarName {
+  font-family: var(--font-heading);
+  font-size: 1.3em;
+  color: var(--color-text);
+  letter-spacing: 3px;
+}
+
+.topBarMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.topBarMetaText {
+  font-size: 0.55em;
+  color: var(--color-text-muted);
+}
+
+.topBarMetaSep {
+  width: 1px;
+  height: 8px;
+  background: var(--color-text-dim);
+}
+
+.topBarRam {
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+  color: var(--color-accent);
+}
+
+.topBarActions {
+  display: flex;
+  gap: 6px;
+}
+
+.error {
+  color: var(--color-error);
+  font-size: 0.55em;
+}
+
+.tabContent {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+.leftCol {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rightCol {
+  width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.infoCard {
+  background: var(--color-panel);
+  border: 1px solid var(--color-panel-alt);
+  padding: 16px;
+}
+
+.infoCardHeader {
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+  letter-spacing: 3px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.infoRowLabel {
+  font-size: 0.6em;
+  color: var(--color-text-tertiary);
+}
+
+.infoRowValue {
+  font-size: 0.6em;
+  color: var(--color-text);
+}
+
+.infoRowValueMono {
+  font-size: 0.6em;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+}
+
+.statCard {
+  background: var(--color-panel);
+  border: 1px solid var(--color-panel-alt);
+  padding: 16px;
+  text-align: center;
+}
+
+.statCardLabel {
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+.statCardValue {
+  font-family: var(--font-mono);
+  font-size: 1.2em;
+  color: var(--color-text);
+}
+
+.statCardSub {
+  font-size: 0.45em;
+  color: var(--color-text-dim);
+  margin-top: 2px;
+}
+
+.statBar {
+  margin-top: 8px;
+  height: 4px;
+  background: var(--color-border-light);
+}
+
+.statBarFill {
+  height: 100%;
+  background: var(--color-accent);
+}
+
+.exportBtn {
+  margin-top: auto;
+}
+
+.placeholderTab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--color-text-dim);
+  color: var(--color-text-dim);
+  font-size: 0.7em;
+}
+
+.snapshotsTab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.snapshotsHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.snapshotsCreateRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.snapshotInput {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border-light);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 0.6em;
+  padding: 8px 12px;
+  outline: none;
+  flex: 1;
+  max-width: 320px;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+}
+
+.snapshotInput::placeholder {
+  color: var(--color-text-dim);
+}
+
+.snapshotInput:focus {
+  border-color: var(--color-accent);
+}
+
+.snapshotList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.snapshotTableHeader {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+  letter-spacing: 2px;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.snapshotRow {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-panel-alt);
+  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+  transition: background 0.15s ease;
+}
+
+.snapshotRow:hover {
+  background: var(--color-panel-alt);
+}
+
+.snapshotColName {
+  flex: 2;
+  font-size: 0.6em;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snapshotColDate {
+  flex: 1.5;
+  font-size: 0.55em;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+}
+
+.snapshotColSize {
+  flex: 0 0 90px;
+  font-size: 0.55em;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+.snapshotColActions {
+  flex: 0 0 180px;
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.migrateTab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.migrateSection {
+  background: var(--color-panel);
+  border: 1px solid var(--color-panel-alt);
+  padding: 16px;
+}
+
+.migrateSectionHeader {
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+  letter-spacing: 3px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.migrateDesc {
+  font-size: 0.55em;
+  color: var(--color-text-dim);
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.migrateRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.migrateSelect {
+  background: #0a0a0a;
+  border: 1px solid var(--color-border-light);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+  padding: 6px 10px;
+  outline: none;
+  clip-path: var(--clip-small);
+  min-width: 200px;
+  cursor: pointer;
+  appearance: none;
+}
+
+.migrateSelect:focus {
+  border-color: var(--color-accent);
+}
+
+.migrateSelect option {
+  background: #141414;
+  color: var(--color-text);
+}
+
+.migrateResults {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.migrateEmpty {
+  font-size: 0.55em;
+  color: var(--color-success);
+  font-family: var(--font-mono);
+  padding: 10px 0;
+}
+
+.migrateResultItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border-light);
+  clip-path: var(--clip-small);
+}
+
+.migrateResultInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.migrateResultName {
+  font-size: 0.55em;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.migrateResultSlug {
+  font-size: 0.45em;
+  color: var(--color-text-dim);
+  font-family: var(--font-mono);
+}
+
+.migrateResultRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.migrateResultDetail {
+  font-size: 0.45em;
+  color: var(--color-text-muted);
+  max-width: 200px;
+  text-align: right;
+}
+
+.badgeGreen {
+  background: rgba(0, 255, 136, 0.12);
+  color: #00ff88;
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  clip-path: var(--clip-badge);
+  padding: 2px 10px;
+  font-size: 0.45em;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-family: var(--font-heading);
+}
+
+.badgeYellow {
+  background: rgba(255, 230, 0, 0.12);
+  color: #ffe600;
+  border: 1px solid rgba(255, 230, 0, 0.3);
+  clip-path: var(--clip-badge);
+  padding: 2px 10px;
+  font-size: 0.45em;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-family: var(--font-heading);
+}
+
+.badgeGray {
+  background: rgba(170, 170, 170, 0.12);
+  color: #aaaaaa;
+  border: 1px solid rgba(170, 170, 170, 0.3);
+  clip-path: var(--clip-badge);
+  padding: 2px 10px;
+  font-size: 0.45em;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-family: var(--font-heading);
+}
+
+.migrateMemoryResult {
+  font-size: 0.55em;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+}
+
+.migrateMemoryResult strong {
+  color: var(--color-accent);
+}
+
+.profileTab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.profileContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profileHeader {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+  letter-spacing: 2px;
+  border-bottom: 1px solid var(--color-border-light);
+  margin-bottom: 4px;
+}
+
+.profileHeaderStage {
+  flex: 0 0 160px;
+}
+
+.profileHeaderDuration {
+  flex: 1;
+}
+
+.profileHeaderDetails {
+  flex: 0 0 200px;
+  text-align: right;
+}
+
+.profileRow {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-panel-alt);
+  clip-path: var(--clip-small);
+}
+
+.profileStage {
+  flex: 0 0 160px;
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+  color: var(--color-text);
+}
+
+.profileBarWrap {
+  flex: 1;
+  position: relative;
+  height: 20px;
+  background: var(--color-sidebar);
+  border: 1px solid var(--color-border-light);
+  margin: 0 12px;
+  clip-path: var(--clip-small);
+  overflow: hidden;
+}
+
+.profileBar {
+  height: 100%;
+  clip-path: var(--clip-small);
+  transition: width 0.4s ease;
+}
+
+.profileDuration {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 0.45em;
+  color: var(--color-text);
+  z-index: var(--z-base);
+}
+
+.profileDetails {
+  flex: 0 0 200px;
+  font-size: 0.5em;
+  color: var(--color-text-dim);
+  text-align: right;
+}
+
+.barGreen {
+  background: var(--color-success);
+}
+
+.barYellow {
+  background: var(--color-accent);
+}
+
+.barRed {
+  background: var(--color-error);
+}
+
+.fpsTab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.fpsContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fpsStats {
+  display: flex;
+  gap: 10px;
+}
+
+.fpsStatCard {
+  flex: 1;
+  background: var(--color-panel);
+  border: 1px solid var(--color-panel-alt);
+  clip-path: var(--clip-medium);
+  padding: 18px;
+  text-align: center;
+}
+
+.fpsStatLabel {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+  letter-spacing: 2px;
+  margin-bottom: 6px;
+}
+
+.fpsStatValue {
+  font-family: var(--font-heading);
+  font-size: 1.6em;
+  color: var(--color-accent);
+  letter-spacing: 2px;
+}
+
+.fpsChartSection {
+  background: var(--color-panel);
+  border: 1px solid var(--color-panel-alt);
+  clip-path: var(--clip-medium);
+  padding: 16px;
+}
+
+.fpsChartHeader {
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+  letter-spacing: 3px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.fpsChart {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.fpsBarRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fpsBarIndex {
+  flex: 0 0 28px;
+  font-family: var(--font-mono);
+  font-size: 0.45em;
+  color: var(--color-text-dim);
+  text-align: right;
+}
+
+.fpsBarTrack {
+  flex: 1;
+  height: 14px;
+  background: var(--color-sidebar);
+  border: 1px solid var(--color-border-light);
+  clip-path: var(--clip-small);
+  overflow: hidden;
+}
+
+.fpsBar {
+  height: 100%;
+  clip-path: var(--clip-small);
+  transition: width 0.3s ease;
+}
+
+.fpsBarValue {
+  flex: 0 0 60px;
+  font-family: var(--font-mono);
+  font-size: 0.45em;
+  color: var(--color-text-secondary);
+  text-align: right;
+}
+
+@keyframes icon-loading-pulse {
+  0%,
+  100% {
+    border-color: var(--color-accent);
+  }
+  50% {
+    border-color: var(--color-border-light);
+  }
+}

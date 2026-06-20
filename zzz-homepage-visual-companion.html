@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZZZ Neo-Tokyo Homepage — Visual Companion</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Typography */
+  --font-heading: 'Bebas Neue', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'DM Mono', 'SF Mono', 'Fira Code', monospace;
+
+  /* Dark theme tokens (default) */
+  --dt-bg: #0d0d0d;
+  --dt-panel: #141414;
+  --dt-panel-alt: #1a1a1a;
+  --dt-sidebar: #0f0f0f;
+  --dt-border: #1a1a1a;
+  --dt-border-mid: #1f1f1f;
+  --dt-border-light: #2a2a2a;
+  --dt-accent: #ffe600;
+  --dt-accent-06: rgba(255,230,0,0.06);
+  --dt-accent-10: rgba(255,230,0,0.10);
+  --dt-accent-15: rgba(255,230,0,0.15);
+  --dt-accent-20: rgba(255,230,0,0.20);
+  --dt-accent-30: rgba(255,230,0,0.30);
+  --dt-success: #00ff88;
+  --dt-error: #ff4444;
+  --dt-text: #ffffff;
+  --dt-text-secondary: #aaa;
+  --dt-text-tertiary: #888;
+  --dt-text-muted: #666;
+  --dt-text-dim: #555;
+  --dt-overlay: rgba(0,0,0,0.8);
+
+  /* Light theme tokens */
+  --lt-bg: #fafafa;
+  --lt-panel: #f0f0f0;
+  --lt-panel-alt: #e8e8e8;
+  --lt-sidebar: #f5f5f5;
+  --lt-border: #e0e0e0;
+  --lt-border-mid: #d5d5d5;
+  --lt-border-light: #cccccc;
+  --lt-accent: #6b5f00;
+  --lt-accent-06: rgba(107,95,0,0.06);
+  --lt-accent-10: rgba(107,95,0,0.10);
+  --lt-accent-15: rgba(107,95,0,0.15);
+  --lt-accent-20: rgba(107,95,0,0.20);
+  --lt-accent-30: rgba(107,95,0,0.30);
+  --lt-success: #008844;
+  --lt-error: #cc2222;
+  --lt-text: #1a1a1a;
+  --lt-text-secondary: #555;
+  --lt-text-tertiary: #777;
+  --lt-text-muted: #999;
+  --lt-text-dim: #aaa;
+  --lt-overlay: rgba(250,250,250,0.8);
+
+  /* Clip paths */
+  --clip-primary: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  --clip-medium: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  --clip-small: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  --clip-badge: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+  --clip-diamond: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  --clip-icon: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+body {
+  font-family: var(--font-body);
+  background: #111;
+  color: #fff;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* ============================================================
+   LAYOUT WRAPPER
+   ============================================================ */
+.companion-header {
+  text-align: center;
+  padding: 32px 24px 16px;
+  background: #0a0a0a;
+  border-bottom: 1px solid #222;
+}
+.companion-header h1 {
+  font-family: var(--font-heading);
+  font-size: 2.2em;
+  letter-spacing: 8px;
+  color: #ffe600;
+  text-transform: uppercase;
+}
+.companion-header p {
+  font-size: 0.6em;
+  color: #666;
+  letter-spacing: 2px;
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+.companion-header .theme-badges {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+.companion-header .theme-badge {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  padding: 4px 12px;
+  border-radius: 100px;
+  letter-spacing: 1px;
+}
+.badge-dark { background: #ffe600; color: #0d0d0d; }
+.badge-light { background: #6b5f00; color: #fafafa; }
+
+/* ============================================================
+   SIDE-BY-SIDE CONTAINER
+   ============================================================ */
+.split-view {
+  display: flex;
+  gap: 0;
+  min-height: calc(100vh - 140px);
+}
+.theme-column {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  padding: 20px;
+}
+.theme-column::before {
+  content: attr(data-label);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: block;
+  text-align: center;
+  font-family: var(--font-heading);
+  font-size: 0.7em;
+  letter-spacing: 4px;
+  padding: 8px 16px;
+  margin: -20px -20px 20px -20px;
+  text-transform: uppercase;
+}
+.column-dark {
+  background: #0d0d0d;
+  border-right: 1px solid #1a1a1a;
+}
+.column-dark::before {
+  background: #141414;
+  color: #ffe600;
+  border-bottom: 1px solid #1a1a1a;
+}
+.column-light {
+  background: #fafafa;
+}
+.column-light::before {
+  background: #f0f0f0;
+  color: #6b5f00;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* ============================================================
+   APP SHELL (scaled down)
+   ============================================================ */
+.app-shell {
+  display: flex;
+  height: 780px;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  transform-origin: top center;
+}
+
+/* Noise overlay */
+.noise-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.light .noise-overlay { display: none; }
+
+/* Scanline overlay */
+.scanline-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 101;
+  pointer-events: none;
+  opacity: 0.02;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255,255,255,0.3) 2px,
+    rgba(255,255,255,0.3) 3px
+  );
+}
+.light .scanline-overlay { display: none; }
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+.sidebar {
+  width: 190px;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px;
+  z-index: 5;
+  position: relative;
+}
+
+.dark .sidebar { background: #0f0f0f; border-right: 1px solid #1a1a1a; }
+.light .sidebar { background: #f5f5f5; border-right: 1px solid #e0e0e0; }
+
+/* Logo area */
+.sb-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+.sb-diamond {
+  width: 18px;
+  height: 18px;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+.dark .sb-diamond { background: #ffe600; }
+.light .sb-diamond { background: #6b5f00; }
+.sb-logo-text {
+  font-family: var(--font-heading);
+  font-size: 1.1em;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+.dark .sb-logo-text { color: #ffffff; }
+.light .sb-logo-text { color: #1a1a1a; }
+
+/* Signal indicator */
+.sb-signal {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px;
+  margin-bottom: 18px;
+}
+.sb-signal-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+.dark .sb-signal-dot { background: #00ff88; }
+.light .sb-signal-dot { background: #008844; }
+.sb-signal-text {
+  font-family: var(--font-mono);
+  font-size: 0.45em;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.dark .sb-signal-text { color: #666; }
+.light .sb-signal-text { color: #999; }
+
+/* Nav items */
+.sb-nav { display: flex; flex-direction: column; gap: 1px; margin-bottom: auto; }
+.sb-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 0.6em;
+  font-weight: 500;
+  position: relative;
+  transition: all 150ms ease;
+  text-decoration: none;
+}
+.dark .sb-nav-item { color: #666; }
+.light .sb-nav-item { color: #999; }
+.sb-nav-item:hover {
+  background: var(--hover-bg);
+}
+.dark .sb-nav-item:hover { color: #aaa; }
+.light .sb-nav-item:hover { color: #555; }
+
+.sb-nav-item.active {
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+}
+.dark .sb-nav-item.active { background: #1a1a1a; color: #ffffff; }
+.light .sb-nav-item.active { background: #e8e8e8; color: #1a1a1a; }
+.sb-nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 14px;
+  border-radius: 0 2px 2px 0;
+}
+.dark .sb-nav-item.active::before { background: #ffe600; }
+.light .sb-nav-item.active::before { background: #6b5f00; }
+
+.sb-nav-icon { width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; font-size: 0.75em; }
+.sb-nav-shortcut {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+  opacity: 0;
+}
+.dark .sb-nav-shortcut { color: #555; }
+.light .sb-nav-shortcut { color: #aaa; }
+.sb-nav-item:hover .sb-nav-shortcut { opacity: 1; }
+
+/* Friends section */
+.sb-section-label {
+  font-size: 0.45em;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding: 0 8px;
+  margin: 12px 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.dark .sb-section-label { color: #555; }
+.light .sb-section-label { color: #aaa; }
+.sb-friend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  font-size: 0.55em;
+  cursor: pointer;
+}
+.dark .sb-friend { color: #888; }
+.light .sb-friend { color: #777; }
+.sb-friend-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+.sb-friend-dot.online { background: #00ff88; }
+.sb-friend-dot.gaming { background: #4da6ff; }
+.sb-friend-dot.away { background: #ffaa00; }
+.sb-friend-dot.offline { background: #444; }
+.light .sb-friend-dot.offline { background: #ccc; }
+
+/* Playtime */
+.sb-playtime {
+  font-family: var(--font-mono);
+  font-size: 0.7em;
+  padding: 8px;
+  margin: 8px 0;
+  text-align: center;
+}
+.dark .sb-playtime { color: #ffe600; }
+.light .sb-playtime { color: #6b5f00; }
+
+/* Bottom user */
+.sb-user-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  margin-top: 8px;
+  font-size: 0.55em;
+}
+.dark .sb-user-row { color: #888; border-top: 1px solid #1a1a1a; }
+.light .sb-user-row { color: #777; border-top: 1px solid #e0e0e0; }
+.sb-avatar {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  font-size: 0.8em;
+}
+.dark .sb-avatar { background: #1a1a1a; color: #ffe600; }
+.light .sb-avatar { background: #e8e8e8; color: #6b5f00; }
+
+/* ============================================================
+   MAIN CONTENT
+   ============================================================ */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 20px;
+  overflow-y: auto;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Decorative rectangles */
+.decorative-rect {
+  position: absolute;
+  border: 1px solid;
+  pointer-events: none;
+}
+.dark .decorative-rect { border-color: rgba(255,230,0,0.15); }
+.light .decorative-rect { border-color: rgba(107,95,0,0.15); }
+.decorative-rect--tr {
+  top: -60px;
+  right: -40px;
+  width: 200px;
+  height: 200px;
+  transform: rotate(12deg);
+}
+.decorative-rect--bl {
+  bottom: -30px;
+  left: -30px;
+  width: 140px;
+  height: 140px;
+  transform: rotate(-8deg);
+}
+
+/* ============================================================
+   TOP BAR
+   ============================================================ */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  position: relative;
+  z-index: 2;
+}
+.topbar-greeting {
+  font-family: var(--font-heading);
+  font-size: 1.5em;
+  letter-spacing: 4px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.dark .topbar-greeting { color: #ffffff; }
+.light .topbar-greeting { color: #1a1a1a; }
+.topbar-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.topbar-stat {
+  font-size: 0.48em;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.dark .topbar-stat { color: #888; }
+.light .topbar-stat { color: #777; }
+.topbar-stat-sep {
+  width: 1px;
+  height: 10px;
+}
+.dark .topbar-stat-sep { background: #2a2a2a; }
+.light .topbar-stat-sep { background: #ccc; }
+.topbar-stat-val {
+  font-weight: 700;
+}
+.dark .topbar-stat-val { color: #ffe600; }
+.light .topbar-stat-val { color: #6b5f00; }
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.system-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.system-status-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+.dark .system-status-dot { background: #00ff88; }
+.light .system-status-dot { background: #008844; }
+.system-status-text {
+  font-family: var(--font-mono);
+  font-size: 0.42em;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.dark .system-status-text { color: #666; }
+.light .system-status-text { color: #999; }
+
+.console-btn {
+  font-family: var(--font-mono);
+  font-size: 0.42em;
+  padding: 6px 10px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 150ms ease;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+}
+.dark .console-btn {
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  color: #555;
+}
+.light .console-btn {
+  background: transparent;
+  border: 1px solid #ccc;
+  color: #aaa;
+}
+
+/* ============================================================
+   BANNER CAROUSEL
+   ============================================================ */
+.banner-carousel {
+  position: relative;
+  height: 180px;
+  overflow: hidden;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  flex-shrink: 0;
+  z-index: 2;
+}
+.banner-slide {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding: 20px 28px;
+  overflow: hidden;
+}
+/* Banner gradient themes */
+.dark .banner-slide--1 {
+  background: linear-gradient(135deg, #0f0f23 0%, #1a1040 30%, #0d1f2c 70%, #0a0a15 100%);
+}
+.dark .banner-slide--2 {
+  background: linear-gradient(135deg, #0f1f1a 0%, #103020 30%, #1a2020 70%, #0a0a15 100%);
+}
+.dark .banner-slide--3 {
+  background: linear-gradient(135deg, #151020 0%, #1f1035 30%, #152030 70%, #0a0a15 100%);
+}
+.light .banner-slide--1 {
+  background: linear-gradient(135deg, #f0edf5 0%, #e8e0f5 30%, #edf0f5 70%, #f5f5f5 100%);
+}
+.light .banner-slide--2 {
+  background: linear-gradient(135deg, #eef5f0 0%, #e0f0e8 30%, #f0f2f0 70%, #f5f5f5 100%);
+}
+.light .banner-slide--3 {
+  background: linear-gradient(135deg, #f0edf5 0%, #e5dff0 30%, #eaecf5 70%, #f5f5f5 100%);
+}
+
+/* Banner gradient overlay */
+.banner-slide::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.dark .banner-slide::before {
+  background:
+    radial-gradient(ellipse at 85% 50%, rgba(255,230,0,0.06) 0%, transparent 60%),
+    repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(255,255,255,0.008) 20px, rgba(255,255,255,0.008) 21px);
+}
+.light .banner-slide::before {
+  background:
+    radial-gradient(ellipse at 85% 50%, rgba(107,95,0,0.06) 0%, transparent 60%),
+    repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(0,0,0,0.015) 20px, rgba(0,0,0,0.015) 21px);
+}
+
+.banner-content {
+  position: relative;
+  z-index: 1;
+  max-width: 50%;
+}
+.banner-label {
+  font-size: 0.45em;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  margin-bottom: 6px;
+}
+.dark .banner-label { color: #ffe600; }
+.light .banner-label { color: #6b5f00; }
+.banner-title {
+  font-family: var(--font-heading);
+  font-size: 1.4em;
+  letter-spacing: 3px;
+  line-height: 1;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.dark .banner-title { color: #ffffff; }
+.light .banner-title { color: #1a1a1a; }
+.banner-desc {
+  font-size: 0.5em;
+  line-height: 1.4;
+  max-width: 300px;
+}
+.dark .banner-desc { color: #888; }
+.light .banner-desc { color: #777; }
+
+.banner-cover {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 55%;
+  height: 100%;
+  object-fit: cover;
+}
+.banner-cover-fallback {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 55%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3em;
+  overflow: hidden;
+}
+.dark .banner-cover-fallback {
+  background: radial-gradient(ellipse at center, rgba(255,230,0,0.03) 0%, transparent 60%);
+  color: #1a1a1a;
+}
+.light .banner-cover-fallback {
+  background: radial-gradient(ellipse at center, rgba(107,95,0,0.03) 0%, transparent 60%);
+  color: #e0e0e0;
+}
+
+/* Banner nav dots */
+.banner-dots {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 2;
+}
+.banner-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transition: all 300ms ease;
+  cursor: pointer;
+}
+.dark .banner-dot { background: #444; }
+.light .banner-dot { background: #ccc; }
+.banner-dot.active {
+  width: 20px;
+  border-radius: 3px;
+}
+.dark .banner-dot.active { background: #ffe600; }
+.light .banner-dot.active { background: #6b5f00; }
+
+/* Banner accent shape */
+.banner-accent {
+  position: absolute;
+  right: 35%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 60px;
+  height: 60px;
+  clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+  opacity: 0.4;
+}
+.dark .banner-accent { border: 1px solid rgba(255,230,0,0.1); }
+.light .banner-accent { border: 1px solid rgba(107,95,0,0.1); }
+
+/* ============================================================
+   MAIN GRID
+   ============================================================ */
+.main-grid {
+  flex: 1;
+  display: flex;
+  gap: 14px;
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+}
+.main-left {
+  flex: 1.3;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+.main-right {
+  flex: 0.7;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ============================================================
+   SECTION HEADER
+   ============================================================ */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-heading);
+  font-size: 0.85em;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+.dark .section-header { color: #ffffff; }
+.light .section-header { color: #1a1a1a; }
+.section-accent-bar {
+  width: 16px;
+  height: 3px;
+}
+.dark .section-accent-bar { background: #ffe600; }
+.light .section-accent-bar { background: #6b5f00; }
+.section-count {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  margin-left: auto;
+}
+.dark .section-count { color: #ffe600; }
+.light .section-count { color: #6b5f00; }
+.section-add-btn {
+  font-family: var(--font-mono);
+  font-size: 0.45em;
+  padding: 5px 10px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  transition: all 150ms ease;
+}
+.dark .section-add-btn {
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  color: #888;
+}
+.light .section-add-btn {
+  background: transparent;
+  border: 1px solid #ccc;
+  color: #777;
+}
+
+/* ============================================================
+   INSTANCE CARDS
+   ============================================================ */
+.instance-list { display: flex; flex-direction: column; gap: 4px; }
+
+.instance-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  position: relative;
+}
+.dark .instance-card { background: #141414; }
+.light .instance-card { background: #f0f0f0; }
+.instance-card.active {
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+}
+.dark .instance-card.active { background: #1a1a1a; border: 1px solid #2a2a2a; }
+.light .instance-card.active { background: #e8e8e8; border: 1px solid #ccc; }
+.instance-card.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 34px;
+  height: 2px;
+}
+.dark .instance-card.active::after { background: #ffe600; }
+.light .instance-card.active::after { background: #6b5f00; }
+
+.instance-icon {
+  width: 36px;
+  height: 36px;
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8em;
+  flex-shrink: 0;
+}
+.dark .instance-icon { background: #1a1a1a; color: #ffe600; }
+.light .instance-icon { background: #e8e8e8; color: #6b5f00; }
+
+.instance-info { flex: 1; min-width: 0; }
+.instance-name-row { display: flex; align-items: center; gap: 6px; }
+.instance-name {
+  font-size: 0.65em;
+  font-weight: 700;
+}
+.dark .instance-name { color: #ffffff; }
+.light .instance-name { color: #1a1a1a; }
+.instance-badge {
+  font-family: var(--font-mono);
+  font-size: 0.4em;
+  padding: 2px 6px;
+  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+}
+.dark .instance-badge { background: rgba(255,230,0,0.1); color: #ffe600; }
+.light .instance-badge { background: rgba(107,95,0,0.1); color: #6b5f00; }
+.instance-meta {
+  font-size: 0.48em;
+  margin-top: 2px;
+}
+.dark .instance-meta { color: #666; }
+.light .instance-meta { color: #999; }
+
+.instance-start-btn {
+  font-family: var(--font-heading);
+  font-size: 0.5em;
+  padding: 6px 14px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  transition: all 150ms ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.dark .instance-start-btn {
+  background: #ffe600;
+  color: #0d0d0d;
+  border: none;
+  font-weight: 700;
+}
+.light .instance-start-btn {
+  background: #6b5f00;
+  color: #fafafa;
+  border: none;
+  font-weight: 700;
+}
+
+/* Empty state */
+.instance-empty {
+  text-align: center;
+  padding: 20px;
+  border: 1px dashed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.dark .instance-empty { border-color: #2a2a2a; }
+.light .instance-empty { border-color: #ccc; }
+.instance-empty-accent {
+  width: 16px;
+  height: 3px;
+}
+.dark .instance-empty-accent { background: #ffe600; }
+.light .instance-empty-accent { background: #6b5f00; }
+.instance-empty-title {
+  font-family: var(--font-heading);
+  font-size: 0.85em;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.dark .instance-empty-title { color: #888; }
+.light .instance-empty-title { color: #777; }
+.instance-empty-btn {
+  font-family: var(--font-heading);
+  font-size: 0.5em;
+  padding: 6px 16px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  text-transform: uppercase;
+  transition: all 150ms ease;
+}
+.dark .instance-empty-btn {
+  background: transparent;
+  border: 1px solid #ffe600;
+  color: #ffe600;
+}
+.light .instance-empty-btn {
+  background: transparent;
+  border: 1px solid #6b5f00;
+  color: #6b5f00;
+}
+
+/* News ticker */
+.news-ticker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  font-size: 0.5em;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  overflow: hidden;
+}
+.dark .news-ticker { background: #141414; }
+.light .news-ticker { background: #f0f0f0; }
+.news-ticker-label {
+  font-family: var(--font-heading);
+  font-size: 0.55em;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 100%, 0 100%);
+  flex-shrink: 0;
+}
+.dark .news-ticker-label { background: #ffe600; color: #0d0d0d; }
+.light .news-ticker-label { background: #6b5f00; color: #fafafa; }
+.news-ticker-text { white-space: nowrap; }
+.dark .news-ticker-text { color: #888; }
+.light .news-ticker-text { color: #777; }
+.news-ticker-dot {
+  width: 4px;
+  height: 4px;
+  flex-shrink: 0;
+}
+.dark .news-ticker-dot { background: #ffe600; }
+.light .news-ticker-dot { background: #6b5f00; }
+
+/* ============================================================
+   PLAY AREA
+   ============================================================ */
+.play-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid;
+  min-height: 220px;
+}
+.dark .play-area {
+  background: #0f0f0f;
+  border-color: #2a2a2a;
+}
+.light .play-area {
+  background: #f5f5f5;
+  border-color: #ccc;
+}
+
+/* Decorative frame */
+.play-area::before {
+  content: '';
+  position: absolute;
+  inset: 12px;
+  border: 1px solid;
+  transform: rotate(-2deg);
+  pointer-events: none;
+}
+.dark .play-area::before { border-color: rgba(255,230,0,0.06); }
+.light .play-area::before { border-color: rgba(107,95,0,0.06); }
+
+/* Decorative vertical line */
+.play-area::after {
+  content: '';
+  position: absolute;
+  left: 20px;
+  top: 24px;
+  bottom: 24px;
+  width: 1px;
+  pointer-events: none;
+}
+.dark .play-area::after { background: rgba(255,230,0,0.06); }
+.light .play-area::after { background: rgba(107,95,0,0.06); }
+
+.play-icon {
+  font-size: 2.6em;
+  font-family: var(--font-heading);
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 2;
+}
+.dark .play-icon { color: #ffe600; }
+.light .play-icon { color: #6b5f00; }
+.play-label {
+  font-family: var(--font-heading);
+  font-size: 1.2em;
+  letter-spacing: 8px;
+  text-transform: uppercase;
+  line-height: 1;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+}
+.dark .play-label { color: #ffffff; }
+.light .play-label { color: #1a1a1a; }
+.play-instance-info {
+  margin-top: 14px;
+  padding: 5px 12px;
+  font-size: 0.5em;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+}
+.dark .play-instance-info { background: #1a1a1a; color: #888; }
+.light .play-instance-info { background: #e8e8e8; color: #777; }
+.play-instance-info .ver {
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+}
+.dark .play-instance-info .ver { color: #ffe600; }
+.light .play-instance-info .ver { color: #6b5f00; }
+
+.play-sys-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.45em;
+  position: relative;
+  z-index: 2;
+}
+.dark .play-sys-row { color: #666; }
+.light .play-sys-row { color: #999; }
+
+/* ============================================================
+   QUICK STATS
+   ============================================================ */
+.quick-stats {
+  display: flex;
+  gap: 4px;
+}
+.stat-item {
+  flex: 1;
+  text-align: center;
+  padding: 8px 4px;
+  border: 1px solid;
+}
+.dark .stat-item { background: #141414; border-color: #1a1a1a; }
+.light .stat-item { background: #f0f0f0; border-color: #e0e0e0; }
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 0.6em;
+  font-weight: 500;
+}
+.dark .stat-value { color: #ffffff; }
+.light .stat-value { color: #1a1a1a; }
+.stat-label {
+  font-size: 0.4em;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.dark .stat-label { color: #666; }
+.light .stat-label { color: #999; }
+
+/* ============================================================
+   QUICK ACTIONS
+   ============================================================ */
+.quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.qa-btn {
+  font-size: 0.48em;
+  padding: 7px 6px;
+  text-align: center;
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  transition: all 150ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.dark .qa-btn {
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  color: #888;
+}
+.light .qa-btn {
+  background: transparent;
+  border: 1px solid #ccc;
+  color: #777;
+}
+.dark .qa-btn:hover { border-color: rgba(255,230,0,0.3); color: #ffe600; }
+.light .qa-btn:hover { border-color: rgba(107,95,0,0.3); color: #6b5f00; }
+
+/* ============================================================
+   DOWNLOAD PANEL FAB
+   ============================================================ */
+.dl-fab {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6em;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 150ms ease;
+}
+.dark .dl-fab {
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  color: #888;
+}
+.light .dl-fab {
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  color: #777;
+}
+.dl-fab-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 14px;
+  height: 14px;
+  font-size: 0.5em;
+  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+.dark .dl-fab-badge { background: #ffe600; color: #0d0d0d; }
+.light .dl-fab-badge { background: #6b5f00; color: #fafafa; }
+
+/* ============================================================
+   HERO STATE (no instances)
+   ============================================================ */
+.hero-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 12px;
+  position: relative;
+}
+.hero-glow {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.dark .hero-glow {
+  background: radial-gradient(ellipse at center, rgba(255,230,0,0.04) 0%, transparent 70%);
+}
+.light .hero-glow {
+  background: radial-gradient(ellipse at center, rgba(107,95,0,0.04) 0%, transparent 70%);
+}
+.hero-title {
+  font-family: var(--font-heading);
+  font-size: 1.6em;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  position: relative;
+}
+.dark .hero-title { color: #ffffff; }
+.light .hero-title { color: #1a1a1a; }
+.hero-desc {
+  font-size: 0.55em;
+  max-width: 280px;
+  text-align: center;
+  position: relative;
+}
+.dark .hero-desc { color: #888; }
+.light .hero-desc { color: #777; }
+.hero-actions {
+  display: flex;
+  gap: 8px;
+  position: relative;
+}
+.hero-btn-primary {
+  font-family: var(--font-heading);
+  font-size: 0.55em;
+  padding: 8px 20px;
+  letter-spacing: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 150ms ease;
+}
+.dark .hero-btn-primary { background: #ffe600; color: #0d0d0d; }
+.light .hero-btn-primary { background: #6b5f00; color: #fafafa; }
+.hero-btn-secondary {
+  font-family: var(--font-heading);
+  font-size: 0.55em;
+  padding: 8px 20px;
+  letter-spacing: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  transition: all 150ms ease;
+}
+.dark .hero-btn-secondary {
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  color: #aaa;
+}
+.light .hero-btn-secondary {
+  background: transparent;
+  border: 1px solid #ccc;
+  color: #555;
+}
+.hero-hint {
+  font-size: 0.42em;
+  position: relative;
+}
+.dark .hero-hint { color: #555; }
+.light .hero-hint { color: #aaa; }
+
+/* ============================================================
+   ANIMATIONS (subtle)
+   ============================================================ */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+.signal-pulse {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 900px) {
+  .split-view { flex-direction: column; }
+  .column-dark { border-right: none; border-bottom: 2px solid #1a1a1a; }
+}
+</style>
+</head>
+<body>
+
+<div class="companion-header">
+  <h1>ZZZ Neo-Tokyo</h1>
+  <p>Homepage Visual Companion &mdash; Design Reference</p>
+  <div class="theme-badges">
+    <span class="theme-badge badge-dark">DARK THEME</span>
+    <span class="theme-badge badge-light">LIGHT THEME</span>
+  </div>
+</div>
+
+<div class="split-view">
+
+  <!-- ============================================================ -->
+  <!-- DARK THEME COLUMN -->
+  <!-- ============================================================ -->
+  <div class="theme-column column-dark dark" data-label="Dark Theme &mdash; #0d0d0d / #ffe600">
+
+    <div class="app-shell dark">
+      <!-- Overlays -->
+      <div class="noise-overlay"></div>
+      <div class="scanline-overlay"></div>
+
+      <!-- Sidebar -->
+      <div class="sidebar dark">
+        <div class="sb-logo-row">
+          <div class="sb-diamond"></div>
+          <span class="sb-logo-text">BONNEXT</span>
+        </div>
+        <div class="sb-signal">
+          <span class="sb-signal-dot signal-pulse"></span>
+          <span class="sb-signal-text">SIGNAL ON AIR</span>
+        </div>
+        <div class="sb-nav">
+          <div class="sb-nav-item active">
+            <span class="sb-nav-icon">🏠</span> HOME
+            <span class="sb-nav-shortcut">^H</span>
+          </div>
+          <div class="sb-nav-item">
+            <span class="sb-nav-icon">🏪</span> STORE
+            <span class="sb-nav-shortcut">^S</span>
+          </div>
+          <div class="sb-nav-item">
+            <span class="sb-nav-icon">❤️</span> COLLECTIONS
+            <span class="sb-nav-shortcut">^C</span>
+          </div>
+          <div class="sb-nav-item">
+            <span class="sb-nav-icon">📦</span> INSTANCES
+            <span class="sb-nav-shortcut">^I</span>
+          </div>
+          <div class="sb-nav-item">
+            <span class="sb-nav-icon">📚</span> LIBRARY
+          </div>
+          <div class="sb-nav-item">
+            <span class="sb-nav-icon">📋</span> VERSIONS
+          </div>
+          <div class="sb-nav-item">
+            <span class="sb-nav-icon">🌐</span> SERVERS
+          </div>
+          <div class="sb-nav-item">
+            <span class="sb-nav-icon">⚙️</span> SETTINGS
+          </div>
+        </div>
+        <div class="sb-section-label">▼ FRIENDS</div>
+        <div class="sb-friend"><span class="sb-friend-dot online"></span> Alex_303</div>
+        <div class="sb-friend"><span class="sb-friend-dot gaming"></span> NeoCraft_77</div>
+        <div class="sb-friend"><span class="sb-friend-dot away"></span> PixelWitch</div>
+        <div class="sb-friend"><span class="sb-friend-dot offline"></span> BlockMaster</div>
+        <div class="sb-playtime">⏱ 247.5h</div>
+        <div class="sb-user-row">
+          <div class="sb-avatar">U</div>
+          <div>
+            <div style="color:#aaa;font-weight:600;">PlayerOne</div>
+            <div style="color:#555;font-size:0.8em;">Microsoft Account</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="main-content">
+        <div class="decorative-rect decorative-rect--tr"></div>
+        <div class="decorative-rect decorative-rect--bl"></div>
+
+        <!-- Top Bar -->
+        <div class="topbar">
+          <div>
+            <div class="topbar-greeting">GOOD EVENING</div>
+            <div class="topbar-stats">
+              <span class="topbar-stat">Player <span class="topbar-stat-val">PlayerOne</span></span>
+              <span class="topbar-stat-sep"></span>
+              <span class="topbar-stat"><span class="topbar-stat-val">3</span> Instances</span>
+            </div>
+          </div>
+          <div class="topbar-right">
+            <div class="system-status">
+              <span class="system-status-dot signal-pulse"></span>
+              <span class="system-status-text">SYS.OK</span>
+            </div>
+            <button class="console-btn">CONSOLE</button>
+          </div>
+        </div>
+
+        <!-- Banner Carousel -->
+        <div class="banner-carousel">
+          <div class="banner-slide banner-slide--1">
+            <div class="banner-content">
+              <div class="banner-label">FEATURED</div>
+              <div class="banner-title">NEO-TOKYO<br/>EXPANSION</div>
+              <div class="banner-desc">Explore the cyberpunk megastructure with new mods, shaders, and performance optimizations.</div>
+            </div>
+            <div class="banner-cover-fallback">◆</div>
+            <div class="banner-accent"></div>
+            <div class="banner-dots">
+              <div class="banner-dot active"></div>
+              <div class="banner-dot"></div>
+              <div class="banner-dot"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+          <!-- Left: Instances -->
+          <div class="main-left">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+              <span class="section-accent-bar"></span>
+              <span class="section-header">INSTANCES</span>
+              <span class="section-count">03</span>
+              <button class="section-add-btn" style="margin-left:auto;">+ NEW</button>
+            </div>
+            <div class="instance-list">
+              <div class="instance-card active">
+                <div class="instance-icon">◆</div>
+                <div class="instance-info">
+                  <div class="instance-name-row">
+                    <span class="instance-name">Neo-Tokyo Survival</span>
+                    <span class="instance-badge">1.21.4</span>
+                    <span class="instance-badge">FABRIC</span>
+                  </div>
+                  <div class="instance-meta">Last played: 2h ago · 10h played · Ready</div>
+                </div>
+                <button class="instance-start-btn">▶ START</button>
+              </div>
+              <div class="instance-card">
+                <div class="instance-icon">◆</div>
+                <div class="instance-info">
+                  <div class="instance-name-row">
+                    <span class="instance-name">Creative Lab</span>
+                    <span class="instance-badge">1.20.6</span>
+                  </div>
+                  <div class="instance-meta">Last played: 3d ago · 5h played · Ready</div>
+                </div>
+                <button class="instance-start-btn">▶ START</button>
+              </div>
+              <div class="instance-card">
+                <div class="instance-icon">◆</div>
+                <div class="instance-info">
+                  <div class="instance-name-row">
+                    <span class="instance-name">Redstone Test</span>
+                    <span class="instance-badge">1.19.2</span>
+                    <span class="instance-badge">FORGE</span>
+                  </div>
+                  <div class="instance-meta">Last played: 1w ago · 2h played · Ready</div>
+                </div>
+                <button class="instance-start-btn">▶ START</button>
+              </div>
+            </div>
+
+            <!-- News Ticker -->
+            <div class="news-ticker">
+              <span class="news-ticker-label">NEWS</span>
+              <span class="news-ticker-text">Minecraft 1.22 snapshot available now</span>
+              <span class="news-ticker-dot"></span>
+              <span class="news-ticker-text">Fabric Loader 0.16.0 released</span>
+              <span class="news-ticker-dot"></span>
+              <span class="news-ticker-text">New OptiFine alternatives benchmarked</span>
+            </div>
+          </div>
+
+          <!-- Right: Play Area + Quick Actions -->
+          <div class="main-right">
+            <div class="play-area">
+              <div class="play-icon">▶</div>
+              <div class="play-label">START<br/>GAME</div>
+              <div class="play-instance-info">
+                <span class="ver">1.21.4</span> &nbsp;·&nbsp; Fabric 0.16.0 &nbsp;·&nbsp; 2GB
+              </div>
+              <div class="play-sys-row">
+                <span>JAVA 21</span> · <span>12 MODS</span>
+              </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="quick-stats">
+              <div class="stat-item">
+                <div class="stat-value">2GB</div>
+                <div class="stat-label">ALLOCATED</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">12</div>
+                <div class="stat-label">MODS</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">3</div>
+                <div class="stat-label">WORLDS</div>
+              </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+              <button class="qa-btn">+ NEW INSTANCE</button>
+              <button class="qa-btn">⬇ BROWSE MODS</button>
+              <button class="qa-btn">⬡ VERSIONS</button>
+              <button class="qa-btn">⚙ SETTINGS</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Download FAB -->
+        <div class="dl-fab">
+          ⬇
+          <span class="dl-fab-badge">2</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- LIGHT THEME COLUMN -->
+  <!-- ============================================================ -->
+  <div class="theme-column column-light light" data-label="Light Theme &mdash; #fafafa / #6b5f00">
+
+    <div class="app-shell light">
+      <!-- No noise/scanline in light mode -->
+
+      <!-- Sidebar -->
+      <div class="sidebar light">
+        <div class="sb-logo-row">
+          <div class="sb-diamond"></div>
+          <span class="sb-logo-text">BONNEXT</span>
+        </div>
+        <div class="sb-signal">
+          <span class="sb-signal-dot signal-pulse"></span>
+          <span class="sb-signal-text">SIGNAL ON AIR</span>
+        </div>
+        <div class="sb-nav">
+          <div class="sb-nav-item active">
+            <span class="sb-nav-icon">🏠</span> HOME
+            <span class="sb-nav-shortcut">^H</span>
+          </div>
+          <div class="sb-nav-item">
+            <span class="sb-nav-icon">🏪</span> STORE
+            <span class="sb-nav-shortcut">^S</span>
+          </div>
+          <div class="sb-nav-item">
+            <span class="sb-nav-icon">❤️</span> COLLECTIONS
+            <span class="sb-nav-shortcut">^C</span>
+          </div>
+          <div class="sb-nav-item">
+            <span class="sb-nav-icon">📦</span> INSTANCES
+            <span class="sb-nav-shortcut">^I</span>
+          </div>
+          <div class="sb-nav-item">
+            <span class="sb-nav-icon">📚</span> LIBRARY
+          </div>
+          <div class="sb-nav-item">
+            <span class="sb-nav-icon">📋</span> VERSIONS
+          </div>
+          <div class="sb-nav-item">
+            <span class="sb-nav-icon">🌐</span> SERVERS
+          </div>
+          <div class="sb-nav-item">
+            <span class="sb-nav-icon">⚙️</span> SETTINGS
+          </div>
+        </div>
+        <div class="sb-section-label">▼ FRIENDS</div>
+        <div class="sb-friend"><span class="sb-friend-dot online"></span> Alex_303</div>
+        <div class="sb-friend"><span class="sb-friend-dot gaming"></span> NeoCraft_77</div>
+        <div class="sb-friend"><span class="sb-friend-dot away"></span> PixelWitch</div>
+        <div class="sb-friend"><span class="sb-friend-dot offline"></span> BlockMaster</div>
+        <div class="sb-playtime">⏱ 247.5h</div>
+        <div class="sb-user-row">
+          <div class="sb-avatar">U</div>
+          <div>
+            <div style="color:#555;font-weight:600;">PlayerOne</div>
+            <div style="color:#aaa;font-size:0.8em;">Microsoft Account</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="main-content">
+        <div class="decorative-rect decorative-rect--tr"></div>
+        <div class="decorative-rect decorative-rect--bl"></div>
+
+        <!-- Top Bar -->
+        <div class="topbar">
+          <div>
+            <div class="topbar-greeting">GOOD EVENING</div>
+            <div class="topbar-stats">
+              <span class="topbar-stat">Player <span class="topbar-stat-val">PlayerOne</span></span>
+              <span class="topbar-stat-sep"></span>
+              <span class="topbar-stat"><span class="topbar-stat-val">3</span> Instances</span>
+            </div>
+          </div>
+          <div class="topbar-right">
+            <div class="system-status">
+              <span class="system-status-dot signal-pulse"></span>
+              <span class="system-status-text">SYS.OK</span>
+            </div>
+            <button class="console-btn">CONSOLE</button>
+          </div>
+        </div>
+
+        <!-- Banner Carousel -->
+        <div class="banner-carousel">
+          <div class="banner-slide banner-slide--1">
+            <div class="banner-content">
+              <div class="banner-label">FEATURED</div>
+              <div class="banner-title">NEO-TOKYO<br/>EXPANSION</div>
+              <div class="banner-desc">Explore the cyberpunk megastructure with new mods, shaders, and performance optimizations.</div>
+            </div>
+            <div class="banner-cover-fallback">◆</div>
+            <div class="banner-accent"></div>
+            <div class="banner-dots">
+              <div class="banner-dot active"></div>
+              <div class="banner-dot"></div>
+              <div class="banner-dot"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+          <!-- Left: Instances -->
+          <div class="main-left">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+              <span class="section-accent-bar"></span>
+              <span class="section-header">INSTANCES</span>
+              <span class="section-count">03</span>
+              <button class="section-add-btn" style="margin-left:auto;">+ NEW</button>
+            </div>
+            <div class="instance-list">
+              <div class="instance-card active">
+                <div class="instance-icon">◆</div>
+                <div class="instance-info">
+                  <div class="instance-name-row">
+                    <span class="instance-name">Neo-Tokyo Survival</span>
+                    <span class="instance-badge">1.21.4</span>
+                    <span class="instance-badge">FABRIC</span>
+                  </div>
+                  <div class="instance-meta">Last played: 2h ago · 10h played · Ready</div>
+                </div>
+                <button class="instance-start-btn">▶ START</button>
+              </div>
+              <div class="instance-card">
+                <div class="instance-icon">◆</div>
+                <div class="instance-info">
+                  <div class="instance-name-row">
+                    <span class="instance-name">Creative Lab</span>
+                    <span class="instance-badge">1.20.6</span>
+                  </div>
+                  <div class="instance-meta">Last played: 3d ago · 5h played · Ready</div>
+                </div>
+                <button class="instance-start-btn">▶ START</button>
+              </div>
+              <div class="instance-card">
+                <div class="instance-icon">◆</div>
+                <div class="instance-info">
+                  <div class="instance-name-row">
+                    <span class="instance-name">Redstone Test</span>
+                    <span class="instance-badge">1.19.2</span>
+                    <span class="instance-badge">FORGE</span>
+                  </div>
+                  <div class="instance-meta">Last played: 1w ago · 2h played · Ready</div>
+                </div>
+                <button class="instance-start-btn">▶ START</button>
+              </div>
+            </div>
+
+            <!-- News Ticker -->
+            <div class="news-ticker">
+              <span class="news-ticker-label">NEWS</span>
+              <span class="news-ticker-text">Minecraft 1.22 snapshot available now</span>
+              <span class="news-ticker-dot"></span>
+              <span class="news-ticker-text">Fabric Loader 0.16.0 released</span>
+              <span class="news-ticker-dot"></span>
+              <span class="news-ticker-text">New OptiFine alternatives benchmarked</span>
+            </div>
+          </div>
+
+          <!-- Right: Play Area + Quick Actions -->
+          <div class="main-right">
+            <div class="play-area">
+              <div class="play-icon">▶</div>
+              <div class="play-label">START<br/>GAME</div>
+              <div class="play-instance-info">
+                <span class="ver">1.21.4</span> &nbsp;·&nbsp; Fabric 0.16.0 &nbsp;·&nbsp; 2GB
+              </div>
+              <div class="play-sys-row">
+                <span>JAVA 21</span> · <span>12 MODS</span>
+              </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="quick-stats">
+              <div class="stat-item">
+                <div class="stat-value">2GB</div>
+                <div class="stat-label">ALLOCATED</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">12</div>
+                <div class="stat-label">MODS</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">3</div>
+                <div class="stat-label">WORLDS</div>
+              </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+              <button class="qa-btn">+ NEW INSTANCE</button>
+              <button class="qa-btn">⬇ BROWSE MODS</button>
+              <button class="qa-btn">⬡ VERSIONS</button>
+              <button class="qa-btn">⚙ SETTINGS</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Download FAB -->
+        <div class="dl-fab">
+          ⬇
+          <span class="dl-fab-badge">2</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+</body>
+</html>

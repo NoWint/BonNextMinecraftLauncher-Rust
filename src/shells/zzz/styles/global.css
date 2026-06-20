@@ -1,0 +1,410 @@
+@import './tokens.css';
+@import './themes.css';
+@import './ux-delight.css';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition:
+    background 0.3s ease,
+    color 0.3s ease;
+  --overlay-enabled: 1;
+}
+
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease !important;
+}
+
+::selection {
+  background: var(--selection-bg);
+  color: var(--selection-color);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb-color);
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.noise-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: var(--z-overlay);
+  animation: noise-flicker 0.15s steps(2) infinite;
+  animation-play-state: var(--overlay-animation-state, running);
+}
+
+@keyframes noise-flicker {
+  0%,
+  100% {
+    opacity: 0.025;
+  }
+  50% {
+    opacity: 0.02;
+  }
+}
+
+.scanline-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0.02;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255, 255, 255, 1) 2px,
+    rgba(255, 255, 255, 1) 3px
+  );
+  pointer-events: none;
+  z-index: var(--z-overlay);
+  animation: scanline-scroll 10s linear infinite;
+  animation-play-state: var(--overlay-animation-state, running);
+}
+
+@keyframes scanline-scroll {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 10px;
+  }
+}
+
+.theme-light .noise-overlay,
+.theme-light .scanline-overlay {
+  display: none;
+}
+
+.app-layout {
+  display: flex;
+  height: 100%;
+  position: relative;
+  perspective: 1500px;
+}
+
+.app-sidebar {
+  width: var(--sidebar-width);
+  background: var(--color-sidebar);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+  flex-shrink: 0;
+  position: relative;
+  z-index: var(--z-sidebar);
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 24px 28px;
+  position: relative;
+  z-index: var(--z-base);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: perspective(1500px) rotateY(0deg) scale(1) translateZ(0);
+  filter: brightness(1) blur(0);
+  transition:
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: center center;
+}
+
+.app-main--ai-open {
+  transform: perspective(1500px) rotateY(-1deg) scale(0.97) translateZ(-20px);
+  filter: brightness(0.85) blur(1px);
+}
+
+.decorative-rect {
+  position: absolute;
+  border: 1px solid var(--color-accent-15);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.decorative-rect--top-right {
+  top: -60px;
+  right: -60px;
+  width: 280px;
+  height: 280px;
+  transform: rotate(12deg);
+}
+
+.decorative-rect--bottom-left {
+  bottom: -80px;
+  left: 120px;
+  width: 200px;
+  height: 200px;
+  border-color: var(--color-accent-15);
+  transform: rotate(-8deg);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: fadeIn var(--transition-normal) ease forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   Font Customization — driven by SettingsPage font weight / line height sliders
+   ========================================================================== */
+
+body {
+  font-weight: var(--bonnext-font-weight, 400);
+  line-height: var(--bonnext-line-height, 1.5);
+}
+
+/* ==========================================================================
+   Window Effects — transparency & blur (frosted glass)
+   ========================================================================== */
+
+.app-sidebar {
+  backdrop-filter: blur(var(--bonnext-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--bonnext-blur, 0px));
+}
+
+.theme-dark .app-sidebar {
+  background: color-mix(in srgb, var(--color-sidebar) calc(var(--bonnext-transparency, 1) * 100%), transparent);
+}
+
+.theme-light .app-sidebar {
+  background: color-mix(in srgb, var(--color-sidebar) calc(var(--bonnext-transparency, 1) * 100%), transparent);
+}
+
+.theme-oled .app-sidebar {
+  background: color-mix(in srgb, var(--color-sidebar) calc(var(--bonnext-transparency, 1) * 100%), transparent);
+}
+
+@supports not (background: color-mix(in srgb, black 100%, transparent)) {
+  .app-sidebar {
+    opacity: var(--bonnext-transparency, 1);
+  }
+}
+
+/* ==========================================================================
+   Colorblind Mode Filters
+   ========================================================================== */
+
+.cb-protanopia {
+  --cb-filter: grayscale(0.5) sepia(0.3) hue-rotate(-30deg) saturate(1.5);
+}
+
+.cb-deuteranopia {
+  --cb-filter: grayscale(0.5) sepia(0.3) hue-rotate(20deg) saturate(1.5);
+}
+
+.cb-tritanopia {
+  --cb-filter: grayscale(0.5) sepia(0.3) hue-rotate(180deg) saturate(1.5);
+}
+
+.cb-protanopia body,
+.cb-deuteranopia body,
+.cb-tritanopia body {
+  filter: var(--cb-filter);
+}
+
+/* ==========================================================================
+   Dynamic Backgrounds
+   ========================================================================== */
+
+/* Minimal — clean, no background pattern (default) */
+.bg-minimal {
+  --bg-theme-color: transparent;
+}
+
+/* Cyberpunk — neon grid overlay */
+.bg-cyberpunk body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(255, 230, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 230, 0, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: bg-cyber-drift 20s linear infinite;
+}
+
+@keyframes bg-cyber-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 60px 60px;
+  }
+}
+
+.bg-cyberpunk body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 230, 0, 0.04) 0%, transparent 60%);
+}
+
+/* Starfield — drifting particles */
+.bg-starfield body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, rgba(255, 255, 255, 0.15), transparent),
+    radial-gradient(1px 1px at 80px 120px, rgba(255, 255, 255, 0.1), transparent),
+    radial-gradient(1px 1px at 150px 40px, rgba(255, 255, 255, 0.12), transparent),
+    radial-gradient(1px 1px at 220px 180px, rgba(255, 255, 255, 0.08), transparent),
+    radial-gradient(1px 1px at 300px 80px, rgba(255, 255, 255, 0.14), transparent),
+    radial-gradient(1px 1px at 400px 200px, rgba(255, 255, 255, 0.1), transparent),
+    radial-gradient(1px 1px at 50px 250px, rgba(255, 255, 255, 0.09), transparent),
+    radial-gradient(2px 2px at 350px 150px, rgba(255, 255, 255, 0.12), transparent),
+    radial-gradient(1px 1px at 180px 280px, rgba(255, 255, 255, 0.11), transparent),
+    radial-gradient(2px 2px at 420px 60px, rgba(255, 255, 255, 0.08), transparent),
+    radial-gradient(1px 1px at 480px 240px, rgba(255, 255, 255, 0.1), transparent),
+    radial-gradient(1px 1px at 30px 350px, rgba(255, 255, 255, 0.07), transparent),
+    radial-gradient(1px 1px at 250px 320px, rgba(255, 255, 255, 0.13), transparent),
+    radial-gradient(1px 1px at 460px 300px, rgba(255, 255, 255, 0.09), transparent);
+  background-size: 500px 400px;
+  animation: bg-star-drift 60s linear infinite;
+}
+
+@keyframes bg-star-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 500px 400px;
+  }
+}
+
+/* Matrix — code rain aesthetic */
+.bg-matrix body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 255, 136, 0.015) 2px,
+    rgba(0, 255, 136, 0.015) 4px
+  );
+  background-size: 100% 4px;
+  animation: bg-matrix-rain 3s linear infinite;
+}
+
+@keyframes bg-matrix-rain {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 60px;
+  }
+}
+
+.bg-matrix body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(ellipse at 30% 20%, rgba(0, 255, 136, 0.03) 0%, transparent 50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .noise-overlay,
+  .scanline-overlay {
+    display: none !important;
+  }
+}
+
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  padding: 8px 16px;
+  z-index: var(--z-skip-link);
+  font-weight: bold;
+  clip-path: var(--clip-small);
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* Accessibility: screen-reader only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

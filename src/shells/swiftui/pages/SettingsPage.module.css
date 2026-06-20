@@ -1,0 +1,15 @@
+/* SettingsPage — SwiftUI Shell HIG Redesign */
+
+.container {
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--swift-spacing-lg);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .container {
+    max-width: 100%;
+  }
+}

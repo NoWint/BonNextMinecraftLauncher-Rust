@@ -1,0 +1,54 @@
+.palette {
+  width: var(--editor-palette-width);
+  background: var(--editor-bg-secondary);
+  border-right: 1px solid var(--editor-border);
+  overflow-y: auto;
+  flex-shrink: 0;
+  padding: 8px;
+}
+
+.category {
+  margin-bottom: 12px;
+}
+
+.categoryTitle {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--editor-text-tertiary);
+  margin-bottom: 6px;
+  padding: 0 4px;
+}
+
+.componentItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  border-radius: var(--editor-border-radius-sm);
+  color: var(--editor-text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background var(--editor-transition);
+  text-align: left;
+  font-family: var(--editor-font);
+}
+
+.componentItem:hover {
+  background: var(--editor-bg-hover);
+}
+
+.componentIcon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.componentLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

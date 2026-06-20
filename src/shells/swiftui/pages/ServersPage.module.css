@@ -1,0 +1,155 @@
+/* ServersPage — SwiftUI Shell HIG Redesign */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--swift-spacing-md);
+}
+
+.serverCard {
+  background: var(--swift-bg-card);
+  border: 0.5px solid var(--swift-border);
+  border-radius: var(--swift-radius-lg);
+  padding: var(--swift-spacing-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.serverCard:hover {
+  background: var(--swift-bg-card-hover);
+}
+
+.serverInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.serverHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--swift-spacing-sm);
+}
+
+.starButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--swift-text-tertiary);
+  display: flex;
+  align-items: center;
+  transition: color var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.starButton:hover {
+  color: var(--swift-accent);
+}
+
+.starButton:active {
+  transform: scale(0.97);
+  transition-duration: 50ms;
+}
+
+.serverName {
+  font: var(--swift-font-card-title);
+  color: var(--swift-text-primary);
+}
+
+.serverAddress {
+  font: var(--swift-font-body);
+  color: var(--swift-text-tertiary);
+  font-family: var(--swift-font-mono);
+  margin-top: var(--swift-spacing-xs);
+}
+
+.serverMeta {
+  display: flex;
+  gap: var(--swift-spacing-md);
+  margin-top: var(--swift-spacing-xs);
+  font: var(--swift-font-caption);
+  color: var(--swift-text-secondary);
+}
+
+.serverActions {
+  display: flex;
+  gap: var(--swift-spacing-xs);
+  flex-shrink: 0;
+  margin-left: var(--swift-spacing-md);
+}
+
+.latencyGood {
+  color: var(--swift-success);
+}
+
+.latencyMedium {
+  color: var(--swift-warning);
+}
+
+.latencyBad {
+  color: var(--swift-destructive);
+}
+
+.toolbar {
+  display: flex;
+  gap: var(--swift-spacing-md);
+  align-items: center;
+  margin-bottom: var(--swift-spacing-lg);
+  flex-wrap: wrap;
+}
+
+.toolbarActions {
+  display: flex;
+  gap: var(--swift-spacing-sm);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sortSelect,
+.filterSelect {
+  background: var(--swift-bg-card);
+  border: 0.5px solid var(--swift-border);
+  border-radius: var(--swift-radius-md);
+  padding: var(--swift-spacing-xs) var(--swift-spacing-sm);
+  font: var(--swift-font-body);
+  color: var(--swift-text-primary);
+  transition: border-color var(--swift-duration-fast) var(--swift-spring-default);
+}
+
+.sortSelect:focus,
+.filterSelect:focus {
+  border-color: var(--swift-border-focus);
+  outline: none;
+}
+
+.empty {
+  text-align: center;
+  padding: var(--swift-spacing-2xl);
+  color: var(--swift-text-tertiary);
+  font: var(--swift-font-body);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .serverCard {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--swift-spacing-md);
+  }
+
+  .serverActions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbarActions {
+    justify-content: flex-start;
+  }
+}

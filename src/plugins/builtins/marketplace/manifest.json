@@ -1,0 +1,35 @@
+{
+  "id": "com.bonnext.marketplace",
+  "name": "Marketplace",
+  "version": "1.0.0",
+  "description": "Modrinth & CurseForge & ModpackIndex content browser, search, collections, and optimization presets",
+  "author": "BonNext",
+  "minAppVersion": "1.0.0",
+  "dependencies": [],
+  "permissions": [
+    "http:modrinth.com",
+    "http:curseforge.com",
+    "http:modpackindex.com",
+    "fs:read:instances",
+    "fs:write:instances",
+    "invoke:core",
+    "invoke:marketplace",
+    "events:listen",
+    "events:emit"
+  ],
+  "contributes": {
+    "routes": [
+      { "path": "/store", "component": "MarketplacePage" },
+      { "path": "/mods", "component": "MarketplacePage" },
+      { "path": "/store/:type/:slug", "component": "ContentDetailPage" },
+      { "path": "/collections", "component": "CollectionsPage" },
+      { "path": "/library", "component": "LibraryPage" }
+    ],
+    "sidebar": [
+      { "id": "marketplace", "label": "Store", "icon": "🛒", "route": "/store", "order": 2 },
+      { "id": "collections", "label": "Collections", "icon": "📚", "route": "/collections", "order": 3 },
+      { "id": "library", "label": "Library", "icon": "📦", "route": "/library", "order": 5 }
+    ],
+    "settings": []
+  }
+}

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}} — BonNext Wiki</title>
+  <meta name="description" content="BonNext project documentation wiki">
+  <link rel="stylesheet" href="{{basePath}}css/style.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <a href="{{basePath}}index.html" class="logo">BonNext Wiki</a>
+      </div>
+      <div class="search-box">
+        <input type="text" id="search-input" placeholder="搜索文档... (/)" autocomplete="off">
+      </div>
+      <div id="sidebar-content">
+        {{navigation}}
+      </div>
+    </aside>
+
+    <main id="main">
+      <button id="sidebar-toggle" aria-label="Toggle sidebar">☰</button>
+      <div id="content">
+        <nav class="breadcrumb">
+          {{breadcrumb}}
+        </nav>
+        <article class="article-content">
+          {{content}}
+        </article>
+        <footer class="page-footer">
+          <p>BonNext Wiki · 最后更新于 {{lastUpdated}}</p>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <script src="{{basePath}}js/nav.js"></script>
+  <script src="{{basePath}}js/search.js"></script>
+  <script src="{{basePath}}js/toc.js"></script>
+  <script src="{{basePath}}js/pagination.js"></script>
+  <script src="{{basePath}}js/keyboard.js"></script>
+</body>
+</html>
