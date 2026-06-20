@@ -1,7 +1,9 @@
 // src/plugins/builtins/scene-menu/MenuLayer.tsx
 // 4 个全息面板：启动/实例/商店/设置。clip-path 切角 + backdrop-filter。
+// 面板跟随相机 dolly 一起移动，仿佛嵌入 3D 场景中。
 import styles from './styles/overlay.module.css';
 import type { LaunchState } from './hooks/useLaunchLastInstance';
+import type { CameraOffset } from './hooks/useCameraDolly';
 
 export type MenuAction = 'launch' | 'instances' | 'store' | 'settings';
 
@@ -10,6 +12,8 @@ export interface MenuLayerProps {
   launchingName: string | null;
   launchState: LaunchState;
   launchError: string | null;
+  /** 相机偏移，用于面板视差跟随 */
+  offset?: CameraOffset;
 }
 
 interface PanelDef {
@@ -26,9 +30,15 @@ const PANELS: PanelDef[] = [
   { action: 'settings', label: '设置', variant: 'dim' },
 ];
 
-export function MenuLayer({ onAction, launchingName, launchState, launchError }: MenuLayerProps) {
+export function MenuLayer({ onAction, launchingName, launchState, launchError, offset }: MenuLayerProps) {
+  // 面板视差：跟随相机移动（仿佛嵌入场景），推进时略微放大
+  const ox = offset?.x ?? 0;
+  const oy = offset?.y ?? 0;
+  const oz = offset?.z ?? 0;
+  const transform = `translate(${ox * 30}px, ${oy * 30}px) scale(${1 + oz * 0.12})`;
+
   return (
-    <div className={styles.menuLayer} role="menu" aria-label="3D 主菜单">
+    <div className={styles.menuLayer} role="menu" aria-label="3D 主菜单" style={{ transform }}>
       {PANELS.map((p) => {
         const isLaunch = p.action === 'launch';
         const sub = isLaunch

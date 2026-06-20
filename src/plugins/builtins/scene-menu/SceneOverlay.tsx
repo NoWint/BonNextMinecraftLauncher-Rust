@@ -41,15 +41,15 @@ export function SceneOverlay({ ctx, plyUrl = null }: SceneOverlayProps) {
         void launch.launch();
         return;
       }
-      // 进入转场 → 完成后导航
+      // 进入转场 → 先推进 500ms → 再淡出 300ms → 导航
       setTransitionTarget(TRANSITION_TARGETS[action]);
-      setFadingOut(true);
-      // 转场 600ms + 淡出 300ms 后导航
+      window.setTimeout(() => setFadingOut(true), 500);
       window.setTimeout(() => {
         const hash = action === 'instances' ? '#/instances' : action === 'store' ? '#/store' : '#/settings';
         window.location.hash = hash;
         setFadingOut(false);
-      }, 600);
+        setTransitionTarget(null);
+      }, 800);
     },
     [launch],
   );
@@ -68,6 +68,7 @@ export function SceneOverlay({ ctx, plyUrl = null }: SceneOverlayProps) {
         launchingName={launch.launchingName}
         launchState={launch.state}
         launchError={launch.error}
+        offset={offset}
       />
     </div>
   );

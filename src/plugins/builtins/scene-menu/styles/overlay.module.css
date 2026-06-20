@@ -124,6 +124,7 @@
   gap: 0;
   padding: 8% 6%;
   pointer-events: none;
+  will-change: transform;
 }
 
 .panel {
