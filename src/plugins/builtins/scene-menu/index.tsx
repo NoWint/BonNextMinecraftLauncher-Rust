@@ -33,9 +33,10 @@ export const sceneMenuPlugin = definePlugin({
     container.style.position = 'fixed';
     container.style.inset = '0';
     container.style.zIndex = '9999';
+    container.style.pointerEvents = 'none';
     document.body.appendChild(container);
     root = createRoot(container);
-    root.render(<SceneOverlay ctx={ctx} />);
+    root.render(<SceneOverlay ctx={ctx} plyUrl="/scene.ply" />);
     ctx.logger.info('3D Scene Menu plugin activated');
   },
 
