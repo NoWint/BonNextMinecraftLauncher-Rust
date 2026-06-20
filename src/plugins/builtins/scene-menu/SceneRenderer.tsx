@@ -13,9 +13,11 @@ export interface SceneRendererProps {
 }
 
 /** 相机基础位置（three.js 坐标系，z 朝观察者） */
-const BASE_CAM_POS: readonly [number, number, number] = [0, 0.5, 4];
+const BASE_CAM_POS: readonly [number, number, number] = [0, 0.3, 3];
 /** 相机注视点 */
 const CAM_LOOK_AT: readonly [number, number, number] = [0, 0, 0];
+/** 相机 FOV（度）— 窄 FOV 减少边缘畸变 */
+const CAM_FOV = 45;
 /** 加载超时（毫秒） */
 const LOAD_TIMEOUT_MS = 30_000;
 
@@ -74,7 +76,20 @@ export function SceneRenderer({ active, plyUrl, offset }: SceneRendererProps) {
           sharedMemoryForWorkers: crossIsolated,
           enableSIMDInSort: crossIsolated,
           gpuAcceleratedSort: false,
+          // 画质提升
+          antialiased: true,
+          integerBasedSort: false,
+          halfPrecisionCovariancesOnGPU: false,
+          sceneFadeInRateMultiplier: 5.0,
+          sphericalHarmonicsDegree: 2,
         });
+
+        // 调整相机 FOV（库默认 50°，改为 45° 减少边缘畸变）
+        const cam = (viewer as any).camera;
+        if (cam && cam.isPerspectiveCamera) {
+          cam.fov = CAM_FOV;
+          cam.updateProjectionMatrix();
+        }
 
         // 启动 self-driven rAF 渲染循环（addSplatScene 不会自动调用 start）
         console.info('[SceneMenu] starting viewer rAF loop...');
