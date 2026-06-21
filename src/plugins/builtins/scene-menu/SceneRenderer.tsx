@@ -161,19 +161,26 @@ export function SceneRenderer({ active, plyUrl, offset }: SceneRendererProps) {
     };
   }, [canRender3D, plyUrl]);
 
-  // 应用相机偏移到 viewer：在基础位置上叠加 breathing + parallax + transition
+  // 应用相机偏移到 viewer：反转 x/y 使画面向 offset 方向移动
+  // lookAt 点也偏移（50%），增加旋转感（3A 大片运镜）
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer) return;
     const cam = (viewer as any).camera;
     if (!cam) return;
     // offset.z 正值 = 推进（靠近场景）= three.js 中 z 减小
+    // offset.x/y 正值 = 画面向该方向移动 = 相机向反方向移动
     cam.position.set(
-      BASE_CAM_POS[0] + offset.x,
-      BASE_CAM_POS[1] + offset.y,
+      BASE_CAM_POS[0] - offset.x,
+      BASE_CAM_POS[1] - offset.y,
       BASE_CAM_POS[2] - offset.z,
     );
-    cam.lookAt(CAM_LOOK_AT[0], CAM_LOOK_AT[1], CAM_LOOK_AT[2]);
+    // lookAt 点偏移 50%，使相机有旋转感而非纯平移
+    cam.lookAt(
+      CAM_LOOK_AT[0] - offset.x * 0.5,
+      CAM_LOOK_AT[1] - offset.y * 0.5,
+      CAM_LOOK_AT[2],
+    );
   }, [offset]);
 
   // active=false 时暂停渲染（真实浏览器由 viewer 内部 rAF 控制，此处仅占位）
