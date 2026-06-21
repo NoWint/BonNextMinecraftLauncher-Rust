@@ -1,0 +1,164 @@
+.section {
+  position: relative;
+  background: var(--canvas);
+  padding: clamp(120px, 18vh, 200px) 0;
+  overflow: hidden;
+}
+
+/* 5. 背景网格位移 */
+.grid {
+  position: absolute;
+  inset: -20% -20%;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 60px 60px;
+  z-index: 0;
+  will-change: transform;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+}
+
+.header {
+  margin-bottom: var(--space-6);
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-3);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-bottom: var(--space-4);
+}
+
+.desc {
+  font-size: var(--text-body);
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-width: 600px;
+}
+
+.stack {
+  --layer-indent: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.layerWrap {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 2. 3D 深度堆叠 — marginLeft 递增营造层级深度 */
+.layer {
+  position: relative;
+  background: var(--surface-elevated);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  padding: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  will-change: transform, opacity;
+  transform-origin: center top;
+}
+
+.layerIndex {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.1em;
+  flex-shrink: 0;
+  min-width: 24px;
+}
+
+.layerBody {
+  flex: 1;
+}
+
+.layerTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-headline);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.layerDesc {
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* 4. 核心层高亮 */
+.core {
+  background: linear-gradient(135deg, rgba(255, 230, 0, 0.03) 0%, var(--surface-elevated) 100%);
+  transition: border-color 0.6s var(--ease-apple), box-shadow 0.6s var(--ease-apple);
+}
+
+.coreActive {
+  border-color: var(--accent);
+  box-shadow: 0 0 40px var(--accent-glow);
+}
+
+.coreBadge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+  background: rgba(255, 230, 0, 0.1);
+  border: 1px solid rgba(255, 230, 0, 0.3);
+  border-radius: 4px;
+  padding: 4px 8px;
+  flex-shrink: 0;
+}
+
+/* 3. 连接线绘制 */
+.connector {
+  width: 1px;
+  height: 40px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%);
+  transform-origin: top;
+  will-change: transform;
+}
+
+@media (max-width: 768px) {
+  .stack {
+    --layer-indent: 8px;
+  }
+  .layer {
+    padding: var(--space-3);
+    gap: var(--space-3);
+  }
+  .layerTitle {
+    font-size: 20px;
+  }
+  .connector {
+    height: 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grid,
+  .layer,
+  .connector {
+    will-change: auto;
+  }
+}

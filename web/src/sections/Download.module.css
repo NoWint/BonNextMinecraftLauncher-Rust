@@ -1,0 +1,295 @@
+.section {
+  position: relative;
+  background: var(--canvas);
+  padding: clamp(120px, 18vh, 200px) 0;
+  overflow: hidden;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+}
+
+/* 2. Breathing glow background */
+.glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 800px;
+  height: 800px;
+  margin-left: -400px;
+  margin-top: -400px;
+  background: radial-gradient(
+    circle at center,
+    var(--accent-glow) 0%,
+    transparent 60%
+  );
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+/* 4. Platform detection pulse badge */
+.platformBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 980px;
+  background: rgba(255, 230, 0, 0.04);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+}
+
+.platformDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.platformText {
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+/* 3. Title word-by-word reveal */
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-bottom: var(--space-3);
+}
+
+.titleWord {
+  display: inline-block;
+  will-change: transform, opacity, filter;
+}
+
+.desc {
+  font-size: var(--text-body);
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+  max-width: 540px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* 5. Version typewriter terminal line */
+.versionLine {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-5);
+  background: var(--surface-elevated);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 10px 16px;
+}
+
+.versionPrefix {
+  color: var(--text-tertiary);
+}
+
+.versionValue {
+  color: var(--accent);
+  min-width: 60px;
+  text-align: left;
+}
+
+.cursor {
+  display: inline-block;
+  margin-left: 2px;
+  color: var(--accent);
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* 1. Magnetic cursor CTA */
+.ctas {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-5);
+}
+
+.ctaPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--accent);
+  color: #000;
+  font-size: var(--text-body);
+  font-weight: 500;
+  padding: 16px 32px;
+  border-radius: 980px;
+  transition: opacity var(--duration-fast),
+    transform 0.25s var(--ease-apple);
+  will-change: transform;
+}
+
+.ctaPrimary:hover {
+  opacity: 0.88;
+}
+
+.ctaLabel {
+  font-weight: 500;
+}
+
+.ctaMeta {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  opacity: 0.7;
+  padding-left: var(--space-1);
+  border-left: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+/* Alternative platform links */
+.alternates {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.alternatesLabel {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-tertiary);
+}
+
+.alternatesList {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.altLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid var(--hairline);
+  border-radius: 980px;
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+  transition: border-color var(--duration-fast),
+    color var(--duration-fast), background var(--duration-fast);
+}
+
+.altLink:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  background: var(--accent-dim);
+}
+
+.altLinkActive {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.altSize {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+/* Error fallback */
+.fallback {
+  margin-top: var(--space-4);
+  font-size: var(--text-caption);
+  color: var(--text-tertiary);
+}
+
+.fallbackLink {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Responsive — shrink buttons & title under 640px */
+@media (max-width: 640px) {
+  .title {
+    font-size: 36px;
+  }
+
+  .ctaPrimary {
+    padding: 14px 24px;
+    font-size: var(--text-caption);
+  }
+
+  .glow {
+    width: 500px;
+    height: 500px;
+    margin-left: -250px;
+    margin-top: -250px;
+  }
+
+  .versionLine {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .alternatesList {
+    gap: var(--space-1);
+  }
+
+  .altLink {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Reduced motion — degrade all animations */
+@media (prefers-reduced-motion: reduce) {
+  .platformDot {
+    animation: none;
+    opacity: 1;
+  }
+
+  .cursor {
+    animation: none;
+    opacity: 1;
+  }
+
+  .glow {
+    opacity: 0.8;
+  }
+}
