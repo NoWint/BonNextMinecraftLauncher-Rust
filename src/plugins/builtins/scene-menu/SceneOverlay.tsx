@@ -37,8 +37,8 @@ export function SceneOverlay({ ctx, plyUrl = null }: SceneOverlayProps) {
   const handleAction = useCallback(
     (action: MenuAction) => {
       if (action === 'launch') {
-        // 一键启动：相机大幅推进
-        setTransitionTarget({ x: 0, y: 0, z: 1.8 });
+        // 一键启动：相机向左上方推进（launch 按钮在左上角）
+        setTransitionTarget({ x: -0.6, y: 0.3, z: 1.8 });
         void launch.launch();
         return;
       }

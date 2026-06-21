@@ -36,8 +36,8 @@ export function MenuLayer({ onAction, launchingName, launchState, launchError, o
   const ox = offset?.x ?? 0;
   const oy = offset?.y ?? 0;
   const oz = offset?.z ?? 0;
-  // perspective 1200px + translateZ(-300→-50) 使按钮从远处拉近
-  const tz = -300 + oz * 250;
+  // perspective 1200px + translateZ(-500→-100) 使按钮从远处拉近
+  const tz = -500 + oz * 400;
   const transform = `perspective(1200px) translate3d(${ox * 50}px, ${oy * 50}px, ${tz}px) scale(${1 + oz * 0.25})`;
 
   return (
