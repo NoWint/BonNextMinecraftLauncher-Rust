@@ -18,11 +18,13 @@ export interface SceneOverlayProps {
 
 // 各菜单项转场推进方向 — 对应按钮在屏幕上的位置（2x2 grid）：
 // 启动(左上) 实例(右上) / 商店(左下) 设置(右下)
-// x正=右, y正=上, z正=推进
+// 注意：相机偏移方向与画面移动方向相反（因 lookAt 原点），
+// 所以这里用负值让画面向按钮方向移动
+// x负=画面向右, y负=画面向上, z正=推进
 const TRANSITION_TARGETS: Record<Exclude<MenuAction, 'launch'>, CameraOffset> = {
-  instances: { x: 0.4, y: 0.2, z: 1.5 },   // 右上 → 相机右上方推进
-  store: { x: -0.4, y: -0.2, z: 1.5 },      // 左下 → 相机左下方推进
-  settings: { x: 0.4, y: -0.2, z: 1.5 },    // 右下 → 相机右下方推进
+  instances: { x: -0.4, y: -0.2, z: 1.5 },   // 右上 → 画面向右上方
+  store: { x: 0.4, y: 0.2, z: 1.5 },          // 左下 → 画面向左下方
+  settings: { x: -0.4, y: 0.2, z: 1.5 },      // 右下 → 画面向右下方
 };
 
 export function SceneOverlay({ ctx, plyUrl = null }: SceneOverlayProps) {
