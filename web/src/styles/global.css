@@ -190,3 +190,16 @@ motion.div[data-testid='scroll-progress'],
     --text-display: 28px;
   }
 }
+
+/* Scroll progress bar */
+motion.div[data-testid='scroll-progress'],
+[data-testid='scroll-progress'] {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  transform-origin: 0%;
+  z-index: 200;
+}
