@@ -30,7 +30,6 @@ dist-ssr
 
 # Tauri / Rust build artifacts
 src-tauri/target/
-src-tauri/icons/
 
 # Build artifacts
 tsconfig.tsbuildinfo
