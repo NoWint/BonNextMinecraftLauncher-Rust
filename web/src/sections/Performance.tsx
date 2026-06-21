@@ -1,4 +1,4 @@
-import { motion, useScroll, useTransform, useInView } from 'framer-motion';
+import { motion, useScroll, useTransform, useInView, useReducedMotion } from 'framer-motion';
 import { useRef, useEffect, useState } from 'react';
 import styles from './Performance.module.css';
 
@@ -39,6 +39,7 @@ const STATS = [
 
 export function Performance() {
   const ref = useRef<HTMLElement>(null);
+  const prefersReduced = useReducedMotion();
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ['start end', 'end start'],
@@ -47,28 +48,60 @@ export function Performance() {
 
   return (
     <section id="performance" ref={ref} className={styles.section}>
-      <motion.div className={styles.bg} style={{ y: bgY }} aria-hidden="true" />
+      <motion.div
+        className={styles.bg}
+        style={{ y: prefersReduced ? 0 : bgY }}
+        aria-hidden="true"
+      />
       <div className="container">
         <div className={styles.label}>Performance</div>
         <h2 className={styles.title}>
-          Rust core.
-          <br />
-          Parallel by nature.
+          <motion.span
+            className={styles.titleLine}
+            initial={prefersReduced ? false : { opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          >
+            Rust core.
+          </motion.span>
+          <motion.span
+            className={styles.titleLine}
+            initial={prefersReduced ? false : { opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+          >
+            Parallel by nature.
+          </motion.span>
         </h2>
         <p className={styles.desc}>
           Rust 原生性能，状态机驱动的启动流程。8 并发下载队列，智能限速与优先级调度。官方、BMCLAPI 三镜像自动故障转移。
         </p>
         <div className={styles.stats}>
-          {STATS.map((stat) => (
-            <div key={stat.label} className={styles.stat}>
+          {STATS.map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              className={styles.stat}
+              initial={prefersReduced ? false : { opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: i * 0.1 }}
+            >
               <div className={styles.statValue}>
                 <AnimatedNumber value={stat.value} suffix={stat.suffix} />
               </div>
               <div className={styles.statLabel}>{stat.label}</div>
-            </div>
+            </motion.div>
           ))}
         </div>
-        <div className={styles.codeWindow}>
+        <motion.div
+          className={styles.codeWindow}
+          initial={prefersReduced ? false : { clipPath: 'inset(100% 0 0 0)', y: 60 }}
+          whileInView={{ clipPath: 'inset(0 0 0 0)', y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+        >
           <div className={styles.codeHeader}>
             <span className={styles.dot} style={{ background: '#FF5F57' }} />
             <span className={styles.dot} style={{ background: '#FEBC2E' }} />
@@ -85,7 +118,7 @@ export function Performance() {
               {'  '}.<span className={styles.fn}>build</span>();
             </code>
           </pre>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

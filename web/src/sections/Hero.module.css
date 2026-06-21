@@ -26,6 +26,7 @@
   max-width: var(--container-wide);
   padding: 0 var(--space-4);
   width: 100%;
+  will-change: transform;
 }
 
 .headline {
@@ -37,6 +38,7 @@
   color: var(--text-primary);
   margin-bottom: var(--space-4);
   max-width: 900px;
+  will-change: filter;
 }
 
 .accent {
@@ -66,7 +68,9 @@
   font-weight: 500;
   padding: 14px 28px;
   border-radius: 980px;
-  transition: opacity var(--duration-fast);
+  transition: opacity var(--duration-fast),
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
 }
 
 .ctaPrimary:hover {
@@ -84,7 +88,9 @@
   font-weight: 500;
   padding: 13px 27px;
   border-radius: 980px;
-  transition: background var(--duration-fast);
+  transition: background var(--duration-fast),
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
 }
 
 .ctaSecondary:hover {

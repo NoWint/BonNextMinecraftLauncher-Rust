@@ -18,11 +18,26 @@
   justify-content: center;
   padding: var(--space-4);
   will-change: transform, opacity;
+  overflow: hidden;
+}
+
+.cardBg {
+  position: absolute;
+  inset: -10%;
+  will-change: transform;
+  pointer-events: none;
 }
 
 .cardContent {
+  position: relative;
+  z-index: 1;
   max-width: var(--container-narrow);
   text-align: center;
+}
+
+.labelWrap {
+  display: inline-block;
+  will-change: transform, opacity;
 }
 
 .label {
@@ -58,5 +73,13 @@
   }
   .desc {
     font-size: 15px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .cardBg,
+  .labelWrap {
+    will-change: auto;
   }
 }

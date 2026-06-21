@@ -40,6 +40,11 @@
   margin-bottom: var(--space-4);
 }
 
+.titleLine {
+  display: block;
+  will-change: transform, opacity;
+}
+
 .desc {
   font-size: var(--text-body);
   line-height: 1.6;

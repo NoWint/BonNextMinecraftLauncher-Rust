@@ -1,4 +1,4 @@
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
 import { useRef } from 'react';
 import styles from './DesignLanguage.module.css';
 
@@ -42,6 +42,7 @@ const PILLARS = [
 
 export function DesignLanguage() {
   const ref = useRef<HTMLElement>(null);
+  const reduce = useReducedMotion();
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ['start start', 'end end'],
@@ -56,21 +57,46 @@ export function DesignLanguage() {
           const scale = useTransform(scrollYProgress, [start, end], [1, 0.85]);
           const opacity = useTransform(scrollYProgress, [start, end - 0.05, end], [1, 1, 0]);
           const y = useTransform(scrollYProgress, [start, end], [0, -50]);
+          // 3D 透视倾斜：卡片切换时翻转
+          const rotateX = useTransform(scrollYProgress, [start, end], [0, -8]);
+          // 标签水平滑入：从左侧滑入并淡入
+          const labelX = useTransform(scrollYProgress, [start, start + 0.08], [-30, 0]);
+          const labelOpacity = useTransform(scrollYProgress, [start, start + 0.08], [0, 1]);
+          // 背景位置偏移：渐变随滚动位移营造视差深度
+          const bgX = useTransform(scrollYProgress, [start, end], [0, 30]);
+          const bgY = useTransform(scrollYProgress, [start, end], [0, -20]);
 
           return (
             <motion.div
               key={pillar.id}
               className={styles.card}
               style={{
-                scale,
+                scale: reduce ? 1 : scale,
                 opacity,
-                y,
-                background: pillar.bg,
+                y: reduce ? 0 : y,
+                rotateX: reduce ? 0 : rotateX,
+                transformPerspective: 1200,
                 zIndex: i,
               }}
             >
+              <motion.div
+                className={styles.cardBg}
+                style={{
+                  background: pillar.bg,
+                  x: reduce ? 0 : bgX,
+                  y: reduce ? 0 : bgY,
+                }}
+              />
               <div className={styles.cardContent}>
-                <div className={styles.label}>{pillar.label}</div>
+                <motion.div
+                  className={styles.labelWrap}
+                  style={{
+                    x: reduce ? 0 : labelX,
+                    opacity: reduce ? 1 : labelOpacity,
+                  }}
+                >
+                  <div className={styles.label}>{pillar.label}</div>
+                </motion.div>
                 <h2 className={styles.title}>{pillar.title}</h2>
                 <p className={styles.desc}>{pillar.desc}</p>
               </div>
