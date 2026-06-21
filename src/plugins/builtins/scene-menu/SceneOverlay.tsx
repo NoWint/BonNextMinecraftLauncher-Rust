@@ -16,11 +16,13 @@ export interface SceneOverlayProps {
   plyUrl?: string | null;
 }
 
-// 各菜单项转场推进方向（相对原点）— 大幅推进 + 侧移，模拟 3A 大作运镜特写
+// 各菜单项转场推进方向 — 对应按钮在屏幕上的位置（2x2 grid）：
+// 启动(左上) 实例(右上) / 商店(左下) 设置(右下)
+// x正=右, y正=上, z正=推进
 const TRANSITION_TARGETS: Record<Exclude<MenuAction, 'launch'>, CameraOffset> = {
-  instances: { x: 0.4, y: 0.2, z: 1.5 },
-  store: { x: 0.6, y: -0.2, z: 1.5 },
-  settings: { x: 0.5, y: -0.3, z: 1.5 },
+  instances: { x: 0.4, y: 0.2, z: 1.5 },   // 右上 → 相机右上方推进
+  store: { x: -0.4, y: -0.2, z: 1.5 },      // 左下 → 相机左下方推进
+  settings: { x: 0.4, y: -0.2, z: 1.5 },    // 右下 → 相机右下方推进
 };
 
 export function SceneOverlay({ ctx, plyUrl = null }: SceneOverlayProps) {
@@ -28,10 +30,8 @@ export function SceneOverlay({ ctx, plyUrl = null }: SceneOverlayProps) {
   const [transitionTarget, setTransitionTarget] = useState<CameraOffset | null>(null);
   const [fadingOut, setFadingOut] = useState(false);
   const launch = useLaunchLastInstance(ctx);
-  const offset = useCameraDolly(visible && !fadingOut, transitionTarget, () => {
-    // 转场结束：执行导航
-    setTransitionTarget(null);
-  });
+  // 不传 onTransitionEnd — 转场结束后保持特写位置，不闪回
+  const offset = useCameraDolly(visible && !fadingOut, transitionTarget);
 
   const handleAction = useCallback(
     (action: MenuAction) => {
@@ -41,15 +41,15 @@ export function SceneOverlay({ ctx, plyUrl = null }: SceneOverlayProps) {
         void launch.launch();
         return;
       }
-      // 进入转场 → 先推进 800ms → 再淡出 300ms → 导航
+      // 运镜推进 1000ms → 停留特写 500ms → 淡出 300ms → 导航 1800ms
       setTransitionTarget(TRANSITION_TARGETS[action]);
-      window.setTimeout(() => setFadingOut(true), 800);
+      window.setTimeout(() => setFadingOut(true), 1500);
       window.setTimeout(() => {
         const hash = action === 'instances' ? '#/instances' : action === 'store' ? '#/store' : '#/settings';
         window.location.hash = hash;
         setFadingOut(false);
         setTransitionTarget(null);
-      }, 1100);
+      }, 1800);
     },
     [launch],
   );
