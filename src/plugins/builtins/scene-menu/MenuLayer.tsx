@@ -31,12 +31,14 @@ const PANELS: PanelDef[] = [
 ];
 
 export function MenuLayer({ onAction, launchingName, launchState, launchError, offset }: MenuLayerProps) {
-  // 面板视差：跟随画面同向移动（offset 正 = 画面向该方向 = 按钮也向该方向）
-  // 推进时放大（模拟靠近）
+  // 面板视差 + 3D 透视：按钮默认在远处（translateZ 负值），
+  // 运镜推进时拉近（translateZ 增大），模拟按钮在 3D 场景中
   const ox = offset?.x ?? 0;
   const oy = offset?.y ?? 0;
   const oz = offset?.z ?? 0;
-  const transform = `translate(${ox * 40}px, ${oy * 40}px) scale(${1 + oz * 0.15})`;
+  // perspective 1200px + translateZ(-300→-50) 使按钮从远处拉近
+  const tz = -300 + oz * 250;
+  const transform = `perspective(1200px) translate3d(${ox * 50}px, ${oy * 50}px, ${tz}px) scale(${1 + oz * 0.25})`;
 
   return (
     <div className={styles.menuLayer} role="menu" aria-label="3D 主菜单" style={{ transform }}>

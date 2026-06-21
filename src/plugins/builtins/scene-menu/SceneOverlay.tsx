@@ -21,9 +21,9 @@ export interface SceneOverlayProps {
 // offset 值为正 = 画面向该方向移动（SceneRenderer 内部反转相机偏移）
 // x正=画面向右, y正=画面向上, z正=推进
 const TRANSITION_TARGETS: Record<Exclude<MenuAction, 'launch'>, CameraOffset> = {
-  instances: { x: 0.4, y: 0.2, z: 1.5 },    // 右上 → 画面向右上方推进
-  store: { x: -0.4, y: -0.2, z: 1.5 },       // 左下 → 画面向左下方推进
-  settings: { x: 0.4, y: -0.2, z: 1.5 },     // 右下 → 画面向右下方推进
+  instances: { x: 0.6, y: 0.3, z: 1.5 },    // 右上 → 画面向右上方推进
+  store: { x: -0.6, y: -0.3, z: 1.5 },       // 左下 → 画面向左下方推进
+  settings: { x: 0.6, y: -0.3, z: 1.5 },     // 右下 → 画面向右下方推进
 };
 
 export function SceneOverlay({ ctx, plyUrl = null }: SceneOverlayProps) {
@@ -42,15 +42,15 @@ export function SceneOverlay({ ctx, plyUrl = null }: SceneOverlayProps) {
         void launch.launch();
         return;
       }
-      // 运镜推进 1000ms → 停留特写 500ms → 淡出 300ms → 导航 1800ms
+      // 运镜推进 1500ms → 停留特写 800ms → 淡出 500ms → 导航 2800ms
       setTransitionTarget(TRANSITION_TARGETS[action]);
-      window.setTimeout(() => setFadingOut(true), 1500);
+      window.setTimeout(() => setFadingOut(true), 2300);
       window.setTimeout(() => {
         const hash = action === 'instances' ? '#/instances' : action === 'store' ? '#/store' : '#/settings';
         window.location.hash = hash;
         setFadingOut(false);
         setTransitionTarget(null);
-      }, 1800);
+      }, 2800);
     },
     [launch],
   );
