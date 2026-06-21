@@ -94,7 +94,6 @@ export function useCameraDolly(
     let raf = 0;
     startRef.current = performance.now();
     const loop = (now: number) => {
-      const par = parallaxOffset(mouseRef.current.x, mouseRef.current.y, 0.25);
       let trans: CameraOffset = { x: 0, y: 0, z: 0 };
       if (transitionTarget) {
         if (transitionStartRef.current === null) transitionStartRef.current = now;
@@ -102,13 +101,7 @@ export function useCameraDolly(
         trans = transitionOffset(elapsed, transitionTarget, 1000);
         if (elapsed >= 1000 && onTransitionEndRef.current) onTransitionEndRef.current();
       }
-      setOffset(
-        clampPosition({
-          x: par.x + trans.x,
-          y: par.y + trans.y,
-          z: trans.z,
-        }),
-      );
+      setOffset(trans);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);

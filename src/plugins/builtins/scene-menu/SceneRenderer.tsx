@@ -13,11 +13,11 @@ export interface SceneRendererProps {
 }
 
 /** 相机基础位置（three.js 坐标系，z 朝观察者） */
-const BASE_CAM_POS: readonly [number, number, number] = [0, 0.2, 2];
+const BASE_CAM_POS: readonly [number, number, number] = [0, 0, 1.8];
 /** 相机注视点 */
 const CAM_LOOK_AT: readonly [number, number, number] = [0, 0, 0];
 /** 相机 FOV（度）— 窄 FOV 减少边缘畸变 + 让模型填满屏幕 */
-const CAM_FOV = 40;
+const CAM_FOV = 45;
 /** 加载超时（毫秒） */
 const LOAD_TIMEOUT_MS = 30_000;
 
