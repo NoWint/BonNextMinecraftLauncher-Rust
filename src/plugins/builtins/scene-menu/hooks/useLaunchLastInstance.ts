@@ -41,7 +41,7 @@ export function useLaunchLastInstance(ctx: PluginContext): LaunchLastInstanceApi
     setError(null);
     let instances: Instance[];
     try {
-      instances = (await ctx.invoke<Instance[]>('get_instances')) ?? [];
+      instances = (await ctx.invoke<Instance[]>('list_instances')) ?? [];
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setState('crashed');
