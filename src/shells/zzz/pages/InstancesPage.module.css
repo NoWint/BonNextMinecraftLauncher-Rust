@@ -1,18 +1,151 @@
 /* ==========================================================================
    Instance Library — Steam-inspired design × Neo-Tokyo aesthetic
+   HMCL GameListPage layout: left sidebar (200px) + right content
    ========================================================================== */
 
 .page {
   display: flex;
-  flex-direction: column;
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ---- HMCL-style left sidebar ---- */
+.sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.sidebar__top {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar__bottom {
+  flex-shrink: 0;
+  padding: 8px 8px 12px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 账户卡片 */
+.sidebar__account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  clip-path: var(--clip-small);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.sidebar__account:hover {
+  border-color: var(--color-accent);
+  background: var(--color-panel-alt);
+}
+
+.sidebar__accountAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-heading);
+  font-size: 0.8em;
+  color: var(--color-bg);
+  flex-shrink: 0;
+}
+
+.sidebar__accountInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sidebar__accountName {
+  font-size: 0.6em;
+  color: var(--color-text);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar__accountType {
+  font-size: 0.45em;
+  color: var(--color-text-dim);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* 侧边栏分类标题 */
+.sidebar__categoryTitle {
+  font-family: var(--font-heading);
+  font-size: 0.45em;
+  letter-spacing: 2px;
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+  padding: 12px 12px 4px;
+}
+
+/* 侧边栏按钮项 */
+.sidebar__navItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.6em;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  clip-path: var(--clip-small);
+  transition: all var(--transition-fast);
+  text-align: left;
+  width: 100%;
+}
+
+.sidebar__navItem:hover {
+  background: color-mix(in srgb, var(--color-accent) 4%, transparent);
+  color: var(--color-text);
+}
+
+.sidebar__navItem--accent {
+  color: var(--color-accent);
+}
+
+.sidebar__navItem--accent:hover {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+/* ---- Right content area ---- */
+.page__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   overflow: hidden;
 }
 
 .page__sticky {
   flex-shrink: 0;
-  padding-bottom: 12px;
+  padding: 0 16px 12px;
 }
 
 .page__scrollArea {
@@ -23,7 +156,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-bottom: 24px;
+  padding: 0 16px 24px;
 }
 
 /* ---- Hero Banner ---- */
@@ -59,13 +192,13 @@
 }
 
 .hero__bg--fabric {
-  background-image: radial-gradient(circle at 70% 50%, rgba(255, 230, 0, 0.15) 0%, transparent 60%);
+  background-image: radial-gradient(circle at 70% 50%, var(--color-accent-15) 0%, transparent 60%);
 }
 .hero__bg--forge {
-  background-image: radial-gradient(circle at 70% 50%, rgba(255, 136, 0, 0.12) 0%, transparent 60%);
+  background-image: radial-gradient(circle at 70% 50%, color-mix(in srgb, var(--color-warning) 12%, transparent) 0%, transparent 60%);
 }
 .hero__bg--vanilla {
-  background-image: radial-gradient(circle at 70% 50%, rgba(100, 200, 100, 0.08) 0%, transparent 60%);
+  background-image: radial-gradient(circle at 70% 50%, color-mix(in srgb, var(--color-success) 8%, transparent) 0%, transparent 60%);
 }
 
 .hero__decor {
@@ -116,16 +249,16 @@
 }
 
 .hero__icon--fabric {
-  background: rgba(255, 230, 0, 0.08);
-  border-color: rgba(255, 230, 0, 0.15);
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  border-color: var(--color-accent-15);
 }
 .hero__icon--forge {
-  background: rgba(255, 136, 0, 0.08);
-  border-color: rgba(255, 136, 0, 0.15);
+  background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+  border-color: color-mix(in srgb, var(--color-warning) 15%, transparent);
 }
 .hero__icon--vanilla {
-  background: rgba(100, 200, 100, 0.06);
-  border-color: rgba(100, 200, 100, 0.1);
+  background: color-mix(in srgb, var(--color-success) 6%, transparent);
+  border-color: color-mix(in srgb, var(--color-success) 10%, transparent);
 }
 
 .hero__info {
@@ -358,15 +491,15 @@
 }
 
 .instanceRow__icon--fabric {
-  background: rgba(255, 230, 0, 0.06);
+  background: var(--color-accent-06);
 }
 
 .instanceRow__icon--forge {
-  background: rgba(255, 136, 0, 0.06);
+  background: color-mix(in srgb, var(--color-warning) 6%, transparent);
 }
 
 .instanceRow__icon--vanilla {
-  background: rgba(100, 200, 100, 0.04);
+  background: color-mix(in srgb, var(--color-success) 4%, transparent);
 }
 
 .instanceRow__info {
@@ -464,7 +597,7 @@
   letter-spacing: 1px;
   cursor: pointer;
   border: none;
-  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+  clip-path: var(--clip-badge);
   transition: all var(--transition-fast);
   user-select: none;
 }
@@ -494,7 +627,7 @@
 }
 
 .instanceRow__actionBtn--repair {
-  background: var(--color-warning, #f59e0b);
+  background: var(--color-warning);
   color: var(--color-bg);
 }
 
@@ -512,6 +645,68 @@
   filter: none;
 }
 
+/* ---- RadioButton (HMCL-style current instance selection) ---- */
+.instanceRow__radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--color-text-dim);
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  padding: 0;
+}
+
+.instanceRow__radio:hover {
+  border-color: var(--color-accent);
+}
+
+.instanceRow__radio--selected {
+  border-color: var(--color-accent);
+}
+
+.instanceRow__radio--selected::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+.instanceRow--selected {
+  border-color: var(--color-accent-30);
+  background: color-mix(in srgb, var(--color-accent) 5%, var(--color-panel));
+}
+
+.instanceRow--selected:hover {
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-panel-alt));
+}
+
+.instanceRow__moreBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-dim);
+  cursor: pointer;
+  clip-path: var(--clip-small);
+  transition: all var(--transition-fast);
+  padding: 0;
+}
+
+.instanceRow__moreBtn:hover {
+  background: var(--color-panel-alt);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
 /* ---- Repair result ---- */
 .repairResult {
   display: flex;
@@ -521,9 +716,9 @@
 
 .repairAction {
   padding: 8px 12px;
-  border-radius: 4px;
+  clip-path: var(--clip-small);
   border-left: 3px solid var(--color-border);
-  background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
+  background: color-mix(in srgb, var(--color-text) 3%, transparent);
 }
 
 .repairAction--success {
@@ -531,7 +726,7 @@
 }
 
 .repairAction--fail {
-  border-left-color: var(--color-error, #ef4444);
+  border-left-color: var(--color-error);
 }
 
 .repairAction__header {
@@ -553,7 +748,7 @@
 }
 
 .repairAction--fail .repairAction__status {
-  color: var(--color-error, #ef4444);
+  color: var(--color-error);
 }
 
 .repairAction__desc {
@@ -612,8 +807,8 @@
 .error {
   color: var(--color-error);
   font-size: 0.55em;
-  background: rgba(255, 68, 68, 0.06);
-  border: 1px solid rgba(255, 68, 68, 0.2);
+  background: color-mix(in srgb, var(--color-error) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-error) 20%, transparent);
   padding: 6px 12px;
   margin-bottom: 8px;
 }
@@ -650,7 +845,7 @@
   color: var(--color-text);
 }
 .contextMenu__item--danger:hover {
-  background: rgba(255, 68, 68, 0.1);
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
   color: var(--color-error);
 }
 
@@ -697,7 +892,7 @@
   padding: 4px 8px;
   outline: none;
   transition: border-color 150ms;
-  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  clip-path: var(--clip-small);
 }
 
 .serverMonitor__input:focus {
@@ -729,7 +924,7 @@
   background: var(--color-panel-alt);
   border: 1px solid var(--color-border-mid);
   padding: 8px 10px;
-  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  clip-path: var(--clip-medium);
   min-width: 260px;
   flex: 1;
   max-width: 400px;
@@ -747,22 +942,22 @@
 .serverCard__dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  clip-path: var(--clip-diamond);
   display: block;
 }
 
 .serverCard__dot--online {
-  background: #00cc66;
-  box-shadow: 0 0 6px rgba(0, 204, 102, 0.5);
+  background: var(--color-success);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-success) 50%, transparent);
 }
 
 .serverCard__dot--offline {
-  background: #cc3333;
-  box-shadow: 0 0 6px rgba(204, 51, 51, 0.3);
+  background: var(--color-error);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-error) 30%, transparent);
 }
 
 .serverCard__dot--unknown {
-  background: #555;
+  background: var(--color-text-faint);
 }
 
 .serverCard__info {
@@ -797,7 +992,7 @@
   padding: 2px 6px;
   outline: none;
   font-family: inherit;
-  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+  clip-path: var(--clip-badge);
 }
 
 .serverCard__address {
@@ -864,7 +1059,7 @@
 .serverCard__remove:hover {
   color: var(--color-error);
   border-color: var(--color-error);
-  background: rgba(204, 51, 51, 0.1);
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
 }
 
 /* ---- Terracotta Multiplayer ---- */
@@ -877,8 +1072,8 @@
 }
 
 .mpCard {
-  background: #141414;
-  border: 1px solid #1c1c1c;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border-mid);
   padding: 14px;
   clip-path: var(--clip-small);
 }
@@ -906,7 +1101,7 @@
   background: var(--color-panel-alt);
   padding: 10px 12px;
   text-align: center;
-  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  clip-path: var(--clip-small);
 }
 
 .playtimeDashboard__statValue {
@@ -1007,13 +1202,13 @@
 }
 
 .anomalyCard--high {
-  border-color: rgba(229, 62, 62, 0.4);
-  background: rgba(229, 62, 62, 0.06);
+  border-color: color-mix(in srgb, var(--color-error) 40%, transparent);
+  background: color-mix(in srgb, var(--color-error) 6%, transparent);
 }
 
 .anomalyCard--medium {
-  border-color: rgba(236, 201, 75, 0.4);
-  background: rgba(236, 201, 75, 0.06);
+  border-color: color-mix(in srgb, var(--color-warning) 40%, transparent);
+  background: color-mix(in srgb, var(--color-warning) 6%, transparent);
 }
 
 .anomalyCard__header {
@@ -1033,15 +1228,15 @@
 }
 
 .anomalyCard__severity--high {
-  background: rgba(229, 62, 62, 0.15);
-  color: #e53e3e;
-  border: 1px solid rgba(229, 62, 62, 0.3);
+  background: color-mix(in srgb, var(--color-error) 15%, transparent);
+  color: var(--color-error);
+  border: 1px solid color-mix(in srgb, var(--color-error) 30%, transparent);
 }
 
 .anomalyCard__severity--medium {
-  background: rgba(236, 201, 75, 0.15);
-  color: #ecc94b;
-  border: 1px solid rgba(236, 201, 75, 0.3);
+  background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+  color: var(--color-warning);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 30%, transparent);
 }
 
 .anomalyCard__type {

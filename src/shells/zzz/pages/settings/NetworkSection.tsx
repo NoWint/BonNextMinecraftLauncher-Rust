@@ -34,9 +34,9 @@ export default function NetworkSection({
     try {
       await api.setGitProxy(enabled, proxyUrl || null);
       setUrlConfig((prev) => prev ? { ...prev, git_proxy_enabled: enabled } : prev);
-      addToast({ type: 'success', title: t('settings.saved') || 'Saved' });
+      addToast({ type: 'success', title: t('settings.saved') });
     } catch (e) {
-      addToast({ type: 'error', title: t('settings.saveFailed') || 'Save failed', message: formatError(e) });
+      addToast({ type: 'error', title: t('settings.saveFailed'), message: formatError(e) });
     }
   };
 
@@ -44,9 +44,9 @@ export default function NetworkSection({
     try {
       await api.setGitProxy(urlConfig?.git_proxy_enabled ?? false, proxyUrl || null);
       setUrlConfig((prev) => prev ? { ...prev, git_proxy_url: proxyUrl } : prev);
-      addToast({ type: 'success', title: t('settings.saved') || 'Saved' });
+      addToast({ type: 'success', title: t('settings.saved') });
     } catch (e) {
-      addToast({ type: 'error', title: t('settings.saveFailed') || 'Save failed', message: formatError(e) });
+      addToast({ type: 'error', title: t('settings.saveFailed'), message: formatError(e) });
     }
   };
 
@@ -64,10 +64,10 @@ export default function NetworkSection({
       if (resp.ok) {
         setLatency(elapsed);
       } else {
-        setTestError(`HTTP ${resp.status}`);
+        setTestError(t('settings.network.httpError', { status: String(resp.status) }));
       }
     } catch (e) {
-      setTestError(e instanceof Error ? e.message : 'Connection failed');
+      setTestError(e instanceof Error ? e.message : t('settings.network.connectionFailed'));
     } finally {
       setTesting(false);
     }
@@ -76,14 +76,11 @@ export default function NetworkSection({
   if (!urlConfig) return null;
 
   return (
-    <SectionCard id="sec-network" title={t('settings.network') || 'Network'}>
-      <SettingRow label={t('settings.gitProxy') || 'GitHub Proxy'}>
+    <SectionCard id="sec-network" title={t('settings.network')}>
+      <SettingRow label={t('settings.gitProxy')}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <ContextHelp
-            content={
-              t('settings.gitProxyHelp') ||
-              'Route GitHub content downloads through a proxy mirror. This helps in regions where GitHub access is restricted. Only affects github.com content URLs, not the API.'
-            }
+            content={t('settings.gitProxyHelp')}
           />
           <label className={styles.checkboxLabel}>
             <Checkbox
@@ -96,21 +93,21 @@ export default function NetworkSection({
               }
             >
               {urlConfig.git_proxy_enabled
-                ? t('settings.gitProxyEnabled') || 'Enabled'
-                : t('settings.gitProxyDisabled') || 'Disabled'}
+                ? t('settings.gitProxyEnabled')
+                : t('settings.gitProxyDisabled')}
             </span>
           </label>
         </div>
       </SettingRow>
 
       {urlConfig.git_proxy_enabled && (
-        <SettingRow label={t('settings.gitProxyUrl') || 'Proxy URL'}>
+        <SettingRow label={t('settings.gitProxyUrl')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
             <input
               type="text"
               value={proxyUrl}
               onChange={(e) => setProxyUrl(e.target.value)}
-              placeholder="https://gh-proxy.com"
+              placeholder={t('settings.network.githubProxy.placeholder')}
               style={{
                 flex: 1,
                 background: 'var(--color-panel-alt)',
@@ -124,16 +121,16 @@ export default function NetworkSection({
               }}
             />
             <Button variant="primary" size="sm" onClick={handleSaveProxyUrl}>
-              {t('common.save') || 'Save'}
+              {t('common.save')}
             </Button>
           </div>
         </SettingRow>
       )}
 
-      <SettingRow label={t('settings.testConnection') || 'Test Connection'}>
+      <SettingRow label={t('settings.testConnection')}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Button variant="secondary" size="sm" disabled={testing} onClick={handleTestConnection}>
-            {testing ? t('common.loading') || 'Testing...' : t('settings.testConnection') || 'Test Connection'}
+            {testing ? t('common.loading') : t('settings.testConnection')}
           </Button>
           {latency !== null && (
             <span

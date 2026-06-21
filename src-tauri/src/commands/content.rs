@@ -170,6 +170,32 @@ pub async fn list_instance_shaders(instance_id: String) -> Result<Vec<String>, L
 }
 
 #[tauri::command]
+pub async fn list_instance_schematics(instance_id: String) -> Result<Vec<String>, LauncherError> {
+    let dir = paths::get_instance_schematics_dir(&instance_id);
+    if !dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut schematics = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    // 支持 .litematic, .schem, .schematic, .nbt 等投影格式
+                    if matches!(ext, "litematic" | "schem" | "schematic" | "nbt") {
+                        if let Some(name) = path.file_name().map(|n| n.to_string_lossy().to_string()) {
+                            schematics.push(name);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(schematics)
+}
+
+#[tauri::command]
 pub async fn remove_installed_mod(instance_id: String, filename: String) -> Result<(), LauncherError> {
     let dir = paths::get_instance_mods_dir(&instance_id);
     let path = dir.join(&filename);

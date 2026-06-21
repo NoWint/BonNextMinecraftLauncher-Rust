@@ -18,7 +18,7 @@ export function EditorInstanceList({ node }: EditorInstanceListProps) {
       {[1, 2, 3].map(i => (
         <div key={i} style={{
           padding: '12px',
-          background: 'var(--bg-card, #1a1a1a)',
+          background: 'var(--color-panel-alt, #1a1a1a)',
           borderRadius: '6px',
           fontSize: '11px',
           color: 'var(--editor-text-secondary, #8e8e93)',

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './CrashAnalysisPanel.module.css';
 
 interface CrashAnalysisPanelProps {
@@ -22,23 +23,24 @@ export const CrashAnalysisPanel: React.FC<CrashAnalysisPanelProps> = ({
   onFix,
   onDismiss,
 }) => {
+  const { t } = useI18n();
   const severityClass = SEVERITY_CLASS_MAP[severity] || styles['severity--info'];
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <span className={styles.headerTitle}>Crash Detected</span>
+        <span className={styles.headerTitle}>{t('ai.crash.title')}</span>
         <button className={styles.closeBtn} onClick={onDismiss}>✕</button>
       </div>
       <span className={`${styles.severity} ${severityClass}`}>{severity}</span>
       <div className={styles.summary}>
-        Instance <strong>{instanceId}</strong> crashed. Report: {crashReportPath.split('/').pop()}
+        {t('ai.crash.summary', { instanceId, reportName: crashReportPath.split('/').pop() || '' })}
       </div>
       <button className={styles.fixBtn} onClick={() => onFix(instanceId, crashReportPath)}>
-        One-Click Fix
+        {t('ai.crash.fix')}
       </button>
       <button className={styles.dismissBtn} onClick={onDismiss}>
-        Dismiss
+        {t('ai.crash.dismiss')}
       </button>
     </div>
   );

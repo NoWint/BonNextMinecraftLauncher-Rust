@@ -1,0 +1,23 @@
+{
+  "id": "com.bonnext.zzz-theme",
+  "name": "ZZZ Theme",
+  "version": "1.0.0",
+  "description": "Default ZZZ Neo-Tokyo cyberpunk theme (dark, light, OLED)",
+  "author": "BonNext",
+  "minAppVersion": "0.0.1",
+  "dependencies": [],
+  "permissions": [
+    "events:listen",
+    "events:emit"
+  ],
+  "contributes": {
+    "routes": [],
+    "sidebar": [],
+    "settings": [],
+    "themes": [
+      { "id": "zzz-dark", "name": "ZZZ Dark", "mode": "dark" },
+      { "id": "zzz-light", "name": "ZZZ Light", "mode": "light" },
+      { "id": "zzz-oled", "name": "ZZZ OLED", "mode": "dark" }
+    ]
+  }
+}

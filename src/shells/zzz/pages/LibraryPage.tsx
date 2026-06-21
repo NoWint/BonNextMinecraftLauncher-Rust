@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { listen } from '@tauri-apps/api/event';
 import { formatError } from '../../../shared/utils/errorMapping';
 import { logger } from '../../../shared/utils/logger';
-import { api, type ContentCounts, type InstalledModInfo, type UpdateInfo } from '../../../shared/api';
+import { formatSize } from '../../../shared/utils/format';
+import { api, type ContentCounts, type InstalledModInfo, type UpdateInfo, type WorldInfo } from '../../../shared/api';
 import { scanModsDirectory, checkModUpdates, watchInstanceMods, unwatchInstanceMods, type ScanResult, type ModUpdateInfo } from '../../../shared/api/modScanner';
 import { useInstances } from '../../../shared/stores/instanceStore';
 import { useToast } from '../../../shared/stores/toastStore';
@@ -15,12 +16,6 @@ import { CardSkeleton } from '../components/ui/Skeleton';
 import styles from './LibraryPage.module.css';
 
 type UpdateStatus = 'pending' | 'downloading' | 'complete' | 'failed';
-
-function formatSize(bytes: number): string {
-  if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${bytes} B`;
-}
 
 export default function LibraryPage() {
   const navigate = useNavigate();
@@ -40,6 +35,7 @@ export default function LibraryPage() {
   const [mods, setMods] = useState<InstalledModInfo[]>([]);
   const [resourcepacks, setResourcepacks] = useState<string[]>([]);
   const [shaders, setShaders] = useState<string[]>([]);
+  const [worlds, setWorlds] = useState<WorldInfo[]>([]);
   const [counts, setCounts] = useState<ContentCounts | null>(null);
   const [loading, setLoading] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
@@ -69,15 +65,17 @@ export default function LibraryPage() {
     if (!selectedId) return;
     setLoading(true);
     try {
-      const [m, r, s, c] = await Promise.all([
+      const [m, r, s, w, c] = await Promise.all([
         api.listInstanceMods(selectedId),
         api.listInstanceResourcepacks(selectedId),
         api.listInstanceShaders(selectedId),
+        api.listInstanceSaves(selectedId),
         api.getContentCounts(selectedId),
       ]);
       setMods(m);
       setResourcepacks(r);
       setShaders(s);
+      setWorlds(w);
       setCounts(c);
     } catch (e) {
       logger.error('Failed to load library:', e);
@@ -642,35 +640,77 @@ export default function LibraryPage() {
               </div>
             ))}
 
-          {/* Worlds tab */}
-          {activeTab === 'worlds' &&
-            (counts && counts.worlds === 0 ? (
-              <div className={styles.empty}>
-                <div className={styles.empty__title}>{t('library.noWorlds')}</div>
-                <div className={styles.empty__desc}>{t('library.noWorldsDesc')}</div>
+          {/* Worlds tab — 列出存档（参考 HMCL WorldListCell） */}
+          {activeTab === 'worlds' && (
+            <>
+              <div className={styles.toolbar}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={async () => {
+                    if (!selectedInstance) return;
+                    try {
+                      const gameDir = await api.getGameDir();
+                      await api.openFolder(`${gameDir}/instances/${selectedInstance.id}/.minecraft/saves`);
+                    } catch (e) {
+                      logger.error('Failed to open saves folder:', e);
+                    }
+                  }}
+                >
+                  <Icon name="folder" size={14} /> {t('library.openSavesFolder')}
+                </Button>
               </div>
-            ) : (
-              <div className={styles.empty}>
-                <div className={styles.empty__title}>{t('library.worldManagement')}</div>
-                <div className={styles.empty__desc}>{t('library.worldManagementDesc')}</div>
-                {selectedInstance && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        const gameDir = await api.getGameDir();
-                        await api.openFolder(`${gameDir}/instances/${selectedInstance.id}/.minecraft/saves`);
-                      } catch (e) {
-                        logger.error('Failed to load library:', e);
-                      }
-                    }}
-                  >
-                    {t('library.openSavesFolder')}
-                  </Button>
-                )}
-              </div>
-            ))}
+              {worlds.length === 0 ? (
+                <div className={styles.empty}>
+                  <div className={styles.empty__title}>{t('library.noWorlds')}</div>
+                  <div className={styles.empty__desc}>{t('library.noWorldsDesc')}</div>
+                </div>
+              ) : (
+                <div className={styles.list}>
+                  {worlds.map((world) => (
+                    <div key={world.name} className={styles.row}>
+                      <div className={styles.row__icon}>
+                        <Icon name="globe" size={16} />
+                      </div>
+                      <div className={styles.row__info}>
+                        <div className={styles.row__name}>{world.name}</div>
+                        <div className={styles.row__meta}>
+                          {world.last_played && (
+                            <span className={styles.row__metaItem}>
+                              {t('instances.lastPlayed')}: {world.last_played}
+                            </span>
+                          )}
+                          {world.size_mb > 0 && (
+                            <span className={styles.row__metaItem}>{world.size_mb.toFixed(1)} MB</span>
+                          )}
+                          {world.game_mode && (
+                            <span className={styles.row__metaItem}>{world.game_mode}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className={styles.row__actions}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={async () => {
+                            if (!selectedInstance) return;
+                            try {
+                              const gameDir = await api.getGameDir();
+                              await api.openFolder(`${gameDir}/instances/${selectedInstance.id}/.minecraft/saves/${world.name}`);
+                            } catch (e) {
+                              logger.error('Failed to open world folder:', e);
+                            }
+                          }}
+                        >
+                          <Icon name="folder" size={12} />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </>
       )}
 

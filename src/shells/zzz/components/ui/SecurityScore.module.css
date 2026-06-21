@@ -16,9 +16,9 @@
   font-family: var(--font-display, 'Bebas Neue', sans-serif);
 }
 
-.ring--danger { border-color: #ff4444; color: #ff4444; }
-.ring--warning { border-color: #ffaa00; color: #ffaa00; }
-.ring--safe { border-color: #00ff88; color: #00ff88; }
+.ring--danger { border-color: var(--color-error); color: var(--color-error); }
+.ring--warning { border-color: var(--color-warning); color: var(--color-warning); }
+.ring--safe { border-color: var(--color-success); color: var(--color-success); }
 
 .score {
   font-size: 1.6em;
@@ -32,6 +32,6 @@
   font-family: var(--font-display, 'Bebas Neue', sans-serif);
 }
 
-.label--danger { color: #ff4444; }
-.label--warning { color: #ffaa00; }
-.label--safe { color: #00ff88; }
+.label--danger { color: var(--color-error); }
+.label--warning { color: var(--color-warning); }
+.label--safe { color: var(--color-success); }

@@ -1,6 +1,17 @@
-import { useTheme, type Theme, type AnimationSpeed, UI_SCALE_MIN, UI_SCALE_MAX } from '../../../../shared/stores/themeStore';
+import {
+  useTheme,
+  type Theme,
+  type AnimationSpeed,
+  type LayoutStyle,
+  UI_SCALE_MIN,
+  UI_SCALE_MAX,
+  SIDEBAR_WIDTH_MIN,
+  SIDEBAR_WIDTH_MAX,
+} from '../../../../shared/stores/themeStore';
 import { Button, Slider } from '../../components/ui';
 import { SectionCard, SettingRow } from './MemorySection';
+
+type Density = 'compact' | 'comfortable' | 'spacious';
 
 export default function ThemeSection({ t }: { t: (key: string, params?: Record<string, string>) => string }) {
   const {
@@ -14,6 +25,14 @@ export default function ThemeSection({ t }: { t: (key: string, params?: Record<s
     setAnimationSpeed,
     animationDuration,
     setAnimationDuration,
+    layoutStyle,
+    setLayoutStyle,
+    sidebarWidth,
+    setSidebarWidth,
+    density,
+    setDensity,
+    autoDayNight,
+    setAutoDayNight,
   } = useTheme();
 
   return (
@@ -31,13 +50,95 @@ export default function ThemeSection({ t }: { t: (key: string, params?: Record<s
               key={val}
               variant={theme === val ? 'primary' : 'secondary'}
               size="sm"
-              onClick={() => switchThemeWithAnimation(val)}
+              onClick={() => {
+                // 手动切换主题时关闭自动昼夜模式
+                if (autoDayNight) setAutoDayNight(false);
+                switchThemeWithAnimation(val);
+              }}
             >
               {label}
             </Button>
           ))}
         </div>
       </SettingRow>
+
+      <SettingRow label={t('settings.autoDayNight')}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Button
+            variant={autoDayNight ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => setAutoDayNight(!autoDayNight)}
+          >
+            {autoDayNight ? t('settings.autoDayNightOn') : t('settings.autoDayNightOff')}
+          </Button>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.5em', color: 'var(--color-text-muted)' }}>
+            {t('settings.autoDayNightHint')}
+          </span>
+        </div>
+      </SettingRow>
+
+      <SettingRow label={t('settings.layoutStyle')}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {(
+            [
+              ['zzz', t('settings.layoutZzz')],
+              ['minimalist', t('settings.layoutMinimalist')],
+            ] as [LayoutStyle, string][]
+          ).map(([val, label]) => (
+            <Button
+              key={val}
+              variant={layoutStyle === val ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setLayoutStyle(val)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </SettingRow>
+
+      <SettingRow label={t('settings.density')}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {(
+            [
+              ['compact', t('settings.densityCompact')],
+              ['comfortable', t('settings.densityComfortable')],
+              ['spacious', t('settings.densitySpacious')],
+            ] as [Density, string][]
+          ).map(([val, label]) => (
+            <Button
+              key={val}
+              variant={density === val ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setDensity(val)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </SettingRow>
+
+      <SettingRow label={t('settings.sidebarWidth')}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6em', color: '#FFF', minWidth: 56 }}>
+            {sidebarWidth}px
+          </span>
+          <div style={{ flex: 1 }}>
+            <Slider
+              gradient
+              value={sidebarWidth}
+              min={SIDEBAR_WIDTH_MIN}
+              max={SIDEBAR_WIDTH_MAX}
+              step={2}
+              onChange={(v: number) => setSidebarWidth(v)}
+            />
+          </div>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.5em', color: '#555' }}>
+            {SIDEBAR_WIDTH_MIN}–{SIDEBAR_WIDTH_MAX}px
+          </span>
+        </div>
+      </SettingRow>
+
       <SettingRow label={t('settings.uiScale')}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
           <Button variant={autoScale ? 'primary' : 'secondary'} size="sm" onClick={() => setAutoScale(!autoScale)}>

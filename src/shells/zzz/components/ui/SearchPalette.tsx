@@ -153,22 +153,35 @@ export const SearchPalette: React.FC<SearchPaletteProps> = ({
     if (nlpTimerRef.current) {
       clearTimeout(nlpTimerRef.current);
     }
+    // 取消上一次进行中的请求,避免快速输入时的 race condition
+    const controller = new AbortController();
     if (query.trim().length > 15) {
       setNlpLoading(true);
       nlpTimerRef.current = setTimeout(async () => {
         try {
           const results = await api.nlpSearchContent(query.trim());
-          setNlpResults(results);
-        } catch {
-          setNlpResults([]);
+          if (!controller.signal.aborted) {
+            setNlpResults(results);
+          }
+        } catch (e) {
+          if (!controller.signal.aborted) {
+            setNlpResults([]);
+          }
+          // AbortError 是预期内的取消,不记录
+          if ((e as Error)?.name !== 'AbortError') {
+            // 静默降级:NLP 搜索失败不应阻塞本地搜索体验
+          }
         }
-        setNlpLoading(false);
+        if (!controller.signal.aborted) {
+          setNlpLoading(false);
+        }
       }, 600);
     } else {
       setNlpResults([]);
       setNlpLoading(false);
     }
     return () => {
+      controller.abort();
       if (nlpTimerRef.current) {
         clearTimeout(nlpTimerRef.current);
       }

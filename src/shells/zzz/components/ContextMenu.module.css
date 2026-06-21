@@ -6,7 +6,7 @@
   min-width: 160px;
   padding: 4px;
   animation: context-in 0.15s var(--ease-out-expo);
-  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  clip-path: var(--clip-small);
   box-shadow: 0 8px 30px var(--color-overlay-50);
 }
 

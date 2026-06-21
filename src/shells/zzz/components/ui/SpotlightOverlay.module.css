@@ -2,13 +2,16 @@
   position: fixed;
   inset: 0;
   z-index: var(--z-overlay);
-  pointer-events: auto;
+  /* 关键修改：容器不拦截鼠标事件，让用户可以正常操作后面的页面 */
+  pointer-events: none;
 }
 
 .overlayBg {
   position: absolute;
   inset: 0;
   z-index: 0;
+  /* 不再使用全屏遮罩 */
+  background: transparent;
 }
 
 .spotlight {
@@ -16,14 +19,22 @@
   z-index: var(--z-base);
   border: 2px solid var(--color-accent);
   border-radius: 4px;
-  pointer-events: auto;
+  /* spotlight 本身不拦截事件，用户可以点击高亮元素 */
+  pointer-events: none;
   animation: spotPulse 2s ease-in-out infinite;
   clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
 }
 
+/* 关键修改：脉冲动画仅在高亮元素周围发光，不再全屏变暗 */
 @keyframes spotPulse {
-  0%, 100% { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75), 0 0 0 0 rgba(255, 230, 0, 0.5); }
-  50% { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.78), 0 0 24px 4px rgba(255, 230, 0, 0.3); }
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 50%, transparent),
+                0 0 12px 2px color-mix(in srgb, var(--color-accent) 40%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 30%, transparent),
+                0 0 24px 6px var(--color-accent-30);
+  }
 }
 
 .tooltip {
@@ -84,6 +95,8 @@
   padding: 6px 14px;
   font-size: 0.55em;
   cursor: pointer;
+  /* 关键修改：关闭按钮需要可点击（容器是 pointer-events: none） */
+  pointer-events: auto;
   clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
   transition: border-color 0.15s, color 0.15s;
 }

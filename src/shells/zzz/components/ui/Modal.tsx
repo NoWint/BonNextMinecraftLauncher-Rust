@@ -177,9 +177,9 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children, ac
         aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className={styles.title} id={titleId}>
+        <h2 className={styles.title} id={titleId}>
           {title}
-        </div>
+        </h2>
         <div className={styles.body}>{children}</div>
         {actions && <div className={styles.actions}>{actions}</div>}
       </div>

@@ -8,6 +8,8 @@ import type {
   SandboxAvailability,
   FilePermissionResult,
   FilePermissionFixResult,
+  TrustedKey,
+  SignatureVerificationResult,
 } from './types';
 
 export const getSecurityConfig = () => invoke<SecurityConfig>('get_security_config');
@@ -41,3 +43,22 @@ export const validateJvmArgs = async (args: string) => {
   return result;
 };
 export const getSandboxAvailability = () => invoke<SandboxAvailability>('get_sandbox_availability');
+
+// ===== Plugin signature verification (P4-1) =====
+
+/** List all trusted public keys (built-in + user-added). */
+export const listTrustedKeys = () => invoke<TrustedKey[]>('list_trusted_keys');
+
+/** Add a user-trusted public key. */
+export const addTrustedKey = (key: {
+  id: string;
+  label: string;
+  public_key: string;
+}) => invoke<void>('add_trusted_key', { key });
+
+/** Remove a user-trusted key by ID. Built-in keys cannot be removed. */
+export const removeTrustedKey = (id: string) => invoke<void>('remove_trusted_key', { id });
+
+/** Verify a plugin archive's signature. */
+export const verifyPluginSignature = (archivePath: string) =>
+  invoke<SignatureVerificationResult>('verify_plugin_signature_command', { archivePath });

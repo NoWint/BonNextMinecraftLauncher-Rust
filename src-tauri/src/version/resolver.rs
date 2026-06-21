@@ -268,14 +268,24 @@ impl ResolvedVersion {
                                         })
                                         .cloned()
                                         .unwrap_or_else(|| "natives-windows".to_string()),
-                                _ if cfg!(target_os = "macos") =>
-                                    lib.natives.get("osx")
-                                        .or_else(|| lib.natives.get("macos"))
-                                        .or_else(|| {
-                                            if cfg!(target_arch = "aarch64") { lib.natives.get("natives-macos-arm64") } else { None }
-                                        })
-                                        .cloned()
-                                        .unwrap_or_else(|| "natives-macos".to_string()),
+                                _ if cfg!(target_os = "macos") => {
+                                    // Mojang/LWJGL 版本 JSON 中 natives 的 key 是 OS 名
+                                    //（"osx"=Intel, "osx-arm64"=Apple Silicon），
+                                    // value 是 classifier（"natives-macos" / "natives-macos-arm64"）。
+                                    // Apple Silicon 上必须优先选 arm64 natives，否则加载
+                                    // Intel .dylib 会导致 UnsatisfiedLinkError 立即崩溃。
+                                    let classifier = if cfg!(target_arch = "aarch64") {
+                                        lib.natives.get("osx-arm64")
+                                            .or_else(|| lib.natives.get("macos-arm64"))
+                                            .or_else(|| lib.natives.get("osx"))
+                                            .or_else(|| lib.natives.get("macos"))
+                                    } else {
+                                        lib.natives.get("osx")
+                                            .or_else(|| lib.natives.get("macos"))
+                                    };
+                                    classifier.cloned()
+                                        .unwrap_or_else(|| "natives-macos".to_string())
+                                }
                                 _ =>
                                     lib.natives.get("linux")
                                         .or_else(|| lib.natives.get("natives-linux"))

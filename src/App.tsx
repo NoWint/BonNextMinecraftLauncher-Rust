@@ -3,8 +3,9 @@ import { AppProviders } from './shared/utils/composeProviders';
 import { ShellErrorBoundary } from './shared/components/ShellErrorBoundary';
 import { useShellStore } from './shared/stores/shellStore';
 
-// 核心 UI：ZZZ Shell（默认且唯一的内置 Shell）
-const ZZZAppShell = lazy(() => import('./shells/zzz/AppShell'));
+// 默认 Shell（ZZZ）直接导入：它是 99% 用户使用的 Shell，
+// 懒加载会导致每次启动都显示 "NOWINT PRESENT" 加载屏，增加 1-2 秒延迟。
+import ZZZAppShell from './shells/zzz/AppShell';
 
 // 备选 Shell：通过 shell-registry 懒加载（Swift Shell / Editor Shell 等）
 // 这些 Shell 作为插件保留，可通过设置页切换。
@@ -38,7 +39,15 @@ function ShellRenderer() {
     setActiveShell('zzz');
   };
 
-  // 选择当前 Shell 组件
+  // ZZZ Shell 直接渲染（已 eager import），备选 Shell 走 Suspense 懒加载。
+  if (state.activeShell === 'zzz' || (state.activeShell !== 'swiftui' && state.activeShell !== 'editor')) {
+    return (
+      <ShellErrorBoundary onFallback={handleFallback}>
+        <ZZZAppShell />
+      </ShellErrorBoundary>
+    );
+  }
+
   let ShellComponent: React.LazyExoticComponent<React.ComponentType>;
   switch (state.activeShell) {
     case 'swiftui':
@@ -47,9 +56,8 @@ function ShellRenderer() {
     case 'editor':
       ShellComponent = EditorAppShell;
       break;
-    case 'zzz':
     default:
-      ShellComponent = ZZZAppShell;
+      ShellComponent = SwiftUIAppShell;
       break;
   }
 

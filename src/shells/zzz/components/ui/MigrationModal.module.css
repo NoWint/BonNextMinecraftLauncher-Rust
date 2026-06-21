@@ -251,7 +251,7 @@
 }
 
 .fixIssue--medium {
-  color: #ecc94b;
+  color: var(--color-warning);
 }
 
 .fixIssue--info {
@@ -273,7 +273,7 @@
 .fixAutoTag {
   font-size: 0.85em;
   padding: 1px 6px;
-  background: rgba(0, 255, 136, 0.1);
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
   color: var(--color-success);
   clip-path: var(--clip-badge);
 }

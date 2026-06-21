@@ -69,12 +69,12 @@
 
 .badgeModrinth {
   background: var(--color-accent);
-  color: #000;
+  color: var(--color-accent-action-text);
 }
 
 .badgeCurseForge {
-  background: #f16436;
-  color: #fff;
+  background: var(--color-error);
+  color: var(--color-text);
 }
 
 .badgeFallback {

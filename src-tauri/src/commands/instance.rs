@@ -280,7 +280,7 @@ pub async fn export_instance(id: String, output_path: String) -> Result<(), Laun
 
 #[tauri::command]
 pub async fn import_modpack(app: tauri::AppHandle, path: String) -> Result<instance::manager::GameInstance, LauncherError> {
-    let result = instance::manager::import_modpack(&path).await?;
+    let result = instance::manager::import_modpack(&path, Some(&app)).await?;
     crate::commands::achievement::try_unlock_achievement(&app, "import_modpack");
     Ok(result)
 }
@@ -300,7 +300,7 @@ pub async fn import_modpack_auto(app: tauri::AppHandle, path: String) -> Result<
         return Err(LauncherError::InvalidConfig("Modpack file is too large (max 2GB)".into()));
     }
     let _ = app.emit("modpack-import-progress", serde_json::json!({"stage": "detecting", "path": path}));
-    let result = instance::manager::import_modpack_auto(&path).await?;
+    let result = instance::manager::import_modpack_auto(&path, Some(&app)).await?;
     crate::commands::achievement::try_unlock_achievement(&app, "import_modpack");
     let _ = app.emit("modpack-import-progress", serde_json::json!({"stage": "completed", "instanceId": result.id}));
     Ok(result)

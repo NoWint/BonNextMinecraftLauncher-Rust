@@ -1,16 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useDownloads } from '../../../../shared/stores/downloadStore';
 import { api } from '../../../../shared/api';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './DownloadPanel.module.css';
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Waiting...',
-  downloading: 'Downloading...',
-  paused: 'Paused',
-  complete: 'Completed',
-  failed: 'Failed',
-  cancelled: 'Cancelled',
-};
 
 function formatSpeed(bytesPerSec?: number): string {
   if (!bytesPerSec || bytesPerSec <= 0) return '';
@@ -19,17 +11,27 @@ function formatSpeed(bytesPerSec?: number): string {
   return `${bytesPerSec} B/s`;
 }
 
-function formatEta(seconds?: number): string {
-  if (!seconds || seconds <= 0) return '';
-  if (seconds < 60) return `${Math.round(seconds)}s left`;
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return `${m}m ${s}s left`;
-}
-
 export function DownloadPanel() {
+  const { t } = useI18n();
   const { state, removeTask, pauseTask, resumeTask, cancelTask, clearCompleted } = useDownloads();
   const [open, setOpen] = useState(false);
+
+  const STATUS_LABELS: Record<string, string> = {
+    pending: t('downloadPanel.status.waiting'),
+    downloading: t('downloadPanel.status.downloading'),
+    paused: t('downloadPanel.status.paused'),
+    complete: t('downloadPanel.status.completed'),
+    failed: t('downloadPanel.status.failed'),
+    cancelled: t('downloadPanel.status.cancelled'),
+  };
+
+  function formatEta(seconds?: number): string {
+    if (!seconds || seconds <= 0) return '';
+    if (seconds < 60) return t('downloadPanel.eta.seconds', { seconds: String(Math.round(seconds)) });
+    const m = Math.floor(seconds / 60);
+    const s = Math.round(seconds % 60);
+    return t('downloadPanel.eta.minutes', { m: String(m), s: String(s) });
+  }
 
   const active = useMemo(
     () => state.tasks.filter((t) => t.status === 'pending' || t.status === 'downloading' || t.status === 'paused'),
@@ -77,8 +79,8 @@ export function DownloadPanel() {
       <button
         className={styles.toggle}
         onClick={() => setOpen(!open)}
-        title="Downloads"
-        aria-label="Toggle downloads panel"
+        title={t('downloadPanel.title')}
+        aria-label={t('downloadPanel.toggleAriaLabel')}
       >
         {'\u{2B07}'}
         {active.length > 0 && <span className={styles.toggle__badge}>{active.length}</span>}
@@ -89,23 +91,23 @@ export function DownloadPanel() {
           <div className={styles.panel}>
             <div className={styles.header}>
               <div className={styles.header__title}>
-                DOWNLOADS
-                {active.length > 0 && <span className={styles.header__count}>{active.length} active</span>}
+                {t('downloadPanel.header')}
+                {active.length > 0 && <span className={styles.header__count}>{t('downloadPanel.activeCount', { count: String(active.length) })}</span>}
               </div>
               <div className={styles.header__actions}>
                 {completed.length > 0 && (
                   <button className={styles.header__btn} onClick={clearCompleted}>
-                    CLEAR DONE
+                    {t('downloadPanel.clearDone')}
                   </button>
                 )}
                 <button className={styles.header__btn} onClick={() => setOpen(false)}>
-                  HIDE
+                  {t('downloadPanel.hide')}
                 </button>
               </div>
             </div>
 
             {display.length === 0 ? (
-              <div className={styles.empty}>No downloads</div>
+              <div className={styles.empty}>{t('downloadPanel.empty')}</div>
             ) : (
               <div className={styles.list}>
                 {display.map((task) => (
@@ -157,8 +159,8 @@ export function DownloadPanel() {
                         <button
                           className={styles.task__control}
                           onClick={() => handlePause(task.id)}
-                          aria-label="Pause download"
-                          title="Pause"
+                          aria-label={t('downloadPanel.pauseAriaLabel')}
+                          title={t('downloadPanel.pause')}
                         >
                           {'\u{23F8}'}
                         </button>
@@ -167,8 +169,8 @@ export function DownloadPanel() {
                         <button
                           className={styles.task__control}
                           onClick={() => handleResume(task.id)}
-                          aria-label="Resume download"
-                          title="Resume"
+                          aria-label={t('downloadPanel.resumeAriaLabel')}
+                          title={t('downloadPanel.resume')}
                         >
                           {'\u{25B6}'}
                         </button>
@@ -177,8 +179,8 @@ export function DownloadPanel() {
                         <button
                           className={styles.task__control}
                           onClick={() => handleCancel(task.id, task.url)}
-                          aria-label="Cancel download"
-                          title="Cancel"
+                          aria-label={t('downloadPanel.cancelAriaLabel')}
+                          title={t('downloadPanel.cancel')}
                         >
                           {'\u{2715}'}
                         </button>
@@ -187,7 +189,7 @@ export function DownloadPanel() {
                         <button
                           className={styles.task__dismiss}
                           onClick={() => removeTask(task.id)}
-                          aria-label="Dismiss download"
+                          aria-label={t('downloadPanel.dismissAriaLabel')}
                         >
                           {'\u{2715}'}
                         </button>

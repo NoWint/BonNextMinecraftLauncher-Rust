@@ -141,7 +141,7 @@
   font-size: 0.65em;
   padding: 0.1em 0.4em;
   margin-left: 0.4em;
-  background: var(--accent, #ffe600);
+  background: var(--color-accent);
   color: #000;
   border-radius: 2px;
   font-weight: 600;

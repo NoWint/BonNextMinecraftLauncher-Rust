@@ -5,6 +5,7 @@ import { Modal } from './Modal';
 import { Button } from './Button';
 import { Icon } from './Icon';
 import { useToast } from '../../../../shared/stores/toastStore';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './ShareModal.module.css';
 
 interface ShareModalProps {
@@ -15,6 +16,7 @@ interface ShareModalProps {
 
 export const ShareModal: React.FC<ShareModalProps> = ({ open, onClose, instanceId }) => {
   const { addToast } = useToast();
+  const { t } = useI18n();
   const [exportedCode, setExportedCode] = useState<string>('');
   const [exportLoading, setExportLoading] = useState(false);
   const [importCode, setImportCode] = useState('');
@@ -30,7 +32,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ open, onClose, instanceI
         .then((code) => setExportedCode(code))
         .catch(() => {
           setExportedCode('');
-          addToast({ type: 'error', title: 'Export failed', message: 'Could not export instance config.' });
+          addToast({ type: 'error', title: t('shareModal.exportFailed'), message: t('shareModal.exportFailedDesc') });
         })
         .finally(() => setExportLoading(false));
     }
@@ -41,12 +43,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({ open, onClose, instanceI
     try {
       await navigator.clipboard.writeText(exportedCode);
       setCopied(true);
-      addToast({ type: 'success', title: 'Copied', message: 'Config code copied to clipboard.' });
+      addToast({ type: 'success', title: t('shareModal.copied'), message: t('shareModal.copiedDesc') });
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      addToast({ type: 'error', title: 'Copy failed', message: 'Could not copy to clipboard.' });
+      addToast({ type: 'error', title: t('shareModal.copyFailed'), message: t('shareModal.copyFailedDesc') });
     }
-  }, [exportedCode, addToast]);
+  }, [exportedCode, addToast, t]);
 
   const handleImport = useCallback(async () => {
     const trimmed = importCode.trim();
@@ -56,35 +58,35 @@ export const ShareModal: React.FC<ShareModalProps> = ({ open, onClose, instanceI
       const instance = await api.importInstanceConfig(trimmed);
       addToast({
         type: 'success',
-        title: 'Import successful',
-        message: `Instance "${instance.name}" has been imported.`,
+        title: t('shareModal.importSuccess'),
+        message: t('shareModal.importSuccessDesc', { name: instance.name }),
       });
       setImportCode('');
       onClose();
     } catch (e: unknown) {
       addToast({
         type: 'error',
-        title: 'Import failed',
-        message: formatError(e) || 'Invalid config code.',
+        title: t('shareModal.importFailed'),
+        message: formatError(e) || t('shareModal.invalidCode'),
       });
     } finally {
       setImportLoading(false);
     }
-  }, [importCode, addToast, onClose]);
+  }, [importCode, addToast, onClose, t]);
 
   const actions = (
     <Button variant="secondary" size="sm" onClick={onClose}>
-      CLOSE
+      {t('common.close')}
     </Button>
   );
 
   return (
-    <Modal open={open} onClose={onClose} title="SHARE CONFIG" actions={actions}>
+    <Modal open={open} onClose={onClose} title={t('shareModal.title')} actions={actions}>
       <div className={styles.section}>
-        <div className={styles.sectionLabel}>EXPORT</div>
-        <div className={styles.sectionDesc}>Share this code with others to let them import your instance setup.</div>
+        <div className={styles.sectionLabel}>{t('shareModal.export')}</div>
+        <div className={styles.sectionDesc}>{t('shareModal.exportDesc')}</div>
         {exportLoading ? (
-          <div className={styles.loading}>Generating config code...</div>
+          <div className={styles.loading}>{t('shareModal.generating')}</div>
         ) : exportedCode ? (
           <>
             <textarea
@@ -102,28 +104,28 @@ export const ShareModal: React.FC<ShareModalProps> = ({ open, onClose, instanceI
             >
               {copied ? (
                 <>
-                  <Icon name="check" size={12} /> COPIED
+                  <Icon name="check" size={12} /> {t('shareModal.copied')}
                 </>
               ) : (
                 <>
-                  <Icon name="copy" size={14} /> COPY
+                  <Icon name="copy" size={14} /> {t('shareModal.copy')}
                 </>
               )}
             </Button>
           </>
         ) : (
-          <div className={styles.loading}>Failed to generate config code.</div>
+          <div className={styles.loading}>{t('shareModal.generateFailed')}</div>
         )}
       </div>
 
       <div className={styles.divider} />
 
       <div className={styles.section}>
-        <div className={styles.sectionLabel}>IMPORT</div>
-        <div className={styles.sectionDesc}>Paste a shared config code below to import an instance setup.</div>
+        <div className={styles.sectionLabel}>{t('common.import')}</div>
+        <div className={styles.sectionDesc}>{t('shareModal.importDesc')}</div>
         <textarea
           className={styles.textarea}
-          placeholder="Paste config code here..."
+          placeholder={t('shareModal.importPlaceholder')}
           value={importCode}
           onChange={(e) => setImportCode(e.target.value)}
           rows={3}
@@ -136,10 +138,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({ open, onClose, instanceI
           style={{ marginTop: 6 }}
         >
           {importLoading ? (
-            'IMPORTING...'
+            t('common.importing')
           ) : (
             <>
-              <Icon name="download" size={14} /> IMPORT
+              <Icon name="download" size={14} /> {t('common.import')}
             </>
           )}
         </Button>

@@ -1,0 +1,26 @@
+.errorWrap {
+  padding: 1.5em;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.title {
+  font-size: 0.9em;
+  margin-bottom: 0.5em;
+}
+
+.message {
+  font-size: 0.75em;
+  color: var(--color-error);
+}
+
+.retryBtn {
+  margin-top: 0.8em;
+  padding: 0.4em 1em;
+  background: var(--color-accent);
+  color: #000;
+  border: none;
+  clip-path: var(--clip-small);
+  cursor: pointer;
+  font-size: 0.8em;
+}

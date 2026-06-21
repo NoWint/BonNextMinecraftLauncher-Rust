@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { DiscoveryTip } from '../../../../shared/hooks/useDiscoveryTips';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './DiscoveryTipOverlay.module.css';
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function DiscoveryTipOverlay({ tip, onDismiss }: Props) {
+  const { t } = useI18n();
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const [pointerPosition, setPointerPosition] = useState<'top' | 'bottom'>('top');
 
@@ -75,14 +77,14 @@ export default function DiscoveryTipOverlay({ tip, onDismiss }: Props) {
           />
           <div className={styles.tipHeader}>
             <div className={styles.tipTitle}>{tip.title}</div>
-            <button className={styles.tipCloseBtn} onClick={handleDismiss} aria-label="Dismiss">
+            <button className={styles.tipCloseBtn} onClick={handleDismiss} aria-label={t('discoveryTip.dismissAriaLabel')}>
               ✕
             </button>
           </div>
           <div className={styles.tipDescription}>{tip.description}</div>
           <div className={styles.tipFooter}>
             <button className={styles.tipGotItBtn} onClick={handleDismiss}>
-              GOT IT
+              {t('discoveryTip.gotIt')}
             </button>
           </div>
         </div>

@@ -18,7 +18,7 @@
   padding: 20px;
   min-width: 320px;
   max-width: 440px;
-  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  clip-path: var(--clip-primary);
   animation: slideDown 200ms var(--ease-out-expo) forwards;
 }
 
@@ -73,12 +73,12 @@
 }
 
 .dangerHigh {
-  border-color: rgba(255, 68, 68, 0.4);
+  border-color: color-mix(in srgb, var(--color-error) 40%, transparent);
   animation: pulseBorderRed 2s ease-in-out infinite;
 }
 
 .dangerMedium {
-  border-color: rgba(255, 170, 0, 0.4);
+  border-color: color-mix(in srgb, var(--color-warning) 40%, transparent);
 }
 
 .iconRow {
@@ -129,9 +129,9 @@
 @keyframes pulseBorderRed {
   0%,
   100% {
-    border-color: rgba(255, 68, 68, 0.4);
+    border-color: color-mix(in srgb, var(--color-error) 40%, transparent);
   }
   50% {
-    border-color: rgba(255, 68, 68, 0.8);
+    border-color: color-mix(in srgb, var(--color-error) 80%, transparent);
   }
 }

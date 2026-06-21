@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useCallback, useMemo, useEffect, useRef, type ReactNode } from 'react';
 import { api } from '../api';
-import type { DownloadProgressEvent, ContentDownloadProgress } from '../api/types';
+import type { DownloadProgressEvent, ContentDownloadProgress, ModpackImportProgress } from '../api/types';
 import type { DownloadTask, DownloadState } from './downloadTypes';
 import { downloadReducer as reducer } from './downloadReducer';
 
@@ -43,6 +43,10 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
   const clearCompleted = useCallback(() => dispatch({ type: 'CLEAR_COMPLETED' }), []);
 
   const versionTaskIdRef = useRef<string | null>(null);
+  // 使用 ref 存储 tasks，避免 useEffect 依赖 state.tasks 导致监听器频繁重注册。
+  // 之前的 bug：依赖 [state.tasks]，每次进度更新都重注册监听器，异步卸载/注册间隙丢失事件。
+  const tasksRef = useRef(state.tasks);
+  tasksRef.current = state.tasks;
 
   useEffect(() => {
     const unlistenPromise = api.onDownloadProgress((progress: DownloadProgressEvent) => {
@@ -80,8 +84,9 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // 依赖 [] 只注册一次监听器，通过 tasksRef.current 读取最新 tasks。
     const unlistenPromise = api.onContentDownloadProgress((p: ContentDownloadProgress) => {
-      const matchId = state.tasks.find((t) => t.status === 'downloading' && t.filename === p.filename)?.id;
+      const matchId = tasksRef.current.find((t) => t.status === 'downloading' && t.filename === p.filename)?.id;
       if (matchId) {
         dispatch({
           type: 'UPDATE_TASK',
@@ -96,7 +101,55 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
     return () => {
       unlistenPromise.then((fn) => fn());
     };
-  }, [state.tasks]);
+  }, []);
+
+  // 整合包导入进度：Rust 端 import_modpack 发射 modpack-import-progress 事件
+  // 在 DownloadPanel 中显示为单个任务，进度 = completed/total
+  const modpackTaskIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const unlistenPromise = api.onModpackImportProgress((p: ModpackImportProgress) => {
+      if (p.stage === 'downloading') {
+        const total = p.total ?? 0;
+        const completed = p.completed ?? 0;
+        const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+        if (!modpackTaskIdRef.current) {
+          const taskId = `modpack-${Date.now()}`;
+          modpackTaskIdRef.current = taskId;
+          dispatch({
+            type: 'ADD_TASK',
+            task: {
+              id: taskId,
+              title: p.name ? `Modpack: ${p.name}` : 'Modpack Import',
+              filename: p.current_file || `${completed}/${total} files`,
+              status: 'downloading',
+              startedAt: Date.now(),
+              progress: pct,
+            },
+          });
+        } else {
+          dispatch({
+            type: 'UPDATE_TASK',
+            id: modpackTaskIdRef.current,
+            status: 'downloading',
+            progress: pct,
+          });
+        }
+      } else if (p.stage === 'completed') {
+        if (modpackTaskIdRef.current) {
+          dispatch({
+            type: 'UPDATE_TASK',
+            id: modpackTaskIdRef.current,
+            status: 'complete',
+            progress: 100,
+          });
+          modpackTaskIdRef.current = null;
+        }
+      }
+    });
+    return () => {
+      unlistenPromise.then((fn) => fn());
+    };
+  }, []);
 
   const contextValue = useMemo(
     () => ({

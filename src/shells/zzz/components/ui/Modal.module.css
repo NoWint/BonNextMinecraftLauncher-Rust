@@ -18,7 +18,7 @@
   padding: 20px;
   min-width: 280px;
   max-width: 420px;
-  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+  clip-path: var(--clip-medium);
   animation: slideDown 200ms var(--ease-out-expo) forwards;
 }
 

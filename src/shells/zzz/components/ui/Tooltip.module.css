@@ -15,7 +15,7 @@
   pointer-events: none;
   white-space: nowrap;
   animation: tooltip-in 0.2s var(--ease-out-expo) forwards;
-  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  clip-path: var(--clip-small);
   box-shadow: 0 2px 12px var(--color-overlay-60), 0 0 0 1px var(--color-accent-06);
 }
 

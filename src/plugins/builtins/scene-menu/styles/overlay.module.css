@@ -1,0 +1,220 @@
+/* src/plugins/builtins/scene-menu/styles/overlay.module.css */
+/* ZZZ Neo-Tokyo 美学：clip-path 切角 + 霓虹 + 毛玻璃 */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  overflow: hidden;
+  pointer-events: none;
+  /* 深色背景填充 3DGS 点云缝隙 */
+  background: #0a0a0f;
+}
+
+.fadingIn {
+  animation: sceneFadeIn 500ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.fadingOut {
+  animation: sceneFadeOut 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes sceneFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sceneFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.sceneFallback {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* 赛博都市天台降级渐变 */
+  background:
+    radial-gradient(ellipse at 50% 70%, rgba(255, 230, 0, 0.08), transparent 60%),
+    linear-gradient(180deg, #0a0a0f 0%, #1a0a2e 50%, #2d1b4e 100%);
+}
+
+.sceneCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+/* gaussian-splats-3d 会在 canvas 内动态创建子元素，统一禁用指针事件 */
+.sceneCanvas :global(*) {
+  pointer-events: none !important;
+}
+
+.loadingIndicator {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.loadingText {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.7em;
+  letter-spacing: 4px;
+  color: #ffe600;
+  text-shadow: 0 0 12px rgba(255, 230, 0, 0.6);
+  animation: loadingPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes loadingPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.errorOverlay {
+  position: absolute;
+  bottom: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.errorLabel {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.9em;
+  letter-spacing: 3px;
+  color: #ff4444;
+  text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+}
+
+.errorDetail {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.55em;
+  color: rgba(255, 255, 255, 0.6);
+  max-width: 400px;
+  text-align: center;
+  word-break: break-word;
+}
+
+.menuLayer {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 0;
+  padding: 8% 6%;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.panel {
+  pointer-events: auto;
+  align-self: center;
+  justify-self: center;
+  padding: 14px 20px;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(8px);
+  border: 1px solid currentColor;
+  color: #fff;
+  cursor: pointer;
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 2px;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  transition:
+    transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 200ms,
+    opacity 200ms;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.panel:hover {
+  transform: scale(1.03);
+}
+
+.panel:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+}
+
+.panelLabel {
+  font-size: 1.4em;
+  line-height: 1;
+}
+
+.panelSub {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.6em;
+  letter-spacing: 0.5px;
+  opacity: 0.8;
+}
+
+/* 4 种变体 */
+.primary {
+  color: #ffe600;
+  background: rgba(255, 230, 0, 0.12);
+  box-shadow: 0 0 24px rgba(255, 230, 0, 0.25);
+  min-width: 200px;
+}
+.primary:hover {
+  box-shadow: 0 0 36px rgba(255, 230, 0, 0.45);
+}
+
+.cyan {
+  color: #00eaff;
+  background: rgba(0, 234, 255, 0.12);
+  box-shadow: 0 0 18px rgba(0, 234, 255, 0.2);
+}
+.cyan:hover {
+  box-shadow: 0 0 28px rgba(0, 234, 255, 0.4);
+}
+
+.magenta {
+  color: #ff00aa;
+  background: rgba(255, 0, 170, 0.12);
+  box-shadow: 0 0 18px rgba(255, 0, 170, 0.2);
+}
+.magenta:hover {
+  box-shadow: 0 0 28px rgba(255, 0, 170, 0.4);
+}
+
+.dim {
+  color: #b8a800;
+  background: rgba(184, 168, 0, 0.1);
+  box-shadow: 0 0 14px rgba(184, 168, 0, 0.15);
+}
+.dim:hover {
+  box-shadow: 0 0 22px rgba(184, 168, 0, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fadingIn,
+  .fadingOut {
+    animation-duration: 1ms;
+  }
+  .panel {
+    transition: none;
+  }
+}

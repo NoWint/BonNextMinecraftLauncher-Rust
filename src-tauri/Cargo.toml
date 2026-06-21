@@ -1,6 +1,6 @@
 [package]
 name = "bonnext"
-version = "0.0.6"
+version = "1.0.0"
 description = "A cross-platform Minecraft Java Edition launcher"
 authors = ["you"]
 edition = "2021"
@@ -19,6 +19,11 @@ default = [
     "plugin-mod-tools",
     "plugin-system-tools",
 ]
+# Reserved for future per-domain conditional compilation. Currently all features
+# are enabled by default and no #[cfg(feature = "plugin-*")] gates exist in the
+# codebase. To create a minimal core-only build, build with `--no-default-features`
+# and add the desired plugin-* features. See
+# docs/superpowers/specs/2026-06-19-plugin-architecture-design.md for details.
 plugin-marketplace = []
 plugin-social = []
 plugin-ai = []
@@ -90,6 +95,11 @@ tauri-plugin-liquid-glass = "0.1"
 
 [dev-dependencies]
 indoc = "2"
+
+# macOS 27.0 beta 上 Apple clang 21.0.0 集成汇编器崩溃（Trace/BPT trap），
+# 用纯 Rust 实现替代 sha1-asm 的汇编实现。
+[patch.crates-io]
+sha1-asm = { path = "local-crates/sha1-asm-soft" }
 
 [profile.release]
 lto = true

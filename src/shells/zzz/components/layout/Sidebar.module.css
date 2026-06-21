@@ -8,6 +8,24 @@
   flex-shrink: 0;
   position: relative;
   z-index: var(--z-sidebar);
+  transition: width 120ms ease-out;
+}
+
+.sidebar__resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: calc(var(--z-sidebar) + 1);
+  background: transparent;
+  transition: background 120ms ease;
+}
+
+.sidebar__resizer:hover,
+.sidebar__resizer:active {
+  background: color-mix(in srgb, var(--color-accent) 35%, transparent);
 }
 
 .sidebar__logo {
@@ -122,7 +140,7 @@
 
 .sidebar__navItem--active {
   background: var(--color-panel-alt);
-  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  clip-path: var(--clip-medium);
   color: var(--color-text);
   font-weight: 700;
 
@@ -139,7 +157,6 @@
   width: 0.1875em;
   height: 0.875em;
   background: var(--color-accent);
-  border-radius: 0 1px 1px 0;
 }
 
 .sidebar__navDivider {
@@ -310,7 +327,7 @@
 }
 
 .sidebar__friendRemove:hover {
-  color: var(--color-danger);
+  color: var(--color-error);
 }
 
 .sidebar__friendsEmpty {
@@ -473,9 +490,9 @@
 .sidebar__unreadBadge {
   font-size: 0.45em;
   background: var(--color-accent);
-  color: #000;
+  color: var(--color-accent-action-text);
   padding: 1px 5px;
-  border-radius: 8px;
+  clip-path: var(--clip-badge);
   font-weight: 700;
   margin-left: auto;
   margin-right: 4px;

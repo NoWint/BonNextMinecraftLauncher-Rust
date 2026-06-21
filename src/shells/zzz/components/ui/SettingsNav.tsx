@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './SettingsNav.module.css';
 
 export interface NavCategory {
@@ -61,6 +62,7 @@ function scrollToSection(sectionId: string) {
 }
 
 export default function SettingsNav({ categories, scrollContainerSelector }: SettingsNavProps) {
+  const { t } = useI18n();
   const [activeId, setActiveId] = useState<string>(categories[0]?.id ?? '');
   const observerRef = useRef<IntersectionObserver | null>(null);
   const visibleSections = useRef<Set<string>>(new Set());
@@ -123,7 +125,7 @@ export default function SettingsNav({ categories, scrollContainerSelector }: Set
   }, [categories, scrollContainerSelector]);
 
   return (
-    <nav className={styles.nav} aria-label="Settings categories">
+    <nav className={styles.nav} aria-label={t('settingsNav.ariaLabel')}>
       {categories.map((category) => (
         <button
           key={category.id}

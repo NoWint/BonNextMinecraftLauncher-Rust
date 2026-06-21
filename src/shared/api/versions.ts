@@ -10,6 +10,7 @@ import type {
   JreDownloadProgress,
   DownloadProgressEvent,
   ContentDownloadProgress,
+  ModpackImportProgress,
 } from './types';
 
 export function onDownloadProgress(callback: (progress: DownloadProgressEvent) => void) {
@@ -20,6 +21,12 @@ export function onDownloadProgress(callback: (progress: DownloadProgressEvent) =
 
 export function onContentDownloadProgress(callback: (progress: ContentDownloadProgress) => void) {
   return listen<ContentDownloadProgress>('content-download-progress', (event) => {
+    callback(event.payload);
+  });
+}
+
+export function onModpackImportProgress(callback: (progress: ModpackImportProgress) => void) {
+  return listen<ModpackImportProgress>('modpack-import-progress', (event) => {
     callback(event.payload);
   });
 }

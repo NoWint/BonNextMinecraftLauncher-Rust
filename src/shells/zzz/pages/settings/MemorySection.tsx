@@ -31,10 +31,23 @@ export function SectionCard({ title, id, children }: { title: string; id?: strin
   );
 }
 
-export function SettingRow({ label, children }: { label: string; children: React.ReactNode }) {
+export function SettingRow({
+  label,
+  description,
+  children,
+}: {
+  label: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className={styles.settingRow}>
-      <span className={styles.settingRow__label}>{label}</span>
+      <div className={styles.settingRow__labelGroup}>
+        <span className={styles.settingRow__label}>{label}</span>
+        {description && (
+          <span className={styles.settingRow__desc}>{description}</span>
+        )}
+      </div>
       {children}
     </div>
   );
@@ -70,7 +83,7 @@ export default function MemorySection({
     } catch (e) {
       addToast({
         type: 'error',
-        title: t('settings.saveFailed') || 'Save failed',
+        title: t('settings.saveFailed'),
         message: e instanceof Error ? e.message : 'Unknown error',
       });
     }
@@ -103,10 +116,7 @@ export default function MemorySection({
       <SettingRow label={t('settings.allocatedMemory')}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
           <ContextHelp
-            content={
-              t('settings.memoryHelp') ||
-              'Controls how much RAM Minecraft can use. 2–4 GB for modded, 4–8 GB for heavy modpacks. Allocating too much can cause lag.'
-            }
+            content={t('settings.memoryHelp')}
           />
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6em', color: '#FFF' }}>
             {memoryGB} {t('common.unit.gb')}
@@ -139,17 +149,17 @@ export default function MemorySection({
         <SettingRow label="">
           <div className={styles.recommendedRow}>
             <div className={styles.recommendedInfo}>
-              <Badge variant="accent">{t('settings.recommended') || '推荐'}</Badge>
+              <Badge variant="accent">{t('settings.recommended')}</Badge>
               <span className={styles.recommendedValue}>
                 {recommendedGB} {t('common.unit.gb')}
               </span>
               {differsFromRecommended && (
-                <span className={styles.recommendedDiff}>{t('settings.currentDiffers') || '当前值与推荐值不同'}</span>
+                <span className={styles.recommendedDiff}>{t('settings.currentDiffers')}</span>
               )}
             </div>
             {differsFromRecommended && (
               <Button variant="secondary" size="sm" onClick={handleApplyRecommended}>
-                {t('settings.useRecommended') || '使用推荐值'}
+                {t('settings.useRecommended')}
               </Button>
             )}
           </div>

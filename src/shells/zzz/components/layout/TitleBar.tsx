@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Minus, Square, Maximize2, X } from 'lucide-react';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './TitleBar.module.css';
 
 const isMacOS = /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
 export function TitleBar() {
+  const { t } = useI18n();
   const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
@@ -50,17 +52,17 @@ export function TitleBar() {
 
       {!isMacOS && (
         <div className={styles.windowControls}>
-          <button className={styles.controlBtn} onClick={handleMinimize} aria-label="Minimize">
+          <button className={styles.controlBtn} onClick={handleMinimize} aria-label={t('titlebar.minimize')}>
             <Minus size={13} strokeWidth={1.5} />
           </button>
           <button
             className={styles.controlBtn}
             onClick={handleToggleMaximize}
-            aria-label={isMaximized ? 'Restore' : 'Maximize'}
+            aria-label={isMaximized ? t('titlebar.restore') : t('titlebar.maximize')}
           >
             {isMaximized ? <Maximize2 size={11} strokeWidth={1.5} /> : <Square size={11} strokeWidth={1.5} />}
           </button>
-          <button className={`${styles.controlBtn} ${styles.btnClose}`} onClick={handleClose} aria-label="Close">
+          <button className={`${styles.controlBtn} ${styles.btnClose}`} onClick={handleClose} aria-label={t('titlebar.close')}>
             <X size={13} strokeWidth={1.5} />
           </button>
         </div>

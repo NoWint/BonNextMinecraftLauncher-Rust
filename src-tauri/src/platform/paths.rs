@@ -11,7 +11,9 @@ pub fn get_default_game_dir() -> PathBuf {
 }
 
 pub fn get_game_dir() -> PathBuf {
-    if let Ok(cfg) = crate::config::load_config() {
+    // 使用缓存版本避免每次调用都重新读取+解析 config.json。
+    // 启动期间此函数会被调用 9+ 次，缓存可消除重复 IO。
+    if let Ok(cfg) = crate::config::load_config_cached() {
         if let Some(ref game_dir) = cfg.game_dir {
             if !game_dir.is_empty() {
                 let path = PathBuf::from(game_dir);
@@ -120,6 +122,11 @@ pub fn get_instance_resourcepacks_dir(instance_id: &str) -> PathBuf {
 /// Instance shader packs directory.
 pub fn get_instance_shaderpacks_dir(instance_id: &str) -> PathBuf {
     get_instance_minecraft_dir(instance_id).join("shaderpacks")
+}
+
+/// Instance schematics directory (Litematica, WorldEdit, etc.).
+pub fn get_instance_schematics_dir(instance_id: &str) -> PathBuf {
+    get_instance_minecraft_dir(instance_id).join("schematics")
 }
 
 // ---------------------------------------------------------------

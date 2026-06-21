@@ -10,7 +10,7 @@ We take all security reports seriously and will respond within 48 hours.
 
 | Version | Supported |
 |---------|-----------|
-| 0.1.x   | ✅ Active |
+| 1.0.x   | ✅ Active |
 
 ## Security Model
 

@@ -37,6 +37,15 @@ function buildLogger() {
     info: dev ? createDevLog(console.info.bind(console)) : createSilentLog(),
     warn: createDevLog(console.warn.bind(console)),
     error: createDevLog(console.error.bind(console)),
+    getBuffer(): LogEntry[] {
+      return [...entries];
+    },
+    subscribe(listener: (entry: LogEntry) => void): () => void {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
   };
 }
 
@@ -58,6 +67,7 @@ export interface LogEntry {
 
 const MAX_ENTRIES = 200;
 const entries: LogEntry[] = [];
+const listeners = new Set<(entry: LogEntry) => void>();
 
 function formatTimestamp(): string {
   return new Date().toISOString();
@@ -68,6 +78,13 @@ function pushEntry(entry: LogEntry): void {
   if (entries.length > MAX_ENTRIES) {
     entries.splice(0, entries.length - MAX_ENTRIES);
   }
+  listeners.forEach((listener) => {
+    try {
+      listener(entry);
+    } catch {
+      /* ignore listener errors */
+    }
+  });
 }
 
 export function log(level: LogLevel, category: string, message: string, data?: unknown): void {

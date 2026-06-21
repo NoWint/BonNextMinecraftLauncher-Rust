@@ -1,5 +1,6 @@
 use std::sync::OnceLock;
 use std::time::Duration;
+use serde::de::DeserializeOwned;
 
 static API_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
@@ -249,6 +250,70 @@ pub async fn retry_api_get_with_fallback(
         }
         match retry_api_get_with_headers(&url, max_retries, headers.clone()).await {
             Ok(resp) => return Ok(resp),
+            Err(e) => {
+                tracing::warn!(
+                    "API metadata request with base {} failed: {}, trying next source ({}/{})",
+                    base, e, base_idx + 1, api_bases.len()
+                );
+                last_err = Some(e);
+                continue;
+            }
+        }
+    }
+    Err(last_err.unwrap_or_else(|| crate::error::LauncherError::NetworkUnreachable))
+}
+
+/// 带 JSON 解码回退的 API GET 请求。
+///
+/// 关键修复：与 `retry_api_get_with_fallback` 不同，此函数将 JSON 解码纳入回退循环。
+/// 当镜像源返回 200 OK 但响应体不是合法 JSON（如 HTML 错误页）或字段缺失时，
+/// 会自动回退到下一个 API base（如 BMCLAPI → 官方 Modrinth API）。
+///
+/// 这解决了 BMCLAPI 镜像对 Modrinth API 端点支持不完整导致 "error decoding response body" 的问题。
+pub async fn retry_api_get_json_with_fallback<T: DeserializeOwned>(
+    url_template: &str,
+    api_bases: &[&str],
+    max_retries: u32,
+    headers: Option<reqwest::header::HeaderMap>,
+) -> Result<T, crate::error::LauncherError> {
+    let mut last_err = None;
+    for (base_idx, base) in api_bases.iter().enumerate() {
+        let url = url_template.replace("{API_BASE}", base);
+        if base_idx > 0 {
+            tracing::info!("API JSON fallback: trying base {} for url template", base);
+        }
+        match retry_api_get_with_headers(&url, max_retries, headers.clone()).await {
+            Ok(resp) => {
+                // 检查 Content-Type 是否为 JSON，非 JSON 响应（如 HTML 错误页）直接回退
+                let content_type = resp
+                    .headers()
+                    .get("content-type")
+                    .and_then(|v| v.to_str().ok())
+                    .unwrap_or("")
+                    .to_lowercase();
+                if !content_type.contains("json") && !content_type.is_empty() {
+                    tracing::warn!(
+                        "Non-JSON response (Content-Type: {}) from {}, trying next source",
+                        content_type, base
+                    );
+                    last_err = Some(crate::error::LauncherError::HttpError {
+                        status: 200,
+                        url: url.clone(),
+                    });
+                    continue;
+                }
+                match resp.json::<T>().await {
+                    Ok(v) => return Ok(v),
+                    Err(e) => {
+                        tracing::warn!(
+                            "JSON decode failed on base {} for {}: {}, trying next source ({}/{})",
+                            base, url, e, base_idx + 1, api_bases.len()
+                        );
+                        last_err = Some(crate::error::LauncherError::Http(e));
+                        continue;
+                    }
+                }
+            }
             Err(e) => {
                 tracing::warn!(
                     "API metadata request with base {} failed: {}, trying next source ({}/{})",

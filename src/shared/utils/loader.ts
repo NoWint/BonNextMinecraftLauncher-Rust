@@ -51,3 +51,19 @@ export function getLoaderClass(loaderType: string | null): string {
       return 'vanilla';
   }
 }
+
+/** Returns an emoji representation for a given loader type. */
+export function getLoaderEmoji(loaderType: string | null): string {
+  switch (loaderType) {
+    case 'fabric':
+      return '\u{1F9F5}';
+    case 'forge':
+      return '\u{2692}';
+    case 'quilt':
+      return '\u{1F9F5}';
+    case 'neoforge':
+      return '\u{2699}';
+    default:
+      return '\u{1F4E6}';
+  }
+}

@@ -3,10 +3,13 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { formatError } from '../../../shared/utils/errorMapping';
 import { logger } from '../../../shared/utils/logger';
-import { api, type ModProjectFull, type ModVersion } from '../../../shared/api';
+import { formatSize, formatNum } from '../../../shared/utils/format';
+import { api, type ModProjectFull, type ModVersion, type ModResult } from '../../../shared/api';
 import { useInstances } from '../../../shared/stores/instanceStore';
+import { useToast } from '../../../shared/stores/toastStore';
+import { useDownloads } from '../../../shared/stores/downloadStore';
 import { useI18n } from '../../../shared/i18n';
-import { Breadcrumb, Button, Badge, StatBadge, StatusDot, Tabs } from '../components/ui';
+import { Button, Badge, StatBadge, StatusDot, Tabs } from '../components/ui';
 import { Icon } from '../components/ui/Icon';
 import { InstallButton } from '../components/ui/InstallButton';
 import { CollectionButton } from '../components/ui/CollectionButton';
@@ -21,29 +24,6 @@ function useRouteParams(): { type: string; slug: string; source: string } | null
   if (!type || !slug) return null;
   const source = searchParams.get('source') === 'curseforge' ? 'curseforge' : 'modrinth';
   return { type, slug, source };
-}
-
-function getTypeLabel(type: string): string {
-  const map: Record<string, string> = {
-    mod: 'Mods',
-    modpack: 'Modpacks',
-    resourcepack: 'Resource Packs',
-    shader: 'Shaders',
-    datapack: 'Data Packs',
-  };
-  return map[type] || type;
-}
-
-function formatSize(bytes: number): string {
-  if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${bytes} B`;
-}
-
-function formatNum(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
 }
 
 function sanitizeHtml(html: string): string {
@@ -120,8 +100,14 @@ export default function ContentDetailPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [selectedVersionId, setSelectedVersionId] = useState('');
   const [versionDropdownOpen, setVersionDropdownOpen] = useState(false);
+  const [installingDeps, setInstallingDeps] = useState(false);
+  const [loadingDepProjects, setLoadingDepProjects] = useState(false);
+  const [depProjectMap, setDepProjectMap] = useState<Record<string, ModResult>>({});
+  const [installedSlugs, setInstalledSlugs] = useState<Set<string>>(new Set());
 
   const { t } = useI18n();
+  const { addToast } = useToast();
+  const { addTask, updateTask } = useDownloads();
 
   const instances = instState.instances;
 
@@ -248,8 +234,70 @@ export default function ContentDetailPage() {
     setSelectedVersionId(firstGreen ? firstGreen.id : allVersions[0].id);
   }, [allVersions, versionCompat, selectedVersionId]);
 
+  // Fetch dependency project details when selected version changes
+  useEffect(() => {
+    if (!selectedVersion || selectedVersion.dependencies.length === 0) {
+      setDepProjectMap({});
+      return;
+    }
+    const depsWithIds = selectedVersion.dependencies.filter((d) => d.project_id);
+    if (depsWithIds.length === 0) {
+      setDepProjectMap({});
+      return;
+    }
+    let cancelled = false;
+    setLoadingDepProjects(true);
+    Promise.all(
+      depsWithIds.map(async (dep) => {
+        try {
+          const project = await api.getModDetails(dep.project_id!);
+          return { projectId: dep.project_id!, project };
+        } catch {
+          return null;
+        }
+      }),
+    )
+      .then((results) => {
+        if (cancelled) return;
+        const map: Record<string, ModResult> = {};
+        for (const r of results) {
+          if (r) map[r.projectId] = r.project;
+        }
+        setDepProjectMap(map);
+      })
+      .catch((e) => {
+        logger.error('[ContentDetailPage] Failed to load dep projects:', e);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingDepProjects(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedVersion]);
+
+  // Fetch installed mods for the selected instance (for already-installed checks)
+  useEffect(() => {
+    if (!selectedInstance) {
+      setInstalledSlugs(new Set());
+      return;
+    }
+    let cancelled = false;
+    api.listInstanceMods(selectedInstance)
+      .then((mods) => {
+        if (cancelled) return;
+        setInstalledSlugs(new Set(mods.filter((m) => m.slug).map((m) => m.slug!)));
+      })
+      .catch(() => {
+        if (!cancelled) setInstalledSlugs(new Set());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedInstance]);
+
   if (!parsed) {
-    return <div className={styles.notFound}>Invalid URL — expected #/store/:type/:slug</div>;
+    return <div className={styles.notFound}>{t('contentDetail.error.invalidUrl')}</div>;
   }
 
   if (error) {
@@ -316,18 +364,12 @@ export default function ContentDetailPage() {
   }
 
   if (!project) {
-    return <div className={styles.notFound}>Project not found</div>;
+    return <div className={styles.notFound}>{t('contentDetail.error.notFound')}</div>;
   }
-
-  const breadcrumbItems = [
-    { label: 'Marketplace', href: '/store' },
-    { label: getTypeLabel(parsed.type), href: `/mods?type=${parsed.type}` },
-    { label: project.title },
-  ];
 
   return (
     <div className={`page-enter ${styles.page}`}>
-      <Breadcrumb items={breadcrumbItems} />
+      {/* 面包屑由全局 PageBreadcrumb 统一渲染，此处不再重复 */}
 
       {/* Header */}
       <div className={styles.header}>
@@ -397,13 +439,13 @@ export default function ContentDetailPage() {
 
       {/* Description */}
       <div className={styles.descSection}>
-        <SectionHeader title="DESCRIPTION" />
+        <SectionHeader title={t('contentDetail.sections.description')} />
         <div className={styles.descBody} dangerouslySetInnerHTML={{ __html: sanitizeHtml(project.body) }} />
       </div>
 
       {/* Gallery */}
       <div>
-        <SectionHeader title="GALLERY" />
+        <SectionHeader title={t('contentDetail.sections.gallery')} />
         {project.gallery.length > 0 ? (
           <div className={styles.gallerySection}>
             {/* Main image */}
@@ -420,14 +462,14 @@ export default function ContentDetailPage() {
                   <button
                     className={`${styles.gallery__nav} ${styles['gallery__nav--prev']}`}
                     onClick={() => setGalleryIndex((i) => (i > 0 ? i - 1 : project.gallery.length - 1))}
-                    aria-label="Previous image"
+                    aria-label={t('contentDetail.gallery.prevImage')}
                   >
                     {'\u{2039}'}
                   </button>
                   <button
                     className={`${styles.gallery__nav} ${styles['gallery__nav--next']}`}
                     onClick={() => setGalleryIndex((i) => (i < project.gallery.length - 1 ? i + 1 : 0))}
-                    aria-label="Next image"
+                    aria-label={t('contentDetail.gallery.nextImage')}
                   >
                     {'\u{203A}'}
                   </button>
@@ -464,28 +506,28 @@ export default function ContentDetailPage() {
           {project.source_url && (
             <a href={project.source_url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
               <Button variant="secondary" size="sm">
-                Source
+                {t('contentDetail.links.source')}
               </Button>
             </a>
           )}
           {project.wiki_url && (
             <a href={project.wiki_url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
               <Button variant="secondary" size="sm">
-                Wiki
+                {t('contentDetail.links.wiki')}
               </Button>
             </a>
           )}
           {project.discord_url && (
             <a href={project.discord_url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
               <Button variant="secondary" size="sm">
-                Discord
+                {t('contentDetail.links.discord')}
               </Button>
             </a>
           )}
           {project.issues_url && (
             <a href={project.issues_url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
               <Button variant="secondary" size="sm">
-                Issues
+                {t('contentDetail.links.issues')}
               </Button>
             </a>
           )}
@@ -495,8 +537,8 @@ export default function ContentDetailPage() {
       {/* Tabs: Versions / Dependencies */}
       <Tabs
         tabs={[
-          { id: 'versions', label: `VERSIONS (${allVersions.length})` },
-          { id: 'dependencies', label: 'DEPENDENCIES' },
+          { id: 'versions', label: t('contentDetail.tabs.versions', { count: String(allVersions.length) }) },
+          { id: 'dependencies', label: t('contentDetail.tabs.dependencies') },
         ]}
         activeId={activeTab}
         onChange={setActiveTab}
@@ -519,7 +561,7 @@ export default function ContentDetailPage() {
               <span className={styles.versionSelect__label}>
                 {selectedVersion
                   ? `${selectedVersion.version_number} — ${selectedVersion.game_versions.slice(0, 2).join(', ')}`
-                  : 'Select version...'}
+                  : t('contentDetail.selectVersion')}
               </span>
               <span className={styles.versionSelect__arrow}>
                 {versionDropdownOpen ? <Icon name="chevronUp" size={10} /> : <Icon name="chevronDown" size={10} />}
@@ -530,7 +572,7 @@ export default function ContentDetailPage() {
               className={`${styles.versionSelect__dropdown} ${versionDropdownOpen ? styles['versionSelect__dropdown--open'] : ''}`}
             >
               {allVersions.length === 0 ? (
-                <div className={styles.versionSelect__empty}>No versions available</div>
+                <div className={styles.versionSelect__empty}>{t('contentDetail.noVersions')}</div>
               ) : (
                 allVersions.map((ver) => {
                   const compat = versionCompat[ver.id] || 'grey';
@@ -645,26 +687,206 @@ export default function ContentDetailPage() {
       {activeTab === 'dependencies' && (
         <div className={styles.depList}>
           {selectedVersion && selectedVersion.dependencies.length > 0 ? (
-            selectedVersion.dependencies.map((dep, i) => (
-              <div key={i} className={styles.depRow}>
-                <Badge
-                  variant={
-                    dep.dependency_type === 'required'
-                      ? 'accent'
-                      : dep.dependency_type === 'incompatible'
-                        ? 'muted'
-                        : 'default'
-                  }
+            <>
+              {/* 一键安装所有必需依赖 */}
+              <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={installingDeps || !selectedInstance}
+                  onClick={async () => {
+                    if (!selectedInstance || !selectedVersion) return;
+                    const requiredDeps = selectedVersion.dependencies.filter(
+                      (d) => d.dependency_type === 'required' && d.project_id,
+                    );
+                    if (requiredDeps.length === 0) return;
+
+                    setInstallingDeps(true);
+                    const ct = parsed.type || 'mod';
+                    const gameVersion = selectedVersion.game_versions[0];
+                    const loader = selectedVersion.loaders[0];
+
+                    try {
+                      // 并行获取每个依赖的项目详情和版本
+                      const depResults = await Promise.all(
+                        requiredDeps.map(async (dep) => {
+                          try {
+                            const project = await api.getModDetails(dep.project_id!);
+                            const versions = await api.getModVersions(project.slug, gameVersion, loader);
+                            if (versions.length === 0) return null;
+                            const version = versions[0];
+                            const file =
+                              version.files.find(
+                                (f) => !f.filename.includes('sources') && !f.filename.includes('javadoc'),
+                              ) || version.files[0];
+                            if (!file) return null;
+                            return { project, version, file };
+                          } catch {
+                            return null;
+                          }
+                        }),
+                      );
+
+                      let installed = 0;
+                      let skipped = 0;
+                      let failed = 0;
+
+                      // 串行安装，每个依赖由 downloadStore 跟踪进度
+                      for (const dep of depResults) {
+                        if (!dep) {
+                          failed++;
+                          continue;
+                        }
+                        if (installedSlugs.has(dep.project.slug)) {
+                          skipped++;
+                          continue;
+                        }
+                        const taskId = `${dep.project.slug}-${Date.now()}`;
+                        addTask({
+                          id: taskId,
+                          title: dep.project.title,
+                          filename: dep.file.filename,
+                          status: 'pending',
+                          startedAt: Date.now(),
+                        });
+                        updateTask(taskId, 'downloading');
+                        try {
+                          if (parsed.source === 'curseforge') {
+                            await api.downloadCfMod(
+                              dep.file.url,
+                              dep.file.filename,
+                              selectedInstance,
+                              ct,
+                              dep.file.hashes.sha1 ?? undefined,
+                              dep.project.slug,
+                              dep.version.id,
+                            );
+                          } else {
+                            await api.installContent(
+                              dep.file.url,
+                              dep.file.filename,
+                              selectedInstance,
+                              ct,
+                              dep.file.hashes.sha1 ?? undefined,
+                              dep.project.slug,
+                              dep.version.id,
+                              parsed.source,
+                            );
+                          }
+                          updateTask(taskId, 'complete');
+                          installed++;
+                        } catch (e) {
+                          updateTask(taskId, 'failed', e instanceof Error ? e.message : String(e));
+                          failed++;
+                        }
+                      }
+
+                      if (failed > 0) {
+                        addToast({
+                          type: 'warning',
+                          title: t('contentDetail.depsInstallFailed'),
+                          message: `${installed} installed, ${failed} failed${skipped > 0 ? `, ${skipped} skipped` : ''}`,
+                        });
+                      } else {
+                        addToast({
+                          type: 'success',
+                          title: t('contentDetail.depsInstalled'),
+                          message: `${installed} installed${skipped > 0 ? `, ${skipped} skipped` : ''}`,
+                        });
+                      }
+
+                      // 刷新已安装列表
+                      try {
+                        const mods = await api.listInstanceMods(selectedInstance);
+                        setInstalledSlugs(new Set(mods.filter((m) => m.slug).map((m) => m.slug!)));
+                      } catch {
+                        /* ignore */
+                      }
+                    } catch (e) {
+                      addToast({
+                        type: 'error',
+                        title: t('contentDetail.depsInstallFailed'),
+                        message: formatError(e),
+                      });
+                    } finally {
+                      setInstallingDeps(false);
+                    }
+                  }}
                 >
-                  {dep.dependency_type}
-                </Badge>
-                <span style={{ color: 'var(--color-text-secondary)' }}>{dep.project_id || 'Unknown project'}</span>
-                {dep.version_id && <span style={{ color: 'var(--color-text-dim)' }}>requires {dep.version_id}</span>}
+                  <Icon name="bolt" size={12} />
+                  {installingDeps ? t('contentDetail.installingDeps') : t('contentDetail.installAllDeps')}
+                </Button>
+                <span style={{ fontSize: '0.5em', color: 'var(--color-text-dim)' }}>
+                  {t('contentDetail.depsCount', { count: String(selectedVersion.dependencies.filter((d) => d.dependency_type === 'required').length) })}
+                </span>
               </div>
-            ))
+
+              {/* 依赖关系导图（树状视图） */}
+              <div className={styles.depGraph}>
+                <div className={styles.depGraph__root}>
+                  <Icon name="puzzle" size={14} />
+                  <span style={{ fontWeight: 600 }}>{project.title}</span>
+                  <span style={{ fontSize: '0.5em', color: 'var(--color-text-dim)' }}>v{selectedVersion.name}</span>
+                </div>
+                <div className={styles.depGraph__children}>
+                  {loadingDepProjects && (
+                    <div className={styles.depGraph__node}>
+                      <div className={styles.depGraph__connector} />
+                      <div className={styles.depGraph__nodeContent}>
+                        <span style={{ color: 'var(--color-text-dim)', fontSize: '0.6em' }}>
+                          {t('contentDetail.loadingDeps')}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {!loadingDepProjects &&
+                    selectedVersion.dependencies.map((dep, i) => {
+                      const depProject = dep.project_id ? depProjectMap[dep.project_id] : null;
+                      const title = depProject?.title || dep.project_id || 'Unknown project';
+                      const slug = depProject?.slug;
+                      const isInstalled = slug ? installedSlugs.has(slug) : false;
+                      return (
+                        <div key={i} className={styles.depGraph__node}>
+                          <div className={styles.depGraph__connector} />
+                          <div
+                            className={styles.depGraph__nodeContent}
+                            style={slug ? { cursor: 'pointer' } : undefined}
+                            onClick={() => {
+                              if (slug) navigate(`/store/mod/${slug}`);
+                            }}
+                          >
+                            <Badge
+                              variant={
+                                dep.dependency_type === 'required'
+                                  ? 'accent'
+                                  : dep.dependency_type === 'incompatible'
+                                    ? 'muted'
+                                    : 'default'
+                              }
+                            >
+                              {dep.dependency_type}
+                            </Badge>
+                            <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.65em' }}>
+                              {title}
+                            </span>
+                            {isInstalled && (
+                              <Badge variant="default">{t('contentDetail.depAlreadyInstalled')}</Badge>
+                            )}
+                            {dep.version_id && (
+                              <span style={{ color: 'var(--color-text-dim)', fontSize: '0.55em' }}>
+                                → {dep.version_id}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </>
           ) : (
             <div className={styles.notFound} style={{ height: 80 }}>
-              No dependencies listed for the latest version
+              {t('contentDetail.noDependencies')}
             </div>
           )}
         </div>
@@ -681,7 +903,7 @@ export default function ContentDetailPage() {
             border: '1px solid var(--color-border)',
           }}
         >
-          License: {project.license.name}
+          {t('contentDetail.license')} {project.license.name}
           {project.license.url && (
             <>
               {' '}
@@ -692,7 +914,7 @@ export default function ContentDetailPage() {
                 rel="noopener noreferrer"
                 style={{ color: 'var(--color-accent)' }}
               >
-                View
+                {t('contentDetail.view')}
               </a>
             </>
           )}

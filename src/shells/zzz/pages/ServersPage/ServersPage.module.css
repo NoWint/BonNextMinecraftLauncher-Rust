@@ -7,6 +7,113 @@
   overflow-y: auto;
 }
 
+/* 推荐服务器区（HMCL 风格：自动展示精选公开服务器） */
+.featured {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  padding: 14px;
+  clip-path: var(--clip-medium);
+}
+
+.featured__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.featured__title {
+  font-family: var(--font-heading);
+  font-size: 0.85em;
+  font-weight: 700;
+  color: var(--color-accent);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.featured__subtitle {
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.featured__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.featured__card {
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  clip-path: var(--clip-small);
+  transition: border-color 0.15s ease;
+}
+
+.featured__card:hover {
+  border-color: var(--color-accent);
+}
+
+.featured__cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text);
+}
+
+.featured__cardName {
+  font-size: 0.7em;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.featured__cardAddress {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+}
+
+.featured__cardDesc {
+  font-size: 0.5em;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+  flex: 1;
+}
+
+.featured__cardMeta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.5em;
+  font-family: var(--font-mono);
+}
+
+.featured__cardPlayers {
+  color: var(--color-text);
+}
+
+.featured__cardLatency {
+  color: var(--color-success, #4ade80);
+}
+
+.featured__cardLoading {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.featured__cardOffline {
+  color: var(--color-error);
+}
+
+.featured__cardBtn {
+  margin-top: 4px;
+}
+
 .headerActions {
   display: flex;
   gap: 8px;

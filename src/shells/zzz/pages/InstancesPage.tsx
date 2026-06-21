@@ -5,6 +5,7 @@ import { useAuth } from '../../../shared/stores/authStore';
 import { useInstances } from '../../../shared/stores/instanceStore';
 import { useToast } from '../../../shared/stores/toastStore';
 import { useI18n } from '../../../shared/i18n';
+import { readStorage, writeStorage } from '../../../shared/utils/storage';
 import { Badge, Modal, TextInput, Button } from '../components/ui';
 import { Icon } from '../components/ui/Icon';
 import { MigrationModal } from '../components/ui/MigrationModal';
@@ -12,37 +13,10 @@ import { SubLabel } from '../components/layout';
 import { open } from '@tauri-apps/plugin-dialog';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { formatError } from '../../../shared/utils/errorMapping';
+import { getLoaderClass } from '../../../shared/utils/loader';
+import { formatPlaytimeCompact, formatPlaytimeShort, formatTodayPlaytime } from '../../../shared/utils/playtime';
 import { usePluginContextMenuItems } from '../../../app/hooks/usePluginContextMenuItems';
 import styles from './InstancesPage.module.css';
-
-function getLoaderClass(loader: string | null): string {
-  if (loader === 'fabric') return 'fabric';
-  if (loader === 'forge') return 'forge';
-  if (loader === 'quilt') return 'quilt';
-  if (loader === 'neoforge') return 'neoforge';
-  return 'vanilla';
-}
-
-function formatPlaytime(seconds: number): string {
-  if (seconds < 60) return '< 1m';
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
-  return `${(seconds / 3600).toFixed(1)}h`;
-}
-
-function formatPlaytimeShort(seconds: number): string {
-  if (seconds < 60) return '< 1m';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
-
-function formatTodayPlaytime(seconds: number): string {
-  if (seconds < 60) return '< 1m';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return `${h}h ${m}m`;
-}
 
 type SortKey = 'recent' | 'name' | 'playtime' | 'version';
 
@@ -110,14 +84,9 @@ export default function InstancesPage() {
     [pluginContextMenuItems],
   );
 
-  const [servers, setServers] = useState<Array<{ name: string; address: string }>>(() => {
-    try {
-      const saved = localStorage.getItem('bonnext_servers');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [servers, setServers] = useState<Array<{ name: string; address: string }>>(() =>
+    readStorage<Array<{ name: string; address: string }>>('servers', []),
+  );
   const [newAddress, setNewAddress] = useState('');
   const [serverStatuses, setServerStatuses] = useState<Record<string, ServerStatus | null>>({});
   const [editingServerName, setEditingServerName] = useState<Record<string, string>>({});
@@ -141,6 +110,17 @@ export default function InstancesPage() {
   const [iconUrls, setIconUrls] = useState<Record<string, string>>({});
   const [repairingIds, setRepairingIds] = useState<Set<string>>(new Set());
   const [repairResult, setRepairResult] = useState<RepairResult | null>(null);
+  // HMCL-style: 当前选中实例（RadioButton 选择）
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string>(() =>
+    readStorage<string>('selectedInstanceId', ''),
+  );
+  const [renaming, setRenaming] = useState<GameInstance | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  // 持久化选中实例 ID
+  useEffect(() => {
+    writeStorage('selectedInstanceId', selectedInstanceId);
+  }, [selectedInstanceId]);
 
   useEffect(() => {
     api
@@ -178,11 +158,7 @@ export default function InstancesPage() {
   }, [contextMenu]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('bonnext_servers', JSON.stringify(servers));
-    } catch {
-      /* localStorage unavailable */
-    }
+    writeStorage('servers', servers);
   }, [servers]);
 
   useEffect(() => {
@@ -340,6 +316,31 @@ export default function InstancesPage() {
     }
   }, [duplicating, dupName, reloadInstances, addToast, t]);
 
+  const handleRename = useCallback(async () => {
+    if (!renaming || !renameValue.trim()) return;
+    try {
+      await api.updateInstance({ ...renaming, name: renameValue.trim() });
+      addToast({ type: 'success', title: t('instances.renamed'), message: renameValue.trim() });
+      await reloadInstances();
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instances.renameFailed'), message: formatError(e) || '' });
+    } finally {
+      setRenaming(null);
+      setRenameValue('');
+    }
+  }, [renaming, renameValue, reloadInstances, addToast, t]);
+
+  const handleBrowseFolder = useCallback(async (inst: GameInstance) => {
+    try {
+      const dir = gameDir
+        ? `${gameDir}/instances/${inst.id}/.minecraft`
+        : await api.getGameDir().then((d) => `${d}/instances/${inst.id}/.minecraft`);
+      await api.openFolder(dir);
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instances.failed'), message: formatError(e) || '' });
+    }
+  }, [gameDir, addToast, t]);
+
   const handleImport = async () => {
     try {
       const selected = await open({
@@ -369,93 +370,94 @@ export default function InstancesPage() {
     setContextMenu({ x: e.clientX, y: e.clientY, inst });
   };
 
-  const handleMpInstall = async () => {
+  const runMpAction = async (
+    action: () => Promise<void>,
+    successTitle: string,
+    errorTitle: string,
+    onError?: () => void,
+  ) => {
     setMpLoading(true);
     try {
-      await api.downloadTerracotta();
-      setMpInstalled(true);
-      addToast({ type: 'success', title: t('instanceDetail.mpInstallSuccess'), message: '' });
+      await action();
+      addToast({ type: 'success', title: successTitle, message: '' });
     } catch (e: unknown) {
-      addToast({ type: 'error', title: t('instanceDetail.mpInstallFailed'), message: formatError(e) || '' });
+      addToast({ type: 'error', title: errorTitle, message: formatError(e) || '' });
+      onError?.();
     } finally {
       setMpLoading(false);
     }
   };
 
-  const handleMpStart = async () => {
-    setMpLoading(true);
-    try {
-      await api.startTerracotta();
-      setMpRunning(true);
-      const s = await api.getTerracottaState();
-      setMpState(s.state);
-      addToast({ type: 'success', title: t('instanceDetail.mpStarted'), message: '' });
-    } catch (e: unknown) {
-      addToast({ type: 'error', title: t('instanceDetail.mpStartFailed'), message: formatError(e) || '' });
-      setMpRunning(false);
-    } finally {
-      setMpLoading(false);
-    }
-  };
+  const handleMpInstall = () =>
+    runMpAction(
+      async () => {
+        await api.downloadTerracotta();
+        setMpInstalled(true);
+      },
+      t('instanceDetail.mpInstallSuccess'),
+      t('instanceDetail.mpInstallFailed'),
+    );
 
-  const handleMpStop = async () => {
-    setMpLoading(true);
-    try {
-      await api.stopTerracotta();
-      setMpRunning(false);
-      setMpState('idle');
-      setMpRoomCode('');
-      addToast({ type: 'success', title: t('instanceDetail.mpStopped'), message: '' });
-    } catch (e: unknown) {
-      addToast({ type: 'error', title: t('instanceDetail.mpStopFailed'), message: formatError(e) || '' });
-    } finally {
-      setMpLoading(false);
-    }
-  };
+  const handleMpStart = () =>
+    runMpAction(
+      async () => {
+        await api.startTerracotta();
+        setMpRunning(true);
+        const s = await api.getTerracottaState();
+        setMpState(s.state);
+      },
+      t('instanceDetail.mpStarted'),
+      t('instanceDetail.mpStartFailed'),
+      () => setMpRunning(false),
+    );
 
-  const handleMpHost = async () => {
-    setMpLoading(true);
-    try {
-      await api.terracottaSetHost();
-      const s = await api.getTerracottaState();
-      setMpState(s.state);
-      setMpRoomCode(String(s.invitation_code || s.room_code || ''));
-      addToast({ type: 'success', title: t('instanceDetail.mpHosting'), message: '' });
-    } catch (e: unknown) {
-      addToast({ type: 'error', title: t('instanceDetail.mpHostFailed'), message: formatError(e) || '' });
-    } finally {
-      setMpLoading(false);
-    }
-  };
+  const handleMpStop = () =>
+    runMpAction(
+      async () => {
+        await api.stopTerracotta();
+        setMpRunning(false);
+        setMpState('idle');
+        setMpRoomCode('');
+      },
+      t('instanceDetail.mpStopped'),
+      t('instanceDetail.mpStopFailed'),
+    );
 
-  const handleMpJoin = async () => {
+  const handleMpHost = () =>
+    runMpAction(
+      async () => {
+        await api.terracottaSetHost();
+        const s = await api.getTerracottaState();
+        setMpState(s.state);
+        setMpRoomCode(String(s.invitation_code || s.room_code || ''));
+      },
+      t('instanceDetail.mpHosting'),
+      t('instanceDetail.mpHostFailed'),
+    );
+
+  const handleMpJoin = () => {
     if (!mpJoinCode.trim()) return;
-    setMpLoading(true);
-    try {
-      await api.terracottaSetGuest(mpJoinCode.trim());
-      const s = await api.getTerracottaState();
-      setMpState(s.state);
-      addToast({ type: 'success', title: t('instanceDetail.mpJoining'), message: '' });
-    } catch (e: unknown) {
-      addToast({ type: 'error', title: t('instanceDetail.mpJoinFailed'), message: formatError(e) || '' });
-    } finally {
-      setMpLoading(false);
-    }
+    runMpAction(
+      async () => {
+        await api.terracottaSetGuest(mpJoinCode.trim());
+        const s = await api.getTerracottaState();
+        setMpState(s.state);
+      },
+      t('instanceDetail.mpJoining'),
+      t('instanceDetail.mpJoinFailed'),
+    );
   };
 
-  const handleMpDisconnect = async () => {
-    setMpLoading(true);
-    try {
-      await api.terracottaSetIdle();
-      setMpState('idle');
-      setMpRoomCode('');
-      addToast({ type: 'success', title: t('instanceDetail.mpDisconnected'), message: '' });
-    } catch (e: unknown) {
-      addToast({ type: 'error', title: '', message: formatError(e) || '' });
-    } finally {
-      setMpLoading(false);
-    }
-  };
+  const handleMpDisconnect = () =>
+    runMpAction(
+      async () => {
+        await api.terracottaSetIdle();
+        setMpState('idle');
+        setMpRoomCode('');
+      },
+      t('instanceDetail.mpDisconnected'),
+      t('instanceDetail.mpDisconnectFailed'),
+    );
 
   const filtered = useMemo(
     () =>
@@ -481,12 +483,78 @@ export default function InstancesPage() {
     [instances, search, sortKey],
   );
 
-  const heroInstance = filtered.length > 0 ? filtered[0] : null;
+  // HMCL-style: hero 优先显示当前选中实例，无选中时回退到列表第一个
+  const heroInstance = useMemo(() => {
+    if (selectedInstanceId) {
+      const found = filtered.find((i) => i.id === selectedInstanceId);
+      if (found) return found;
+    }
+    return filtered.length > 0 ? filtered[0] : null;
+  }, [filtered, selectedInstanceId]);
   const loaderClass = getLoaderClass(heroInstance?.loader_type ?? null);
   const isHeroReady = heroInstance ? readyStates[heroInstance.id] : null;
 
   return (
     <div className={styles.page}>
+      {/* ---- HMCL-style left sidebar ---- */}
+      <aside className={styles.sidebar}>
+        <div className={styles.sidebar__top}>
+          {/* 账户卡片 */}
+          {auth && (
+            <div
+              className={styles.sidebar__account}
+              onClick={() => navigate('/settings')}
+              title={auth.username}
+            >
+              <div className={styles.sidebar__accountAvatar}>
+                {auth.username.charAt(0).toUpperCase()}
+              </div>
+              <div className={styles.sidebar__accountInfo}>
+                <span className={styles.sidebar__accountName}>{auth.username}</span>
+                <span className={styles.sidebar__accountType}>Account</span>
+              </div>
+            </div>
+          )}
+
+          {/* 实例统计 */}
+          <div className={styles.sidebar__categoryTitle}>{t('instances.allInstances')}</div>
+          <div style={{ padding: '0 12px', fontSize: '0.55em', color: 'var(--color-text-dim)' }}>
+            {t('instances.total', { count: String(instances.length) })}
+          </div>
+        </div>
+
+        {/* 底部固定按钮（HMCL GameListPage 风格：新建/导入/设置） */}
+        <div className={styles.sidebar__bottom}>
+          <button
+            className={`${styles.sidebar__navItem} ${styles['sidebar__navItem--accent']}`}
+            onClick={() => navigate('/instances/new')}
+          >
+            <Icon name="cross" size={14} /> {t('instances.newBtn')}
+          </button>
+          <button
+            className={styles.sidebar__navItem}
+            onClick={handleImport}
+            disabled={importing}
+          >
+            <Icon name="download" size={14} /> {importing ? t('instances.importingBtn') : t('instances.importBtn')}
+          </button>
+          <button
+            className={styles.sidebar__navItem}
+            onClick={() => setShowMigration(true)}
+          >
+            <Icon name="arrowCurveLeft" size={14} /> {t('migration.btn')}
+          </button>
+          <button
+            className={styles.sidebar__navItem}
+            onClick={() => navigate('/settings')}
+          >
+            <Icon name="settings" size={14} /> {t('nav.settings')}
+          </button>
+        </div>
+      </aside>
+
+      {/* ---- Right content area ---- */}
+      <div className={styles.page__main}>
       <div className={styles.page__sticky}>
         {/* ---- Hero Banner ---- */}
         {heroInstance && (
@@ -509,7 +577,11 @@ export default function InstancesPage() {
 
               <div className={styles.hero__info}>
                 <div className={styles.hero__label}>
-                  {heroInstance.last_played ? t('instances.lastPlayed') : t('instances.readyToPlay')}
+                  {heroInstance.id === selectedInstanceId
+                    ? t('instances.currentInstance')
+                    : heroInstance.last_played
+                      ? t('instances.lastPlayed')
+                      : t('instances.readyToPlay')}
                 </div>
                 <h1 className={styles.hero__name}>{heroInstance.name}</h1>
                 <div className={styles.hero__meta}>
@@ -535,7 +607,7 @@ export default function InstancesPage() {
                     </span>
                   )}
                   <span className={styles.hero__metaItem}>{Math.round(heroInstance.max_memory / 1024)}GB</span>
-                  <span className={styles.hero__metaItem}>{formatPlaytime(heroInstance.playtime_seconds)}</span>
+                  <span className={styles.hero__metaItem}>{formatPlaytimeCompact(heroInstance.playtime_seconds)}</span>
                 </div>
               </div>
 
@@ -572,15 +644,6 @@ export default function InstancesPage() {
           </div>
           <div className={styles.headerBar__right}>
             <TextInput placeholder={t('instances.filter')} value={search} onChange={(e) => setSearch(e.target.value)} />
-            <Button variant="secondary" size="sm" onClick={handleImport} disabled={importing}>
-              {importing ? t('instances.importingBtn') : <><Icon name="download" size={14} /> {t('instances.importBtn')}</>}
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => setShowMigration(true)}>
-              <><Icon name="arrowCurveLeft" size={14} /> {t('migration.btn')}</>
-            </Button>
-            <Button variant="primary" size="sm" onClick={() => navigate('/instances/new')}>
-              {'+ ' + t('instances.newBtn')}
-            </Button>
           </div>
         </div>
 
@@ -618,14 +681,24 @@ export default function InstancesPage() {
             {filtered.map((inst) => {
               const ldrClass = getLoaderClass(inst.loader_type);
               const isReady = readyStates[inst.id] ?? null;
+              const isSelected = inst.id === selectedInstanceId;
 
               return (
                 <div
                   key={inst.id}
-                  className={`${styles.instanceRow} card-glow-hover`}
+                  className={`${styles.instanceRow} card-glow-hover ${isSelected ? styles['instanceRow--selected'] : ''}`}
                   onClick={() => { navigate(`/instances/${inst.id}`); }}
                   onContextMenu={(e) => handleContextMenu(e, inst)}
                 >
+                  {/* HMCL-style RadioButton: 设为当前实例 */}
+                  <button
+                    className={`${styles.instanceRow__radio} ${isSelected ? styles['instanceRow__radio--selected'] : ''}`}
+                    title={t('instances.selectCurrent')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedInstanceId(isSelected ? '' : inst.id);
+                    }}
+                  />
                   <div className={`${styles.instanceRow__icon} ${styles[`instanceRow__icon--${ldrClass}`]}`}>
                     {iconUrls[inst.id] && !failedIcons.has(inst.id) ? (
                       <img
@@ -656,7 +729,7 @@ export default function InstancesPage() {
                         />
                         {isReady === null ? t('common.checking') : isReady ? t('common.ready') : t('common.needsDownload')}
                       </span>
-                      <span className={styles.instanceRow__metaItem}>{formatPlaytime(inst.playtime_seconds)}</span>
+                      <span className={styles.instanceRow__metaItem}>{formatPlaytimeCompact(inst.playtime_seconds)}</span>
                       <span className={styles.instanceRow__metaItem}>{relativeTime(inst.last_played)}</span>
                       <span className={styles.instanceRow__metaItem}>{Math.round(inst.max_memory / 1024)}GB</span>
                     </div>
@@ -685,14 +758,16 @@ export default function InstancesPage() {
                         <><Icon name="play" size={14} /> {t('instances.play')}</>
                       </button>
                     )}
+                    {/* HMCL-style: 管理按钮改为 more 图标，弹出上下文菜单 */}
                     <button
-                      className={`${styles.instanceRow__actionBtn} ${styles['instanceRow__actionBtn--manage']}`}
+                      className={styles.instanceRow__moreBtn}
+                      title={t('instances.contextSettings')}
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/instances/${inst.id}`);
+                        handleContextMenu(e, inst);
                       }}
                     >
-                      <><Icon name="settings" size={14} /> {t('instances.manage')}</>
+                      <Icon name="settings" size={14} />
                     </button>
                   </div>
                 </div>
@@ -834,7 +909,7 @@ export default function InstancesPage() {
         {/* ---- LAN Discovery ---- */}
         <div className={styles.serverMonitor} style={{ marginTop: 8 }}>
           <div className={styles.serverMonitor__header}>
-            <SubLabel>{t('instances.lanDiscovery') || 'LAN Worlds'}</SubLabel>
+            <SubLabel>{t('instances.lanDiscovery')}</SubLabel>
           </div>
           <Button
             variant="secondary"
@@ -852,7 +927,7 @@ export default function InstancesPage() {
             }}
             disabled={lanDiscovering}
           >
-            {lanDiscovering ? 'Scanning...' : 'Scan for LAN Worlds'}
+            {lanDiscovering ? t('instances.lanScanning') : t('instances.lanScan')}
           </Button>
           {lanWorlds.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
@@ -868,15 +943,15 @@ export default function InstancesPage() {
                     fontSize: '0.55em',
                   }}
                 >
-                  <span style={{ color: 'var(--color-success)', fontWeight: 700 }}>ON</span>
+                  <span style={{ color: 'var(--color-success)', fontWeight: 700 }}>{t('instances.lanWorldOn')}</span>
                   <span style={{ color: 'var(--color-text)' }}>{w.motd || `${w.host}:${w.port}`}</span>
-                  <span style={{ color: 'var(--color-text-dim)', marginLeft: 'auto' }}>{w.world_type || 'unknown'}</span>
+                  <span style={{ color: 'var(--color-text-dim)', marginLeft: 'auto' }}>{w.world_type || t('instances.lanWorldTypeUnknown')}</span>
                 </div>
               ))}
             </div>
           )}
           {!lanDiscovering && lanWorlds.length === 0 && (
-            <div style={{ fontSize: '0.5em', color: 'var(--color-text-dim)', marginTop: 4 }}>No LAN worlds found</div>
+            <div style={{ fontSize: '0.5em', color: 'var(--color-text-dim)', marginTop: 4 }}>{t('instances.lanNoWorlds')}</div>
           )}
         </div>
 
@@ -1152,7 +1227,7 @@ export default function InstancesPage() {
         )}
       </div>
 
-      {/* ---- Context menu ---- */}
+      {/* ---- Context menu (HMCL-style: 测试启动/管理/重命名/复制/删除/导出/浏览) ---- */}
       {contextMenu && (
         <div ref={menuRef} className={styles.contextMenu} style={{ left: contextMenu.x, top: contextMenu.y }}>
           <button
@@ -1171,7 +1246,7 @@ export default function InstancesPage() {
               setContextMenu(null);
             }}
           >
-            <><Icon name="settings" size={14} /> {t('instances.contextDetails')}</>
+            <><Icon name="settings" size={14} /> {t('instances.contextSettings')}</>
           </button>
           {readyStates[contextMenu.inst.id] === false && (
             <button
@@ -1186,6 +1261,16 @@ export default function InstancesPage() {
             </button>
           )}
           <div className={styles.contextMenu__separator} />
+          <button
+            className={styles.contextMenu__item}
+            onClick={() => {
+              setRenaming(contextMenu.inst);
+              setRenameValue(contextMenu.inst.name);
+              setContextMenu(null);
+            }}
+          >
+            <><Icon name="edit" size={14} /> {t('instances.contextRename')}</>
+          </button>
           <button
             className={styles.contextMenu__item}
             onClick={() => {
@@ -1204,6 +1289,16 @@ export default function InstancesPage() {
             }}
           >
             <><Icon name="upload" size={14} /> {t('instances.contextExport')}</>
+          </button>
+          <div className={styles.contextMenu__separator} />
+          <button
+            className={styles.contextMenu__item}
+            onClick={() => {
+              handleBrowseFolder(contextMenu.inst);
+              setContextMenu(null);
+            }}
+          >
+            <><Icon name="folder" size={14} /> {t('instances.contextBrowse')}</>
           </button>
           {pluginInstanceMenuItems.length > 0 && (
             <>
@@ -1285,12 +1380,12 @@ export default function InstancesPage() {
                     addToast({
                       type: 'success',
                       title: t('instances.deleted'),
-                      message: `"${confirmDelete.name}" removed`,
+                      message: t('instances.deletedMessage', { name: confirmDelete.name }),
                     });
                   } catch (e) {
                     addToast({
                       type: 'error',
-                      title: t('instances.deleteFailed') || 'Delete failed',
+                      title: t('instances.deleteFailed'),
                       message: formatError(e),
                     });
                   }
@@ -1383,7 +1478,46 @@ export default function InstancesPage() {
         </div>
       </Modal>
 
+      {/* ---- Rename modal (HMCL-style) ---- */}
+      <Modal
+        open={renaming !== null}
+        onClose={() => {
+          setRenaming(null);
+          setRenameValue('');
+        }}
+        title={t('instances.renameTitle')}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setRenaming(null);
+                setRenameValue('');
+              }}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button variant="primary" size="sm" onClick={handleRename} disabled={!renameValue.trim()}>
+              {t('instances.renameBtn')}
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label style={{ fontSize: '0.6em', color: 'var(--color-text-secondary)' }}>{t('instances.renameLabel')}</label>
+          <TextInput
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            placeholder={t('instances.instanceName')}
+            autoFocus
+          />
+        </div>
+      </Modal>
+
       <MigrationModal open={showMigration} onClose={() => setShowMigration(false)} onMigrated={reloadInstances} />
+      </div>
+      {/* ---- End of page__main ---- */}
     </div>
   );
 }

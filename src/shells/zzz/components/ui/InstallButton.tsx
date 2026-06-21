@@ -43,7 +43,10 @@ async function downloadSingle(
   updateTask(taskId, 'downloading');
 
   const unlisten = await api.onContentDownloadProgress((p) => {
-    if (p.slug === slug && p.filename === filename) {
+    // 兼容 Rust 端 slug 为 None 时发射空字符串的情况：
+    // 任一方 slug 为空时退化为仅 filename 匹配，避免进度丢失
+    const slugMatch = !p.slug || !slug || p.slug === slug;
+    if (slugMatch && p.filename === filename) {
       updateTask(taskId, 'downloading', undefined, p.progress, p.speed_bytes_per_sec, p.eta_seconds);
     }
   });

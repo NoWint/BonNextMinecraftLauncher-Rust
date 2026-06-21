@@ -17,6 +17,7 @@ import {
 } from '../components/marketplace/types';
 import { useConfig } from '../../../shared/stores/configStore';
 import { useInstances } from '../../../shared/stores/instanceStore';
+import { useI18n } from '../../../shared/i18n';
 import { api } from '../../../shared/api';
 import styles from './MarketplacePage.module.css';
 import badgeStyles from '../components/ui/Status.module.css';
@@ -35,6 +36,7 @@ export default function MarketplacePage() {
   const [recsLoading, setRecsLoading] = useState(true);
   const { state: configState } = useConfig();
   const { state: instanceState } = useInstances();
+  const { t } = useI18n();
 
   const instanceId = configState.config?.selected_instance || instanceState.instances[0]?.id || null;
 
@@ -112,12 +114,12 @@ export default function MarketplacePage() {
 
   return (
     <div className={styles.page}>
-      <SectionHeader title="MARKETPLACE" subtitle="Discover and install Minecraft content" />
+      <SectionHeader title={t('marketplace.title')} subtitle={t('marketplace.subtitle')} />
 
       {(recsLoading || recommendations.length > 0) && (
         <div className={styles.recommendations}>
           <div className={styles.recommendations__header}>
-            <span className={styles.recommendations__title}>RECOMMENDED FOR YOU</span>
+            <span className={styles.recommendations__title}>{t('marketplace.recommendedForYou')}</span>
           </div>
           <div className={styles.recommendations__row}>
             {recsLoading

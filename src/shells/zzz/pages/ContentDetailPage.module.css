@@ -511,6 +511,64 @@
   font-size: 0.55em;
 }
 
+/* 依赖关系导图（树状视图） */
+.depGraph {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border);
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+
+.depGraph__root {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+  font-size: 0.65em;
+  color: var(--color-accent);
+}
+
+.depGraph__children {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 20px;
+  padding-left: 16px;
+  border-left: 2px dashed color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.depGraph__node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.depGraph__connector {
+  position: absolute;
+  left: -16px;
+  top: 50%;
+  width: 12px;
+  height: 1px;
+  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.depGraph__nodeContent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  flex: 1;
+  flex-wrap: wrap;
+}
+
 /* Not found / error */
 .notFound {
   display: flex;

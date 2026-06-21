@@ -12,13 +12,13 @@ interface BreadcrumbRoute {
 const ROUTES: BreadcrumbRoute[] = [
   {
     pattern: /^\/home$/,
-    build: (_m, t) => [{ label: t('nav.home'), path: '/home' }],
+    build: (_m, t) => [{ label: t('nav.home'), href: '/home' }],
   },
   {
     pattern: /^\/instances\/new$/,
     build: (_m, t) => [
-      { label: t('nav.home'), path: '/home' },
-      { label: t('nav.instances'), path: '/instances' },
+      { label: t('nav.home'), href: '/home' },
+      { label: t('nav.instances'), href: '/instances' },
       { label: t('instances.create') },
     ],
   },
@@ -28,8 +28,8 @@ const ROUTES: BreadcrumbRoute[] = [
       const id = m[1];
       const inst = instances.find((i) => i.id === id);
       return [
-        { label: t('nav.home'), path: '/home' },
-        { label: t('nav.instances'), path: '/instances' },
+        { label: t('nav.home'), href: '/home' },
+        { label: t('nav.instances'), href: '/instances' },
         { label: inst?.name || id },
       ];
     },
@@ -37,8 +37,8 @@ const ROUTES: BreadcrumbRoute[] = [
   {
     pattern: /^\/instances$/,
     build: (_m, t) => [
-      { label: t('nav.home'), path: '/home' },
-      { label: t('nav.instances'), path: '/instances' },
+      { label: t('nav.home'), href: '/home' },
+      { label: t('nav.instances'), href: '/instances' },
     ],
   },
   {
@@ -54,8 +54,8 @@ const ROUTES: BreadcrumbRoute[] = [
         datapack: 'contentDetail.typeDataPacks',
       };
       return [
-        { label: t('nav.home'), path: '/home' },
-        { label: t('nav.marketplace') || 'Marketplace', path: '/store' },
+        { label: t('nav.home'), href: '/home' },
+        { label: t('nav.versions') || 'Download', href: '/versions' },
         { label: t(typeKey[type] || type) },
         { label: slug },
       ];
@@ -64,43 +64,44 @@ const ROUTES: BreadcrumbRoute[] = [
   {
     pattern: /^\/store$/,
     build: (_m, t) => [
-      { label: t('nav.home'), path: '/home' },
-      { label: t('nav.marketplace') || 'Marketplace', path: '/store' },
+      { label: t('nav.home'), href: '/home' },
+      { label: t('nav.versions') || 'Download', href: '/versions' },
     ],
   },
   {
     pattern: /^\/mods$/,
     build: (_m, t) => [
-      { label: t('nav.home'), path: '/home' },
-      { label: t('nav.marketplace') || 'Marketplace', path: '/store' },
+      { label: t('nav.home'), href: '/home' },
+      { label: t('nav.versions') || 'Download', href: '/versions' },
     ],
   },
   {
     pattern: /^\/collections$/,
     build: (_m, t) => [
-      { label: t('nav.home'), path: '/home' },
-      { label: t('nav.collections'), path: '/collections' },
+      { label: t('nav.home'), href: '/home' },
+      { label: t('nav.versions') || 'Download', href: '/versions' },
     ],
   },
   {
     pattern: /^\/library$/,
     build: (_m, t) => [
-      { label: t('nav.home'), path: '/home' },
-      { label: t('nav.library'), path: '/library' },
+      { label: t('nav.home'), href: '/home' },
+      { label: t('nav.versions'), href: '/versions' },
+      { label: t('sidebar.library') },
     ],
   },
   {
     pattern: /^\/versions$/,
     build: (_m, t) => [
-      { label: t('nav.home'), path: '/home' },
-      { label: t('nav.versions'), path: '/versions' },
+      { label: t('nav.home'), href: '/home' },
+      { label: t('nav.versions'), href: '/versions' },
     ],
   },
   {
     pattern: /^\/settings$/,
     build: (_m, t) => [
-      { label: t('nav.home'), path: '/home' },
-      { label: t('nav.settings'), path: '/settings' },
+      { label: t('nav.home'), href: '/home' },
+      { label: t('nav.settings'), href: '/settings' },
     ],
   },
 ];
@@ -118,6 +119,6 @@ export function useBreadcrumb(): Crumb[] {
         return route.build(match, t, instState.instances);
       }
     }
-    return [{ label: t('nav.home'), path: '/home' }];
+    return [{ label: t('nav.home'), href: '/home' }];
   }, [location.pathname, t, instState.instances]);
 }

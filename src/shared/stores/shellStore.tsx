@@ -64,7 +64,9 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
 
   const loadCustomShells = useCallback(async () => {
     try {
-      const customMetas = await api.scanCustomShells();
+      const result = await api.scanCustomShells();
+      // 防御性检查：后端可能返回 null（命令未注册或序列化异常）
+      const customMetas = Array.isArray(result) ? result : [];
       clearCustomShells();
       for (const meta of customMetas) {
         const def = customShellToDefinition(meta);
@@ -77,18 +79,24 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // 延迟加载 shell 配置和自定义 shell 扫描：
+  // 默认 shell 是 'zzz'（initialState 已设），ZZZAppShell 已 eager import，
+  // 所以首屏可以立即渲染。getActiveShell() 和 scanCustomShells() 涉及 IPC +
+  // 文件系统扫描，延迟到首屏后执行，避免与启动期关键 IPC 竞争。
   useEffect(() => {
-    async function init() {
+    const timer = setTimeout(async () => {
       try {
         const savedShell = await api.getActiveShell();
-        dispatch({ type: 'INIT_FROM_CONFIG', payload: savedShell });
+        if (savedShell && savedShell !== 'zzz') {
+          dispatch({ type: 'INIT_FROM_CONFIG', payload: savedShell });
+        }
       } catch {
         // Config read failed, use default 'zzz'
       }
       await loadCustomShells();
       dispatch({ type: 'SET_AVAILABLE_SHELLS', payload: getAllShells() });
-    }
-    init();
+    }, 2000);
+    return () => clearTimeout(timer);
   }, [loadCustomShells]);
 
   const setActiveShell = useCallback(async (shellId: string) => {

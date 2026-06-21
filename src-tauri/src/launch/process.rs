@@ -286,6 +286,7 @@ impl LaunchProcess {
         let running_games_for_exit = self.running_games.clone();
         let profile_stages_clone = profile_stages.clone();
         let launch_start_clone = launch_start;
+        let app_handle_for_exit = self.app_handle.clone();
         std::thread::spawn(move || {
             let output = child.wait();
             let elapsed = launch_instant.elapsed().as_secs();
@@ -304,9 +305,18 @@ impl LaunchProcess {
                         tracing::error!("Game crashed with exit code: {} after {}s", code, elapsed);
                         LaunchState::Crashed
                     };
+                    // 关键修复：使用 force_set_state 模式（直接修改 + 发射事件），
+                    // 确保前端能实时收到崩溃/退出通知，而非依赖 2 秒轮询。
                     {
                         let mut state = state_clone.lock();
-                        *state = new_state;
+                        tracing::info!("Launch state (forced): {:?} -> {:?}", *state, new_state);
+                        *state = new_state.clone();
+                    }
+                    if let Some(ref app) = app_handle_for_exit {
+                        let _ = app.emit("launch-state-changed", serde_json::json!({
+                            "state": new_state,
+                            "instance_id": instance_id_for_exit,
+                        }));
                     }
                     crate::auth::skin_server::stop_skin_server();
                     if let Some(ref iid) = instance_id_for_exit {
@@ -356,7 +366,10 @@ impl LaunchProcess {
     fn check_files(&self, ctx: &LaunchContext) -> Vec<String> {
         let mut missing = Vec::new();
 
-        let client_jar = ctx.version_dir.join(format!("{}.jar", ctx.version.id));
+        // 关键修复：client JAR 文件名是原始版本 ID（如 1.21.jar），
+        // 而非 loader 版本 ID（如 fabric-loader-0.15.11-1.21）。
+        // 版本文件存储在原始版本目录下，使用 loader 版本 ID 会导致文件找不到 → 误判缺失 → 重新下载 → 启动失败。
+        let client_jar = ctx.version_dir.join(format!("{}.jar", ctx.original_version_id));
         if !client_jar.exists() {
             missing.push(client_jar.to_string_lossy().to_string());
         }

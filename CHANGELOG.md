@@ -2,33 +2,61 @@
 
 All notable changes to BonNext will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
+## [1.0.0] - 2026-06-XX
 
 ### Added
-- Modrinth mod browser with search, filtering, and one-click install
-- Keyboard shortcuts (Ctrl+H/I/M/V/N/, for navigation)
-- Toast notification system with auto-dismiss
-- Error boundary with recovery UI
-- Skeleton loading components
-- GitHub Actions CI pipeline (Ubuntu, macOS, Windows)
-- SECURITY.md, CONTRIBUTING.md, CHANGELOG.md
+- 插件化架构：最小核心 + 插件系统，支持第三方插件安装
+- GitHub Releases 自动更新
+- 首次使用引导（Quick Start + Detailed Tour）
+- 主题系统：dark/light/OLED + 色盲模式 + 动态背景
+- 键盘快捷键（Ctrl+K 搜索、Ctrl+H/I/V/N 导航）
+- AI 智能搜索
+- 崩溃自动诊断与修复建议
+- 模组/整合包安装与依赖解析
+- 实例快照与迁移
+- 安全模块：AES-256-GCM 加密、JVM 参数白名单、审计日志
 
 ### Changed
-- All pages converted from inline styles to CSS Modules
-- SettingsPage checkboxes now functional and config-driven
-- File/folder picker dialogs wired in SettingsPage
+- 版本号从 0.0.6 升级为 1.0.0（首个正式稳定版）
+- 主题系统重构，消除三套主题系统冲突
+- 插件事件总线支持按 pluginId 追踪和清理
 
 ### Fixed
-- `user_type` now dynamically set from account store (not hardcoded "msa")
-- `version_type` now resolved from version JSON (not hardcoded "release")
-- `--fullscreen` flag properly passed to Minecraft
-- Memory validation added (min >= 256MB, max >= min, max <= 64GB)
-- Launch state machine transitions now enforced with logging
+- 插件事件权限模型失效
+- PluginFileSystem 完全不可用
+- activate() 失败 UI 注入泄漏
+- 主题匹配 bug
+- DownloadPanel 硬编码英文（i18n 化）
+- NewInstancePage 版本加载静默吞错
 
-## [0.2.0] - 2026-05-16
+### Known Limitations
+- 无代码签名（macOS/Windows 首次运行有安全警告）
+- 社交/P2P 功能未启用（代码存在但 UI 未暴露）
+- 支持 960×640 及以上窗口，未适配移动端
+
+## [0.0.6] - 2026-06-19
+
+### Added
+- 插件架构审查与修复（35+ 问题修复）
+
+## [0.0.5] - 2026-06-XX
+
+### Fixed
+- XSS 漏洞修复（DOMPurify 集成）
+- 路由冲突修复
+
+## [0.0.4] - 2026-06-XX
+
+### Added
+- 多 Shell 架构（ZZZ/SwiftUI/Editor）
+
+## [0.0.3] - 2026-06-XX
+
+### Added
+- Modrinth/CurseForge 市场集成
+- 下载管理器
+
+## [0.0.2] - 2026-05-16
 
 ### Added
 - Complete application rewrite based on oxide-mc and shard reference projects
@@ -48,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSS custom properties design tokens
 - React Context + useReducer state management
 
-## [0.1.0] - 2026-05-14
+## [0.0.1] - 2026-05-14
 
 ### Added
 - Initial Tauri v2 + React 18 + TypeScript project scaffold

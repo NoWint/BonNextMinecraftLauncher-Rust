@@ -95,7 +95,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 10%, transparent 10%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-text) 12%, transparent) 10%, transparent 10%);
   background-position: center;
   background-repeat: no-repeat;
   opacity: 0;
@@ -138,8 +138,8 @@ button {
 }
 
 .card-hover-glow:hover {
-  border-color: rgba(255, 230, 0, 0.12);
-  box-shadow: 0 0 20px rgba(255, 230, 0, 0.03);
+  border-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-accent) 3%, transparent);
 }
 
 /* ---------------------------------------------------------------
@@ -147,21 +147,21 @@ button {
    --------------------------------------------------------------- */
 
 *:focus-visible {
-  outline: 1px solid rgba(255, 230, 0, 0.5);
+  outline: 1px solid color-mix(in srgb, var(--color-accent) 50%, transparent);
   outline-offset: 2px;
 }
 
 button:focus-visible {
-  outline: 1px solid rgba(255, 230, 0, 0.6);
+  outline: 1px solid color-mix(in srgb, var(--color-accent) 60%, transparent);
   outline-offset: 1px;
 }
 
 input:focus-visible,
 select:focus-visible {
-  outline: 1px solid rgba(255, 230, 0, 0.4);
+  outline: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
   outline-offset: -1px;
-  border-color: rgba(255, 230, 0, 0.25) !important;
-  box-shadow: 0 0 8px rgba(255, 230, 0, 0.08);
+  border-color: color-mix(in srgb, var(--color-accent) 25%, transparent) !important;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-accent) 8%, transparent);
 }
 
 /* ---------------------------------------------------------------
@@ -192,13 +192,13 @@ select:focus-visible {
 
 @keyframes pulse-ring {
   0% {
-    box-shadow: 0 0 0 0 rgba(255, 230, 0, 0.3);
+    box-shadow: 0 0 0 0 var(--color-accent-30);
   }
   70% {
-    box-shadow: 0 0 0 8px rgba(255, 230, 0, 0);
+    box-shadow: 0 0 0 8px transparent;
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(255, 230, 0, 0);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 
@@ -309,10 +309,10 @@ select:focus-visible {
 @keyframes border-dance {
   0%,
   100% {
-    border-color: #1c1c1c;
+    border-color: var(--color-border-mid);
   }
   50% {
-    border-color: #2a2a2a;
+    border-color: var(--color-border-light);
   }
 }
 
@@ -342,10 +342,10 @@ select:focus-visible {
 @keyframes progress-glow {
   0%,
   100% {
-    box-shadow: 0 0 4px rgba(255, 230, 0, 0.1);
+    box-shadow: 0 0 4px var(--color-accent-10);
   }
   50% {
-    box-shadow: 0 0 8px rgba(255, 230, 0, 0.2);
+    box-shadow: 0 0 8px var(--color-accent-20);
   }
 }
 
@@ -380,7 +380,7 @@ select {
 }
 
 select:hover {
-  border-color: rgba(255, 230, 0, 0.15);
+  border-color: var(--color-accent-15);
 }
 
 /* ---------------------------------------------------------------
@@ -392,7 +392,7 @@ select:hover {
 }
 
 ::-webkit-scrollbar-thumb:active {
-  background: rgba(255, 230, 0, 0.2);
+  background: var(--color-accent-20);
 }
 
 /* ---------------------------------------------------------------
@@ -504,8 +504,8 @@ input[type='checkbox'] {
    --------------------------------------------------------------- */
 
 ::selection {
-  background: rgba(255, 230, 0, 0.25);
-  color: #fff;
+  background: var(--selection-bg);
+  color: var(--selection-color);
 }
 
 /* ---------------------------------------------------------------
@@ -614,7 +614,7 @@ input[type='checkbox'] {
 
 @keyframes copy-flash {
   0% {
-    background: rgba(0, 255, 136, 0.15);
+    background: color-mix(in srgb, var(--color-success) 15%, transparent);
   }
   100% {
     background: transparent;
@@ -640,8 +640,8 @@ input[type='checkbox'] {
   transform: translateY(-2px);
   box-shadow:
     0 8px 30px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(255, 230, 0, 0.06);
-  border-color: rgba(255, 230, 0, 0.12);
+    0 0 0 1px var(--color-accent-06);
+  border-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
 }
 
 /* ---------------------------------------------------------------
@@ -663,7 +663,7 @@ input[type='checkbox'] {
 .update-dot {
   width: 6px;
   height: 6px;
-  background: #ff4444;
+  background: var(--color-error);
   clip-path: var(--clip-diamond);
   animation: update-dot-pulse 2s ease-in-out infinite;
   display: inline-block;
@@ -733,8 +733,8 @@ input[type='checkbox'] {
     0deg,
     transparent,
     transparent 3px,
-    rgba(255, 230, 0, 0.015) 3px,
-    rgba(255, 230, 0, 0.015) 4px
+    color-mix(in srgb, var(--color-accent) 1.5%, transparent) 3px,
+    color-mix(in srgb, var(--color-accent) 1.5%, transparent) 4px
   );
   animation: scanline-drift 8s linear infinite;
 }
@@ -800,13 +800,13 @@ input[type='checkbox'] {
   0%,
   100% {
     box-shadow:
-      0 0 20px rgba(255, 230, 0, 0.02),
-      inset 0 0 0 rgba(255, 230, 0, 0);
+      0 0 20px color-mix(in srgb, var(--color-accent) 2%, transparent),
+      inset 0 0 0 transparent;
   }
   50% {
     box-shadow:
-      0 0 40px rgba(255, 230, 0, 0.05),
-      inset 0 0 30px rgba(255, 230, 0, 0.01);
+      0 0 40px color-mix(in srgb, var(--color-accent) 5%, transparent),
+      inset 0 0 30px color-mix(in srgb, var(--color-accent) 1%, transparent);
   }
 }
 
@@ -845,10 +845,10 @@ input[type='checkbox'] {
 @keyframes card-glow-pulse {
   0%,
   100% {
-    border-color: rgba(255, 230, 0, 0.08);
+    border-color: color-mix(in srgb, var(--color-accent) 8%, transparent);
   }
   50% {
-    border-color: rgba(255, 230, 0, 0.2);
+    border-color: var(--color-accent-20);
   }
 }
 
@@ -861,11 +861,11 @@ input[type='checkbox'] {
 
 .card-glow-hover:hover {
   transform: translateY(-3px);
-  border-color: rgba(255, 230, 0, 0.2);
+  border-color: var(--color-accent-20);
   box-shadow:
     0 12px 40px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(255, 230, 0, 0.08),
-    0 0 30px rgba(255, 230, 0, 0.04);
+    0 0 0 1px color-mix(in srgb, var(--color-accent) 8%, transparent),
+    0 0 30px color-mix(in srgb, var(--color-accent) 4%, transparent);
 }
 
 .card-glow-hover:hover .card__playOverlay {
@@ -876,20 +876,20 @@ input[type='checkbox'] {
 @keyframes status-breathe-ready {
   0%,
   100% {
-    box-shadow: 0 0 4px rgba(76, 175, 80, 0.6);
+    box-shadow: 0 0 4px color-mix(in srgb, var(--color-success) 60%, transparent);
   }
   50% {
-    box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--color-success) 30%, transparent);
   }
 }
 
 @keyframes status-breathe-download {
   0%,
   100% {
-    box-shadow: 0 0 4px rgba(255, 152, 0, 0.6);
+    box-shadow: 0 0 4px color-mix(in srgb, var(--color-warning) 60%, transparent);
   }
   50% {
-    box-shadow: 0 0 10px rgba(255, 152, 0, 0.3);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--color-warning) 30%, transparent);
   }
 }
 
@@ -903,13 +903,13 @@ input[type='checkbox'] {
 /* ---- Play button pulse — calls to action ---- */
 @keyframes play-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(255, 230, 0, 0.4);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 40%, transparent);
   }
   70% {
-    box-shadow: 0 0 0 12px rgba(255, 230, 0, 0);
+    box-shadow: 0 0 0 12px transparent;
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(255, 230, 0, 0);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 
@@ -1060,11 +1060,11 @@ input[type='checkbox'] {
 .progress-stripe {
   background-image: linear-gradient(
     45deg,
-    rgba(255, 255, 255, 0.05) 25%,
+    color-mix(in srgb, var(--color-text) 5%, transparent) 25%,
     transparent 25%,
     transparent 50%,
-    rgba(255, 255, 255, 0.05) 50%,
-    rgba(255, 255, 255, 0.05) 75%,
+    color-mix(in srgb, var(--color-text) 5%, transparent) 50%,
+    color-mix(in srgb, var(--color-text) 5%, transparent) 75%,
     transparent 75%,
     transparent
   );
@@ -1163,8 +1163,8 @@ button:active:not(:disabled),
 
 [data-hover-glow]:hover {
   box-shadow:
-    0 0 20px rgba(255, 230, 0, 0.15),
-    0 0 40px rgba(255, 230, 0, 0.06);
+    0 0 20px var(--color-accent-15),
+    0 0 40px var(--color-accent-06);
   transition: box-shadow 250ms ease-out;
 }
 
@@ -1189,10 +1189,10 @@ button:active:not(:disabled),
 [data-holographic]:hover {
   position: relative;
   box-shadow:
-    0 0 15px rgba(255, 230, 0, 0.1),
-    0 0 30px rgba(255, 230, 0, 0.05),
-    inset 0 0 15px rgba(255, 230, 0, 0.03);
-  border-color: rgba(255, 230, 0, 0.3);
+    0 0 15px var(--color-accent-10),
+    0 0 30px color-mix(in srgb, var(--color-accent) 5%, transparent),
+    inset 0 0 15px color-mix(in srgb, var(--color-accent) 3%, transparent);
+  border-color: var(--color-accent-30);
   transition:
     box-shadow 300ms ease-out,
     border-color 300ms ease-out;
@@ -1205,8 +1205,8 @@ button:active:not(:disabled),
   background: linear-gradient(
     135deg,
     transparent 0%,
-    rgba(255, 230, 0, 0.03) 40%,
-    rgba(0, 255, 136, 0.03) 60%,
+    color-mix(in srgb, var(--color-accent) 3%, transparent) 40%,
+    color-mix(in srgb, var(--color-success) 3%, transparent) 60%,
     transparent 100%
   );
   pointer-events: none;

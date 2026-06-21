@@ -9,8 +9,6 @@
         document.head.appendChild(s);
       }
     </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preload" href="/vite.svg" as="image" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -25,6 +23,22 @@
         overflow: hidden;
         -webkit-font-smoothing: antialiased;
       }
+      /* 纯 CSS 加载指示器：在 React 加载前立即显示，React mount 后自动替换。 */
+      #app-boot-loader {
+        position: fixed; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: #0D0D0D; z-index: 99999;
+      }
+      #app-boot-loader .boot-text {
+        font-size: 14px; letter-spacing: 0.3em;
+        color: #FFE600; font-weight: 300;
+        text-transform: uppercase;
+        animation: boot-pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes boot-pulse {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 1; }
+      }
     </style>
   </head>
   <body>
@@ -37,7 +51,9 @@
         } catch(e) {}
       })();
     </script>
-    <div id="root"></div>
+    <div id="root">
+      <div id="app-boot-loader"><div class="boot-text">BONNEXT</div></div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

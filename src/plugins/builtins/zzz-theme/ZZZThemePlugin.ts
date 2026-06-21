@@ -1,9 +1,7 @@
 import { definePlugin } from '@/plugins/core';
 import type { PluginContext } from '@/plugins/core';
-import { ThemeService } from './ThemeService';
+import type { ThemeService } from './ThemeService';
 import { zzzDarkContribution, zzzLightContribution, zzzOledContribution } from './contributions';
-
-let themeService: ThemeService | null = null;
 
 export const zzzThemePlugin = definePlugin({
   id: 'com.bonnext.zzz-theme',
@@ -12,41 +10,27 @@ export const zzzThemePlugin = definePlugin({
   description: 'Default ZZZ Neo-Tokyo cyberpunk theme (dark, light, OLED)',
 
   activate(ctx: PluginContext) {
-    themeService = new ThemeService();
-
-    // Register themes via the new plugin context
+    // Themes are registered through the plugin context. The core themeStore
+    // consumes these contributions (via usePluginThemes) and is the single
+    // source of truth for applying the theme class + CSS variables to the DOM.
+    //
+    // ThemeService is intentionally NOT instantiated here: its switchTheme()
+    // used to write directly to the DOM and raced with themeStore, causing the
+    // two systems to overwrite each other's CSS variables and theme classes.
     ctx.registerTheme(zzzDarkContribution);
     ctx.registerTheme(zzzLightContribution);
     ctx.registerTheme(zzzOledContribution);
-
-    // Also register with ThemeService for runtime switching
-    themeService.registerTheme(zzzDarkContribution, ctx.pluginId);
-    themeService.registerTheme(zzzLightContribution, ctx.pluginId);
-    themeService.registerTheme(zzzOledContribution, ctx.pluginId);
-
-    // Apply initial theme
-    let initialTheme = 'zzz-dark';
-    try {
-      const stored = localStorage.getItem('bonnext:theme');
-      if (stored) {
-        const migrated = stored === 'dark' || stored === 'light' || stored === 'oled' ? `zzz-${stored}` : stored;
-        const available = themeService.getAvailableThemes();
-        if (available.some((t) => t.id === migrated)) {
-          initialTheme = migrated;
-        }
-      }
-    } catch {
-      /* empty */
-    }
-
-    themeService.switchTheme(initialTheme, { animate: false });
   },
 
   deactivate() {
-    themeService = null;
+    // Registered theme contributions are revoked by the plugin manager on unload.
   },
 });
 
+/**
+ * @deprecated Theme management is handled by the core themeStore. This accessor
+ * is retained for backwards API compatibility but always returns null.
+ */
 export function getThemeService(): ThemeService | null {
-  return themeService;
+  return null;
 }

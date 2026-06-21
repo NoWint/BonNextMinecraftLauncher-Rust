@@ -9,14 +9,6 @@ export function formatDate(input: string | Date | number): string {
   return `${y}-${m}-${day}`;
 }
 
-export function formatPlaytime(seconds: number): string {
-  if (!seconds || seconds <= 0) return '0h 0m';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
-
 export function formatSize(bytes: number): string {
   if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
   if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;

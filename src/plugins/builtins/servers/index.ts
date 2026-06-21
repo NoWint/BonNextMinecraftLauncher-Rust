@@ -1,7 +1,9 @@
 // src/plugins/builtins/servers/index.ts
 // Servers 内置插件：服务器列表 + Ping + LAN 发现 + Terracotta
+//
+// 路由与侧边栏导航项由 manifest.contributes 声明式注册（见 manifest.json），
+// 由 PluginManager.activate() 在调用本 activate() 之前自动消费。
 import { definePlugin } from '../../core';
-import type { PluginContext } from '../../core';
 import manifest from './manifest.json';
 
 export const serversPlugin = definePlugin({
@@ -10,11 +12,8 @@ export const serversPlugin = definePlugin({
   version: '1.0.0',
   description: 'Server list, ping, LAN discovery, and Terracotta multiplayer',
 
-  activate(ctx: PluginContext) {
-    ctx.registerRoute('/servers', () => import('../../../shells/zzz/pages/ServersPage'));
-    ctx.addSidebarItem({ id: 'servers', label: 'Servers', icon: '🌐', route: '/servers', order: 7 });
-
-    ctx.logger.info('Servers plugin activated');
+  activate() {
+    // No imperative UI injection — routes/sidebar are declared in manifest.json
   },
 
   deactivate() {

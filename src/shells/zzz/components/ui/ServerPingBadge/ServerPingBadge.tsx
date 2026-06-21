@@ -1,3 +1,4 @@
+import { useI18n } from '../../../../../shared/i18n';
 import styles from './ServerPingBadge.module.css';
 
 interface Props {
@@ -6,8 +7,9 @@ interface Props {
 }
 
 export default function ServerPingBadge({ latencyMs, online }: Props) {
+  const { t } = useI18n();
   if (!online) {
-    return <span className={`${styles.badge} ${styles.offline}`}>OFFLINE</span>;
+    return <span className={`${styles.badge} ${styles.offline}`}>{t('serverPingBadge.offline')}</span>;
   }
   const cls =
     latencyMs !== null && latencyMs < 50

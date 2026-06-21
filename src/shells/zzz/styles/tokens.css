@@ -1,9 +1,15 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+/* 字体加载策略：
+   移除 Google Fonts CDN @import（render-blocking + 中国大陆被墙导致 30 秒超时）。
+   改用系统字体栈，macOS/Windows/Linux 均有内置等价物。
+   如需精确字体，可后续下载 woff2 到 public/fonts/ 用 @font-face 本地加载。 */
 
 :root {
   --ui-scale: 1;
   font-size: calc(var(--ui-scale) * 16px);
 
+  /* Color tokens — fallback defaults (dark theme).
+     Actual values are defined in themes.css per theme class.
+     These exist only to prevent crashes if no theme class is applied. */
   --color-bg: #0d0d0d;
   --color-panel: #141414;
   --color-panel-alt: #1a1a1a;
@@ -14,12 +20,14 @@
   --color-accent: #ffe600;
   --color-success: #00ff88;
   --color-error: #ff4444;
+  --color-info: #4a9eff;
+  --color-warning: #ffaa00;
   --color-text: #ffffff;
-  --color-text-secondary: #aaa;
-  --color-text-tertiary: #888;
-  --color-text-muted: #666;
-  --color-text-dim: #555;
-  --color-text-faint: #444;
+  --color-text-secondary: #aaaaaa;
+  --color-text-tertiary: #999999;
+  --color-text-muted: #999999;
+  --color-text-dim: #888888;
+  --color-text-faint: #767676;
 
   --color-accent-action: var(--color-accent);
   --color-accent-action-text: #1a1a1a;
@@ -39,11 +47,15 @@
   --scrollbar-thumb-color: var(--color-border-light);
   --scrollbar-thumb-hover: var(--color-text-muted);
 
-  --font-heading: 'Bebas Neue', sans-serif;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  --font-mono: 'DM Mono', 'SF Mono', 'Fira Code', monospace;
+  /* 系统字体栈：避免外部 CDN 请求，零网络延迟。
+     macOS: Bebas Neue→Impact(粗压缩), Inter→SF Pro, DM Mono→SF Mono
+     Windows: Bebas Neue→Impact, Inter→Segoe UI, DM Mono→Consolas
+     Linux: Bebas Neue→Impact, Inter→system-ui, DM Mono→monospace */
+  --font-heading: 'Bebas Neue', 'Impact', 'Haettenschweiler', 'Arial Narrow Bold', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-mono: 'DM Mono', 'SF Mono', 'Menlo', 'Consolas', 'Fira Code', monospace;
 
-  --sidebar-width: 190px;
+  --sidebar-width: 248px;
   --clip-primary: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
   --clip-medium: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
   --clip-small: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);

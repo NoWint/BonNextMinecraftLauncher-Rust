@@ -7,7 +7,9 @@
   "minAppVersion": "1.0.0",
   "dependencies": [],
   "permissions": [
-    "invoke:core",
+    "invoke:core:shell",
+    "invoke:core:config:read",
+    "invoke:core:config:write",
     "fs:read:config",
     "fs:write:config",
     "events:listen"

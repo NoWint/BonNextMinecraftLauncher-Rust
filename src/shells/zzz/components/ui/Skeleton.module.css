@@ -12,9 +12,9 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 230, 0, 0.06) 40%,
-    rgba(255, 230, 0, 0.15) 50%,
-    rgba(255, 230, 0, 0.06) 60%,
+    var(--color-accent-06) 40%,
+    var(--color-accent-15) 50%,
+    var(--color-accent-06) 60%,
     transparent 100%
   );
   background-size: 200% 100%;

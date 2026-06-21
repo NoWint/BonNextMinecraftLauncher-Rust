@@ -97,3 +97,20 @@ pub async fn unlock_achievement(achievement_id: String) -> Result<(), LauncherEr
     std::fs::write(&achievements_path, data)?;
     Ok(())
 }
+
+/// Stub implementation: returns the list of achievement IDs that are currently
+/// unlocked. Frontend (`checkAchievements`) expects `string[]`.
+#[tauri::command]
+pub async fn check_achievements() -> Result<Vec<String>, LauncherError> {
+    let achievements_path = paths::get_game_dir().join("achievements.json");
+    let unlocked: std::collections::HashMap<String, String> = if achievements_path.exists() {
+        std::fs::read_to_string(&achievements_path)
+            .ok()
+            .and_then(|d| serde_json::from_str(&d).ok())
+            .unwrap_or_default()
+    } else {
+        std::collections::HashMap::new()
+    };
+
+    Ok(unlocked.into_keys().collect())
+}

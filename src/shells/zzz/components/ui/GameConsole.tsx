@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useI18n } from '../../../../shared/i18n';
 
 interface LogLine {
   id: number;
@@ -11,6 +12,7 @@ interface LogLine {
 // In the Rust backend, the game process stdout/stderr are piped
 // and emitted as 'game-output' events.
 export default function GameConsole({ visible }: { visible: boolean }) {
+  const { t } = useI18n();
   const [lines, setLines] = useState<LogLine[]>([]);
   const [autoScroll, setAutoScroll] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -76,12 +78,12 @@ export default function GameConsole({ visible }: { visible: boolean }) {
           background: '#111',
         }}
       >
-        <span style={{ color: '#FFE600', letterSpacing: 2 }}>GAME CONSOLE</span>
+        <span style={{ color: '#FFE600', letterSpacing: 2 }}>{t('gameConsole.title')}</span>
         <label
           style={{ fontSize: '0.9em', color: '#555', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
         >
           <input type="checkbox" checked={autoScroll} onChange={(e) => setAutoScroll(e.target.checked)} />
-          Auto-scroll
+          {t('gameConsole.autoScroll')}
         </label>
       </div>
       <div
@@ -94,7 +96,7 @@ export default function GameConsole({ visible }: { visible: boolean }) {
         }}
       >
         {lines.length === 0 && (
-          <div style={{ color: '#444', textAlign: 'center', paddingTop: 40 }}>Waiting for game output...</div>
+          <div style={{ color: '#444', textAlign: 'center', paddingTop: 40 }}>{t('gameConsole.waiting')}</div>
         )}
         {lines.map((l) => (
           <div

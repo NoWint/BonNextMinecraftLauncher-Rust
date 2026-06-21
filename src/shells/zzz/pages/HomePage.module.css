@@ -57,7 +57,7 @@
   color: var(--color-accent);
   font-weight: 700;
   letter-spacing: 2px;
-  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+  clip-path: var(--clip-badge);
   cursor: pointer;
 }
 
@@ -71,6 +71,101 @@
   font-family: var(--font-mono);
   font-size: 0.42em;
   color: var(--color-text-muted);
+}
+
+/* 顶栏按钮通用样式（替代内联样式） */
+.topBar__btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-dim);
+  padding: 3px 10px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.42em;
+  letter-spacing: 1px;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.topBar__btn:hover {
+  border-color: var(--color-accent-30);
+  color: var(--color-accent);
+}
+
+.topBar__btn--active {
+  background: var(--color-accent-10);
+  border-color: var(--color-accent-30);
+  color: var(--color-accent);
+}
+
+/* 顶栏背景设置浮层 */
+.topBar__bgPopover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  width: 240px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border-mid);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 20;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  clip-path: var(--clip-medium);
+}
+
+.topBar__bgPopoverTitle {
+  font-size: 0.55em;
+  font-weight: 700;
+  color: var(--color-accent);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.topBar__bgPopoverHint {
+  font-size: 0.45em;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.topBar__bgPopoverActions {
+  display: flex;
+  gap: 6px;
+}
+
+.topBar__bgPopoverBtn {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 6px 10px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.45em;
+  letter-spacing: 1px;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.topBar__bgPopoverBtn:hover {
+  border-color: var(--color-accent-30);
+  color: var(--color-accent);
+}
+
+.topBar__bgPopoverBtn--danger {
+  border-color: color-mix(in srgb, var(--color-error) 30%, transparent);
+  color: var(--color-error);
+}
+
+.topBar__bgPopoverBtn--danger:hover {
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
 }
 
 /* Main grid */
@@ -152,7 +247,7 @@
   width: 42px;
   height: 42px;
   background: var(--color-panel-alt);
-  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
+  clip-path: var(--clip-icon);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -226,7 +321,7 @@
   height: 40px;
   border: 2px solid var(--color-border-light);
   border-top-color: var(--color-accent);
-  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  clip-path: var(--clip-small);
   animation: spin-clip 0.8s linear infinite;
 }
 
@@ -501,7 +596,7 @@
   font-family: var(--font-mono);
   font-size: 0.5em;
   color: var(--color-error);
-  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  clip-path: var(--clip-medium);
   max-width: 400px;
 }
 
@@ -543,7 +638,7 @@
 .newsPanel__dot {
   width: 5px;
   height: 5px;
-  border-radius: 50%;
+  clip-path: var(--clip-diamond);
   background: var(--color-border);
   transition: background 0.2s ease;
 }
@@ -580,7 +675,7 @@
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(ellipse at center, rgba(255, 230, 0, 0.03) 0%, transparent 70%);
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--color-accent) 3%, transparent) 0%, transparent 70%);
   animation: glimmerPulse 6s ease-in-out infinite;
 }
 @keyframes glimmerPulse {
@@ -789,13 +884,13 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 70% 30%, rgba(255, 230, 0, 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse at 70% 30%, var(--color-accent-06) 0%, transparent 60%),
     repeating-linear-gradient(
       45deg,
       transparent,
       transparent 20px,
-      rgba(255, 255, 255, 0.008) 20px,
-      rgba(255, 255, 255, 0.008) 22px
+      color-mix(in srgb, var(--color-text) 0.8%, transparent) 20px,
+      color-mix(in srgb, var(--color-text) 0.8%, transparent) 22px
     );
   pointer-events: none;
 }
@@ -838,7 +933,7 @@
   transform: translateY(-50%);
   width: 80px;
   height: 80px;
-  border: 1px solid rgba(255, 230, 0, 0.1);
+  border: 1px solid var(--color-accent-10);
   clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
   opacity: 0.4;
 }
@@ -855,7 +950,7 @@
 .bannerDot {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  clip-path: var(--clip-diamond);
   background: var(--color-text-dim);
   border: none;
   cursor: pointer;
@@ -868,7 +963,7 @@
 .bannerDot--active {
   background: var(--color-accent);
   width: 20px;
-  border-radius: 3px;
+  clip-path: var(--clip-badge);
 }
 
 /* Arrows */
@@ -877,7 +972,7 @@
   top: 50%;
   transform: translateY(-50%);
   background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--color-border);
   color: var(--color-text);
   width: 34px;
   height: 34px;
@@ -894,8 +989,8 @@
   opacity: 1;
 }
 .bannerArrow:hover {
-  background: rgba(255, 230, 0, 0.2);
-  border-color: rgba(255, 230, 0, 0.3);
+  background: var(--color-accent-20);
+  border-color: var(--color-accent-30);
 }
 .bannerArrow--left {
   left: 12px;
@@ -917,13 +1012,13 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 70% 30%, rgba(255, 230, 0, 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse at 70% 30%, var(--color-accent-06) 0%, transparent 60%),
     repeating-linear-gradient(
       45deg,
       transparent,
       transparent 20px,
-      rgba(255, 255, 255, 0.008) 20px,
-      rgba(255, 255, 255, 0.008) 22px
+      color-mix(in srgb, var(--color-text) 0.8%, transparent) 20px,
+      color-mix(in srgb, var(--color-text) 0.8%, transparent) 22px
     );
   pointer-events: none;
 }
@@ -979,12 +1074,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(255, 230, 0, 0.03) 0%, rgba(255, 230, 0, 0.01) 100%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 3%, transparent) 0%, color-mix(in srgb, var(--color-accent) 1%, transparent) 100%);
 }
 
 .bannerSlide__coverIcon {
   font-size: 3em;
-  color: rgba(255, 230, 0, 0.08);
+  color: color-mix(in srgb, var(--color-accent) 8%, transparent);
 }
 
 /* ============================================================
@@ -1013,28 +1108,28 @@
 }
 :global(.theme-light) .bannerSlide::before {
   background:
-    radial-gradient(ellipse at 70% 30%, rgba(107, 95, 0, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 70% 30%, var(--color-accent-10) 0%, transparent 60%),
     repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(0, 0, 0, 0.02) 20px, rgba(0, 0, 0, 0.02) 22px);
 }
 :global(.theme-light) .bannerAccent {
-  border-color: rgba(107, 95, 0, 0.25);
+  border-color: color-mix(in srgb, var(--color-accent) 25%, transparent);
   opacity: 0.6;
 }
 :global(.theme-light) .bannerSlide__rightCover {
   mask-image: linear-gradient(
     to right,
     transparent 0%,
-    rgba(255, 255, 255, 0.15) 15%,
-    rgba(255, 255, 255, 0.5) 30%,
-    rgba(255, 255, 255, 0.85) 50%,
+    color-mix(in srgb, var(--color-text) 15%, transparent) 15%,
+    color-mix(in srgb, var(--color-text) 50%, transparent) 30%,
+    color-mix(in srgb, var(--color-text) 85%, transparent) 50%,
     white 70%
   );
   -webkit-mask-image: linear-gradient(
     to right,
     transparent 0%,
-    rgba(255, 255, 255, 0.15) 15%,
-    rgba(255, 255, 255, 0.5) 30%,
-    rgba(255, 255, 255, 0.85) 50%,
+    color-mix(in srgb, var(--color-text) 15%, transparent) 15%,
+    color-mix(in srgb, var(--color-text) 50%, transparent) 30%,
+    color-mix(in srgb, var(--color-text) 85%, transparent) 50%,
     white 70%
   );
 }
@@ -1042,10 +1137,10 @@
   filter: brightness(1.05) saturate(0.95);
 }
 :global(.theme-light) .bannerSlide__coverPlaceholder {
-  background: linear-gradient(135deg, rgba(107, 95, 0, 0.04) 0%, rgba(107, 95, 0, 0.02) 100%);
+  background: linear-gradient(135deg, var(--color-accent-06) 0%, color-mix(in srgb, var(--color-accent) 2%, transparent) 100%);
 }
 :global(.theme-light) .bannerSlide__coverIcon {
-  color: rgba(107, 95, 0, 0.12);
+  color: color-mix(in srgb, var(--color-accent) 12%, transparent);
 }
 
 /* ============================================================
@@ -1071,7 +1166,7 @@
   font-size: 0.7em;
   padding: 0;
   transition: all 150ms;
-  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+  clip-path: var(--clip-badge);
 }
 
 .playArea__switchBtn:hover {
@@ -1179,7 +1274,7 @@
   padding: 4px 8px;
   outline: none;
   transition: border-color 150ms;
-  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  clip-path: var(--clip-small);
 }
 
 .serverMonitor__input:focus {
@@ -1211,7 +1306,7 @@
   background: var(--color-panel-alt);
   border: 1px solid var(--color-border-mid);
   padding: 8px 10px;
-  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  clip-path: var(--clip-medium);
   min-width: 260px;
   flex: 1;
   max-width: 400px;
@@ -1234,17 +1329,17 @@
 }
 
 .serverCard__dot--online {
-  background: #00cc66;
-  box-shadow: 0 0 6px rgba(0, 204, 102, 0.5);
+  background: var(--color-success);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-success) 50%, transparent);
 }
 
 .serverCard__dot--offline {
-  background: #cc3333;
-  box-shadow: 0 0 6px rgba(204, 51, 51, 0.3);
+  background: var(--color-error);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-error) 30%, transparent);
 }
 
 .serverCard__dot--unknown {
-  background: #555;
+  background: var(--color-text-faint);
 }
 
 .serverCard__info {
@@ -1279,7 +1374,7 @@
   padding: 2px 6px;
   outline: none;
   font-family: inherit;
-  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+  clip-path: var(--clip-badge);
 }
 
 .serverCard__address {
@@ -1346,7 +1441,7 @@
 .serverCard__remove:hover {
   color: var(--color-error);
   border-color: var(--color-error);
-  background: rgba(204, 51, 51, 0.1);
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
 }
 
 /* Playtime Dashboard */
@@ -1372,7 +1467,7 @@
   background: var(--color-panel-alt);
   padding: 10px 12px;
   text-align: center;
-  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  clip-path: var(--clip-small);
 }
 
 .playtimeDashboard__statValue {
@@ -1473,13 +1568,13 @@
 }
 
 .anomalyCard--high {
-  border-color: rgba(229, 62, 62, 0.4);
-  background: rgba(229, 62, 62, 0.06);
+  border-color: color-mix(in srgb, var(--color-error) 40%, transparent);
+  background: color-mix(in srgb, var(--color-error) 6%, transparent);
 }
 
 .anomalyCard--medium {
-  border-color: rgba(236, 201, 75, 0.4);
-  background: rgba(236, 201, 75, 0.06);
+  border-color: color-mix(in srgb, var(--color-warning) 40%, transparent);
+  background: color-mix(in srgb, var(--color-warning) 6%, transparent);
 }
 
 .anomalyCard__header {
@@ -1499,15 +1594,15 @@
 }
 
 .anomalyCard__severity--high {
-  background: rgba(229, 62, 62, 0.15);
-  color: #e53e3e;
-  border: 1px solid rgba(229, 62, 62, 0.3);
+  background: color-mix(in srgb, var(--color-error) 15%, transparent);
+  color: var(--color-error);
+  border: 1px solid color-mix(in srgb, var(--color-error) 30%, transparent);
 }
 
 .anomalyCard__severity--medium {
-  background: rgba(236, 201, 75, 0.15);
-  color: #ecc94b;
-  border: 1px solid rgba(236, 201, 75, 0.3);
+  background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+  color: var(--color-warning);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 30%, transparent);
 }
 
 .anomalyCard__type {
@@ -1533,4 +1628,517 @@
   color: var(--color-accent);
   font-weight: 700;
   letter-spacing: 1px;
+}
+
+/* ============================================
+ * 极简主页模式（HMCL 风格）
+ * 模糊背景 + 左侧皮肤模型 + 右下角胶囊启动按钮 + 右上角工具栏
+ * ============================================ */
+
+.minimalistPage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 左侧玩家皮肤模型（背景透明，浮在模糊背景上） */
+.minimalistSkin {
+  position: absolute;
+  bottom: 40px;
+  left: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.minimalistSkin__viewer {
+  pointer-events: auto;
+}
+
+.minimalistSkin__viewer > canvas {
+  display: block;
+}
+
+.minimalistSkin__name {
+  font-family: var(--font-mono);
+  font-size: 0.6em;
+  color: var(--color-text);
+  letter-spacing: 2px;
+  font-weight: 700;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  padding: 4px 12px;
+  background: color-mix(in srgb, var(--color-bg) 40%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--color-border);
+  clip-path: var(--clip-small);
+}
+
+/* 右上角工具栏：模式切换 + 自定义 + 控制台 */
+.minimalistToolbar {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 10;
+}
+
+/* 顶部左侧账号信息 */
+.minimalistAccount {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: color-mix(in srgb, var(--color-bg) 30%, transparent);
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-text);
+  letter-spacing: 1px;
+  z-index: 10;
+}
+
+.minimalistAccount__avatar {
+  width: 20px;
+  height: 20px;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9em;
+  font-family: var(--font-mono);
+}
+
+.minimalistAccount__name {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+/* 工具栏按钮通用样式 */
+.minimalistBtn {
+  background: color-mix(in srgb, var(--color-bg) 30%, transparent);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 6px 12px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.45em;
+  letter-spacing: 1px;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+}
+
+.minimalistBtn:hover {
+  border-color: var(--color-accent-30);
+  color: var(--color-accent);
+}
+
+.minimalistBtn--active {
+  background: var(--color-accent-10);
+  border-color: var(--color-accent-30);
+  color: var(--color-accent);
+}
+
+/* 背景设置浮层 */
+.bgPopover {
+  position: absolute;
+  top: 48px;
+  right: 16px;
+  width: 260px;
+  background: color-mix(in srgb, var(--color-panel) 50%, transparent);
+  border: 1px solid var(--color-border-mid);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 20;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  clip-path: var(--clip-medium);
+}
+
+.bgPopover__title {
+  font-size: 0.6em;
+  font-weight: 700;
+  color: var(--color-accent);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.bgPopover__hint {
+  font-size: 0.45em;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.bgPopover__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.bgPopover__btn {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 6px 10px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.45em;
+  letter-spacing: 1px;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.bgPopover__btn:hover {
+  border-color: var(--color-accent-30);
+  color: var(--color-accent);
+}
+
+.bgPopover__btn--danger {
+  border-color: color-mix(in srgb, var(--color-error) 30%, transparent);
+  color: var(--color-error);
+}
+
+.bgPopover__btn--danger:hover {
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+}
+
+/* 右下角启动按钮区（HMCL 风格胶囊） */
+.launchPane {
+  position: absolute;
+  bottom: 32px;
+  right: 32px;
+  display: flex;
+  align-items: stretch;
+  height: 57px;
+  width: 230px;
+  z-index: 10;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+
+.launchPane__main {
+  flex: 1;
+  background: var(--color-accent);
+  border: none;
+  border-right: 3px solid var(--color-bg);
+  color: var(--color-bg);
+  padding: 0 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  transition: filter 0.15s;
+  font-family: var(--font-mono);
+}
+
+.launchPane__main:hover {
+  filter: brightness(1.1);
+}
+
+.launchPane__main:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.launchPane__mainLabel {
+  font-size: 0.85em;
+  font-weight: 700;
+  letter-spacing: 2px;
+  line-height: 1;
+}
+
+.launchPane__subLabel {
+  font-size: 0.55em;
+  letter-spacing: 1px;
+  opacity: 0.85;
+  line-height: 1;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.launchPane__menu {
+  width: 28px;
+  background: var(--color-accent);
+  border: none;
+  color: var(--color-bg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+  transition: filter 0.15s;
+}
+
+.launchPane__menu:hover {
+  filter: brightness(1.1);
+}
+
+/* 实例切换弹出菜单 */
+.versionPopup {
+  position: absolute;
+  bottom: 96px;
+  right: 32px;
+  width: 300px;
+  max-height: 365px;
+  overflow-y: auto;
+  background: color-mix(in srgb, var(--color-panel) 50%, transparent);
+  border: 1px solid var(--color-border-mid);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  padding: 6px;
+  z-index: 20;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  clip-path: var(--clip-medium);
+}
+
+.versionPopup__header {
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+  letter-spacing: 2px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.versionPopup__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: background 0.12s;
+  border: 1px solid transparent;
+}
+
+.versionPopup__item:hover {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+.versionPopup__item--active {
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  border-color: var(--color-accent-30);
+}
+
+.versionPopup__icon {
+  width: 32px;
+  height: 32px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  font-weight: 700;
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.versionPopup__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.versionPopup__name {
+  font-size: 0.6em;
+  color: var(--color-text);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.versionPopup__meta {
+  font-size: 0.45em;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.versionPopup__empty {
+  padding: 20px 10px;
+  text-align: center;
+  font-size: 0.55em;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* 极简模式下的下载/错误浮层 */
+.minimalistOverlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: color-mix(in srgb, var(--color-panel) 50%, transparent);
+  border: 1px solid var(--color-border-mid);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  padding: 20px 28px;
+  min-width: 320px;
+  z-index: 30;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  clip-path: var(--clip-medium);
+}
+
+.minimalistOverlay__title {
+  font-size: 0.7em;
+  font-weight: 700;
+  color: var(--color-accent);
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+
+.minimalistOverlay__stats {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-text);
+  margin-top: 8px;
+}
+
+.minimalistError {
+  position: absolute;
+  bottom: 100px;
+  right: 32px;
+  max-width: 360px;
+  background: color-mix(in srgb, var(--color-error) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-error) 40%, transparent);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  padding: 10px 14px;
+  font-size: 0.5em;
+  color: var(--color-text);
+  z-index: 25;
+  clip-path: var(--clip-small);
+  line-height: 1.5;
+}
+
+/* 关闭模糊时：所有极简模式浮层改为更高不透明度的纯色背景 */
+:global(body.home-blur-disabled) .minimalistAccount,
+:global(body.home-blur-disabled) .minimalistBtn,
+:global(body.home-blur-disabled) .minimalistSkin__name {
+  background: color-mix(in srgb, var(--color-bg) 80%, transparent);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:global(body.home-blur-disabled) .bgPopover,
+:global(body.home-blur-disabled) .versionPopup,
+:global(body.home-blur-disabled) .minimalistOverlay {
+  background: color-mix(in srgb, var(--color-panel) 85%, transparent);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:global(body.home-blur-disabled) .minimalistError {
+  background: color-mix(in srgb, var(--color-error) 30%, var(--color-panel));
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* 极简模式左上角用户名下方的大标题招呼语（纯文字） */
+.minimalistGreeting {
+  position: absolute;
+  top: 60px;
+  left: 32px;
+  margin: 0;
+  font-family: var(--font-display, var(--font-mono));
+  font-size: 2.4em;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 2px;
+  line-height: 1.1;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.8), 0 0 32px rgba(0, 0, 0, 0.5);
+  z-index: 6;
+  pointer-events: none;
+  max-width: 50%;
+  word-break: break-word;
+}
+
+/* 浅色主题下使用黑色文字 */
+:global(.theme-light) .minimalistGreeting {
+  color: #1a1a1a;
+  text-shadow: 0 2px 16px rgba(255, 255, 255, 0.6), 0 0 32px rgba(255, 255, 255, 0.3);
+}
+
+/* 模糊开关行 */
+.bgPopover__toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 2px 2px;
+  border-top: 1px solid var(--color-border);
+  margin-top: 4px;
+}
+
+.bgPopover__toggleLabel {
+  font-size: 0.5em;
+  color: var(--color-text);
+  letter-spacing: 1px;
+}
+
+.bgPopover__toggle {
+  width: 36px;
+  height: 18px;
+  background: var(--color-border);
+  border: none;
+  border-radius: 9px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.bgPopover__toggle--on {
+  background: var(--color-accent);
+}
+
+.bgPopover__toggleKnob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: var(--color-bg);
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.bgPopover__toggle--on .bgPopover__toggleKnob {
+  transform: translateX(18px);
 }

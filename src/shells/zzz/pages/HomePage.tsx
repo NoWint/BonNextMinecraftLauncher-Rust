@@ -16,13 +16,17 @@ import { useInstances } from '../../../shared/stores/instanceStore';
 import { useToast } from '../../../shared/stores/toastStore';
 import { useI18n } from '../../../shared/i18n';
 import { useGreeting } from '../../../shared/hooks/useGreeting';
+import { usePluginManager } from '../../../app/hooks/usePluginManager';
 import { Heading, SubLabel, AccentCorner, Ticker } from '../components/layout';
-import { StatusDot, Badge, ProgressBar, Tooltip } from '../components/ui';
+import { StatusDot, Badge, ProgressBar, Tooltip, Modal } from '../components/ui';
 import { Button } from '../components/ui';
 import { Icon } from '../components/ui/Icon';
-import type { IconName } from '../components/ui/Icon';
+import { getLoaderIcon, getLoaderLabel } from '../../../shared/utils/loader';
+import { formatPlaytime } from '../../../shared/utils/playtime';
+import { useTheme } from '../../../shared/stores/themeStore';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import GameConsole from '../components/ui/GameConsole';
+import { SkinViewer3D } from '../components/ui';
 import { relativeTime } from '../../../shared/utils/time';
 import styles from './HomePage.module.css';
 
@@ -77,14 +81,17 @@ const NEWS_ITEMS = [
 function usePollLaunchState(interval = 2000) {
   const [runningGames, setRunningGames] = useState<RunningGameInfo[]>([]);
   useEffect(() => {
+    let cancelled = false;
     const poll = async () => {
       try {
+        if (cancelled) return;
         setRunningGames(await api.getRunningGames());
       } catch {
         /* empty */
       }
     };
-    poll();
+    // 延迟首次轮询 1.5 秒，避免与启动期关键 IPC（auth/config/instances）竞争。
+    const initialTimer = setTimeout(poll, 1500);
     const timer = setInterval(poll, interval);
 
     let unlisten: (() => void) | null = null;
@@ -97,6 +104,8 @@ function usePollLaunchState(interval = 2000) {
     });
 
     return () => {
+      cancelled = true;
+      clearTimeout(initialTimer);
       clearInterval(timer);
       unlisten?.();
     };
@@ -108,42 +117,6 @@ function getInstanceLaunchState(runningGames: RunningGameInfo[], instanceId: str
   if (!instanceId) return 'idle';
   const game = runningGames.find((g) => g.instance_id === instanceId);
   return game ? game.state : 'idle';
-}
-
-function getLoaderIcon(loaderType: string | null): IconName {
-  switch (loaderType) {
-    case 'fabric':
-      return 'fabric';
-    case 'forge':
-      return 'forge';
-    case 'quilt':
-      return 'quilt';
-    case 'neoforge':
-      return 'neoforge';
-    default:
-      return 'vanilla';
-  }
-}
-
-function getLoaderLabel(loaderType: string | null): string {
-  switch (loaderType) {
-    case 'fabric':
-      return 'Fabric';
-    case 'forge':
-      return 'Forge';
-    case 'quilt':
-      return 'Quilt';
-    case 'neoforge':
-      return 'NeoForge';
-    default:
-      return 'Vanilla';
-  }
-}
-
-function formatPlaytime(seconds: number): string {
-  if (seconds < 60) return '< 1m played';
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m played`;
-  return `${(seconds / 3600).toFixed(1)} hrs played`;
 }
 
 function InstanceCard({
@@ -159,8 +132,9 @@ function InstanceCard({
   onLaunch: (inst: GameInstance) => void;
   onSelect: (inst: GameInstance) => void;
 }) {
+  const { t } = useI18n();
   const loaderLabel = getLoaderLabel(instance.loader_type);
-  const playtimeLabel = formatPlaytime(instance.playtime_seconds);
+  const playtimeLabel = formatPlaytime(instance.playtime_seconds, 'played');
 
   return (
     <div
@@ -187,7 +161,7 @@ function InstanceCard({
             {instance.loader_type && <Badge variant="muted">{instance.loader_type}</Badge>}
           </div>
           <div className={styles.card__meta}>
-            <span className={styles.card__metaItem}>Last played: {relativeTime(instance.last_played)}</span>
+            <span className={styles.card__metaItem}>{t('instances.lastPlayed')}: {relativeTime(instance.last_played)}</span>
             <span className={styles.card__metaSep}>.</span>
             <span className={styles.card__metaItem}>{playtimeLabel}</span>
             <span className={styles.card__metaSep}>.</span>
@@ -196,11 +170,11 @@ function InstanceCard({
                 <Icon name="hourglass" size={12} />
               ) : isReady ? (
                 <>
-                  <Icon name="checkCircle" size={12} /> Ready
+                  <Icon name="checkCircle" size={12} /> {t('common.ready')}
                 </>
               ) : (
                 <>
-                  <Icon name="warning" size={12} /> Needs download
+                  <Icon name="warning" size={12} /> {t('common.needsDownload')}
                 </>
               )}
             </span>
@@ -215,7 +189,7 @@ function InstanceCard({
               onLaunch(instance);
             }}
           >
-            <Icon name="play" size={14} /> START
+            <Icon name="play" size={14} /> {t('home.playArea.start')}
           </Button>
         </div>
       </div>
@@ -254,15 +228,15 @@ function PlayArea({
   }, []);
 
   const stateLabel: Record<LaunchState, string> = {
-    idle: 'START',
-    checking: 'CHECKING',
-    downloading: 'DOWNLOADING',
-    validating: 'VALIDATING',
-    launching: 'LAUNCHING',
-    running: 'RUNNING',
-    exited: 'EXITED',
-    crashed: 'CRASHED',
-    error: 'ERROR',
+    idle: t('home.stateLabel.idle'),
+    checking: t('home.stateLabel.checking'),
+    downloading: t('home.stateLabel.downloading'),
+    validating: t('home.stateLabel.validating'),
+    launching: t('home.stateLabel.launching'),
+    running: t('home.stateLabel.running'),
+    exited: t('home.stateLabel.exited'),
+    crashed: t('home.stateLabel.crashed'),
+    error: t('home.stateLabel.error'),
   };
 
   const isError = launchState === 'crashed' || launchState === 'error';
@@ -334,7 +308,7 @@ function PlayArea({
         <div className={styles.playArea__content}>
           {showCountdown ? (
             <div className={styles.countdownText}>
-              <div className={styles.countdownLabel}>LAUNCHING IN</div>
+              <div className={styles.countdownLabel}>{t('home.countdown.launchingIn')}</div>
               <div className={styles.countdownNumber}>{countdown}</div>
             </div>
           ) : isBusy || launchState !== 'idle' ? (
@@ -407,6 +381,7 @@ export default function HomePage() {
   const { addToast } = useToast();
   const { t } = useI18n();
   const greeting = useGreeting(t);
+  const pluginManager = usePluginManager();
   const auth = authState.currentUser;
   const instances = instState.instances;
   const recentInstances = useMemo(
@@ -422,6 +397,7 @@ export default function HomePage() {
     [instances],
   );
   const { runningGames } = usePollLaunchState();
+  const { homeMode, setHomeMode, homeBackground, setHomeBackground, homeBlurEnabled, setHomeBlurEnabled } = useTheme();
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgressEvent | null>(null);
   const [jreDownload, setJreDownload] = useState<JreDownloadProgress | null>(null);
   const [javaVersion, setJavaVersion] = useState<number | null>(null);
@@ -429,10 +405,15 @@ export default function HomePage() {
   const [newsIndex, setNewsIndex] = useState(0);
   const [bannerIndex, setBannerIndex] = useState(0);
   const [newsEntries, setNewsEntries] = useState<MinecraftNewsEntry[]>([]);
+  const [selectedNews, setSelectedNews] = useState<MinecraftNewsEntry | null>(null);
   const [readyStates, setReadyStates] = useState<Record<string, boolean | null>>({});
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
   const [showConsole, setShowConsole] = useState(false);
+  const [showBgPopover, setShowBgPopover] = useState(false);
+  const [showVersionPopup, setShowVersionPopup] = useState(false);
+  const [skinUrl, setSkinUrl] = useState<string | null>(null);
+  const [skinModel, setSkinModel] = useState<'default' | 'slim' | 'auto-detect'>('auto-detect');
   const activeInstance =
     recentInstances.find((i) => i.id === selectedInstanceId) ||
     (recentInstances.length > 0 ? recentInstances[0] : null);
@@ -458,20 +439,28 @@ export default function HomePage() {
   );
   const loading = instState.loading;
 
-  // Check ready state for recent instances
+  // Check ready state for recent instances — 延迟 2 秒避免与启动期 IPC 竞争
   useEffect(() => {
-    const checkAll = async () => {
-      const states: Record<string, boolean | null> = {};
-      for (const inst of recentInstances) {
-        try {
-          states[inst.id] = await api.checkInstanceReady(inst.id);
-        } catch {
-          states[inst.id] = null;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      const checkAll = async () => {
+        const states: Record<string, boolean | null> = {};
+        for (const inst of recentInstances) {
+          if (cancelled) return;
+          try {
+            states[inst.id] = await api.checkInstanceReady(inst.id);
+          } catch {
+            states[inst.id] = null;
+          }
         }
-      }
-      setReadyStates(states);
+        if (!cancelled) setReadyStates(states);
+      };
+      if (recentInstances.length > 0) checkAll();
+    }, 2000);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
     };
-    if (recentInstances.length > 0) checkAll();
   }, [recentInstances]);
 
   useEffect(() => {
@@ -506,24 +495,82 @@ export default function HomePage() {
     };
   }, []);
 
+  // Java 检测和系统信息：延迟到首屏渲染后执行，避免 macOS 上
+  // /usr/libexec/java_home 串行 spawn 11 个子进程阻塞启动。
   useEffect(() => {
-    api
-      .findJava()
-      .then((path) => api.checkJavaVersion(path).then(setJavaVersion))
-      .catch(() => {});
-    api
-      .getSystemInfo()
-      .then(setSysInfo)
-      .catch(() => {});
+    const timer = setTimeout(() => {
+      api
+        .findJava()
+        .then((path) => api.checkJavaVersion(path).then(setJavaVersion))
+        .catch(() => {});
+      api
+        .getSystemInfo()
+        .then(setSysInfo)
+        .catch(() => {});
+    }, 3000);
+    return () => clearTimeout(timer);
   }, []);
 
-  // Fetch Minecraft news
+  // Fetch Minecraft news — 延迟 2.5 秒，新闻非首屏关键内容
   useEffect(() => {
-    api
-      .getMinecraftNews()
-      .then(setNewsEntries)
-      .catch(() => {});
+    const timer = setTimeout(() => {
+      api
+        .getMinecraftNews()
+        .then(setNewsEntries)
+        .catch(() => {});
+    }, 2500);
+    return () => clearTimeout(timer);
   }, []);
+
+  // 获取当前账号的玩家皮肤 URL（极简模式左侧展示）
+  useEffect(() => {
+    if (homeMode !== 'minimalist') return;
+    let cancelled = false;
+    const loadSkin = async () => {
+      try {
+        const accounts = await api.listAccounts();
+        const active = await api.getActiveAccount();
+        const account = accounts.find((a) => a.id === active?.id) || active;
+        if (!account || cancelled) return;
+        // 优先使用本地皮肤
+        if (account.local_skin_path) {
+          const b64 = await api.readSkinFile(account.local_skin_path);
+          if (cancelled) return;
+          setSkinUrl(`data:image/png;base64,${b64}`);
+          setSkinModel(account.local_skin_model === 'slim' ? 'slim' : 'default');
+          return;
+        }
+        // Microsoft 账号：尝试获取在线皮肤
+        if (account.access_token && !account.access_token.startsWith('offline_') && !account.access_token.startsWith('yggdrasil_')) {
+          try {
+            const profile = await api.microsoftGetSkinProfile(account.access_token);
+            if (cancelled) return;
+            const activeSkin = profile.skins?.find((s) => s.state === 'ACTIVE');
+            if (activeSkin?.url) {
+              setSkinUrl(activeSkin.url);
+              setSkinModel(activeSkin.variant === 'SLIM' ? 'slim' : 'default');
+              return;
+            }
+          } catch {
+            // token 可能过期，忽略
+          }
+        }
+        // 回退：Crafatar 渲染服务
+        if (account.uuid) {
+          const cleanUuid = account.uuid.replace(/-/g, '');
+          setSkinUrl(`https://crafatar.com/renders/body/${cleanUuid}?overlay&scale=6`);
+          setSkinModel('auto-detect');
+        }
+      } catch {
+        // 忽略错误
+      }
+    };
+    const timer = setTimeout(loadSkin, 1500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [homeMode, auth?.uuid]);
 
   // Rotate news items
   useEffect(() => {
@@ -542,6 +589,22 @@ export default function HomePage() {
   const handleLaunch = useCallback(
     async (instance: GameInstance) => {
       setError('');
+
+      // beforeInstanceLaunch 钩子（可拦截）
+      const beforeResult = await pluginManager.emitLifecycleHook('beforeInstanceLaunch', {
+        instanceId: instance.id,
+        instanceName: instance.name,
+        versionId: instance.version_id,
+      });
+      if (!beforeResult.allow) {
+        const msg = beforeResult.reason ?? 'Launch blocked by plugin';
+        setError(msg);
+        addToast({ type: 'warning', title: 'Launch blocked', message: msg });
+        return;
+      }
+
+      let launchSuccess = false;
+      let launchError: string | undefined;
       try {
         await api.launchGame(
           instance.version_id,
@@ -555,30 +618,306 @@ export default function HomePage() {
           instance.jvm_args || undefined,
           instance.id,
         );
-        addToast({ type: 'success', title: 'Game launched', message: `${instance.name} is starting...` });
+        launchSuccess = true;
+        addToast({ type: 'success', title: t('home.gameLaunched'), message: `${instance.name} is starting...` });
       } catch (e: unknown) {
         const msg = formatError(e) || 'Launch failed';
+        launchError = msg;
         setError(msg);
         addToast({ type: 'error', title: 'Launch failed', message: msg });
         setTimeout(() => setError(''), 8000);
+      } finally {
+        // afterInstanceLaunch 钩子（fire-and-forget）
+        await pluginManager.emitLifecycleHook('afterInstanceLaunch', {
+          instanceId: instance.id,
+          instanceName: instance.name,
+          versionId: instance.version_id,
+          success: launchSuccess,
+          error: launchError,
+        });
       }
     },
-    [auth, addToast],
+    [auth, addToast, pluginManager],
   );
 
   const handleQuickStart = useCallback(async () => {
     setError('');
     try {
       await api.quickStart();
-      addToast({ type: 'success', title: 'Quick start', message: 'Launching latest Minecraft...' });
+      addToast({ type: 'success', title: t('home.quickStart.title'), message: t('home.quickStart.launching') });
     } catch (e: unknown) {
-      const msg = formatError(e) || 'Quick start failed';
+      const msg = formatError(e) || t('home.quickStart.failed');
       setError(msg);
-      addToast({ type: 'error', title: 'Quick start failed', message: msg });
+      addToast({ type: 'error', title: t('home.quickStart.failed'), message: msg });
     }
   }, [addToast]);
 
+  // 背景图上传：仪表盘与极简模式共用
+  const handleBackgroundUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result;
+        if (typeof result === 'string') {
+          setHomeBackground(result);
+          addToast({ type: 'success', title: t('home.minimalist.backgroundSettings'), message: file.name });
+        }
+      };
+      reader.readAsDataURL(file);
+      e.target.value = '';
+    },
+    [setHomeBackground, addToast, t],
+  );
+
+  // 根据模糊开关切换 body class（影响全局极简模式样式）
+  useEffect(() => {
+    if (homeMode === 'minimalist' && !homeBlurEnabled) {
+      document.body.classList.add('home-blur-disabled');
+    } else {
+      document.body.classList.remove('home-blur-disabled');
+    }
+    return () => {
+      document.body.classList.remove('home-blur-disabled');
+    };
+  }, [homeMode, homeBlurEnabled]);
+
+  const handleClearBackground = useCallback(() => {
+    setHomeBackground(null);
+    setShowBgPopover(false);
+  }, [setHomeBackground]);
+
+  // 切换主页模式
+  const handleToggleHomeMode = useCallback(() => {
+    setHomeMode(homeMode === 'dashboard' ? 'minimalist' : 'dashboard');
+    setShowBgPopover(false);
+    setShowVersionPopup(false);
+  }, [homeMode, setHomeMode]);
+
   return (
+    <>
+    {homeMode === 'minimalist' ? (
+      <div className={`page-enter ${styles.minimalistPage}`}>
+        {/* 左侧玩家皮肤模型（背景透明） */}
+        <div className={styles.minimalistSkin}>
+          <SkinViewer3D
+            skinUrl={skinUrl}
+            model={skinModel}
+            width={240}
+            height={360}
+            className={styles.minimalistSkin__viewer}
+          />
+          <div className={styles.minimalistSkin__name}>
+            {auth?.username || 'Player'}
+          </div>
+        </div>
+
+        {/* 左上角账号信息 */}
+        <div className={styles.minimalistAccount}>
+          <div className={styles.minimalistAccount__avatar}>
+            {(auth?.username || '?').charAt(0).toUpperCase()}
+          </div>
+          <span className={styles.minimalistAccount__name}>{auth?.username || 'Player'}</span>
+          <span>·</span>
+          <span>{instances.length} {t('home.instances')}</span>
+        </div>
+
+        {/* 左上角用户名下方的大标题招呼语（纯文字） */}
+        <h1 className={styles.minimalistGreeting}>
+          {anyGameRunning ? t('home.minimalist.continueGame') : greeting.title}
+        </h1>
+
+        {/* 右上角工具栏 */}
+        <div className={styles.minimalistToolbar}>
+          <div className={styles.topBar__sysStatus} style={{ marginRight: 4 }}>
+            <StatusDot status={isBusy ? 'processing' : anyGameRunning ? 'processing' : 'ready'} />
+            <span className={styles.topBar__sysText}>
+              {anyGameRunning
+                ? t('home.topbar.runningCount', { count: String(runningGames.filter((g) => g.state === 'running').length) })
+                : launchState.toUpperCase()}
+            </span>
+          </div>
+          <button
+            onClick={handleToggleHomeMode}
+            title={t('home.minimalist.modeToggle')}
+            className={styles.minimalistBtn}
+          >
+            <Icon name="grid" size={12} /> {t('home.minimalist.dashboardMode')}
+          </button>
+          <button
+            onClick={() => setShowBgPopover((v) => !v)}
+            title={t('home.minimalist.backgroundSettings')}
+            className={`${styles.minimalistBtn} ${showBgPopover ? styles['minimalistBtn--active'] : ''}`}
+          >
+            <Icon name="palette" size={12} /> {t('home.topbar.customize')}
+          </button>
+          <button
+            onClick={() => setShowConsole((v) => !v)}
+            className={`${styles.minimalistBtn} ${showConsole ? styles['minimalistBtn--active'] : ''}`}
+          >
+            <Icon name={showConsole ? 'chevronUp' : 'chevronDown'} size={12} /> {t('home.topbar.console')}
+          </button>
+        </div>
+
+        {/* 背景设置浮层 */}
+        {showBgPopover && (
+          <div className={styles.bgPopover}>
+            <div className={styles.bgPopover__title}>{t('home.minimalist.backgroundSettings')}</div>
+            <div className={styles.bgPopover__hint}>{t('home.minimalist.backgroundHint')}</div>
+            <div className={styles.bgPopover__actions}>
+              <label className={styles.bgPopover__btn} title={t('home.topbar.uploadBackground')}>
+                <Icon name="upload" size={12} /> {t('home.minimalist.uploadBackground')}
+                <input
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleBackgroundUpload}
+                />
+              </label>
+              {homeBackground && (
+                <button
+                  onClick={handleClearBackground}
+                  className={`${styles.bgPopover__btn} ${styles['bgPopover__btn--danger']}`}
+                  title={t('home.topbar.clearBackground')}
+                >
+                  <Icon name="cross" size={12} /> {t('home.minimalist.clearBackground')}
+                </button>
+              )}
+            </div>
+            {/* 模糊效果开关 */}
+            <div className={styles.bgPopover__toggleRow}>
+              <span className={styles.bgPopover__toggleLabel}>
+                {t('home.minimalist.blurEnabled')}
+              </span>
+              <button
+                onClick={() => setHomeBlurEnabled(!homeBlurEnabled)}
+                className={`${styles.bgPopover__toggle} ${homeBlurEnabled ? styles['bgPopover__toggle--on'] : ''}`}
+                role="switch"
+                aria-checked={homeBlurEnabled}
+                title={t('home.minimalist.blurEnabledDesc')}
+              >
+                <span className={styles.bgPopover__toggleKnob} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 实例切换弹出菜单 */}
+        {showVersionPopup && (
+          <div className={styles.versionPopup}>
+            <div className={styles.versionPopup__header}>{t('home.minimalist.switchVersion')}</div>
+            {instances.length === 0 ? (
+              <div className={styles.versionPopup__empty}>{t('home.minimalist.noInstance')}</div>
+            ) : (
+              instances.map((inst) => (
+                <div
+                  key={inst.id}
+                  className={`${styles.versionPopup__item} ${inst.id === activeInstance?.id ? styles['versionPopup__item--active'] : ''}`}
+                  onClick={() => {
+                    setSelectedInstanceId(inst.id);
+                    setShowVersionPopup(false);
+                  }}
+                >
+                  <div className={styles.versionPopup__icon}>
+                    {(inst.name || '?').charAt(0).toUpperCase()}
+                  </div>
+                  <div className={styles.versionPopup__info}>
+                    <div className={styles.versionPopup__name}>{inst.name}</div>
+                    <div className={styles.versionPopup__meta}>
+                      {inst.version_id}
+                      {inst.loader_type ? ` · ${inst.loader_type}` : ''}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* 下载进度浮层 */}
+        {downloadProgress && !downloadProgress.finished && (
+          <div className={styles.minimalistOverlay}>
+            <div className={styles.minimalistOverlay__title}>
+              {downloadProgress.phase === 'assets' ? t('home.downloadingAssets') : t('home.downloading')}
+            </div>
+            <ProgressBar
+              progress={
+                downloadProgress.total > 0
+                  ? Math.round((downloadProgress.completed / downloadProgress.total) * 100)
+                  : 0
+              }
+              done={false}
+            />
+            <div className={styles.minimalistOverlay__stats}>
+              {downloadProgress.completed}/{downloadProgress.total} · {downloadProgress.phase}
+            </div>
+          </div>
+        )}
+
+        {/* JRE 下载浮层 */}
+        {jreDownload && jreDownload.downloaded < jreDownload.total && (
+          <div className={styles.minimalistOverlay}>
+            <div className={styles.minimalistOverlay__title}>{t('home.jreDownload.title')}</div>
+            <div className={styles.bgPopover__hint}>
+              {t('home.jreDownload.subtitle', { version: String(jreDownload.version) })}
+            </div>
+            <ProgressBar
+              progress={jreDownload.total > 0 ? Math.round((jreDownload.downloaded / jreDownload.total) * 100) : 0}
+              done={false}
+            />
+            <div className={styles.minimalistOverlay__stats}>
+              {(jreDownload.downloaded / 1_048_576).toFixed(1)} MB / {(jreDownload.total / 1_048_576).toFixed(1)} MB
+            </div>
+          </div>
+        )}
+
+        {/* 错误提示 */}
+        {error && <div className={styles.minimalistError}>{error}</div>}
+
+        {/* 右下角启动按钮（HMCL 风格胶囊） */}
+        <div className={styles.launchPane}>
+          <button
+            className={styles.launchPane__main}
+            onClick={() => activeInstance && handleLaunch(activeInstance)}
+            disabled={!activeInstance || isBusy}
+            title={activeInstance ? t('home.minimalist.launch') : t('home.minimalist.launchHint')}
+          >
+            <span className={styles.launchPane__mainLabel}>
+              {activeInstance ? t('home.minimalist.launch') : t('home.minimalist.launchNoVersion')}
+            </span>
+            {activeInstance && (
+              <span className={styles.launchPane__subLabel}>{activeInstance.name}</span>
+            )}
+          </button>
+          <button
+            className={styles.launchPane__menu}
+            onClick={() => setShowVersionPopup((v) => !v)}
+            title={t('home.minimalist.switchVersion')}
+          >
+            <Icon name="chevronUp" size={16} />
+          </button>
+        </div>
+
+        {/* 空实例时的新手引导 */}
+        {instances.length === 0 && !loading && (
+          <div className={styles.minimalistOverlay} style={{ maxWidth: 400 }}>
+            <div className={styles.minimalistOverlay__title}>{t('home.welcomeNew')}</div>
+            <div className={styles.bgPopover__hint} style={{ marginBottom: 12 }}>
+              {t('home.welcomeNewDesc')}
+            </div>
+            <div className={styles.bgPopover__actions}>
+              <Button variant="primary" size="md" onClick={handleQuickStart} disabled={isBusy}>
+                <Icon name="bolt" size={14} /> {t('home.quickStart')}
+              </Button>
+              <Button variant="secondary" size="md" onClick={() => navigate('/instances/new')}>
+                + {t('home.newInstance')}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    ) : (
     <div className={`page-enter ${styles.page}`}>
       {/* New user hero */}
       {instances.length === 0 && !loading && (
@@ -590,7 +929,7 @@ export default function HomePage() {
             <div className={styles.emptyHero__actions}>
               <Button variant="primary" size="lg" onClick={handleQuickStart} disabled={isBusy}>
                 {isBusy ? (
-                  'DOWNLOADING...'
+                  t('home.quickStart.downloading')
                 ) : (
                   <>
                     <Icon name="bolt" size={14} /> {t('home.quickStart')}
@@ -611,10 +950,23 @@ export default function HomePage() {
         <div className={styles.bannerTrack} style={{ transform: `translateX(-${bannerIndex * 100}%)` }}>
           {newsEntries.length > 0
             ? newsEntries.map((news, i) => (
-                <div key={news.id || i} className={`${styles.bannerSlide} ${styles[`bannerSlide--${(i % 6) + 1}`]}`}>
+                <div
+                  key={news.id || i}
+                  className={`${styles.bannerSlide} ${styles[`bannerSlide--${(i % 6) + 1}`]}`}
+                  onClick={() => setSelectedNews(news)}
+                  role="button"
+                  tabIndex={0}
+                  style={{ cursor: 'pointer' }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedNews(news);
+                    }
+                  }}
+                >
                   <div className={styles.bannerAccent} />
                   <div className={styles.bannerContent}>
-                    <div className={styles.bannerLabel}>{news.category || 'Minecraft'}</div>
+                    <div className={styles.bannerLabel}>{news.category || t('home.banner.defaultCategory')}</div>
                     <div className={styles.bannerTitle}>{news.title}</div>
                     <div className={styles.bannerDesc}>{news.text}</div>
                   </div>
@@ -724,9 +1076,9 @@ export default function HomePage() {
       {jreDownload && jreDownload.downloaded < jreDownload.total && (
         <div className={styles.downloadOverlay}>
           <div className={styles.downloadPanel}>
-            <Heading level="md">DOWNLOADING JAVA RUNTIME</Heading>
+            <Heading level="md">{t('home.jreDownload.title')}</Heading>
             <div style={{ marginTop: 8, fontSize: '0.6em', color: '#888' }}>
-              Java {jreDownload.version} from Adoptium
+              {t('home.jreDownload.subtitle', { version: String(jreDownload.version) })}
             </div>
             <div style={{ marginTop: 16 }}>
               <ProgressBar
@@ -760,39 +1112,57 @@ export default function HomePage() {
             </span>
           </div>
         </div>
-        <div className={styles.topBar__right}>
+        <div className={styles.topBar__right} style={{ position: 'relative' }}>
           <div className={styles.topBar__sysStatus}>
             <StatusDot status={isBusy ? 'processing' : anyGameRunning ? 'processing' : 'ready'} />
             <span className={styles.topBar__sysText}>
               {anyGameRunning
-                ? `${runningGames.filter((g) => g.state === 'running').length} RUNNING`
+                ? t('home.topbar.runningCount', { count: String(runningGames.filter((g) => g.state === 'running').length) })
                 : launchState.toUpperCase()}
             </span>
           </div>
+          {/* 模式切换按钮：仪表盘 ↔ 极简 */}
           <button
-            onClick={() => setShowConsole((v) => !v)}
-            style={{
-              background: showConsole ? 'var(--color-accent-10)' : 'transparent',
-              border: `1px solid ${showConsole ? 'var(--color-accent-30)' : 'var(--color-border)'}`,
-              color: showConsole ? 'var(--color-accent)' : 'var(--color-text-dim)',
-              padding: '3px 10px',
-              cursor: 'pointer',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.42em',
-              letterSpacing: 1,
-              transition: 'all 0.15s',
-            }}
+            onClick={handleToggleHomeMode}
+            title={t('home.minimalist.modeToggle')}
+            className={styles.topBar__btn}
           >
-            {showConsole ? (
-              <>
-                <Icon name="chevronUp" size={12} /> CONSOLE
-              </>
-            ) : (
-              <>
-                <Icon name="chevronDown" size={12} /> CONSOLE
-              </>
-            )}
+            <Icon name="grid" size={12} /> {t('home.minimalist.minimalistMode')}
           </button>
+          {/* 自定义按钮：打开背景设置浮层（两种模式都可用） */}
+          <button
+            onClick={() => setShowBgPopover((v) => !v)}
+            title={t('home.minimalist.backgroundSettings')}
+            className={`${styles.topBar__btn} ${showBgPopover ? styles['topBar__btn--active'] : ''}`}
+          >
+            <Icon name="palette" size={12} /> {t('home.topbar.customize')}
+          </button>
+          {showBgPopover && (
+            <div className={styles.topBar__bgPopover}>
+              <div className={styles.topBar__bgPopoverTitle}>{t('home.minimalist.backgroundSettings')}</div>
+              <div className={styles.topBar__bgPopoverHint}>{t('home.minimalist.backgroundHint')}</div>
+              <div className={styles.topBar__bgPopoverActions}>
+                <label className={styles.topBar__bgPopoverBtn} title={t('home.topbar.uploadBackground')}>
+                  <Icon name="upload" size={12} /> {t('home.minimalist.uploadBackground')}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleBackgroundUpload}
+                  />
+                </label>
+                {homeBackground && (
+                  <button
+                    onClick={handleClearBackground}
+                    className={`${styles.topBar__bgPopoverBtn} ${styles['topBar__bgPopoverBtn--danger']}`}
+                    title={t('home.topbar.clearBackground')}
+                  >
+                    <Icon name="cross" size={12} /> {t('home.minimalist.clearBackground')}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -934,6 +1304,64 @@ export default function HomePage() {
       )}
 
       <GameConsole visible={showConsole} />
+
+      {/* 资讯文章弹窗：点击 banner 打开 */}
+      <Modal
+        open={!!selectedNews}
+        onClose={() => setSelectedNews(null)}
+        title={selectedNews?.title || ''}
+      >
+        {selectedNews && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '70vh', overflow: 'auto' }}>
+            {selectedNews.image_url && (
+              <img
+                src={selectedNews.image_url}
+                alt={selectedNews.title}
+                style={{ width: '100%', maxHeight: 240, objectFit: 'cover', borderRadius: 4 }}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            )}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {selectedNews.category && (
+                <Badge variant="accent">{selectedNews.category}</Badge>
+              )}
+              {selectedNews.tag && (
+                <Badge variant="default">{selectedNews.tag}</Badge>
+              )}
+              {selectedNews.date && (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55em', color: 'var(--color-text-muted)' }}>
+                  {selectedNews.date}
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: '0.7em', lineHeight: 1.6, color: 'var(--color-text)' }}>
+              {selectedNews.text}
+            </div>
+            {selectedNews.read_more_link && (
+              <a
+                href={selectedNews.read_more_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  alignSelf: 'flex-start',
+                  fontSize: '0.65em',
+                  color: 'var(--color-accent)',
+                  textDecoration: 'none',
+                  padding: '6px 12px',
+                  border: '1px solid var(--color-accent)',
+                  clipPath: 'polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px))',
+                }}
+              >
+                {t('home.news.readMore')} →
+              </a>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
+    )}
+    </>
   );
 }

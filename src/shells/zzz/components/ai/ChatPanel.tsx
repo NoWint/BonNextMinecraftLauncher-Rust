@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../../../shared/i18n';
+import { logger } from '../../../../shared/utils/logger';
 import { useAIAssistant } from '../../../../shared/stores/aiAssistantStore';
 import { ChatMessage } from './ChatMessage';
 import { ModpackPreview } from './ModpackPreview';
@@ -13,19 +14,19 @@ import { Icon } from '../ui/Icon';
 import type { IconName } from '../ui/Icon';
 import styles from './ChatPanel.module.css';
 
-const SUGGESTIONS: Array<{ text: string; icon: IconName }> = [
-  { text: '我的游戏崩溃了，帮我分析', icon: 'search' },
-  { text: '帮我装 Fabric 1.21.1', icon: 'bolt' },
-  { text: '我想玩养老种田整合包', icon: 'sparkles' },
-  { text: '推荐一些好用的优化模组', icon: 'lightbulb' },
-  { text: '我的世界 TPS 很低怎么办', icon: 'wrench' },
-  { text: '搜索并安装 JEI 和 Sodium', icon: 'cube' },
-];
-
 export const ChatPanel: React.FC = () => {
   const { t } = useI18n();
   const navigate = useNavigate();
   const { state, sendMessage, setPanelOpen, confirmTask, cancelTask, retryTask, clearMessages, dismissCrashAlert, abortWorkflow, abortAgent } = useAIAssistant();
+
+  const SUGGESTIONS: Array<{ text: string; icon: IconName }> = [
+    { text: t('ai.suggestion.crash'), icon: 'search' },
+    { text: t('ai.suggestion.fabric'), icon: 'bolt' },
+    { text: t('ai.suggestion.modpack'), icon: 'sparkles' },
+    { text: t('ai.suggestion.optimization'), icon: 'lightbulb' },
+    { text: t('ai.suggestion.tps'), icon: 'wrench' },
+    { text: t('ai.suggestion.search'), icon: 'cube' },
+  ];
   const [input, setInput] = useState('');
   const [pendingPlan, setPendingPlan] = useState<ModpackPlan | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -91,8 +92,8 @@ export const ChatPanel: React.FC = () => {
           <span className={styles.controlsCard__title}>{t('ai.title')}</span>
           <div className={styles.controlsCard__actions}>
             {state.isLoading && (
-              <button className={styles.controlsCard__actionBtn} onClick={abortAgent} title="Stop">
-                ■ Stop
+              <button className={styles.controlsCard__actionBtn} onClick={abortAgent} title={t('ai.stopTooltip')}>
+                ■ {t('ai.stop')}
               </button>
             )}
             <button className={styles.controlsCard__actionBtn} onClick={clearMessages} title={t('ai.clear')}>
@@ -165,7 +166,8 @@ export const ChatPanel: React.FC = () => {
           <ModpackPreview
             plan={pendingPlan}
             onInstall={async (plan) => {
-              try { await workflowApi.executeModpackPlan(plan); } catch { /* error handled by event */ }
+              try { await workflowApi.executeModpackPlan(plan); }
+              catch (e) { logger.error('Modpack plan execution failed:', e); }
               setPendingPlan(null);
             }}
             onCancel={() => setPendingPlan(null)}

@@ -5,6 +5,7 @@ import {
   type GameInstance,
   type InstalledModInfo,
   type WorldInfo,
+  type WorldBackupInfo,
   type LogFileInfo,
   type OptimizationPreset,
   type VersionEntry,
@@ -16,16 +17,17 @@ import { useAuth } from '../../../shared/stores/authStore';
 import { useInstances } from '../../../shared/stores/instanceStore';
 import { useToast } from '../../../shared/stores/toastStore';
 import { useI18n } from '../../../shared/i18n';
-import { Badge, Tabs, Modal, Breadcrumb as BreadcrumbComp, TextInput, Tooltip } from '../components/ui';
+import { Badge, Modal, TextInput, Tooltip } from '../components/ui';
 import { Button } from '../components/ui';
 import { Icon } from '../components/ui/Icon';
-import type { IconName } from '../components/ui/Icon';
+import { getLoaderIcon, getLoaderLabel } from '../../../shared/utils/loader';
 import GameConsole from '../components/ui/GameConsole';
 import LogViewer from '../components/ui/LogViewer';
 import { relativeTime } from '../../../shared/utils/time';
 import { formatError } from '../../../shared/utils/errorMapping';
-import { open } from '@tauri-apps/plugin-dialog';
+import { open, save } from '@tauri-apps/plugin-dialog';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { showContextMenu, type ContextMenuItem } from '../components/ContextMenu';
 import styles from './InstanceDetailPage.module.css';
 import presetStyles from '../components/ui/OptimizationPresets.module.css';
 import { usePluginInstanceTabs } from '../../../app/hooks/usePluginInstanceTabs';
@@ -38,48 +40,18 @@ type SnapshotInfo = {
   size_bytes: number;
 };
 
-function getLoaderIcon(loaderType: string | null): IconName {
-  switch (loaderType) {
-    case 'fabric':
-      return 'fabric';
-    case 'forge':
-      return 'forge';
-    case 'quilt':
-      return 'quilt';
-    case 'neoforge':
-      return 'neoforge';
-    default:
-      return 'vanilla';
-  }
-}
-
-function getLoaderLabel(loaderType: string | null): string {
-  switch (loaderType) {
-    case 'fabric':
-      return 'Fabric';
-    case 'forge':
-      return 'Forge';
-    case 'quilt':
-      return 'Quilt';
-    case 'neoforge':
-      return 'NeoForge';
-    default:
-      return 'Vanilla';
-  }
-}
-
-function useDetailTabs(t: (key: string) => string, modCount: number) {
+function buildDetailTabs(t: (key: string) => string, modCount: number) {
   return [
     { id: 'overview', label: t('instanceDetail.overview') },
     { id: 'mods', label: `${t('instanceDetail.mods')} (${modCount})` },
-    { id: 'optimize', label: t('instanceDetail.optimize') },
-    { id: 'migrate', label: t('instanceDetail.migrate') },
-    { id: 'profile', label: t('instanceDetail.profile') },
-    { id: 'fps', label: t('instanceDetail.fps') },
+    { id: 'resourcepacks', label: t('instanceDetail.resourcePacks') },
     { id: 'saves', label: t('instanceDetail.saves') },
+    { id: 'schematics', label: t('instanceDetail.schematics') },
     { id: 'logs', label: t('instanceDetail.logs') },
     { id: 'screenshots', label: t('instanceDetail.screenshots') },
     { id: 'snapshots', label: t('instanceDetail.snapshots') },
+    { id: 'optimize', label: t('instanceDetail.optimize') },
+    { id: 'migrate', label: t('instanceDetail.migrate') },
   ];
 }
 
@@ -109,6 +81,12 @@ export default function InstanceDetailPage() {
 
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [screenshotLoading, setScreenshotLoading] = useState(false);
+
+  // 资源包 + 投影文件（参考 HMCL VersionPage resourcePackTab / schematicsTab）
+  const [resourcePacks, setResourcePacks] = useState<string[]>([]);
+  const [resourcePacksLoading, setResourcePacksLoading] = useState(false);
+  const [schematics, setSchematics] = useState<string[]>([]);
+  const [schematicsLoading, setSchematicsLoading] = useState(false);
 
   const [snapshots, setSnapshots] = useState<SnapshotInfo[]>([]);
   const [snapshotName, setSnapshotName] = useState('');
@@ -162,6 +140,22 @@ export default function InstanceDetailPage() {
   const [preLaunchReport, setPreLaunchReport] = useState<PreLaunchReport | null>(null);
   const [showPreLaunchModal, setShowPreLaunchModal] = useState(false);
   const [checkingPreLaunch, setCheckingPreLaunch] = useState(false);
+  const [removeModTarget, setRemoveModTarget] = useState<string | null>(null);
+  const [togglingMod, setTogglingMod] = useState<string | null>(null);
+
+  // 存档管理状态（参考 HMCL WorldBackupTask）
+  const [worldBackups, setWorldBackups] = useState<WorldBackupInfo[]>([]);
+  const [backingUpWorld, setBackingUpWorld] = useState<string | null>(null);
+  const [restoringBackup, setRestoringBackup] = useState<string | null>(null);
+
+  // Mods 搜索/过滤/批量选择（参考 HMCL ModListPage 三态工具栏）
+  const [modSearch, setModSearch] = useState('');
+  const [modFilter, setModFilter] = useState<'all' | 'enabled' | 'disabled'>('all');
+  const [selectedMods, setSelectedMods] = useState<Set<string>>(new Set());
+  const [modInfoTarget, setModInfoTarget] = useState<InstalledModInfo | null>(null);
+
+  // 实例目录路径（用于快速打开子目录，参考 HMCL VersionPage 浏览按钮）
+  const [instanceGameDir, setInstanceGameDir] = useState<string>('');
 
   const instanceId = routeId || '';
 
@@ -187,6 +181,7 @@ export default function InstanceDetailPage() {
         .then((gameDir) => {
           const iconPath = `${gameDir}/instances/${instanceId}/icon.png`;
           setIconUrl(convertFileSrc(iconPath));
+          setInstanceGameDir(`${gameDir}/instances/${instanceId}/.minecraft`);
         })
         .catch(() => {});
     }
@@ -222,6 +217,27 @@ export default function InstanceDetailPage() {
   useEffect(() => {
     if (activeTab === 'screenshots' && instanceId) {
       loadScreenshots();
+    }
+  }, [activeTab, instanceId]);
+
+  // 资源包/投影懒加载（参考 HMCL VersionPage 标签懒加载）
+  useEffect(() => {
+    if (activeTab === 'resourcepacks' && instanceId) {
+      setResourcePacksLoading(true);
+      api.listInstanceResourcepacks(instanceId)
+        .then(setResourcePacks)
+        .catch(() => setResourcePacks([]))
+        .finally(() => setResourcePacksLoading(false));
+    }
+  }, [activeTab, instanceId]);
+
+  useEffect(() => {
+    if (activeTab === 'schematics' && instanceId) {
+      setSchematicsLoading(true);
+      api.listInstanceSchematics(instanceId)
+        .then(setSchematics)
+        .catch(() => setSchematics([]))
+        .finally(() => setSchematicsLoading(false));
     }
   }, [activeTab, instanceId]);
 
@@ -307,10 +323,265 @@ export default function InstanceDetailPage() {
         .then(setInstalledMods)
         .catch(() => {});
     } catch (e: unknown) {
-      addToast({ type: 'error', title: 'Apply Failed', message: formatError(e) || 'Failed to apply preset' });
+      addToast({ type: 'error', title: 'Apply Failed', message: formatError(e) || t('instanceDetail.presetFailed') });
     } finally {
       setApplyingPreset(null);
     }
+  };
+
+  const refreshMods = useCallback(() => {
+    if (!instanceId) return;
+    api
+      .listInstanceMods(instanceId)
+      .then(setInstalledMods)
+      .catch(() => {});
+  }, [instanceId]);
+
+  const handleToggleMod = async (filename: string) => {
+    if (!instanceId) return;
+    setTogglingMod(filename);
+    try {
+      const newEnabled = await api.toggleMod(instanceId, filename);
+      setInstalledMods((prev) =>
+        prev.map((m) => (m.filename === filename ? { ...m, enabled: newEnabled } : m)),
+      );
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('library.toggleModFailed'), message: formatError(e) });
+    } finally {
+      setTogglingMod(null);
+    }
+  };
+
+  const handleRemoveMod = async () => {
+    if (!removeModTarget || !instanceId) return;
+    try {
+      await api.removeInstalledMod(instanceId, removeModTarget);
+      addToast({ type: 'success', title: t('common.remove'), message: removeModTarget });
+      setRemoveModTarget(null);
+      refreshMods();
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('library.remove'), message: formatError(e) });
+    }
+  };
+
+  // 批量操作（参考 HMCL ModListPage Selecting 态）
+  const handleBatchToggleMods = async (enable: boolean) => {
+    if (!instanceId || selectedMods.size === 0) return;
+    const targets = installedMods.filter((m) => selectedMods.has(m.filename) && m.enabled !== enable);
+    for (const mod of targets) {
+      try {
+        const newEnabled = await api.toggleMod(instanceId, mod.filename);
+        setInstalledMods((prev) =>
+          prev.map((m) => (m.filename === mod.filename ? { ...m, enabled: newEnabled } : m)),
+        );
+      } catch {
+        /* 静默忽略单个失败 */
+      }
+    }
+    addToast({
+      type: 'success',
+      title: enable ? t('library.enable') : t('library.disable'),
+      message: `${targets.length} mod(s)`,
+    });
+    setSelectedMods(new Set());
+  };
+
+  const handleBatchDeleteMods = async () => {
+    if (!instanceId || selectedMods.size === 0) return;
+    if (!confirm(t('instanceDetail.batchDeleteConfirm', { count: String(selectedMods.size) }))) return;
+    const targets = [...selectedMods];
+    let failed = 0;
+    for (const filename of targets) {
+      try {
+        await api.removeInstalledMod(instanceId, filename);
+      } catch {
+        failed++;
+      }
+    }
+    setSelectedMods(new Set());
+    refreshMods();
+    addToast({
+      type: failed === 0 ? 'success' : 'error',
+      title: t('common.delete'),
+      message: `${targets.length - failed} deleted${failed > 0 ? `, ${failed} failed` : ''}`,
+    });
+  };
+
+  const handleToggleModSelection = (filename: string) => {
+    setSelectedMods((prev) => {
+      const next = new Set(prev);
+      if (next.has(filename)) next.delete(filename);
+      else next.add(filename);
+      return next;
+    });
+  };
+
+  const handleSelectAllMods = () => {
+    setSelectedMods(new Set(filteredMods.map((m) => m.filename)));
+  };
+
+  const handleClearModSelection = () => {
+    setSelectedMods(new Set());
+  };
+
+  // 打开实例子目录（参考 HMCL VersionPage 浏览按钮）
+  const handleOpenSubFolder = (subpath: string) => {
+    if (!instanceGameDir) return;
+    api.openFolder(`${instanceGameDir}/${subpath}`).catch(() => {
+      addToast({ type: 'error', title: t('common.error'), message: subpath });
+    });
+  };
+
+  // 打开存档目录
+  const handleOpenWorldFolder = (worldName: string) => {
+    handleOpenSubFolder(`saves/${worldName}`);
+  };
+
+  // ═══════════════════════════════════════════════════════════════════
+  // 存档管理（参考 HMCL WorldBackupTask / VersionSettings）
+  // ═══════════════════════════════════════════════════════════════════
+  const refreshWorlds = useCallback(() => {
+    if (!instanceId) return;
+    api.listInstanceSaves(instanceId).then(setWorlds).catch(() => {});
+  }, [instanceId]);
+
+  const refreshBackups = useCallback(async () => {
+    if (!instanceId) return;
+    try {
+      const backups = await api.listWorldBackups(instanceId);
+      setWorldBackups(backups);
+    } catch {
+      setWorldBackups([]);
+    }
+  }, [instanceId]);
+
+  useEffect(() => {
+    if (activeTab === 'saves' && instanceId) {
+      refreshBackups();
+    }
+  }, [activeTab, instanceId, refreshBackups]);
+
+  const handleBackupWorld = async (worldName: string) => {
+    if (!instanceId) return;
+    setBackingUpWorld(worldName);
+    try {
+      await api.backupWorld(instanceId, worldName);
+      addToast({ type: 'success', title: t('instanceDetail.backupCreated'), message: worldName });
+      await refreshBackups();
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instanceDetail.backupFailed'), message: formatError(e) });
+    } finally {
+      setBackingUpWorld(null);
+    }
+  };
+
+  const handleRestoreBackup = async (backupFilename: string) => {
+    if (!instanceId) return;
+    setRestoringBackup(backupFilename);
+    try {
+      const restoredName = await api.restoreWorld(instanceId, backupFilename);
+      addToast({ type: 'success', title: t('instanceDetail.restoreBackup'), message: t('instanceDetail.restoreSuccess', { name: restoredName }) });
+      refreshWorlds();
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instanceDetail.restoreFailed'), message: formatError(e) });
+    } finally {
+      setRestoringBackup(null);
+    }
+  };
+
+  const handleDeleteBackup = async (backupFilename: string) => {
+    if (!instanceId) return;
+    if (!confirm(t('instanceDetail.deleteBackupConfirm', { name: backupFilename }))) return;
+    try {
+      await api.deleteWorldBackup(instanceId, backupFilename);
+      await refreshBackups();
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('common.delete'), message: formatError(e) });
+    }
+  };
+
+  const handleExportWorld = async (worldName: string) => {
+    if (!instanceId) return;
+    try {
+      const path = await save({
+        defaultPath: `${worldName}.zip`,
+        filters: [{ name: 'ZIP', extensions: ['zip'] }],
+      });
+      if (path && typeof path === 'string') {
+        await api.exportWorld(instanceId, worldName, path);
+        addToast({ type: 'success', title: t('instanceDetail.exportWorld'), message: worldName });
+      }
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instanceDetail.exportWorld'), message: formatError(e) });
+    }
+  };
+
+  const handleImportWorld = async () => {
+    if (!instanceId) return;
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'ZIP', extensions: ['zip'] }],
+      });
+      if (selected && typeof selected === 'string') {
+        const worldName = await api.importWorld(instanceId, selected);
+        addToast({ type: 'success', title: t('instanceDetail.importWorld'), message: t('instanceDetail.importWorldSuccess', { name: worldName }) });
+        refreshWorlds();
+      }
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instanceDetail.importWorldFailed'), message: formatError(e) });
+    }
+  };
+
+  const handleRenameWorld = async (oldName: string) => {
+    if (!instanceId) return;
+    const newName = prompt(t('instanceDetail.renameWorldPrompt'), oldName);
+    if (!newName || newName === oldName) return;
+    try {
+      await api.renameWorld(instanceId, oldName, newName);
+      refreshWorlds();
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instanceDetail.renameWorld'), message: formatError(e) });
+    }
+  };
+
+  const handleDuplicateWorld = async (worldName: string) => {
+    if (!instanceId) return;
+    const newName = prompt(t('instanceDetail.duplicateWorldPrompt'), `${worldName}_copy`);
+    if (!newName) return;
+    try {
+      await api.duplicateWorld(instanceId, worldName, newName);
+      refreshWorlds();
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instanceDetail.duplicateWorld'), message: formatError(e) });
+    }
+  };
+
+  const handleDeleteWorld = async (worldName: string) => {
+    if (!instanceId) return;
+    if (!confirm(t('instanceDetail.deleteWorldConfirm', { name: worldName }))) return;
+    try {
+      await api.deleteWorld(instanceId, worldName);
+      refreshWorlds();
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instanceDetail.deleteWorld'), message: formatError(e) });
+    }
+  };
+
+  // 存档右键/更多菜单（参考 HMCL WorldListCell PopupMenu）
+  const handleShowWorldMenu = (e: React.MouseEvent, world: WorldInfo) => {
+    const items: ContextMenuItem[] = [
+      { id: 'backup', label: t('instanceDetail.backupWorld'), action: () => handleBackupWorld(world.name) },
+      { id: 'export', label: t('instanceDetail.exportWorld'), action: () => handleExportWorld(world.name) },
+      { id: 'sep1', label: '', separator: true, action: () => {} },
+      { id: 'rename', label: t('instanceDetail.renameWorld'), action: () => handleRenameWorld(world.name) },
+      { id: 'duplicate', label: t('instanceDetail.duplicateWorld'), action: () => handleDuplicateWorld(world.name) },
+      { id: 'sep2', label: '', separator: true, action: () => {} },
+      { id: 'openFolder', label: t('instanceDetail.openWorldFolder'), action: () => handleOpenWorldFolder(world.name) },
+      { id: 'sep3', label: '', separator: true, action: () => {} },
+      { id: 'delete', label: t('instanceDetail.deleteWorld'), danger: true, action: () => handleDeleteWorld(world.name) },
+    ];
+    showContextMenu(e, items);
   };
 
   const handleCheckMigration = async () => {
@@ -555,6 +826,39 @@ export default function InstanceDetailPage() {
     }
   };
 
+  // 管理菜单操作（参考 HMCL VersionPage 管理按钮）
+  const handleExportConfig = async () => {
+    if (!instanceId) return;
+    try {
+      const code = await api.exportInstanceConfig(instanceId);
+      await navigator.clipboard.writeText(code);
+      addToast({ type: 'success', title: t('instanceDetail.exportConfig'), message: t('instanceDetail.configCopied') });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instanceDetail.exportConfig'), message: formatError(e) });
+    }
+  };
+
+  const handleImportConfig = async () => {
+    const code = prompt(t('instanceDetail.importConfigPrompt'));
+    if (!code) return;
+    try {
+      await api.importInstanceConfig(code.trim());
+      addToast({ type: 'success', title: t('instanceDetail.importConfig') });
+      window.location.reload();
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instanceDetail.importConfig'), message: formatError(e) });
+    }
+  };
+
+  const handleCleanTrash = async () => {
+    try {
+      const count = await api.cleanupTrash();
+      addToast({ type: 'success', title: t('instanceDetail.cleanTrash'), message: `${count} items` });
+    } catch (e: unknown) {
+      addToast({ type: 'error', title: t('instanceDetail.cleanTrash'), message: formatError(e) });
+    }
+  };
+
   const handleUpdateInstance = useCallback(
     async (updates: Partial<GameInstance>) => {
       if (!instance) return;
@@ -562,11 +866,12 @@ export default function InstanceDetailPage() {
         const updated = { ...instance, ...updates };
         await api.updateInstance(updated);
         setInstance(updated);
+        addToast({ type: 'success', title: t('instanceDetail.updateSuccess') });
       } catch (e: unknown) {
-        addToast({ type: 'error', title: 'Update failed', message: formatError(e) || 'Failed to update instance' });
+        addToast({ type: 'error', title: t('instanceDetail.updateFailed'), message: formatError(e) });
       }
     },
-    [instance, addToast],
+    [instance, addToast, t],
   );
 
   const pluginTabs = usePluginInstanceTabs();
@@ -578,12 +883,23 @@ export default function InstanceDetailPage() {
     return map;
   }, [pluginTabs]);
   const DETAIL_TABS = useMemo(() => {
-    const base = useDetailTabs(t, installedMods.length);
+    const base = buildDetailTabs(t, installedMods.length);
     return [
       ...base,
       ...pluginTabs.map((tab) => ({ id: tab.id, label: tab.label })),
     ];
   }, [t, installedMods.length, pluginTabs]);
+
+  // 过滤后的模组列表（搜索 + 启用/禁用过滤）
+  const filteredMods = useMemo(() => {
+    const q = modSearch.trim().toLowerCase();
+    return installedMods.filter((m) => {
+      if (modFilter === 'enabled' && !m.enabled) return false;
+      if (modFilter === 'disabled' && m.enabled) return false;
+      if (q && !m.filename.toLowerCase().includes(q) && !(m.slug || '').toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [installedMods, modSearch, modFilter]);
 
   if (loading) {
     return (
@@ -602,7 +918,7 @@ export default function InstanceDetailPage() {
 
   return (
     <div className={styles.page}>
-      <BreadcrumbComp items={[{ label: t('instances.title'), href: '/instances' }, { label: instance.name }]} />
+      {/* 面包屑由全局 PageBreadcrumb 统一渲染，此处不再重复 */}
 
       {/* Top info bar */}
       <div className={styles.topBar}>
@@ -642,9 +958,9 @@ export default function InstanceDetailPage() {
         </div>
         <div className={styles.topBarActions}>
           {runningGames.some((g) => g.instance_id === instanceId && g.state === 'running') && (
-            <Tooltip content="View Logs">
+            <Tooltip content={t('instanceDetail.viewLogs')}>
               <Button variant="secondary" size="sm" onClick={() => setShowLogViewer(true)}>
-                <Icon name="copy" size={14} /> Logs
+                <Icon name="copy" size={14} /> {t('instanceDetail.logs')}
               </Button>
             </Tooltip>
           )}
@@ -653,24 +969,9 @@ export default function InstanceDetailPage() {
               <Icon name="play" size={14} /> {t('instanceDetail.launch')}
             </Button>
           </Tooltip>
-          <Tooltip content="Health Check">
+          <Tooltip content={t('instanceDetail.healthCheck')}>
             <Button variant="secondary" size="sm" onClick={handleHealthCheck} disabled={healthLoading}>
-              <Icon name="lightbulb" size={14} /> {healthLoading ? 'Checking...' : 'Health Check'}
-            </Button>
-          </Tooltip>
-          <Tooltip content={t('instances.exportAsMrpack')}>
-            <Button variant="secondary" size="sm" onClick={handleExport} disabled={exporting}>
-              <Icon name="upload" size={14} /> {exporting ? t('instanceDetail.exporting') : t('instanceDetail.export')}
-            </Button>
-          </Tooltip>
-          <Tooltip content={t('instances.duplicateInstanceTooltip')}>
-            <Button variant="secondary" size="sm" onClick={handleDuplicate}>
-              <Icon name="copy" size={14} /> {t('instanceDetail.duplicate')}
-            </Button>
-          </Tooltip>
-          <Tooltip content={t('instanceDetail.delete')}>
-            <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>
-              {t('instanceDetail.delete')}
+              <Icon name="lightbulb" size={14} /> {healthLoading ? t('common.checking') : t('instanceDetail.healthCheck')}
             </Button>
           </Tooltip>
         </div>
@@ -678,10 +979,85 @@ export default function InstanceDetailPage() {
 
       {error && <div className={styles.error}>{error}</div>}
 
-      {/* Tabs */}
-      <Tabs tabs={DETAIL_TABS} activeId={activeTab} onChange={setActiveTab} />
+      {/* HMCL VersionPage layout: left sidebar (vertical tabs + bottom toolbar) + right content */}
+      <div className={styles.detailLayout}>
+        <aside className={styles.detailSidebar}>
+          {/* 垂直标签栏 */}
+          <div className={styles.detailSidebar__tabs}>
+            <div className={styles.vTabCategory}>{t('instanceDetail.management')}</div>
+            {DETAIL_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                className={`${styles.vTab} ${activeTab === tab.id ? styles.vTabActive : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-      {/* Tab content */}
+          {/* 底部工具栏（参考 HMCL VersionPage：浏览/管理/删除） */}
+          <div className={styles.detailSidebar__toolbar}>
+            {/* 浏览下拉菜单 */}
+            <button
+              className={styles.toolbarBtn}
+              onClick={(e) => {
+                showContextMenu(e as unknown as React.MouseEvent, [
+                  { id: 'root', label: t('instanceDetail.folderGameDir'), action: () => handleOpenSubFolder('') },
+                  { id: 'mods', label: t('instanceDetail.folderMods'), action: () => handleOpenSubFolder('mods') },
+                  { id: 'saves', label: t('instanceDetail.folderSaves'), action: () => handleOpenSubFolder('saves') },
+                  { id: 'resourcepacks', label: t('instanceDetail.folderResourcePacks'), action: () => handleOpenSubFolder('resourcepacks') },
+                  { id: 'shaderpacks', label: t('instanceDetail.folderShaderPacks'), action: () => handleOpenSubFolder('shaderpacks') },
+                  { id: 'screenshots', label: t('instanceDetail.folderScreenshots'), action: () => handleOpenSubFolder('screenshots') },
+                  { id: 'config', label: t('instanceDetail.folderConfig'), action: () => handleOpenSubFolder('config') },
+                  { id: 'logs', label: t('instanceDetail.folderLogs'), action: () => handleOpenSubFolder('logs') },
+                  { id: 'crashreports', label: t('instanceDetail.folderCrashReports'), action: () => handleOpenSubFolder('crash-reports') },
+                ]);
+              }}
+            >
+              <Icon name="folder" size={14} /> {t('instanceDetail.browse')}
+            </button>
+            {/* 导出 */}
+            <button
+              className={styles.toolbarBtn}
+              onClick={handleExport}
+              disabled={exporting}
+            >
+              <Icon name="upload" size={14} /> {exporting ? t('instanceDetail.exporting') : t('instanceDetail.export')}
+            </button>
+            {/* 复制 */}
+            <button
+              className={styles.toolbarBtn}
+              onClick={handleDuplicate}
+            >
+              <Icon name="copy" size={14} /> {t('instanceDetail.duplicate')}
+            </button>
+            {/* 管理下拉菜单 */}
+            <button
+              className={styles.toolbarBtn}
+              onClick={(e) => {
+                showContextMenu(e as unknown as React.MouseEvent, [
+                  { id: 'exportConfig', label: t('instanceDetail.exportConfig'), action: () => handleExportConfig() },
+                  { id: 'importConfig', label: t('instanceDetail.importConfig'), action: () => handleImportConfig() },
+                  { id: 'sep1', label: '', separator: true, action: () => {} },
+                  { id: 'cleanTrash', label: t('instanceDetail.cleanTrash'), action: () => handleCleanTrash() },
+                ]);
+              }}
+            >
+              <Icon name="settings" size={14} /> {t('instanceDetail.management')}
+            </button>
+            {/* 删除 */}
+            <button
+              className={`${styles.toolbarBtn} ${styles['toolbarBtn--danger']}`}
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Icon name="trash" size={14} /> {t('instanceDetail.delete')}
+            </button>
+          </div>
+        </aside>
+
+        {/* 右侧内容区 */}
+        <div className={styles.detailContent}>
       {activeTab === 'overview' && (
         <div className={styles.tabContent}>
           {/* Left column */}
@@ -689,17 +1065,17 @@ export default function InstanceDetailPage() {
             <div className={styles.infoCard}>
               <div className={styles.infoCardHeader}>{t('instanceDetail.versionInfo').toUpperCase()}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <InfoRow label="Minecraft" value={instance.version_id} />
+                <InfoRow label={t('instanceDetail.info.minecraft')} value={instance.version_id} />
                 <InfoRow
-                  label="Loader"
+                  label={t('instanceDetail.info.loader')}
                   value={
                     instance.loader_type
                       ? `${getLoaderLabel(instance.loader_type)} ${instance.loader_version || ''}`
                       : t('common.vanilla')
                   }
                 />
-                <InfoRow label="Java" value={instance.java_path || t('instanceDetail.autoDetect')} />
-                <InfoRow label="Created" value={new Date(instance.created_at).toLocaleDateString()} />
+                <InfoRow label={t('instanceDetail.info.java')} value={instance.java_path || t('instanceDetail.autoDetect')} />
+                <InfoRow label={t('instanceDetail.info.created')} value={new Date(instance.created_at).toLocaleDateString()} />
                 <InfoRow
                   label={t('instanceDetail.status')}
                   value={
@@ -834,32 +1210,311 @@ export default function InstanceDetailPage() {
       )}
 
       {activeTab === 'mods' && (
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {installedMods.length === 0 ? (
             <div className={styles.placeholderTab}>{t('instanceDetail.noModsInstalled')}</div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {installedMods.map((mod) => (
+            <>
+              {/* 工具栏（参考 HMCL ModListPage 三态：Normal / Selecting / Search） */}
+              {selectedMods.size > 0 ? (
+                /* Selecting 态：批量操作 */
+                <div className={styles.modToolbar}>
+                  <span className={styles.modCount}>
+                    {t('instanceDetail.selectedCount', { count: String(selectedMods.size) })}
+                  </span>
+                  <Button variant="primary" size="sm" onClick={() => handleBatchToggleMods(true)}>
+                    <Icon name="check" size={12} /> {t('library.enable')}
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => handleBatchToggleMods(false)}>
+                    <Icon name="cross" size={12} /> {t('library.disable')}
+                  </Button>
+                  <Button variant="danger" size="sm" onClick={handleBatchDeleteMods}>
+                    <Icon name="trash" size={12} /> {t('common.delete')}
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={handleSelectAllMods}>
+                    {t('instanceDetail.selectAll')}
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={handleClearModSelection}>
+                    {t('instanceDetail.deselectAll')}
+                  </Button>
+                </div>
+              ) : (
+                /* Normal 态：搜索/过滤/操作 */
+                <div className={styles.modToolbar}>
+                  <div className={styles.modSearchWrap}>
+                    <Icon name="search" size={12} />
+                    <input
+                      type="text"
+                      className={styles.modSearchInput}
+                      placeholder={t('instanceDetail.modSearchPlaceholder')}
+                      value={modSearch}
+                      onChange={(e) => setModSearch(e.target.value)}
+                    />
+                    {modSearch && (
+                      <button
+                        type="button"
+                        className={styles.modSearchClear}
+                        onClick={() => setModSearch('')}
+                        title={t('common.clear')}
+                      >
+                        <Icon name="cross" size={12} />
+                      </button>
+                    )}
+                  </div>
+                  <div className={styles.modFilterGroup}>
+                    {(['all', 'enabled', 'disabled'] as const).map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        className={`${styles.modFilterBtn} ${modFilter === f ? styles.modFilterBtnActive : ''}`}
+                        onClick={() => setModFilter(f)}
+                      >
+                        {f === 'all'
+                          ? t('instanceDetail.modFilterAll')
+                          : f === 'enabled'
+                            ? t('instanceDetail.modFilterEnabled')
+                            : t('instanceDetail.modFilterDisabled')}
+                      </button>
+                    ))}
+                  </div>
+                  <Tooltip content={t('instanceDetail.openModsFolder')}>
+                    <Button variant="secondary" size="sm" onClick={() => handleOpenSubFolder('mods')}>
+                      <Icon name="settings" size={12} />
+                    </Button>
+                  </Tooltip>
+                  <span className={styles.modCount}>
+                    {filteredMods.length} / {installedMods.length}
+                  </span>
+                </div>
+              )}
+
+              {/* Mod 列表 */}
+              {filteredMods.length === 0 ? (
+                <div className={styles.placeholderTab}>{t('instanceDetail.noModsMatched')}</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {filteredMods.map((mod) => {
+                    const isDisabled = mod.enabled === false;
+                    const isSelected = selectedMods.has(mod.filename);
+                    return (
+                      <div
+                        key={mod.filename}
+                        className={`${styles.modRow} ${isDisabled ? styles.modRowDisabled : ''} ${isSelected ? styles.modRowSelected : ''}`}
+                      >
+                        <label className={styles.modCheckbox} onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleModSelection(mod.filename)}
+                          />
+                        </label>
+                        <div className={styles.modRow__info}>
+                          <div className={styles.modRow__name}>{mod.filename}</div>
+                          <div className={styles.modRow__meta}>
+                            {t('instanceDetail.modSize', {
+                              size: (mod.size / 1024).toFixed(1),
+                              date: new Date(mod.installed_at).toLocaleDateString(),
+                            })}
+                            {mod.slug && ` · ${mod.slug}`}
+                            {mod.source && ` · ${mod.source}`}
+                          </div>
+                        </div>
+                        <div className={styles.modRow__actions}>
+                          {mod.pinned && <Badge variant="accent">PIN</Badge>}
+                          {isDisabled && <Badge variant="muted">{t('library.disable')}</Badge>}
+                          <Tooltip content={t('instanceDetail.modInfo')}>
+                            <Button variant="secondary" size="sm" onClick={() => setModInfoTarget(mod)}>
+                              <Icon name="lightbulb" size={12} />
+                            </Button>
+                          </Tooltip>
+                          <Button
+                            variant={isDisabled ? 'primary' : 'secondary'}
+                            size="sm"
+                            disabled={togglingMod === mod.filename}
+                            onClick={() => handleToggleMod(mod.filename)}
+                          >
+                            {togglingMod === mod.filename
+                              ? <Icon name="hourglass" size={12} />
+                              : isDisabled ? t('library.enable') : t('library.disable')}
+                          </Button>
+                          <Button variant="danger" size="sm" onClick={() => setRemoveModTarget(mod.filename)}>
+                            <Icon name="trash" size={12} />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'saves' && (
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* 顶部操作栏（参考 HMCL WorldListPage） */}
+          <div className={styles.savesToolbar}>
+            <Button variant="secondary" size="sm" onClick={handleImportWorld}>
+              <Icon name="download" size={14} /> {t('instanceDetail.importWorld')}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={refreshWorlds}>
+              <Icon name="arrowCurveLeft" size={14} /> {t('common.refresh') || 'Refresh'}
+            </Button>
+          </div>
+
+          {/* 存档列表 */}
+          {worlds.length === 0 ? (
+            <div className={styles.placeholderTab}>{t('instanceDetail.noSaves')}</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {worlds.map((world) => (
                 <div
-                  key={mod.filename}
-                  style={{
-                    background: '#141414',
-                    border: '1px solid #1C1C1C',
-                    padding: '10px 14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
+                  key={world.name}
+                  className={styles.worldRow}
+                  onContextMenu={(e) => handleShowWorldMenu(e, world)}
                 >
-                  <div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6em', color: '#FFF' }}>
-                      {mod.filename}
+                  <div className={styles.worldRow__info}>
+                    <div className={styles.worldRow__name}>
+                      <Icon name="globe" size={14} /> {world.name}
                     </div>
-                    <div style={{ fontSize: '0.5em', color: '#666', marginTop: 2 }}>
-                      {t('instanceDetail.modSize', {
-                        size: (mod.size / 1024).toFixed(1),
-                        date: new Date(mod.installed_at).toLocaleDateString(),
-                      })}
+                    <div className={styles.worldRow__meta}>
+                      {world.game_mode} · {world.difficulty} · {world.size_mb.toFixed(1)} MB
+                      {world.last_played && ` · ${relativeTime(world.last_played)}`}
+                      {world.version_name && ` · ${world.version_name}`}
+                    </div>
+                  </div>
+                  <div className={styles.worldRow__badges}>
+                    {world.seed != null && <Badge variant="muted">Seed: {world.seed}</Badge>}
+                    {world.hardcore && <Badge variant="accent">Hardcore</Badge>}
+                  </div>
+                  <div className={styles.worldRow__actions}>
+                    {/* 主操作：备份（最常用） */}
+                    <Tooltip content={t('instanceDetail.backupWorld')}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={backingUpWorld === world.name}
+                        onClick={() => handleBackupWorld(world.name)}
+                      >
+                        {backingUpWorld === world.name ? <Icon name="hourglass" size={12} /> : <Icon name="copy" size={12} />}
+                      </Button>
+                    </Tooltip>
+                    {/* 更多操作：右键菜单（参考 HMCL WorldListCell PopupMenu） */}
+                    <Tooltip content={t('instanceDetail.moreActions')}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={(e) => handleShowWorldMenu(e as unknown as React.MouseEvent, world)}
+                      >
+                        <Icon name="settings" size={12} />
+                      </Button>
+                    </Tooltip>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 备份列表（参考 HMCL WorldBackupTask） */}
+          <div className={styles.backupsSection}>
+            <div className={styles.backupsHeader}>
+              <span className={styles.backupsTitle}>
+                {t('instanceDetail.worldBackupsCount', { count: String(worldBackups.length) })}
+              </span>
+            </div>
+            {worldBackups.length === 0 ? (
+              <div className={styles.backupsEmpty}>{t('instanceDetail.noBackups')}</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {worldBackups.map((backup) => (
+                  <div key={backup.filename} className={styles.backupRow}>
+                    <div className={styles.backupRow__info}>
+                      <div className={styles.backupRow__name}>{backup.world_name}</div>
+                      <div className={styles.backupRow__meta}>
+                        {new Date(backup.created_at).toLocaleString('zh-CN', {
+                          year: 'numeric', month: '2-digit', day: '2-digit',
+                          hour: '2-digit', minute: '2-digit',
+                        })}
+                        {' · '}{backup.size_mb.toFixed(1)} MB
+                      </div>
+                      <div className={styles.backupRow__file}>{backup.filename}</div>
+                    </div>
+                    <div className={styles.backupRow__actions}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={restoringBackup === backup.filename}
+                        onClick={() => handleRestoreBackup(backup.filename)}
+                      >
+                        {restoringBackup === backup.filename
+                          ? <Icon name="hourglass" size={12} />
+                          : <><Icon name="arrowCurveLeft" size={12} /> {t('instanceDetail.restoreBackup')}</>}
+                      </Button>
+                      <Button variant="danger" size="sm" onClick={() => handleDeleteBackup(backup.filename)}>
+                        <Icon name="trash" size={12} />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 资源包管理（参考 HMCL VersionPage resourcePackTab） */}
+      {activeTab === 'resourcepacks' && (
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className={styles.savesToolbar}>
+            <Button variant="secondary" size="sm" onClick={() => handleOpenSubFolder('resourcepacks')}>
+              <Icon name="settings" size={14} /> {t('instanceDetail.openFolder')}
+            </Button>
+          </div>
+          {resourcePacksLoading ? (
+            <div className={styles.placeholderTab}>{t('common.loading') || 'Loading...'}</div>
+          ) : resourcePacks.length === 0 ? (
+            <div className={styles.placeholderTab}>{t('instanceDetail.noResourcePacks')}</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {resourcePacks.map((name) => (
+                <div key={name} className={styles.modRow}>
+                  <div className={styles.modRow__info}>
+                    <div className={styles.modRow__name}>
+                      <Icon name="palette" size={14} /> {name}
+                    </div>
+                  </div>
+                  <div className={styles.modRow__actions}>
+                    <Button variant="secondary" size="sm" onClick={() => handleOpenSubFolder(`resourcepacks/${name}`)}>
+                      <Icon name="settings" size={12} />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 投影文件管理（参考 HMCL VersionPage schematicsTab） */}
+      {activeTab === 'schematics' && (
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className={styles.savesToolbar}>
+            <Button variant="secondary" size="sm" onClick={() => handleOpenSubFolder('schematics')}>
+              <Icon name="folder" size={14} /> {t('instanceDetail.openFolder')}
+            </Button>
+          </div>
+          {schematicsLoading ? (
+            <div className={styles.placeholderTab}>{t('common.loading') || 'Loading...'}</div>
+          ) : schematics.length === 0 ? (
+            <div className={styles.placeholderTab}>{t('instanceDetail.noSchematics')}</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {schematics.map((name) => (
+                <div key={name} className={styles.modRow}>
+                  <div className={styles.modRow__info}>
+                    <div className={styles.modRow__name}>
+                      <Icon name="cube" size={14} /> {name}
                     </div>
                   </div>
                 </div>
@@ -869,42 +1524,6 @@ export default function InstanceDetailPage() {
         </div>
       )}
 
-      {activeTab === 'saves' && (
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-          {worlds.length === 0 ? (
-            <div className={styles.placeholderTab}>{t('instanceDetail.noSaves')}</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {worlds.map((world) => (
-                <div
-                  key={world.name}
-                  style={{
-                    background: '#141414',
-                    border: '1px solid #1C1C1C',
-                    padding: '10px 14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6em', color: '#FFF' }}>
-                      <Icon name="globe" size={14} /> {world.name}
-                    </div>
-                    <div style={{ fontSize: '0.5em', color: '#666', marginTop: 2 }}>
-                      {world.game_mode} · {world.difficulty} · {world.size_mb.toFixed(1)} MB
-                      {world.last_played && ` · ${relativeTime(world.last_played)}`}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    {world.seed != null && <Badge variant="muted">Seed: {world.seed}</Badge>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
       {activeTab === 'logs' && (
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -982,7 +1601,7 @@ export default function InstanceDetailPage() {
                       </div>
                       <p className={presetStyles.cardDesc}>{preset.description}</p>
                       <div>
-                        <div className={presetStyles.modsLabel}>Included Mods</div>
+                        <div className={presetStyles.modsLabel}>{t('instanceDetail.includedMods')}</div>
                         <div className={presetStyles.modPills}>
                           {preset.mods.map((mod) => (
                             <span key={mod.slug} className={presetStyles.modPill}>
@@ -1208,16 +1827,16 @@ export default function InstanceDetailPage() {
       {activeTab === 'screenshots' && (
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           {screenshotLoading ? (
-            <p style={{ color: 'var(--color-text-dim)', fontSize: '0.7em', padding: '1em' }}>Loading...</p>
+            <p style={{ color: 'var(--color-text-dim)', fontSize: '0.7em', padding: '1em' }}>{t('instanceDetail.screenshotsLoading')}</p>
           ) : screenshots.length === 0 ? (
-            <p style={{ color: 'var(--color-text-dim)', fontSize: '0.7em', padding: '1em' }}>No screenshots found</p>
+            <p style={{ color: 'var(--color-text-dim)', fontSize: '0.7em', padding: '1em' }}>{t('instanceDetail.noScreenshots')}</p>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
               {screenshots.map((path, i) => (
                 <img
                   key={i}
                   src={path}
-                  alt={`Screenshot ${i + 1}`}
+                  alt={t('instanceDetail.screenshotAlt', { index: String(i + 1) })}
                   style={{
                     width: '100%',
                     aspectRatio: '16/10',
@@ -1299,13 +1918,18 @@ export default function InstanceDetailPage() {
         return (
           <div key={tab.id} className={styles.tabContent}>
             <PluginErrorBoundary pluginId={tab.pluginId}>
-              <Suspense fallback={<div>Loading...</div>}>
+              <Suspense fallback={<div>{t('common.loading')}</div>}>
                 {LazyComponent && <LazyComponent />}
               </Suspense>
             </PluginErrorBoundary>
           </div>
         );
       })}
+
+        </div>
+        {/* ---- End of detailContent ---- */}
+      </div>
+      {/* ---- End of detailLayout ---- */}
 
       {/* Delete modal */}
       <Modal
@@ -1359,7 +1983,7 @@ export default function InstanceDetailPage() {
       <Modal
         open={showLogViewer}
         onClose={() => setShowLogViewer(false)}
-        title="GAME LOG VIEWER"
+        title={t('instanceDetail.gameLogViewer')}
         actions={
           <Button variant="secondary" size="sm" onClick={() => setShowLogViewer(false)}>
             {t('common.cancel') || 'Close'}
@@ -1375,15 +1999,15 @@ export default function InstanceDetailPage() {
       <Modal
         open={showPreLaunchModal}
         onClose={() => setShowPreLaunchModal(false)}
-        title="PRE-LAUNCH CHECK"
+        title={t('instanceDetail.preLaunchCheck')}
         actions={
           <>
             <Button variant="secondary" size="sm" onClick={() => setShowPreLaunchModal(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             {preLaunchReport && preLaunchReport.can_launch && (
               <Button variant="primary" size="sm" onClick={doLaunch}>
-                Launch Anyway
+                {t('instanceDetail.launchAnyway')}
               </Button>
             )}
           </>
@@ -1417,7 +2041,7 @@ export default function InstanceDetailPage() {
           ))}
           {preLaunchReport && !preLaunchReport.can_launch && (
             <div style={{ fontSize: '0.55em', color: '#FF6B6B', marginTop: 8 }}>
-              Cannot launch — fix the issues above before proceeding.
+              {t('instanceDetail.cannotLaunch')}
             </div>
           )}
         </div>
@@ -1429,7 +2053,7 @@ export default function InstanceDetailPage() {
         title="HEALTH CHECK"
         actions={
           <Button variant="primary" size="sm" onClick={() => setHealthModalOpen(false)}>
-            OK
+            {t('common.ok')}
           </Button>
         }
       >
@@ -1478,6 +2102,52 @@ export default function InstanceDetailPage() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={!!removeModTarget}
+        onClose={() => setRemoveModTarget(null)}
+        title={t('library.removeMod')}
+        actions={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setRemoveModTarget(null)}>
+              {t('library.cancel')}
+            </Button>
+            <Button variant="danger" size="sm" onClick={handleRemoveMod}>
+              {t('library.remove')}
+            </Button>
+          </>
+        }
+      >
+        <p style={{ fontSize: '0.6em', color: 'var(--color-text-secondary)' }}>
+          {t('library.removeConfirm', { name: removeModTarget || '' })}
+        </p>
+      </Modal>
+
+      {/* 模组详情对话框（参考 HMCL ModInfoDialog） */}
+      <Modal
+        open={!!modInfoTarget}
+        onClose={() => setModInfoTarget(null)}
+        title={t('instanceDetail.modInfo')}
+        actions={
+          <Button variant="secondary" size="sm" onClick={() => setModInfoTarget(null)}>
+            {t('common.ok')}
+          </Button>
+        }
+      >
+        {modInfoTarget && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 360 }}>
+            <div style={{ fontSize: '0.7em', fontFamily: 'var(--font-mono)', color: '#FFF', wordBreak: 'break-all' }}>
+              {modInfoTarget.filename}
+            </div>
+            <InfoRow label={t('instanceDetail.modStatus')} value={modInfoTarget.enabled === false ? t('library.disable') : t('library.enable')} />
+            <InfoRow label={t('instanceDetail.modSizeLabel')} value={`${(modInfoTarget.size / 1024).toFixed(1)} KB`} mono />
+            <InfoRow label={t('instanceDetail.modInstalledAt')} value={new Date(modInfoTarget.installed_at).toLocaleString()} />
+            {modInfoTarget.slug && <InfoRow label="Slug" value={modInfoTarget.slug} mono />}
+            {modInfoTarget.source && <InfoRow label={t('instanceDetail.modSource')} value={modInfoTarget.source} />}
+            {modInfoTarget.pinned && <InfoRow label={t('instanceDetail.modPinned')} value={t('common.yes')} />}
           </div>
         )}
       </Modal>

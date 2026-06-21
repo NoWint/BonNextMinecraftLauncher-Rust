@@ -2,3 +2,5 @@ export { zzzThemePlugin, getThemeService } from './ZZZThemePlugin';
 export { ThemeService } from './ThemeService';
 export type { ThemeInfo, ThemeRule, RuleCondition, ThemeChangeCallback } from './ThemeService';
 export { zzzDarkContribution, zzzLightContribution, zzzOledContribution } from './contributions';
+import manifestJson from './manifest.json';
+export const manifest = manifestJson;

@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { type GameInstance } from '../../../../shared/api';
+import { getLoaderLabel } from '../../../../shared/utils/loader';
 import { Icon } from './Icon';
 import { Badge } from './Status';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './InstanceSelect.module.css';
 
 interface InstanceSelectProps {
@@ -12,22 +14,8 @@ interface InstanceSelectProps {
   filterLoader?: string;
 }
 
-function getLoaderLabel(loaderType: string | null): string {
-  switch (loaderType) {
-    case 'fabric':
-      return 'Fabric';
-    case 'forge':
-      return 'Forge';
-    case 'quilt':
-      return 'Quilt';
-    case 'neoforge':
-      return 'NeoForge';
-    default:
-      return 'Vanilla';
-  }
-}
-
 export function InstanceSelect({ value, onChange, instances, filterVersion, filterLoader }: InstanceSelectProps) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -62,7 +50,7 @@ export function InstanceSelect({ value, onChange, instances, filterVersion, filt
               : '\u{1F4E6}'}
         </div>
         <div className={styles.select__info}>
-          <span className={styles.select__name}>{selected?.name || 'Select instance...'}</span>
+          <span className={styles.select__name}>{selected?.name || t('instanceSelect.placeholder')}</span>
           {selected && (
             <>
               <Badge variant="accent">{selected.version_id}</Badge>
@@ -77,7 +65,7 @@ export function InstanceSelect({ value, onChange, instances, filterVersion, filt
 
       <div className={`${styles.select__dropdown} ${open ? styles['select__dropdown--open'] : ''}`}>
         {filtered.length === 0 ? (
-          <div className={styles.select__empty}>No matching instances</div>
+          <div className={styles.select__empty}>{t('instanceSelect.noMatch')}</div>
         ) : (
           filtered.map((inst) => (
             <div

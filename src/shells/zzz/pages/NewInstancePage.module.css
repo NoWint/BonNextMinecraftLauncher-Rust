@@ -32,7 +32,7 @@
   cursor: pointer;
   text-align: left;
   transition: border-color 0.15s ease, background 0.15s ease;
-  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
+  clip-path: var(--clip-icon);
 }
 
 .templateCard:hover {
@@ -69,7 +69,7 @@
   font-size: 0.5em;
   color: var(--color-accent);
   line-height: 1.4;
-  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  clip-path: var(--clip-small);
 }
 
 .divider {
@@ -117,7 +117,7 @@
   gap: 8px;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
-  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
+  clip-path: var(--clip-icon);
 }
 
 .launcherCard:hover {
@@ -161,7 +161,7 @@
   padding: 10px 14px;
   background: var(--color-panel);
   border: 1px solid var(--color-panel-alt);
-  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
+  clip-path: var(--clip-icon);
 }
 
 .migrationInfo {
@@ -181,4 +181,165 @@
   font-size: 0.45em;
   color: var(--color-text-muted);
   font-family: var(--font-mono);
+}
+
+/* Advanced settings */
+.advancedToggle {
+  background: transparent;
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-secondary);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.6em;
+  font-family: var(--font-heading);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: border-color 0.15s ease, color 0.15s ease;
+  clip-path: var(--clip-small);
+}
+
+.advancedToggle:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.advancedToggleHint {
+  font-family: var(--font-body);
+  font-size: 0.85em;
+  color: var(--color-text-dim);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: auto;
+  font-weight: 400;
+}
+
+.advancedPanel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  clip-path: var(--clip-small);
+}
+
+.advancedRow {
+  display: flex;
+  gap: 12px;
+}
+
+.advancedField {
+  flex: 1;
+}
+
+.iconRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.iconPath {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-text-muted);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iconClear {
+  background: var(--color-panel-alt);
+  border: none;
+  color: var(--color-text-dim);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.iconClear:hover {
+  color: var(--color-error);
+}
+
+.iconHint {
+  font-size: 0.45em;
+  color: var(--color-text-dim);
+  margin-top: 4px;
+  display: block;
+}
+
+/* Version toolbar (HMCL-style filter + search) */
+.versionToolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.versionFilterGroup {
+  display: flex;
+  gap: 4px;
+  background: var(--color-panel);
+  padding: 2px;
+  border: 1px solid var(--color-panel-alt);
+  clip-path: var(--clip-small);
+}
+
+.versionFilterBtn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  padding: 4px 10px;
+  font-size: 0.55em;
+  font-family: var(--font-heading);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.versionFilterBtn:hover {
+  color: var(--color-text);
+}
+
+.versionFilterBtnActive {
+  background: var(--color-accent);
+  color: var(--color-bg);
+}
+
+.versionSearch {
+  flex: 1;
+  min-width: 120px;
+}
+
+.versionStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-panel-alt);
+  color: var(--color-text-muted);
+  font-size: 0.55em;
+  clip-path: var(--clip-small);
+}
+
+.versionError {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-error);
+  color: var(--color-error);
+  font-size: 0.55em;
+  clip-path: var(--clip-small);
+  flex-wrap: wrap;
 }

@@ -473,7 +473,7 @@ dependencies = [
 
 [[package]]
 name = "bonnext"
-version = "0.0.6"
+version = "1.0.0"
 dependencies = [
  "aes-gcm",
  "axum",
@@ -4962,11 +4962,6 @@ dependencies = [
 [[package]]
 name = "sha1-asm"
 version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "286acebaf8b67c1130aedffad26f594eff0c1292389158135327d2e23aed582b"
-dependencies = [
- "cc",
-]
 
 [[package]]
 name = "sha1_smol"

@@ -11,7 +11,7 @@ export function EditorContentArea({ node }: EditorContentAreaProps) {
     <div style={{
       flex: 1,
       padding: '16px',
-      background: 'var(--bg-primary, #0d0d0d)',
+      background: 'var(--color-bg, #0d0d0d)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',

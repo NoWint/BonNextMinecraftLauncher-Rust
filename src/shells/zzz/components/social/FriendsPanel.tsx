@@ -54,7 +54,7 @@ export default function FriendsPanel({ isOpen, onClose }: FriendsPanelProps) {
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
           >
             <div className={styles.header}>
-              <span className={styles.title}>{myPeerId || 'Social'}</span>
+              <span className={styles.title}>{myPeerId || t('social.panel.defaultTitle')}</span>
               <button className={styles.closeBtn} onClick={onClose}>
                 ✕
               </button>
@@ -65,9 +65,9 @@ export default function FriendsPanel({ isOpen, onClose }: FriendsPanelProps) {
                 <div className={styles.discoverySection}>
                   <button
                     className={`${styles.discoveryBtn} ${isDiscovering ? styles.active : ''}`}
-                    onClick={() => (isDiscovering ? stopDiscovery() : startDiscovery(myPeerId || 'BonNext User'))}
+                    onClick={() => (isDiscovering ? stopDiscovery() : startDiscovery(myPeerId || t('social.discovery.defaultDisplayName')))}
                   >
-                    {isDiscovering ? '\u{1F7E2} ' + t('sidebar.signalOnAir') : '\u{26AA} ' + 'OFFLINE'}
+                    {isDiscovering ? '\u{1F7E2} ' + t('sidebar.signalOnAir') : '\u{26AA} ' + t('social.status.offline')}
                   </button>
                   {isDiscovering && discoveredPeers.length > 0 && (
                     <div className={styles.discoveredSection}>

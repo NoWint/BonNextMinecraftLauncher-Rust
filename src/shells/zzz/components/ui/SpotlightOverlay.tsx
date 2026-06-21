@@ -150,6 +150,9 @@ export function SpotlightOverlay({ step, steps, onNext, onSkip }: Props) {
 
   useEffect(() => {
     if (!currentStep || !visible) return;
+    // 关键修改：不再拦截非高亮元素的点击。
+    // 用户可以自由操作页面（导航、滚动、点击按钮），
+    // 仅当点击高亮元素时才推进到下一步。
     const handler = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const match = target.closest(currentStep.selector);
@@ -160,39 +163,29 @@ export function SpotlightOverlay({ step, steps, onNext, onSkip }: Props) {
       }
     };
 
-    const captureHandler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('[data-spotlight-tooltip]')) return;
-      if (!target.closest(currentStep.selector)) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-      }
-    };
-
-    document.addEventListener('click', captureHandler, true);
     document.addEventListener('mousedown', handler, false);
 
     return () => {
-      document.removeEventListener('click', captureHandler, true);
       document.removeEventListener('mousedown', handler, false);
     };
   }, [currentStep, visible, step, onNext]);
 
   if (!currentStep) return null;
 
+  // 关键修改：不再使用全屏遮罩（boxShadow 9999px）遮盖页面，
+  // 改为仅在高亮元素周围绘制发光边框 + 指向式 tooltip，
+  // 用户可以正常看到并操作后面的页面。
   const spotlightStyle = rect ? {
-    boxShadow: `0 0 0 9999px rgba(0, 0, 0, 0.75)`,
-    top: rect.top - 4,
-    left: rect.left - 4,
-    width: rect.width + 8,
-    height: rect.height + 8,
+    top: rect.top - 6,
+    left: rect.left - 6,
+    width: rect.width + 12,
+    height: rect.height + 12,
     opacity: 1,
   } : { opacity: 0 };
 
   return createPortal(
     <div className={styles.container}>
-      <div className={styles.overlayBg} />
+      {/* 不再渲染全屏遮罩背景，保留页面可见可操作 */}
       {rect && (
         <div className={styles.spotlight} style={spotlightStyle} />
       )}

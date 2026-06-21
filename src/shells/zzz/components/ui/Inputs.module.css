@@ -5,7 +5,7 @@
   color: var(--color-text);
   font-family: var(--font-body);
   font-size: 0.7em;
-  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
+  clip-path: var(--clip-icon);
   outline: none;
   width: 100%;
   transition: border-color var(--transition-fast);
@@ -26,11 +26,11 @@
   color: var(--color-text);
   font-family: var(--font-body);
   font-size: 0.7em;
-  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
+  clip-path: var(--clip-icon);
   outline: none;
   cursor: pointer;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 32px;
@@ -102,13 +102,13 @@
   &.checkbox--on {
     background: var(--color-accent);
     color: var(--color-bg);
-    clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+    clip-path: var(--clip-badge);
   }
 
   &.checkbox--off {
     background: var(--color-panel-alt);
     border: 1px solid var(--color-border-light);
-    clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+    clip-path: var(--clip-badge);
   }
 
   &:focus-visible {
@@ -140,7 +140,7 @@
   width: 12px;
   height: 12px;
   background: var(--color-accent);
-  clip-path: polygon(0 0, calc(100% - 2px) 0, 100% 2px, 100% 100%, 0 100%);
+  clip-path: var(--clip-badge);
   cursor: grab;
 
   &:active {

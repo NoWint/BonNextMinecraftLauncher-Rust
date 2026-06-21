@@ -10,7 +10,7 @@ export function EditorLaunchPanel({ node }: EditorLaunchPanelProps) {
   return (
     <div style={{
       padding: '16px',
-      background: 'var(--bg-card, #1a1a1a)',
+      background: 'var(--color-panel-alt, #1a1a1a)',
       borderRadius: '8px',
       display: 'flex',
       flexDirection: 'column',
@@ -19,7 +19,7 @@ export function EditorLaunchPanel({ node }: EditorLaunchPanelProps) {
       {showInstanceSelect && (
         <div style={{
           padding: '8px 12px',
-          background: 'var(--bg-secondary, #141414)',
+          background: 'var(--color-panel, #141414)',
           borderRadius: '6px',
           fontSize: '12px',
           color: 'var(--editor-text-secondary, #8e8e93)',

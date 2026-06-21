@@ -1,5 +1,6 @@
 import { TextInput, Select } from '../ui';
 import { Icon } from '../ui/Icon';
+import { useI18n } from '../../../../shared/i18n';
 import { type ContentType, type DataSource, GAME_VERSIONS, LOADER_OPTIONS, SORT_OPTIONS, TAGS_BY_TYPE } from './types';
 import styles from './FilterBar.module.css';
 
@@ -38,6 +39,7 @@ export default function FilterBar({
   onLoaderChange,
   onSortChange,
 }: FilterBarProps) {
+  const { t } = useI18n();
   const tags = TAGS_BY_TYPE[contentType] || [];
   const hasActiveFilters = !!(searchQuery || selectedTags.length > 0 || gameVersion || loader);
 
@@ -46,7 +48,7 @@ export default function FilterBar({
       <div className={styles.searchRow}>
         <div className={styles.searchInput}>
           <TextInput
-            placeholder={`Search ${contentType}s, modpacks, shaders...`}
+            placeholder={t('marketplace.searchPlaceholder', { type: contentType })}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && onSearchSubmit()}
@@ -57,13 +59,13 @@ export default function FilterBar({
             className={`${styles.sourceBtn} ${source === 'modrinth' ? styles['sourceBtn--active'] : ''}`}
             onClick={() => onSourceChange('modrinth')}
           >
-            MODRINTH
+            {t('marketplace.modrinth')}
           </button>
           <button
             className={`${styles.sourceBtn} ${source === 'curseforge' ? styles['sourceBtn--active'] : ''}`}
             onClick={() => onSourceChange('curseforge')}
           >
-            CURSEFORGE
+            {t('marketplace.curseforge')}
           </button>
         </div>
       </div>
@@ -80,7 +82,7 @@ export default function FilterBar({
         ))}
         {hasActiveFilters && (
           <button className={styles.tag} onClick={onClearTags}>
-            <Icon name="cross" size={12} /> Clear filters
+            <Icon name="cross" size={12} /> {t('marketplace.clearFilters')}
           </button>
         )}
       </div>
@@ -91,7 +93,7 @@ export default function FilterBar({
             value={gameVersion}
             onChange={(e) => onVersionChange(e.target.value)}
             options={[
-              { value: '', label: 'All versions' },
+              { value: '', label: t('marketplace.allVersions') },
               ...GAME_VERSIONS.filter(Boolean).map((v) => ({ value: v, label: v })),
             ]}
           />

@@ -1,4 +1,5 @@
 import React from 'react';
+import styles from './PluginErrorBoundary.module.css';
 
 interface Props {
   pluginId?: string;
@@ -27,23 +28,14 @@ export class PluginErrorBoundary extends React.Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '1.5em', textAlign: 'center', color: 'var(--text-secondary)' }}>
-          <p style={{ fontSize: '0.9em', marginBottom: '0.5em' }}>Plugin crashed</p>
-          <p style={{ fontSize: '0.75em', color: 'var(--danger, #ff4444)' }}>
+        <div className={styles.errorWrap}>
+          <p className={styles.title}>Plugin crashed</p>
+          <p className={styles.message}>
             {this.state.error?.message ?? 'Unknown error'}
           </p>
           <button
             onClick={() => this.setState({ hasError: false, error: undefined })}
-            style={{
-              marginTop: '0.8em',
-              padding: '0.4em 1em',
-              background: 'var(--accent)',
-              color: '#000',
-              border: 'none',
-              clipPath: 'var(--clip-small)',
-              cursor: 'pointer',
-              fontSize: '0.8em',
-            }}
+            className={styles.retryBtn}
           >
             Retry
           </button>

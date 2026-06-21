@@ -1,0 +1,56 @@
+:root {
+  /* Canvas — pure black, Vision Pro grade */
+  --canvas: #000000;
+  --surface-elevated: #1D1D1F;
+  --surface-2: #2D2D2F;
+  --hairline: rgba(255, 255, 255, 0.1);
+
+  /* Brand accent — electric yellow, minimal use */
+  --accent: #FFE600;
+  --accent-glow: rgba(255, 230, 0, 0.2);
+  --accent-dim: rgba(255, 230, 0, 0.08);
+
+  /* Text hierarchy */
+  --text-primary: #F5F5F7;
+  --text-secondary: #A1A1A6;
+  --text-tertiary: #6E6E73;
+
+  /* Typography */
+  --font-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  --font-text: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  --font-mono: 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Type scale — Apple 9-level */
+  --text-hero: 96px;
+  --text-display: 72px;
+  --text-title: 48px;
+  --text-headline: 32px;
+  --text-body: 17px;
+  --text-caption: 14px;
+
+  /* Spacing — 8px grid */
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --space-5: 48px;
+  --space-6: 64px;
+  --space-7: 96px;
+
+  /* Layout */
+  --container-wide: 1200px;
+  --container-narrow: 980px;
+  --nav-height: 56px;
+
+  /* Breakpoints */
+  --bp-mobile: 640px;
+  --bp-tablet: 768px;
+  --bp-desktop: 1024px;
+  --bp-wide: 1440px;
+
+  /* Motion */
+  --ease-apple: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-slow: 0.8s;
+  --duration-medium: 0.4s;
+  --duration-fast: 0.2s;
+}

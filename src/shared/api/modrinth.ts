@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { emit } from '@tauri-apps/api/event';
 import type { ModResult, ModVersion, ModProjectFull, OptimizationPreset } from './types';
 
 export const searchMods = (query: string, gameVersion?: string, loader?: string, limit?: number, offset?: number) =>
@@ -9,9 +10,13 @@ export const getModDetails = (slug: string) => invoke<ModResult>('get_mod_detail
 export const getModVersions = (slug: string, gameVersion?: string, loader?: string) =>
   invoke<ModVersion[]>('get_mod_versions', { slug, gameVersion, loader });
 export const getVersionById = (versionId: string) => invoke<ModVersion>('get_version_by_id', { versionId });
-export const installMod = (fileUrl: string, filename: string, instanceId: string, sha1?: string) =>
-  invoke<string>('install_mod', { fileUrl, filename, instanceId, sha1 });
-export const installContent = (
+export const installMod = async (fileUrl: string, filename: string, instanceId: string, sha1?: string) => {
+  const result = await invoke<string>('install_mod', { fileUrl, filename, instanceId, sha1 });
+  // 通知插件 EventBus：mod 安装完成（mod-tools 等插件监听此事件）
+  void emit('mod:installed', { instanceId, filename, url: fileUrl, contentType: 'mod' });
+  return result;
+};
+export const installContent = async (
   fileUrl: string,
   filename: string,
   instanceId: string,
@@ -20,7 +25,28 @@ export const installContent = (
   slug?: string,
   versionId?: string,
   source?: string,
-) => invoke<string>('install_content', { fileUrl, filename, instanceId, contentType, sha1, slug, versionId, source });
+) => {
+  const result = await invoke<string>('install_content', {
+    fileUrl,
+    filename,
+    instanceId,
+    contentType,
+    sha1,
+    slug,
+    versionId,
+    source,
+  });
+  void emit('mod:installed', {
+    instanceId,
+    filename,
+    slug,
+    versionId,
+    source,
+    contentType: contentType || 'mod',
+    url: fileUrl,
+  });
+  return result;
+};
 export const getOptimizationPresets = () => invoke<OptimizationPreset[]>('get_optimization_presets_cmd');
 export const applyOptimizationPreset = (instanceId: string, presetId: string) =>
   invoke<{ succeeded: number; failed: number; errors: string[] }>('apply_optimization_preset', {

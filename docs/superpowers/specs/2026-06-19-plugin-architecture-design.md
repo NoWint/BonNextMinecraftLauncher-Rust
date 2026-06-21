@@ -531,3 +531,57 @@ plugin-system-tools = []
 - `src/shared/api/` — 仅保留核心命令的 API 文件
 - `src/shared/stores/` — 仅保留核心 stores（auth, config, instance, toast, theme, download）
 - `src-tauri/src/` 核心模块 — 保留
+
+## 12. 已知设计决策（审查记录 2026-06-20）
+
+本节记录插件架构实现过程中做出的、与原始设计有偏差或需明确说明的决策。
+
+### 12.1 内置插件自动激活，绕过用户权限审批
+
+**决策**: 内置插件（`src/plugins/builtins/`）在应用启动时由 `PluginLoader.loadAndActivateAll()` 自动注册并激活，不经过用户权限审批对话框。
+
+**原因**: 内置插件随应用分发，其权限已由开发者审核，无需再次询问用户。第三方插件（通过 `.zip`/URL 安装）仍需用户在安装/激活时审批权限（见 `PluginManagementSection.tsx`）。
+
+**注意**: 内置插件仍受 `PermissionValidator` 运行时约束 — 其 manifest 中声明的权限决定了 `ctx.invoke`/`ctx.http`/`ctx.fs`/`ctx.events` 的可用范围。仅"审批"步骤被跳过，权限执行并未绕过。
+
+**相关代码**: [PluginLoader.ts](file:///Users/xiatian/Desktop/BonNext/src/plugins/core/PluginLoader.ts)、[PluginManager.ts activateAll()](file:///Users/xiatian/Desktop/BonNext/src/plugins/core/PluginManager.ts)
+
+### 12.2 已安装第三方插件 activate 为空操作（占位）
+
+**决策**: 通过 `list_installed_plugins` 后端命令发现的第三方插件，其 `activate()` 为空操作（no-op），不会执行任何实际功能。
+
+**原因**: 真正的动态 `import()` 加载插件入口 JS 需要打包系统支持（将插件入口打包为可动态加载的模块），当前不具备。为让已安装插件能出现在插件管理 UI 中（展示其 manifest、权限、版本），采用占位 `PluginDefinition`。
+
+**影响**: 已安装的第三方插件在 UI 中可见但无实际效果。待打包系统实现后，`createPlaceholderDefinition()` 应替换为通过 `import()` 加载插件入口模块的真实 definition。
+
+**相关代码**: [PluginLoader.ts createPlaceholderDefinition()](file:///Users/xiatian/Desktop/BonNext/src/plugins/core/PluginLoader.ts)
+
+### 12.3 Social / AI 功能 UI 硬编码在 Shell 中，未插件化
+
+**决策**: Social 功能（好友面板 `FriendsPanel`）直接硬编码在 `src/shells/zzz/` 中，由 `socialStore` 驱动，而非由 social 插件通过 `ctx.registerSidebarItem()` 等注入。AI 功能仅有后端命令（`ai_chat`），前端无任何 UI。
+
+**原因**: 这些功能在插件化重构前已存在于 shell 中，且与 shell 布局深度耦合（如 `FriendsPanel` 作为侧边栏抽屉）。将其迁移为插件注入需要重构 shell 的布局系统，超出本次插件架构审查范围。
+
+**后续**: 待 shell 布局支持插件注入的侧边栏抽屉/面板后，应将 `FriendsPanel` 迁移为 social 插件的 `contributes.sidebar` 贡献项。AI 聊天 UI 应作为独立 ai 插件实现。
+
+**相关代码**: [AppShell.tsx FriendsPanel 引用](file:///Users/xiatian/Desktop/BonNext/src/shells/zzz/AppShell.tsx)、[FriendsPanel.tsx](file:///Users/xiatian/Desktop/BonNext/src/shells/zzz/components/social/FriendsPanel.tsx)
+
+### 12.4 后端命令命名空间映射（COMMAND_NAMESPACE_MAP）
+
+**决策**: 后端 Tauri 命令使用扁平命名（如 `search_mods`、`list_friends`、`ping_server`），未按插件域分组为 `marketplace:search_mods` 等命名空间形式。前端 `PermissionValidator` 通过 `COMMAND_NAMESPACE_MAP` 映射表将扁平命令名映射到插件命名空间，使 `invoke:marketplace` 等权限能匹配实际命令名。
+
+**原因**: 重命名所有后端命令会破坏整个项目（需同步修改 `lib.rs` 注册、所有 `api/*.ts` 调用、所有 React 组件），风险过高。映射表方案以最小改动实现权限校验。
+
+**风险**: 映射表需手动维护 — 新增后端命令时必须同步更新 `COMMAND_NAMESPACE_MAP`，否则该命令会被归入 `core` 命名空间（默认放行）。
+
+**相关代码**: [PermissionValidator.ts COMMAND_NAMESPACE_MAP](file:///Users/xiatian/Desktop/BonNext/src/plugins/core/PermissionValidator.ts)
+
+### 12.5 Cargo plugin-* feature flags 为预留，未实际使用
+
+**决策**: `src-tauri/Cargo.toml` 定义了 7 个 `plugin-*` feature（marketplace/social/ai/servers/security/mod-tools/system-tools），全部包含在 `default` 中，但代码中无任何 `#[cfg(feature = "plugin-*")]` 使用。
+
+**原因**: 这些 feature 为未来"最小核心构建"预留 — 届时可通过 `--no-default-features` 构建仅含核心功能的精简版，再按需启用插件域 feature。当前所有功能默认全开，无需条件编译。
+
+**后续**: 实现精简构建时，需在 `lib.rs` 的 `invoke_handler!` 宏中按 feature 门控各域命令注册（需将单个宏调用拆分为多个条件块）。
+
+**相关代码**: [Cargo.toml features](file:///Users/xiatian/Desktop/BonNext/src-tauri/Cargo.toml)

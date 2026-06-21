@@ -11,7 +11,7 @@
   flex-direction: column;
   gap: 10px;
   padding: 14px 18px;
-  box-shadow: 0 0 30px rgba(255, 68, 68, 0.1);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--color-error) 10%, transparent);
   animation: slide-in-right 0.35s var(--ease-out-expo);
 }
 
@@ -62,21 +62,21 @@
 }
 
 .severity--critical {
-  background: rgba(255, 68, 68, 0.15);
+  background: color-mix(in srgb, var(--color-error) 15%, transparent);
   color: var(--color-error);
-  border: 1px solid rgba(255, 68, 68, 0.3);
+  border: 1px solid color-mix(in srgb, var(--color-error) 30%, transparent);
 }
 
 .severity--warning {
-  background: rgba(255, 165, 0, 0.12);
-  color: orange;
-  border: 1px solid rgba(255, 165, 0, 0.3);
+  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  color: var(--color-warning);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 30%, transparent);
 }
 
 .severity--info {
-  background: rgba(72, 219, 251, 0.1);
-  color: #48dbfb;
-  border: 1px solid rgba(72, 219, 251, 0.25);
+  background: color-mix(in srgb, var(--color-info) 10%, transparent);
+  color: var(--color-info);
+  border: 1px solid color-mix(in srgb, var(--color-info) 25%, transparent);
 }
 
 .summary {
@@ -89,7 +89,7 @@
 .fixBtn {
   width: 100%;
   background: var(--color-error);
-  color: #fff;
+  color: var(--color-text);
   border: none;
   clip-path: var(--clip-medium);
   padding: 10px 0;
@@ -103,7 +103,7 @@
 
 .fixBtn:hover {
   filter: brightness(1.15);
-  box-shadow: 0 0 16px rgba(255, 68, 68, 0.25);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--color-error) 25%, transparent);
 }
 
 .dismissBtn {

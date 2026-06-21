@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Check, X, Info, AlertTriangle } from 'lucide-react';
 import { useToast, type Toast } from '../../../../shared/stores/toastStore';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './Toast.module.css';
 
 const ICONS: Record<Toast['type'], React.ReactNode> = {
@@ -12,6 +13,7 @@ const ICONS: Record<Toast['type'], React.ReactNode> = {
 
 function ToastItem({ toast }: { toast: Toast }) {
   const { removeToast } = useToast();
+  const { t } = useI18n();
   const [exiting, setExiting] = useState(false);
   const isError = toast.type === 'error';
 
@@ -32,7 +34,7 @@ function ToastItem({ toast }: { toast: Toast }) {
         <div className={styles.title}>{toast.title}</div>
         {toast.message && <div className={styles.message}>{toast.message}</div>}
       </div>
-      <button className={styles.close} aria-label="Close" onClick={(e) => { e.stopPropagation(); handleDismiss(); }}>
+      <button className={styles.close} aria-label={t('toast.closeAriaLabel')} onClick={(e) => { e.stopPropagation(); handleDismiss(); }}>
         <X size={12} />
       </button>
     </div>

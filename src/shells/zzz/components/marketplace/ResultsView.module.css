@@ -96,7 +96,7 @@
 .skeletonCard__line {
   height: 10px;
   background: var(--color-panel-alt);
-  border-radius: 0;
+  clip-path: var(--clip-badge);
   animation: skeleton-shimmer 1.5s ease-in-out infinite;
 }
 

@@ -49,7 +49,7 @@
   width: 40px;
   height: 40px;
   background: var(--color-accent);
-  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  clip-path: var(--clip-diamond);
 }
 
 .logoText {

@@ -1,10 +1,10 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .loadingWrap {
@@ -19,7 +19,7 @@
   height: 40px;
   border: 2px solid var(--color-border-light);
   border-top-color: var(--color-accent);
-  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  clip-path: var(--clip-small);
   animation: spin-clip 0.8s linear infinite;
 }
 
@@ -43,7 +43,7 @@
   width: 48px;
   height: 48px;
   background: var(--color-panel-alt);
-  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  clip-path: var(--clip-medium);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -61,17 +61,17 @@
 
 .topBarIcon:hover {
   border-color: var(--color-accent);
-  box-shadow: 0 0 12px rgba(255, 230, 0, 0.15);
+  box-shadow: 0 0 12px var(--color-accent-15);
 }
 
 .topBarIconSuccess {
   border-color: var(--color-success);
-  box-shadow: 0 0 12px rgba(0, 255, 136, 0.2);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-success) 20%, transparent);
 }
 
 .topBarIconError {
   border-color: var(--color-error);
-  box-shadow: 0 0 12px rgba(255, 60, 60, 0.2);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-error) 20%, transparent);
 }
 
 .topBarIconLoading {
@@ -264,6 +264,51 @@
   font-size: 0.7em;
 }
 
+.modRow {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  transition: border-color 0.15s ease;
+}
+
+.modRow:hover {
+  border-color: var(--color-border-light);
+}
+
+.modRow--disabled {
+  opacity: 0.55;
+}
+
+.modRow__info {
+  min-width: 0;
+  flex: 1;
+}
+
+.modRow__name {
+  font-family: var(--font-mono);
+  font-size: 0.6em;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.modRow__meta {
+  font-size: 0.5em;
+  color: var(--color-text-dim);
+  margin-top: 2px;
+}
+
+.modRow__actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .snapshotsTab {
   flex: 1;
   display: flex;
@@ -296,7 +341,7 @@
   outline: none;
   flex: 1;
   max-width: 320px;
-  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  clip-path: var(--clip-small);
 }
 
 .snapshotInput::placeholder {
@@ -330,7 +375,7 @@
   padding: 10px 12px;
   background: var(--color-panel);
   border: 1px solid var(--color-panel-alt);
-  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+  clip-path: var(--clip-badge);
   transition: background 0.15s ease;
 }
 
@@ -407,7 +452,7 @@
 }
 
 .migrateSelect {
-  background: #0a0a0a;
+  background: var(--color-panel);
   border: 1px solid var(--color-border-light);
   color: var(--color-text);
   font-family: var(--font-mono);
@@ -425,7 +470,7 @@
 }
 
 .migrateSelect option {
-  background: #141414;
+  background: var(--color-panel);
   color: var(--color-text);
 }
 
@@ -485,9 +530,9 @@
 }
 
 .badgeGreen {
-  background: rgba(0, 255, 136, 0.12);
-  color: #00ff88;
-  border: 1px solid rgba(0, 255, 136, 0.3);
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  color: var(--color-success);
+  border: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent);
   clip-path: var(--clip-badge);
   padding: 2px 10px;
   font-size: 0.45em;
@@ -498,9 +543,9 @@
 }
 
 .badgeYellow {
-  background: rgba(255, 230, 0, 0.12);
-  color: #ffe600;
-  border: 1px solid rgba(255, 230, 0, 0.3);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent-30);
   clip-path: var(--clip-badge);
   padding: 2px 10px;
   font-size: 0.45em;
@@ -511,9 +556,9 @@
 }
 
 .badgeGray {
-  background: rgba(170, 170, 170, 0.12);
-  color: #aaaaaa;
-  border: 1px solid rgba(170, 170, 170, 0.3);
+  background: color-mix(in srgb, var(--color-text-dim) 12%, transparent);
+  color: var(--color-text-secondary);
+  border: 1px solid color-mix(in srgb, var(--color-text-dim) 30%, transparent);
   clip-path: var(--clip-badge);
   padding: 2px 10px;
   font-size: 0.45em;
@@ -746,4 +791,421 @@
   50% {
     border-color: var(--color-border-light);
   }
+}
+
+/* ── 配置继承开关（usesGlobal） ── */
+.configToggle {
+  width: 36px;
+  height: 18px;
+  border-radius: 9px;
+  border: 1px solid var(--color-border-light);
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  padding: 0;
+}
+
+.configToggleOn {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.configToggleOff {
+  background: var(--color-panel-alt);
+  border-color: var(--color-border-light);
+}
+
+.configToggleKnob {
+  position: absolute;
+  top: 1px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-text);
+  transition: left 0.2s ease;
+}
+
+.configToggleOn .configToggleKnob {
+  left: 19px;
+  background: var(--color-bg);
+}
+
+.configToggleOff .configToggleKnob {
+  left: 1px;
+}
+
+/* ── Mods 搜索/过滤工具栏 ── */
+.modToolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+.modSearchWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  padding: 4px 10px;
+  clip-path: var(--clip-small);
+  flex: 1;
+  min-width: 180px;
+  max-width: 280px;
+  color: var(--color-text-dim);
+}
+
+.modSearchInput {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+  flex: 1;
+  min-width: 0;
+}
+
+.modSearchInput::placeholder {
+  color: var(--color-text-dim);
+}
+
+.modSearchClear {
+  background: transparent;
+  border: none;
+  color: var(--color-text-dim);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+}
+
+.modSearchClear:hover {
+  color: var(--color-error);
+}
+
+.modFilterGroup {
+  display: flex;
+  gap: 2px;
+}
+
+.modFilterBtn {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 0.5em;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: all 0.15s ease;
+}
+
+.modFilterBtn:hover {
+  border-color: var(--color-border-light);
+  color: var(--color-text);
+}
+
+.modFilterBtnActive {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-bg);
+}
+
+.modCount {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--color-text-dim);
+  margin-left: auto;
+}
+
+/* modRowDisabled - camelCase 别名（TSX 使用 styles.modRowDisabled） */
+.modRowDisabled {
+  opacity: 0.55;
+}
+
+/* modRowSelected - 选中态高亮（参考 HMCL ModListCell 选中样式） */
+.modRowSelected {
+  background: rgba(255, 230, 0, 0.08);
+  border-color: rgba(255, 230, 0, 0.4);
+}
+
+/* modCheckbox - 批量选择复选框 */
+.modCheckbox {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.modCheckbox input[type="checkbox"] {
+  width: 12px;
+  height: 12px;
+  cursor: pointer;
+  accent-color: var(--color-accent, #FFE600);
+}
+
+/* ── 存档管理 ── */
+.savesToolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.worldRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  clip-path: var(--clip-small);
+  transition: border-color 0.15s ease;
+}
+
+.worldRow:hover {
+  border-color: var(--color-border-light);
+}
+
+.worldRow__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.worldRow__name {
+  font-family: var(--font-mono);
+  font-size: 0.6em;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.worldRow__meta {
+  font-size: 0.5em;
+  color: var(--color-text-dim);
+  margin-top: 2px;
+}
+
+.worldRow__badges {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.worldRow__actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ── 备份列表 ── */
+.backupsSection {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.backupsHeader {
+  margin-bottom: 8px;
+}
+
+.backupsTitle {
+  font-family: var(--font-heading);
+  font-size: 0.6em;
+  color: var(--color-text-secondary);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.backupsEmpty {
+  font-size: 0.55em;
+  color: var(--color-text-dim);
+  padding: 16px;
+  text-align: center;
+  border: 1px dashed var(--color-border);
+  clip-path: var(--clip-small);
+}
+
+.backupRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border);
+  clip-path: var(--clip-small);
+}
+
+.backupRow:hover {
+  border-color: var(--color-border-light);
+}
+
+.backupRow__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.backupRow__name {
+  font-family: var(--font-mono);
+  font-size: 0.58em;
+  color: var(--color-text);
+}
+
+.backupRow__meta {
+  font-size: 0.48em;
+  color: var(--color-text-dim);
+  margin-top: 2px;
+}
+
+.backupRow__file {
+  font-family: var(--font-mono);
+  font-size: 0.42em;
+  color: var(--color-text-dim);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.backupRow__actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   HMCL VersionPage layout: left sidebar (vertical tabs + bottom toolbar) + right content
+   ========================================================================== */
+
+.detailLayout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.detailSidebar {
+  width: 200px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.detailSidebar__tabs {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detailSidebar__toolbar {
+  flex-shrink: 0;
+  padding: 8px 8px 12px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 垂直标签项 */
+.vTab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.6em;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  clip-path: var(--clip-small);
+  transition: all var(--transition-fast);
+  text-align: left;
+  width: 100%;
+}
+
+.vTab:hover {
+  background: color-mix(in srgb, var(--color-accent) 4%, transparent);
+  color: var(--color-text);
+}
+
+.vTabActive {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  color: var(--color-accent);
+}
+
+/* 侧边栏分类标题 */
+.vTabCategory {
+  font-family: var(--font-heading);
+  font-size: 0.45em;
+  letter-spacing: 2px;
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+  padding: 12px 12px 4px;
+}
+
+/* 底部工具栏按钮 */
+.toolbarBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.6em;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  clip-path: var(--clip-small);
+  transition: all var(--transition-fast);
+  text-align: left;
+  width: 100%;
+}
+
+.toolbarBtn:hover {
+  background: color-mix(in srgb, var(--color-accent) 4%, transparent);
+  color: var(--color-text);
+}
+
+.toolbarBtn--accent {
+  color: var(--color-accent);
+}
+
+.toolbarBtn--accent:hover {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+.toolbarBtn--danger {
+  color: var(--color-error);
+}
+
+.toolbarBtn--danger:hover {
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
+}
+
+/* 右侧内容区 */
+.detailContent {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  padding-right: 4px;
 }

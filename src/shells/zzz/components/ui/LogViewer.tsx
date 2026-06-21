@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import TextComponentRenderer from './TextComponentRenderer';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './LogViewer.module.css';
 
 interface LogLine {
@@ -42,6 +43,7 @@ interface LogViewerProps {
 }
 
 export default function LogViewer({ instanceId, visible }: LogViewerProps) {
+  const { t } = useI18n();
   const [lines, setLines] = useState<LogLine[]>([]);
   const [autoScroll, setAutoScroll] = useState(true);
   const [filter, setFilter] = useState('');
@@ -114,12 +116,12 @@ export default function LogViewer({ instanceId, visible }: LogViewerProps) {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <span className={styles.title}>LOG VIEWER</span>
+        <span className={styles.title}>{t('logViewer.title')}</span>
         <div className={styles.controls}>
           <input
             type="text"
             className={styles.filterInput}
-            placeholder="Filter..."
+            placeholder={t('logViewer.filterPlaceholder')}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
@@ -130,7 +132,7 @@ export default function LogViewer({ instanceId, visible }: LogViewerProps) {
               checked={autoScroll}
               onChange={(e) => setAutoScroll(e.target.checked)}
             />
-            Auto-scroll
+            {t('logViewer.autoScroll')}
           </label>
         </div>
       </div>
@@ -151,13 +153,13 @@ export default function LogViewer({ instanceId, visible }: LogViewerProps) {
         <input
           type="text"
           className={styles.searchInput}
-          placeholder="搜索日志..."
+          placeholder={t('logViewer.searchPlaceholder')}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
       <div className={styles.body} ref={scrollContainerRef} onScroll={handleScroll}>
-        {filtered.length === 0 && <div className={styles.empty}>Waiting for game output...</div>}
+        {filtered.length === 0 && <div className={styles.empty}>{t('logViewer.waiting')}</div>}
         {filtered.map((l) => (
           <div key={l.id} className={styles.line}>
             {l.time && <span className={styles.lineTime}>{l.time}</span>}

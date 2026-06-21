@@ -8,6 +8,10 @@ use std::path::PathBuf;
 
 pub struct LaunchContext {
     pub version: ResolvedVersion,
+    /// 原始版本 ID（用于文件系统路径：version_dir、natives_dir、client JAR、log4j 配置）。
+    /// 当安装 Loader 后 `version.id` 会被改为 loader 版本 ID（如 `fabric-loader-0.15.11-1.21`），
+    /// 但版本文件实际存储在原始版本目录下，因此路径构建必须使用此字段。
+    pub original_version_id: String,
     pub username: String,
     pub uuid: String,
     pub access_token: String,
@@ -41,6 +45,7 @@ pub struct InstanceSettings {
 impl LaunchContext {
     pub fn build(
         version: ResolvedVersion,
+        original_version_id: String,
         username: String,
         uuid: String,
         access_token: String,
@@ -112,7 +117,10 @@ impl LaunchContext {
             paths::get_game_dir()
         };
         let assets_dir = paths::get_assets_dir();
-        let version_dir = paths::get_versions_dir().join(&version.id);
+        // 关键修复：版本目录和 natives 目录必须使用原始版本 ID 构建，
+        // 而非 loader 版本 ID。版本文件（client JAR、log4j 配置、natives）
+        // 都存储在原始版本目录下，使用 loader 版本 ID 会导致路径找不到。
+        let version_dir = paths::get_versions_dir().join(&original_version_id);
         let natives_dir = version_dir.join("natives");
 
         let extra_jvm_args = instance.as_ref().and_then(|i| i.jvm_args.clone())
@@ -123,6 +131,7 @@ impl LaunchContext {
 
         Ok(LaunchContext {
             version,
+            original_version_id,
             username,
             uuid,
             access_token,
@@ -151,6 +160,16 @@ pub async fn build_launch_command(ctx: &LaunchContext) -> Result<Vec<String>, La
 
     cmd.push(format!("-Xms{}m", ctx.min_memory));
     cmd.push(format!("-Xmx{}m", ctx.max_memory));
+
+    // 默认 GC 参数：提升 Minecraft 运行时性能和 GC 效率。
+    // 仅在用户未通过 extra_jvm_args 自定义 GC 时生效（extra_jvm_args 在后面追加，
+    // JVM 以最后出现的 GC 配置为准）。
+    cmd.push("-XX:+UseG1GC".to_string());
+    cmd.push("-XX:+ParallelRefProcEnabled".to_string());
+    cmd.push("-XX:MaxGCPauseMillis=200".to_string());
+    cmd.push("-XX:+UnlockExperimentalVMOptions".to_string());
+    cmd.push("-XX:+DisableExplicitGC".to_string());
+    // Java 17+ 的 ZGC 备选（低延迟），但 G1GC 对 Minecraft 更稳定，保持默认。
 
     if ctx.debug_mode {
         cmd.push(format!("-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:{}", ctx.debug_port));
@@ -215,29 +234,11 @@ pub async fn build_launch_command(ctx: &LaunchContext) -> Result<Vec<String>, La
                         }
                     }
                 }
-            } else if acct.account_type == "microsoft" {
-                if let Some(ref skin_path) = acct.local_skin_path {
-                    if std::path::Path::new(skin_path).exists() {
-                        match crate::auth::skin_server::start_skin_server(
-                            &acct.uuid,
-                            &acct.username,
-                            skin_path,
-                            acct.local_skin_model.as_deref().unwrap_or("default"),
-                            None,
-                        ).await {
-                            Ok(handle) => {
-                                let server_url = format!("http://127.0.0.1:{}", handle.port);
-                                let agent_arg = format!("-javaagent:{}={}", jar_path.to_string_lossy(), server_url);
-                                cmd.push(agent_arg);
-                                crate::auth::skin_server::set_active_handle(handle);
-                            }
-                            Err(e) => {
-                                tracing::warn!("Failed to start local skin server: {}", e);
-                            }
-                        }
-                    }
-                }
             }
+            // 关键修复：Microsoft 账户不再注入 authlib-injector。
+            // authlib-injector 会劫持所有 Mojang/Microsoft 认证请求（sessionserver、api.mojang），
+            // 导致 Microsoft OAuth 令牌验证失败 → 黑屏闪退。
+            // Microsoft 账户应使用官方认证流程。本地皮肤功能仅支持 offline/yggdrasil 账户。
         } else {
             tracing::warn!("authlib-injector.jar not found at {:?}", jar_path);
         }
@@ -266,7 +267,11 @@ pub async fn build_launch_command(ctx: &LaunchContext) -> Result<Vec<String>, La
 
     #[cfg(target_os = "macos")]
     {
-        cmd.push("-Dsun.java2d.metal=true".to_string());
+        // macOS 上 LWJGL3/OpenGL 必须在主线程运行，否则 JVM 在初始化
+        // Cocoa/OpenGL 上下文时立即崩溃（exit code 255）。
+        cmd.push("-XstartOnFirstThread".to_string());
+        // 不强制 -Dsun.java2d.metal=true：macOS 27.0 beta 上 Metal 后端存在
+        // gldCopyBufferSubData bug，让 JVM 自动选择渲染管线更稳定。
     }
 
     let variables = build_template_variables(ctx)?;
@@ -277,7 +282,8 @@ pub async fn build_launch_command(ctx: &LaunchContext) -> Result<Vec<String>, La
 
     if let Some(ref logging) = ctx.version.logging_config {
         let resolved = resolve_template(&logging.argument, &variables);
-        if let Some(local_path) = resolve_logging_path(&logging.argument, &ctx.version.id) {
+        // 关键修复：log4j 配置文件在原始版本目录下，使用 original_version_id 查找。
+        if let Some(local_path) = resolve_logging_path(&logging.argument, &ctx.original_version_id) {
             cmd.push(format!("-Dlog4j.configurationFile={}", local_path));
         } else {
             cmd.push(resolved);
@@ -312,7 +318,8 @@ fn build_classpath(ctx: &LaunchContext) -> Result<String, LauncherError> {
         classpath_paths.push(paths::path_to_string(&lib_path)?);
     }
 
-    let client_jar = ctx.version_dir.join(format!("{}.jar", ctx.version.id));
+    // 关键修复：client JAR 文件名是原始版本 ID（如 1.21.jar），不是 loader 版本 ID。
+    let client_jar = ctx.version_dir.join(format!("{}.jar", ctx.original_version_id));
     classpath_paths.push(paths::path_to_string(&client_jar)?);
 
     Ok(classpath_paths.join(paths::classpath_separator()))
@@ -359,7 +366,8 @@ fn build_classpath_string(ctx: &LaunchContext) -> Result<String, LauncherError> 
         let lib_path = libraries_dir.join(&lib.path);
         classpath_paths.push(paths::path_to_string(&lib_path)?);
     }
-    let client_jar = ctx.version_dir.join(format!("{}.jar", ctx.version.id));
+    // 关键修复：client JAR 文件名是原始版本 ID。
+    let client_jar = ctx.version_dir.join(format!("{}.jar", ctx.original_version_id));
     classpath_paths.push(paths::path_to_string(&client_jar)?);
 
     Ok(classpath_paths.join(paths::classpath_separator()))

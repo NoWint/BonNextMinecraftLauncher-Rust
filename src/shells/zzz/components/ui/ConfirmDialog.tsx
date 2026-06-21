@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from './Button';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './ConfirmDialog.module.css';
 
 export interface ConfirmDialogProps {
@@ -20,9 +21,12 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   title,
   message,
   dangerLevel = 'low',
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
+  confirmText,
+  cancelText,
 }) => {
+  const { t } = useI18n();
+  const finalConfirmText = confirmText ?? t('common.confirm');
+  const finalCancelText = cancelText ?? t('common.cancel');
   const [typed, setTyped] = useState('');
 
   const handleKeyDown = useCallback(
@@ -43,7 +47,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   if (!open) return null;
 
   const requiresTyping = dangerLevel === 'high';
-  const canConfirm = requiresTyping ? typed === confirmText : true;
+  const canConfirm = requiresTyping ? typed === finalConfirmText : true;
 
   const dialogClass = [
     styles.dialog,
@@ -76,16 +80,16 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         </div>
         {requiresTyping && (
           <div className={styles.confirmInputWrapper}>
-            <label className={styles.confirmInputLabel}>Type &quot;{confirmText}&quot; to confirm</label>
+            <label className={styles.confirmInputLabel}>{t('confirmDialog.typeToConfirm', { text: finalConfirmText })}</label>
             <input className={styles.confirmInput} value={typed} onChange={(e) => setTyped(e.target.value)} autoFocus />
           </div>
         )}
         <div className={styles.actions}>
           <Button variant="secondary" size="sm" onClick={onCancel}>
-            {cancelText}
+            {finalCancelText}
           </Button>
           <Button variant={confirmVariant} size="sm" onClick={onConfirm} disabled={!canConfirm}>
-            {confirmText}
+            {finalConfirmText}
           </Button>
         </div>
       </div>

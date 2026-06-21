@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronRight, User, X, Bot, Users } from 'lucide-react';
 import { useI18n } from '../../../../shared/i18n';
-import { StatusDot } from '../ui/Status';
+import { logger } from '../../../../shared/utils/logger';
 import { useSocial } from '../../../../shared/stores/socialStore';
 import { useChat } from '../../../../shared/stores/chatStore';
 import { ShellSwitcher } from '../../../../shared/components/ShellSwitcher';
+import { useTheme, SIDEBAR_WIDTH_MIN, SIDEBAR_WIDTH_MAX } from '../../../../shared/stores/themeStore';
 import styles from './Sidebar.module.css';
 
 interface NavItem {
@@ -34,13 +35,6 @@ const STATUS_COLORS: Record<string, string> = {
   away: 'var(--color-warning)',
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  online: 'ON',
-  offline: 'OFF',
-  gaming: 'PLAY',
-  away: 'AWAY',
-};
-
 export const Sidebar: React.FC<SidebarProps> = ({
   navItems,
   username = 'Player',
@@ -57,10 +51,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const mainItems = navItems.filter((item) => !['settings'].includes(item.id));
   const settingsItem = navItems.find((item) => item.id === 'settings');
 
+  const getStatusLabel = (status: string): string => {
+    switch (status) {
+      case 'online':
+        return t('social.status.onlineShort');
+      case 'offline':
+        return t('social.status.offlineShort');
+      case 'gaming':
+        return t('social.status.gamingShort');
+      case 'away':
+        return t('social.status.awayShort');
+      default:
+        return status;
+    }
+  };
+
   const getIsActive = (path: string) => {
     const current = location.pathname;
-    if (path === '/store' || path === '/mods') {
-      return current === '/store' || current === '/mods' || current.startsWith('/store/');
+    // /store 和 /mods 已重定向到 /versions，激活态统一归到 /versions
+    if (path === '/versions') {
+      return current === '/versions' || current === '/store' || current === '/mods' || current.startsWith('/versions/');
+    }
+    // /store/:type/:slug 内容详情页仍属于 store 范畴
+    if (path === '/store') {
+      return current.startsWith('/store/');
     }
     return current === path || current.startsWith(path + '/');
   };
@@ -69,10 +83,46 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [showAddForm, setShowAddForm] = useState(false);
   const [newFriendId, setNewFriendId] = useState('');
   const [newFriendName, setNewFriendName] = useState('');
+  const { setSidebarWidth } = useTheme();
+  const resizingRef = useRef(false);
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(0);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      resizingRef.current = true;
+      startXRef.current = e.clientX;
+      // 读取当前实际宽度
+      const sidebarEl = document.querySelector(`.${styles.sidebar}`) as HTMLElement | null;
+      startWidthRef.current = sidebarEl ? sidebarEl.offsetWidth : 248;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      const onMove = (ev: MouseEvent) => {
+        if (!resizingRef.current) return;
+        const delta = ev.clientX - startXRef.current;
+        const next = Math.round(
+          Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_WIDTH_MIN, startWidthRef.current + delta))
+        );
+        setSidebarWidth(next);
+      };
+      const onUp = () => {
+        resizingRef.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      };
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    },
+    [setSidebarWidth]
+  );
 
   const handleAddFriend = async () => {
     if (!newFriendId.trim() || !newFriendName.trim()) return;
@@ -81,33 +131,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
       setNewFriendId('');
       setNewFriendName('');
       setShowAddForm(false);
-    } catch {
-      // silently fail
+    } catch (e) {
+      logger.warn('Failed to add friend:', e);
     }
   };
 
   const handleRemoveFriend = async (id: string) => {
     try {
       await removeFriend(id);
-    } catch {
-      // silently fail
+    } catch (e) {
+      logger.warn('Failed to remove friend:', e);
     }
   };
 
   return (
     <aside className={styles.sidebar}>
+      <div
+        className={styles.sidebar__resizer}
+        onMouseDown={handleResizeStart}
+        title={t('settings.sidebarWidth')}
+        role="separator"
+        aria-orientation="vertical"
+      />
       <div className={`${styles.sidebar__logo} float-subtle`}>
         <div className={`${styles.sidebar__logoIcon} neon-flicker`} />
         <span className={styles.sidebar__logoText}>BONNEXT</span>
-        <span className={styles.sidebar__logoVersion}>{t('app.version')}</span>
       </div>
 
-      <div className={styles.sidebar__signal}>
-        <StatusDot status="ready" />
-        <span className={`${styles.sidebar__signalText} cursor-blink`}>{t('sidebar.signalOnAir')}</span>
-      </div>
-
-      <nav className={styles.sidebar__nav} aria-label="Main navigation">
+      <nav className={styles.sidebar__nav} aria-label={t('sidebar.nav.ariaLabel')}>
         {mainItems.map((item) => {
           const isActive = getIsActive(item.path);
           return (
@@ -115,7 +166,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               key={item.id}
               to={item.path}
               className={`${styles.sidebar__navItem} ${isActive ? styles['sidebar__navItem--active'] : ''}`}
-              title={item.shortcut ? `Ctrl+${item.shortcut}` : undefined}
+              title={item.shortcut ? t('sidebar.nav.shortcutTitle', { shortcut: item.shortcut }) : undefined}
               aria-current={isActive ? 'page' : undefined}
             >
               {isActive && (
@@ -139,7 +190,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className={`${styles.sidebar__navItem} ${
                 getIsActive(settingsItem.path) ? styles['sidebar__navItem--active'] : ''
               }`}
-              title={settingsItem.shortcut ? `Ctrl+${settingsItem.shortcut}` : undefined}
+              title={settingsItem.shortcut ? t('sidebar.nav.shortcutTitle', { shortcut: settingsItem.shortcut }) : undefined}
             >
               {getIsActive(settingsItem.path) && (
                 <motion.div
@@ -190,7 +241,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {friend.current_game && <span className={styles.sidebar__friendGame}>{friend.current_game}</span>}
                   {!friend.current_game && (
                     <span className={styles.sidebar__friendStatus}>
-                      {STATUS_LABELS[friend.status] || friend.status}
+                      {getStatusLabel(friend.status)}
                     </span>
                   )}
                 </div>
@@ -263,16 +314,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {onSocialToggle && (
-        <button className={styles.sidebar__aiBtn} onClick={onSocialToggle} title="Social Panel">
+        <button className={styles.sidebar__aiBtn} onClick={onSocialToggle} title={t('sidebar.social.panelTitle')}>
           <Users size={14} />
-          <span className={styles.sidebar__aiBtnText}>{t('social.peerIdLabel') || 'SOCIAL'}</span>
+          <span className={styles.sidebar__aiBtnText}>{t('sidebar.social.label')}</span>
         </button>
       )}
 
       {onAIToggle && (
-        <button className={styles.sidebar__aiBtn} onClick={onAIToggle} title="AI Assistant">
+        <button className={styles.sidebar__aiBtn} onClick={onAIToggle} title={t('sidebar.ai.assistantTitle')}>
           <Bot size={14} />
-          <span className={styles.sidebar__aiBtnText}>AI ASSISTANT</span>
+          <span className={styles.sidebar__aiBtnText}>{t('sidebar.ai.assistantLabel')}</span>
         </button>
       )}
 
@@ -283,8 +334,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <User size={14} />
           </div>
           <div>
-            <div className={styles.sidebar__userName}>{username}</div>
-            <div className={styles.sidebar__userType}>{accountType}</div>
+            <div className={styles.sidebar__userName}>{username || t('sidebar.user.defaultName')}</div>
+            <div className={styles.sidebar__userType}>{accountType || t('sidebar.user.defaultAccountType')}</div>
           </div>
         </div>
       </div>
