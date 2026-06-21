@@ -71,6 +71,11 @@ export function useCameraDolly(
   const startRef = useRef<number>(0);
   const mouseRef = useRef({ x: 0, y: 0 });
   const transitionStartRef = useRef<number | null>(null);
+  // 用 ref 存储回调，避免内联函数每次渲染创建新引用导致 effect 重置转场计时器
+  const onTransitionEndRef = useRef(onTransitionEnd);
+  useEffect(() => {
+    onTransitionEndRef.current = onTransitionEnd;
+  }, [onTransitionEnd]);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -97,7 +102,7 @@ export function useCameraDolly(
         if (transitionStartRef.current === null) transitionStartRef.current = now;
         const elapsed = now - transitionStartRef.current;
         trans = transitionOffset(elapsed, transitionTarget, 1000);
-        if (elapsed >= 1000 && onTransitionEnd) onTransitionEnd();
+        if (elapsed >= 1000 && onTransitionEndRef.current) onTransitionEndRef.current();
       }
       setOffset(
         clampPosition({
@@ -110,7 +115,7 @@ export function useCameraDolly(
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [active, transitionTarget, onTransitionEnd]);
+  }, [active, transitionTarget]);
 
   return offset;
 }
