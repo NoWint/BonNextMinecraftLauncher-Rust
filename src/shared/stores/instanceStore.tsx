@@ -69,7 +69,7 @@ export function InstanceProvider({ children }: { children: React.ReactNode }) {
 
   const deleteInstance = useCallback(
     async (id: string) => {
-      await api.softDeleteInstance(id);
+      await api.deleteInstance(id);
       invalidateCache(['instances', 'config', 'active_account']);
       await reloadInstances();
     },

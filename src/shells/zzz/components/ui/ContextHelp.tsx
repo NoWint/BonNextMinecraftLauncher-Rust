@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './ContextHelp.module.css';
 
 interface ContextHelpProps {
@@ -7,6 +8,7 @@ interface ContextHelpProps {
 }
 
 export function ContextHelp({ content, link }: ContextHelpProps) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -28,7 +30,7 @@ export function ContextHelp({ content, link }: ContextHelpProps) {
 
   return (
     <div className={styles.wrapper} ref={ref}>
-      <button className={styles.icon} onClick={handleClick} aria-label="Help" type="button">
+      <button className={styles.icon} onClick={handleClick} aria-label={t('contextHelp.ariaLabel')} type="button">
         ℹ
       </button>
       {open && (
@@ -42,7 +44,7 @@ export function ContextHelp({ content, link }: ContextHelpProps) {
               rel="noopener noreferrer"
               onClick={() => setOpen(false)}
             >
-              Learn more →
+              {t('contextHelp.learnMore')}
             </a>
           )}
         </div>

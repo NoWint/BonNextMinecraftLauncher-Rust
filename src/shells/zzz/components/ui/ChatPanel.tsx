@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { listen } from '@tauri-apps/api/event';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './ChatPanel.module.css';
 
 interface ChatMessage {
@@ -40,6 +41,7 @@ function formatTime(ts: number): string {
 }
 
 export default function ChatPanel({ maxHeight = 400 }: ChatPanelProps) {
+  const { t } = useI18n();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [collapsed, setCollapsed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -76,7 +78,7 @@ export default function ChatPanel({ maxHeight = 400 }: ChatPanelProps) {
             setCollapsed(false);
           }
         }}
-        aria-label="Expand chat"
+        aria-label={t('chat.expandAriaLabel')}
       >
         <span className={styles.collapsedIcon}>💬</span>
         <span className={styles.collapsedCount}>{messages.length}</span>
@@ -87,19 +89,19 @@ export default function ChatPanel({ maxHeight = 400 }: ChatPanelProps) {
   return (
     <div className={styles.panel} style={{ maxHeight }}>
       <div className={styles.header}>
-        <span className={styles.title}>Chat</span>
+        <span className={styles.title}>{t('chat.title')}</span>
         <div className={styles.headerActions}>
-          <button className={styles.headerBtn} onClick={handleClear} aria-label="Clear chat">
-            Clear
+          <button className={styles.headerBtn} onClick={handleClear} aria-label={t('chat.clearAriaLabel')}>
+            {t('chat.clear')}
           </button>
-          <button className={styles.headerBtn} onClick={() => setCollapsed(true)} aria-label="Collapse chat">
+          <button className={styles.headerBtn} onClick={() => setCollapsed(true)} aria-label={t('chat.collapseAriaLabel')}>
             −
           </button>
         </div>
       </div>
       <div className={styles.messages} ref={scrollRef}>
         {messages.length === 0 ? (
-          <div className={styles.empty}>No chat messages yet. Start a game to see in-game chat.</div>
+          <div className={styles.empty}>{t('chat.empty')}</div>
         ) : (
           messages.map((msg, i) => (
             <div key={i} className={styles.message}>

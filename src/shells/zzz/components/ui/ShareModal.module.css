@@ -27,7 +27,7 @@
   padding: 6px 8px;
   outline: none;
   resize: vertical;
-  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  clip-path: var(--clip-small);
   transition: border-color 150ms;
   line-height: 1.4;
 }

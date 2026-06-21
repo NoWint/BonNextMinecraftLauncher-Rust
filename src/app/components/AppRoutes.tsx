@@ -1,22 +1,24 @@
 // src/app/components/AppRoutes.tsx
 // 统一路由组件：核心路由 + 插件路由
-import React, { Suspense } from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { usePluginRoutes } from '../hooks/usePluginRoutes';
 import { PluginErrorBoundary } from './PluginErrorBoundary';
+import styles from './AppRoutes.module.css';
 
-// 核心页面（直接导入，非懒加载 — 这些是启动器基础功能）
+// 核心页面：HomePage 直接导入（首屏必需），其余懒加载以减小主 bundle。
 import HomePage from '../../shells/zzz/pages/HomePage';
-import InstancesPage from '../../shells/zzz/pages/InstancesPage';
-import InstanceDetailPage from '../../shells/zzz/pages/InstanceDetailPage';
-import NewInstancePage from '../../shells/zzz/pages/NewInstancePage';
-import VersionsPage from '../../shells/zzz/pages/VersionsPage';
-import SettingsPage from '../../shells/zzz/pages/SettingsPage';
 import LoginPage from '../../shells/zzz/pages/LoginPage';
+
+const InstancesPage = lazy(() => import('../../shells/zzz/pages/InstancesPage'));
+const InstanceDetailPage = lazy(() => import('../../shells/zzz/pages/InstanceDetailPage'));
+const NewInstancePage = lazy(() => import('../../shells/zzz/pages/NewInstancePage'));
+const VersionsPage = lazy(() => import('../../shells/zzz/pages/VersionsPage'));
+const SettingsPage = lazy(() => import('../../shells/zzz/pages/SettingsPage'));
 
 function RouteLoading() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--color-text-muted, #888)', fontSize: '0.7em' }}>
+    <div className={styles.loading}>
       Loading...
     </div>
   );
@@ -30,6 +32,9 @@ interface AppRoutesProps {
  * 统一路由组件。
  * 核心路由（home/instances/versions/settings）直接定义，
  * 插件路由（store/servers 等）通过 PluginManager 动态注入。
+ *
+ * 性能：核心路由不等待插件系统就绪即可渲染。插件路由自身有 Suspense，
+ * 会等插件系统加载完成后按需渲染。
  */
 export function AppRoutes({ isAuthenticated }: AppRoutesProps) {
   const pluginRoutes = usePluginRoutes();
@@ -52,6 +57,12 @@ export function AppRoutes({ isAuthenticated }: AppRoutesProps) {
         <Route path="/instances/:id" element={<InstanceDetailPage />} />
         <Route path="/versions" element={<VersionsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+
+        {/* 商店、收藏、内容库已迁入下载中心，重定向到 /versions */}
+        <Route path="/store" element={<Navigate to="/versions" replace />} />
+        <Route path="/mods" element={<Navigate to="/versions" replace />} />
+        <Route path="/collections" element={<Navigate to="/versions" replace />} />
+        <Route path="/library" element={<Navigate to="/versions" replace />} />
 
         {/* 插件路由（由 PluginManager 注入） */}
         {pluginRoutes.map((route) => {

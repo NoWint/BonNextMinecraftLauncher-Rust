@@ -1,5 +1,6 @@
 import type { ServerListEntry } from '../../../../../shared/api/servers';
 import ServerPingBadge from '../ServerPingBadge/ServerPingBadge';
+import { useI18n } from '../../../../../shared/i18n';
 import styles from './ServerCard.module.css';
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function ServerCard({ server, onPing, onFavorite, onRemove }: Props) {
+  const { t } = useI18n();
   const info = server.last_ping_result;
   const latencyMs = server.latency_ms;
   const online = info !== null;
@@ -40,7 +42,7 @@ export default function ServerCard({ server, onPing, onFavorite, onRemove }: Pro
       <div className={styles.actions}>
         <ServerPingBadge online={online} latencyMs={latencyMs} />
         <button className={styles.actionBtn} onClick={() => onPing(server.id)}>
-          PING
+          {t('serverCard.ping')}
         </button>
         <button
           className={styles.favBtn}

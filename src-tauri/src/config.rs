@@ -235,6 +235,8 @@ pub fn save_config(config: &AppConfig) -> Result<(), crate::error::LauncherError
     let content = serde_json::to_string_pretty(&config_for_save)?;
     atomic_write(&path, &content)?;
     invalidate_config_cache();
+    // 用户可能更改了 java_path，清除 Java 检测缓存让下次 find_java 重新扫描。
+    crate::platform::java::invalidate_java_cache();
     Ok(())
 }
 

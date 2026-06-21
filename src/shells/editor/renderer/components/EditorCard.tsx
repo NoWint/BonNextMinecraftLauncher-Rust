@@ -11,7 +11,7 @@ export function EditorCard({ node, renderChildren }: EditorCardProps) {
   return (
     <div style={{
       padding,
-      background: 'var(--bg-card, #1a1a1a)',
+      background: 'var(--color-panel-alt, #1a1a1a)',
       borderRadius: '8px',
       border: '1px solid var(--editor-border, rgba(255,255,255,0.08))',
     }}>

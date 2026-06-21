@@ -80,7 +80,9 @@ export type IconName =
   | 'bat'
   | 'construction'
   | 'wrench'
-  | 'loader';
+  | 'loader'
+  | 'edit'
+  | 'folder';
 
 const paths: Record<IconName, string> = {
   play: 'M8 5v14l11-7z',
@@ -189,6 +191,8 @@ const paths: Record<IconName, string> = {
     'M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67zM11.71 19c-1.78 0-3.22-1.4-3.22-3.14 0-1.62 1.05-2.76 2.81-3.12 1.77-.36 3.6-1.21 4.62-2.58.39 1.29.59 2.65.59 4.04 0 2.65-2.15 4.8-4.8 4.8z',
   wrench: 'M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z',
   loader: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7V7z',
+  edit: 'M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z',
+  folder: 'M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z',
 };
 
 const dotColors: Record<string, string> = {
@@ -204,10 +208,15 @@ interface IconProps {
   size?: number;
   className?: string;
   style?: React.CSSProperties;
+  /** 提供 title 时图标变为语义性图标(role="img" + aria-label),否则默认 aria-hidden */
+  title?: string;
 }
 
-export function Icon({ name, size = 16, className, style }: IconProps) {
+export function Icon({ name, size = 16, className, style, title }: IconProps) {
   const fill = dotColors[name] || 'currentColor';
+  const a11yProps = title
+    ? { role: 'img' as const, 'aria-label': title }
+    : { 'aria-hidden': true as const };
   return (
     <svg
       width={size}
@@ -216,7 +225,9 @@ export function Icon({ name, size = 16, className, style }: IconProps) {
       fill={fill}
       className={className}
       style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}
+      {...a11yProps}
     >
+      {title && <title>{title}</title>}
       <path d={paths[name]} />
     </svg>
   );

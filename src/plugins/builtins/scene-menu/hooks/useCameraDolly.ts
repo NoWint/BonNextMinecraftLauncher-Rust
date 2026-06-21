@@ -98,8 +98,8 @@ export function useCameraDolly(
       if (transitionTarget) {
         if (transitionStartRef.current === null) transitionStartRef.current = now;
         const elapsed = now - transitionStartRef.current;
-        trans = transitionOffset(elapsed, transitionTarget, 1000);
-        if (elapsed >= 1000 && onTransitionEndRef.current) onTransitionEndRef.current();
+        trans = transitionOffset(elapsed, transitionTarget, 1500);
+        if (elapsed >= 1500 && onTransitionEndRef.current) onTransitionEndRef.current();
       }
       setOffset(trans);
       raf = requestAnimationFrame(loop);

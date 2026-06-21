@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { resolveConfirmation } from '../../../../shared/ai/pi';
-import styles from './ConfirmDialog.module.css';
+import { useI18n } from '../../../../shared/i18n';
+import { ConfirmDialog as UIConfirmDialog } from '../ui/ConfirmDialog';
 
 interface PendingConfirm {
   taskId: string;
@@ -9,6 +10,7 @@ interface PendingConfirm {
 }
 
 export const ConfirmDialog: React.FC = () => {
+  const { t } = useI18n();
   const [pending, setPending] = useState<PendingConfirm | null>(null);
 
   useEffect(() => {
@@ -34,16 +36,6 @@ export const ConfirmDialog: React.FC = () => {
     }
   }, [pending]);
 
-  useEffect(() => {
-    if (!pending) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') handleConfirm();
-      if (e.key === 'Escape') handleDeny();
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [pending, handleConfirm, handleDeny]);
-
   if (!pending) return null;
 
   const displayName = pending.toolName
@@ -57,22 +49,15 @@ export const ConfirmDialog: React.FC = () => {
     .join(', ');
 
   return (
-    <div className={styles.overlay}>
-      <div className={styles.dialog}>
-        <div className={styles.warning}>⚠️</div>
-        <div className={styles.title}>Confirm Action</div>
-        <div className={styles.toolName}>{displayName}</div>
-        {argsSummary && <div className={styles.args}>{argsSummary}</div>}
-        <div className={styles.hint}>This action may modify your system.</div>
-        <div className={styles.buttons}>
-          <button className={styles.denyBtn} onClick={handleDeny}>
-            Cancel
-          </button>
-          <button className={styles.confirmBtn} onClick={handleConfirm}>
-            Confirm
-          </button>
-        </div>
-      </div>
-    </div>
+    <UIConfirmDialog
+      open
+      onConfirm={handleConfirm}
+      onCancel={handleDeny}
+      title={t('ai.confirm.title')}
+      message={argsSummary ? `${displayName} — ${argsSummary}` : displayName}
+      dangerLevel="medium"
+      confirmText={t('ai.confirm.confirm')}
+      cancelText={t('ai.confirm.cancel')}
+    />
   );
 };

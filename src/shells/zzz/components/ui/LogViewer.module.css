@@ -1,7 +1,7 @@
 .container {
   display: flex;
   flex-direction: column;
-  background: var(--bg-primary);
+  background: var(--color-bg);
   border: 1px solid var(--color-border-light);
   height: 100%;
   min-height: 300px;
@@ -13,7 +13,7 @@
   align-items: center;
   padding: 6px 12px;
   border-bottom: 1px solid var(--color-border);
-  background: var(--bg-secondary);
+  background: var(--color-panel);
   gap: 8px;
   flex-shrink: 0;
 }
@@ -33,7 +33,7 @@
 }
 
 .filterInput {
-  background: var(--bg-primary);
+  background: var(--color-bg);
   border: 1px solid var(--color-border-mid);
   color: var(--color-text);
   font-family: var(--font-mono);
@@ -120,7 +120,7 @@
   display: flex;
   gap: 0.3em;
   padding: 0.4em 0.6em;
-  background: var(--bg-secondary);
+  background: var(--color-panel);
   border-bottom: 1px solid var(--color-border);
   align-items: center;
   flex-wrap: wrap;
@@ -144,29 +144,29 @@
 }
 
 .filterBtn.level_INFO.active {
-  border-color: #4488ff;
-  color: #4488ff;
+  border-color: var(--color-info);
+  color: var(--color-info);
 }
 
 .filterBtn.level_WARN.active {
-  border-color: #ffaa00;
-  color: #ffaa00;
+  border-color: var(--color-warning);
+  color: var(--color-warning);
 }
 
 .filterBtn.level_ERROR.active {
-  border-color: #ff4444;
-  color: #ff4444;
+  border-color: var(--color-error);
+  color: var(--color-error);
 }
 
 .filterBtn.level_FATAL.active {
-  border-color: #ff0000;
-  color: #ff0000;
+  border-color: var(--color-error);
+  color: var(--color-error);
 }
 
 .searchInput {
   padding: 0.2em 0.5em;
   font-size: 0.7em;
-  background: var(--bg-primary);
+  background: var(--color-bg);
   border: 1px solid var(--color-border-mid);
   color: var(--color-text);
   margin-left: auto;

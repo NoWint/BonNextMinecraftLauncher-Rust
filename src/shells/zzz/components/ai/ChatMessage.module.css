@@ -27,8 +27,8 @@
 }
 
 .message--user .message__bubble {
-  background: linear-gradient(135deg, rgba(72, 219, 251, 0.2), rgba(84, 160, 255, 0.14));
-  color: rgba(255, 255, 255, 0.92);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-info) 20%, transparent), color-mix(in srgb, var(--color-info) 14%, transparent));
+  color: color-mix(in srgb, var(--color-text) 92%, transparent);
   border-radius: 18px 18px 4px 18px;
 }
 
@@ -37,8 +37,8 @@
 }
 
 .message--assistant .message__bubble {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.78);
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+  color: color-mix(in srgb, var(--color-text) 78%, transparent);
   border-radius: 18px 18px 18px 4px;
 }
 
@@ -53,7 +53,7 @@
 
 .message__time {
   font-size: 0.6em;
-  color: rgba(255, 255, 255, 0.15);
+  color: color-mix(in srgb, var(--color-text) 15%, transparent);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
   font-weight: 500;
   margin-top: 3px;
@@ -81,7 +81,7 @@
    ======================================== */
 
 .commandCard {
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
   border-radius: 14px;
   padding: 10px 12px;
   font-size: 0.88em;
@@ -93,15 +93,15 @@
 }
 
 .commandCard--executing {
-  background: rgba(72, 219, 251, 0.08);
-  box-shadow: 0 0 20px rgba(72, 219, 251, 0.04);
+  background: color-mix(in srgb, var(--color-info) 8%, transparent);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-info) 4%, transparent);
 }
 
 .commandCard--executing::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(72, 219, 251, 0.04) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--color-info) 4%, transparent) 50%, transparent 100%);
   animation: shimmer 2s ease-in-out infinite;
   pointer-events: none;
 }
@@ -130,7 +130,7 @@
 }
 
 .commandCard--failed {
-  background: rgba(255, 107, 107, 0.05);
+  background: color-mix(in srgb, var(--color-error) 5%, transparent);
 }
 
 .commandCard__main {
@@ -150,36 +150,36 @@
 }
 
 .commandCard--executing .commandCard__iconWrap {
-  background: rgba(72, 219, 251, 0.12);
+  background: color-mix(in srgb, var(--color-info) 12%, transparent);
 }
 .commandCard--completed .commandCard__iconWrap {
-  background: rgba(72, 219, 251, 0.08);
+  background: color-mix(in srgb, var(--color-info) 8%, transparent);
 }
 .commandCard--failed .commandCard__iconWrap {
-  background: rgba(255, 107, 107, 0.08);
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
 }
 .commandCard--confirmed .commandCard__iconWrap {
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
 }
 
 .spinner {
   width: 11px;
   height: 11px;
-  border: 2px solid rgba(72, 219, 251, 0.2);
-  border-top-color: #48dbfb;
+  border: 2px solid color-mix(in srgb, var(--color-info) 20%, transparent);
+  border-top-color: var(--color-info);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
 
 .checkmark {
-  color: #48dbfb;
+  color: var(--color-info);
   font-size: 0.65em;
   font-weight: 700;
   line-height: 1;
 }
 
 .crossmark {
-  color: #ff6b6b;
+  color: var(--color-error);
   font-size: 0.7em;
   font-weight: 700;
   line-height: 1;
@@ -189,7 +189,7 @@
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
+  background: color-mix(in srgb, var(--color-text) 20%, transparent);
 }
 
 .commandCard__body {
@@ -200,7 +200,7 @@
 .commandCard__label {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
   font-size: 0.72em;
-  color: rgba(255, 255, 255, 0.85);
+  color: color-mix(in srgb, var(--color-text) 85%, transparent);
   font-weight: 600;
   letter-spacing: -0.01em;
   margin-bottom: 2px;
@@ -218,19 +218,19 @@
   align-items: center;
   gap: 3px;
   font-size: 0.62em;
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
   padding: 2px 8px;
   border-radius: 6px;
 }
 
 .commandCard__paramKey {
-  color: rgba(255, 255, 255, 0.35);
+  color: color-mix(in srgb, var(--color-text) 35%, transparent);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
   font-weight: 500;
 }
 
 .commandCard__paramVal {
-  color: rgba(255, 255, 255, 0.6);
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
   font-weight: 500;
 }
@@ -243,16 +243,16 @@
 }
 
 .commandCard__status--executing {
-  color: #48dbfb;
+  color: var(--color-info);
 }
 .commandCard__status--completed {
-  color: #48dbfb;
+  color: var(--color-info);
 }
 .commandCard__status--failed {
-  color: #ff6b6b;
+  color: var(--color-error);
 }
 .commandCard__status--confirmed {
-  color: rgba(255, 255, 255, 0.25);
+  color: color-mix(in srgb, var(--color-text) 25%, transparent);
 }
 
 .commandCard__retryBtn {
@@ -263,14 +263,14 @@
   padding: 4px 12px;
   cursor: pointer;
   border: none;
-  background: rgba(255, 107, 107, 0.12);
-  color: #ff6b6b;
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  color: var(--color-error);
   border-radius: 8px;
   transition: all 0.2s ease;
 }
 
 .commandCard__retryBtn:hover {
-  background: rgba(255, 107, 107, 0.18);
+  background: color-mix(in srgb, var(--color-error) 18%, transparent);
 }
 
 /* ========================================
@@ -288,7 +288,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
+  background: color-mix(in srgb, var(--color-text) 50%, transparent);
   animation: dotBounce 1.4s infinite ease-in-out;
 }
 

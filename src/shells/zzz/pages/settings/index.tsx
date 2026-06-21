@@ -63,7 +63,10 @@ import AchievementDisplay from '../../components/ui/AchievementDisplay';
 import JreManagementSection from './JreManagementSection';
 import { ShellManagementSection } from './ShellManagementSection';
 import { PluginManagementSection } from './PluginManagementSection';
+import { TrustedKeysSection } from './TrustedKeysSection';
+import { AboutSection } from './AboutSection';
 import { PluginErrorBoundary } from '../../../../app/components/PluginErrorBoundary';
+import { usePluginSettingsSections } from '../../../../app/hooks/usePluginSettingsSections';
 
 function getSuitabilityBadge(
   t: (key: string) => string,
@@ -232,12 +235,14 @@ export default function SettingsPage() {
     try {
       await api.deleteVersion(versionId);
       setInstalledVersions((prev) => prev.filter((v) => v.version_id !== versionId));
+      addToast({ type: 'success', title: t('settings.fileMgmt.deleteSuccess', { version: versionId }) });
       api
         .getDiskUsage()
         .then(setDiskUsage)
         .catch(() => {});
     } catch (e: unknown) {
-      alert(formatError(e) || t('settings.fileMgmt.deleteFailed'));
+      const msg = formatError(e) || t('settings.fileMgmt.deleteFailed');
+      addToast({ type: 'error', title: msg });
     } finally {
       setDeletingVersion(null);
     }
@@ -269,7 +274,7 @@ export default function SettingsPage() {
     try {
       const source = localConfig?.java_download_source || 'adoptium';
       await api.downloadJavaVersion(jreDownloadVersion, source);
-      addToast({ type: 'success', title: `Java ${jreDownloadVersion} downloaded` });
+      addToast({ type: 'success', title: t('settings.jre.toast.downloaded', { version: String(jreDownloadVersion) }) });
       api
         .listDownloadedJres()
         .then(setDownloadedJres)
@@ -279,7 +284,7 @@ export default function SettingsPage() {
         .then(setJavaList)
         .catch(() => {});
     } catch (e: unknown) {
-      addToast({ type: 'error', title: 'Download failed', message: formatError(e) });
+      addToast({ type: 'error', title: t('settings.jre.toast.downloadFailed'), message: formatError(e) });
     } finally {
       setJreDownloading(false);
       setJreDownloadProgress(null);
@@ -304,8 +309,11 @@ export default function SettingsPage() {
       await saveConfig(localConfig);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+      addToast({ type: 'success', title: t('settings.saved') });
     } catch (e: unknown) {
-      setError(formatError(e) || 'Save failed');
+      const msg = formatError(e) || t('settings.saveFailed');
+      setError(msg);
+      addToast({ type: 'error', title: msg });
     }
     setSaving(false);
   };
@@ -371,6 +379,8 @@ export default function SettingsPage() {
 
   const sectionKeywords: Record<string, string[]> = useMemo(() => ({
     'sec-account': [t('settings.account'), 'account', 'login', 'microsoft', 'offline', t('settings.logout')],
+    'sec-about': [t('settings.about.title') || 'about', 'update', 'version', 'check update', t('settings.about.checkForUpdates') || 'check for updates'],
+    'sec-troubleshoot': [t('settings.troubleshoot.title') || 'troubleshoot', 'repair', 'fix', 'cache', 'reset', 'diagnose'],
     'sec-skin-station': ['skin', t('settings.skinStation')],
     'sec-language': [t('settings.language'), 'language', 'i18n', 'locale'],
     'sec-theme': [t('settings.theme'), 'theme', 'dark', 'light', 'oled'],
@@ -400,6 +410,7 @@ export default function SettingsPage() {
     'sec-network-security': [t('settings.networkSecurity'), 'network', 'proxy', 'ssl', 'tls'],
     'sec-launch-security': [t('settings.launchSecurity'), 'sandbox', 'jvm whitelist', 'launch security'],
     'sec-api-key-management': [t('settings.apiKeyManagement'), 'api key', 'curseforge', 'cf key'],
+    'sec-trusted-keys': [t('settings.security.trustedKeys'), 'trusted key', 'signature', 'ed25519', 'plugin signature'],
     'sec-security-audit': [t('settings.securityAudit'), 'audit', 'log'],
     'sec-ai-assistant': [t('settings.aiAssistant'), 'ai', 'assistant', 'chat'],
     'sec-achievements': [t('settings.achievements'), 'achievement', 'unlock'],
@@ -431,7 +442,7 @@ export default function SettingsPage() {
       {
         id: 'general',
         label: t('settings.nav.general'),
-        sectionIds: ['sec-account', 'sec-skin-station', 'sec-language', 'sec-theme', 'sec-font-custom', 'sec-guide'],
+        sectionIds: ['sec-account', 'sec-about', 'sec-troubleshoot', 'sec-skin-station', 'sec-language', 'sec-theme', 'sec-font-custom', 'sec-guide'],
       },
       {
         id: 'performance',
@@ -474,6 +485,7 @@ export default function SettingsPage() {
           'sec-network-security',
           'sec-launch-security',
           'sec-api-key-management',
+          'sec-trusted-keys',
           'sec-security-audit',
         ],
       },
@@ -577,6 +589,82 @@ export default function SettingsPage() {
         )}
       </SectionCard>
 
+      <AboutSection />
+
+      {/* 诊断与修复：清理缓存、重置布局、重新加载 */}
+      <SectionCard id="sec-troubleshoot" title={t('settings.troubleshoot.title')}>
+        <div style={{ fontSize: '0.6em', color: 'var(--color-text-muted)', marginBottom: 12 }}>
+          {t('settings.troubleshoot.desc')}
+        </div>
+        <SettingRow label={t('settings.troubleshoot.clearCache')} description={t('settings.troubleshoot.clearCacheDesc')}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              try {
+                // 清理 API 缓存和插件状态相关的 localStorage，保留账号和实例配置
+                const keysToKeep = new Set<string>();
+                for (let i = 0; i < localStorage.length; i++) {
+                  const key = localStorage.key(i);
+                  if (key && (key.startsWith('bonnext:auth') || key.startsWith('bonnext:config') || key.startsWith('bonnext:instances'))) {
+                    keysToKeep.add(key);
+                  }
+                }
+                const keysToRemove: string[] = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                  const key = localStorage.key(i);
+                  if (key && !keysToKeep.has(key) && key.startsWith('bonnext:')) {
+                    keysToRemove.push(key);
+                  }
+                }
+                keysToRemove.forEach((k) => localStorage.removeItem(k));
+                addToast({ type: 'success', title: t('settings.troubleshoot.clearCacheSuccess') });
+              } catch (e) {
+                addToast({ type: 'error', title: String(e) });
+              }
+            }}
+          >
+            {t('settings.troubleshoot.clearCache')}
+          </Button>
+        </SettingRow>
+        <SettingRow label={t('settings.troubleshoot.resetLayout')} description={t('settings.troubleshoot.resetLayoutDesc')}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              try {
+                // 重置界面布局相关的 localStorage 键
+                const layoutKeys = [
+                  'bonnext:theme', 'bonnext:ui-scale', 'bonnext:auto-scale',
+                  'bonnext:animation-speed', 'bonnext:animation-duration',
+                  'bonnext:layout-style', 'bonnext:sidebar-width', 'bonnext:density',
+                  'bonnext:auto-day-night', 'bonnext:home-mode', 'bonnext:home-background',
+                ];
+                layoutKeys.forEach((k) => localStorage.removeItem(k));
+                addToast({ type: 'success', title: t('settings.troubleshoot.resetLayoutSuccess') });
+              } catch (e) {
+                addToast({ type: 'error', title: String(e) });
+              }
+            }}
+          >
+            {t('settings.troubleshoot.resetLayout')}
+          </Button>
+        </SettingRow>
+        <SettingRow label={t('settings.troubleshoot.reloadApp')} description={t('settings.troubleshoot.reloadAppDesc')}>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => {
+              if (window.confirm(t('settings.troubleshoot.confirmReload'))) {
+                window.location.reload();
+              }
+            }}
+          >
+            {t('settings.troubleshoot.reloadApp')}
+          </Button>
+        </SettingRow>
+      </SectionCard>
+
       <SkinStationSection addToast={addToast} />
 
       <SectionCard id="sec-java" title={t('settings.java')}>
@@ -584,15 +672,12 @@ export default function SettingsPage() {
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
               <ContextHelp
-                content={
-                  t('settings.javaPathHelp') ||
-                  'BonNext auto-detects installed Java versions. Select one from the list or browse manually. Java 17+ is recommended for modern Minecraft.'
-                }
+                content={t('settings.javaPathHelp')}
               />
             </div>
             {recommendedConfig?.detected_java_path && (
               <div className={styles.autoDetectedRow} style={{ marginBottom: 8 }}>
-                <Badge variant="accent">{t('settings.autoDetected') || '自动检测'}</Badge>
+                <Badge variant="accent">{t('settings.autoDetected')}</Badge>
                 <span className={styles.autoDetectedPath}>
                   {recommendedConfig.detected_java_path.split(/[/\\]/).slice(-3).join('/')}
                 </span>
@@ -618,7 +703,7 @@ export default function SettingsPage() {
                       .catch(() => {});
                   }}
                 >
-                  {t('settings.redetect') || '重新检测'}
+                  {t('settings.redetect')}
                 </Button>
               </div>
             )}
@@ -817,7 +902,7 @@ export default function SettingsPage() {
                           : 'var(--color-text-secondary)',
                     background: jreDownloadVersion === v ? 'var(--color-accent)' : 'var(--color-panel-alt)',
                     border: `1px solid ${jreDownloadVersion === v ? 'var(--color-accent)' : downloadedJres.includes(v) ? 'var(--color-accent-30)' : 'var(--color-border-light)'}`,
-                    borderRadius: 4,
+                    clipPath: 'var(--clip-small)',
                     cursor: 'pointer',
                     letterSpacing: 0.5,
                     transition: 'all 0.15s ease',
@@ -830,21 +915,20 @@ export default function SettingsPage() {
             </div>
             {jreAvailableVersions.length > 0 && (
               <div style={{ marginTop: 8, fontSize: '0.55em', color: 'var(--color-text-muted)' }}>
-                {jreAvailableVersions.length} release{jreAvailableVersions.length !== 1 ? 's' : ''} available (
+                {t('settings.jre.releasesAvailable', { count: String(jreAvailableVersions.length) })}
                 {jreAvailableVersions[0]?.size_mb.toFixed(0)} MB)
               </div>
             )}
             {jreDownloading && jreDownloadProgress && (
               <div style={{ marginTop: 8 }}>
                 <div
-                  style={{ height: 4, background: 'var(--color-border-light)', borderRadius: 2, overflow: 'hidden' }}
+                  style={{ height: 4, background: 'var(--color-border-light)', clipPath: 'var(--clip-badge)', overflow: 'hidden' }}
                 >
                   <div
                     style={{
                       height: '100%',
                       width: `${jreDownloadProgress.total > 0 ? (jreDownloadProgress.downloaded / jreDownloadProgress.total) * 100 : 0}%`,
                       background: 'var(--color-accent)',
-                      borderRadius: 2,
                       transition: 'width 0.2s ease',
                     }}
                   />
@@ -865,8 +949,8 @@ export default function SettingsPage() {
             <div style={{ marginTop: 8 }}>
               <Button variant="primary" size="sm" onClick={handleDownloadJre} disabled={jreDownloading}>
                 {jreDownloading
-                  ? t('common.loading') || 'Downloading...'
-                  : t('settings.downloadJava') || `Download Java ${jreDownloadVersion}`}
+                  ? t('common.downloading')
+                  : t('settings.jre.downloadVersion', { version: String(jreDownloadVersion) })}
               </Button>
             </div>
           </div>
@@ -985,7 +1069,7 @@ export default function SettingsPage() {
         return (
           <SectionCard key={section.id} id={`sec-plugin-${section.id}`} title={section.label}>
             <PluginErrorBoundary pluginId={section.pluginId}>
-              <Suspense fallback={<div>Loading...</div>}>
+              <Suspense fallback={<div>{t('common.loading')}</div>}>
                 {LazyComponent && <LazyComponent />}
               </Suspense>
             </PluginErrorBoundary>
@@ -1388,9 +1472,44 @@ export default function SettingsPage() {
             variant="secondary"
             size="sm"
             onClick={async () => {
-              await api.fixFilePermissions();
-              const score = await api.getSecurityScore();
-              setSecurityScore(score);
+              try {
+                // 1. 修复文件权限
+                await api.fixFilePermissions();
+                // 2. 若存在明文凭据，迁移到加密存储
+                if (encryptionStatus.plain && !encryptionStatus.encrypted) {
+                  try {
+                    await api.migrateCredentials();
+                    const status = await api.getEncryptionStatus();
+                    setEncryptionStatus(status);
+                  } catch (e) {
+                    // 迁移失败不阻断后续步骤
+                    console.warn('credential migration failed', e);
+                  }
+                }
+                // 3. 自动开启审计日志 + JVM 白名单 + 严格校验（若未开启）
+                // 关键修复：直接构造更新后的 config 并持久化，避免 handleConfigChange 异步状态更新导致 handleSave 保存旧值
+                const sec = localConfig.security;
+                if (sec && (!sec.audit_log_enabled || sec.jvm_args_mode !== 'whitelist' || !sec.strict_verification)) {
+                  const updatedConfig: AppConfig = {
+                    ...localConfig,
+                    security: {
+                      ...sec,
+                      audit_log_enabled: true,
+                      jvm_args_mode: 'whitelist',
+                      strict_verification: true,
+                    },
+                  };
+                  setLocalConfig(updatedConfig);
+                  await saveConfig(updatedConfig);
+                }
+                // 4. 刷新安全评分
+                const score = await api.getSecurityScore();
+                setSecurityScore(score);
+                addToast({ type: 'success', title: t('settings.security.fixSuccess') });
+              } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e);
+                addToast({ type: 'error', title: t('settings.security.fixFailed'), message: msg });
+              }
             }}
           >
             {t('settings.security.fixSecurityIssues')}
@@ -1524,7 +1643,7 @@ export default function SettingsPage() {
           </div>
         </SettingRow>
         {(localConfig.security?.proxy_enabled ?? false) && (
-          <SettingRow label="Proxy URL">
+          <SettingRow label={t('settings.security.proxyUrl')}>
             <div className={formStyles.fieldWrapper}>
               <input
                 className={`${formStyles.input} ${proxyUrlField.error ? formStyles.inputHasError : ''}`}
@@ -1609,7 +1728,7 @@ export default function SettingsPage() {
       </SectionCard>
 
       <SectionCard id="sec-api-key-management" title={t('settings.security.apiKeyManagement')}>
-        <SettingRow label="CurseForge API Key">
+        <SettingRow label={t('settings.security.curseforgeApiKey')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5em', flex: 1 }}>
             <div style={{ position: 'relative', flex: 1 }}>
               <input
@@ -1684,6 +1803,8 @@ export default function SettingsPage() {
         </SettingRow>
       </SectionCard>
 
+      <TrustedKeysSection />
+
       <SectionCard id="sec-security-audit" title={t('settings.security.securityAudit')}>
         <SettingRow label={t('settings.security.auditLogShort')}>
           <label className={styles.checkboxLabel}>
@@ -1755,6 +1876,9 @@ export default function SettingsPage() {
       {error && <div className={styles.errorBox}>{error}</div>}
 
       <div className={styles.footer}>
+        <div className={styles.footer__recruit}>
+          {t('settings.recruitNotice')}
+        </div>
         <span className={styles.footer__brand}>{t('settings.nowintPresent')}</span>
         <a
           href="https://qun.qq.com/universal-share/share?ac=1&authKey=nRLO82GV%2FbYhC6GleAK72oZY%2Fhs4Vz2qh2OcS%2BawOildd0nySW9wLWCJg%2BLpS0%2BG&busi_data=eyJncm91cENvZGUiOiIxMDE2NjQxNjkxIiwidG9rZW4iOiJMQjR0cWZLcGFNcW9nSVJCOVQ3LzZ1Y1o4V0wrd1ljZTJVaWhSdUFUbDRKWGZaNExqSTZSMUdTMk04UUdCc2IvIiwidWluIjoiNjc0MDAwMjQ5In0%3D&data=u5JO0vDgzgicnHsVlwKbrFSyvCXZpH1vmPTkcluZ8ApBfyg1DFU1uQ-SCpXFFvvFWqsr8fHFId9keRmqUjXl1A&svctype=4&tempid=h5_group_info"

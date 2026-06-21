@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useI18n } from '../../../shared/i18n';
 import { Icon } from './ui/Icon';
 import styles from './CommandPalette.module.css';
 
@@ -14,60 +15,61 @@ interface Command {
 
 function useCommands() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   return [
     {
       id: 'home',
-      label: 'Home',
-      description: 'Go to dashboard',
+      label: t('commandPalette.cmd.home.label'),
+      description: t('commandPalette.cmd.home.desc'),
       shortcut: 'Ctrl+H',
-      category: 'Navigation',
+      category: t('commandPalette.category.navigation'),
       action: () => navigate('/home'),
     },
     {
       id: 'instances',
-      label: 'Instances',
-      description: 'Manage instances',
+      label: t('commandPalette.cmd.instances.label'),
+      description: t('commandPalette.cmd.instances.desc'),
       shortcut: 'Ctrl+I',
-      category: 'Navigation',
+      category: t('commandPalette.category.navigation'),
       action: () => navigate('/instances'),
     },
     {
       id: 'mods',
-      label: 'Mod Browser',
-      description: 'Browse and install mods',
+      label: t('commandPalette.cmd.mods.label'),
+      description: t('commandPalette.cmd.mods.desc'),
       shortcut: 'Ctrl+M',
-      category: 'Navigation',
+      category: t('commandPalette.category.navigation'),
       action: () => navigate('/mods'),
     },
     {
       id: 'versions',
-      label: 'Versions',
-      description: 'Browse Minecraft versions',
+      label: t('commandPalette.cmd.versions.label'),
+      description: t('commandPalette.cmd.versions.desc'),
       shortcut: 'Ctrl+V',
-      category: 'Navigation',
+      category: t('commandPalette.category.navigation'),
       action: () => navigate('/versions'),
     },
     {
       id: 'settings',
-      label: 'Settings',
-      description: 'Configure launcher',
+      label: t('commandPalette.cmd.settings.label'),
+      description: t('commandPalette.cmd.settings.desc'),
       shortcut: 'Ctrl+,',
-      category: 'Navigation',
+      category: t('commandPalette.category.navigation'),
       action: () => navigate('/settings'),
     },
     {
       id: 'new-instance',
-      label: 'New Instance',
-      description: 'Create a new game instance',
+      label: t('commandPalette.cmd.newInstance.label'),
+      description: t('commandPalette.cmd.newInstance.desc'),
       shortcut: 'Ctrl+N',
-      category: 'Instance',
+      category: t('commandPalette.category.instance'),
       action: () => navigate('/instances/new'),
     },
     {
       id: 'quick-start',
-      label: 'Quick Start',
-      description: 'Launch latest version instantly',
-      category: 'Game',
+      label: t('commandPalette.cmd.quickStart.label'),
+      description: t('commandPalette.cmd.quickStart.desc'),
+      category: t('commandPalette.category.game'),
       action: () => {},
     },
   ];
@@ -75,6 +77,7 @@ function useCommands() {
 
 export function CommandPalette() {
   const COMMANDS = useCommands();
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -145,7 +148,7 @@ export function CommandPalette() {
           <input
             ref={inputRef}
             className={styles.searchInput}
-            placeholder="Type a command..."
+            placeholder={t('commandPalette.placeholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -154,7 +157,7 @@ export function CommandPalette() {
         </div>
         <div className={styles.list}>
           {filtered.length === 0 ? (
-            <div className={styles.empty}>No commands found</div>
+            <div className={styles.empty}>{t('commandPalette.empty')}</div>
           ) : (
             filtered.map((cmd, i) => (
               <div

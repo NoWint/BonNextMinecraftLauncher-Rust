@@ -2,6 +2,7 @@ use crate::error::LauncherError;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -16,7 +17,50 @@ pub struct JavaInfo {
     pub vendor: Option<String>,
 }
 
+/// find_java 结果缓存（进程级）。
+/// macOS 上 find_macos_java 会串行 spawn 多个 /usr/libexec/java_home 子进程，
+/// 每次调用 1-3 秒。缓存避免启动期间多次调用造成的重复扫描。
+/// 缓存 TTL 60 秒，用户在设置页更改 Java 路径后最多 60 秒自动刷新。
+/// 仅缓存成功结果（PathBuf），失败不缓存以便下次重试。
+static JAVA_CACHE: OnceLock<parking_lot::Mutex<Option<(std::time::Instant, PathBuf)>>> = OnceLock::new();
+
+fn get_cache() -> &'static parking_lot::Mutex<Option<(std::time::Instant, PathBuf)>> {
+    JAVA_CACHE.get_or_init(|| parking_lot::Mutex::new(None))
+}
+
+/// 清除 Java 缓存。在用户更改 Java 路径设置后调用。
+pub fn invalidate_java_cache() {
+    if let Some(mutex) = JAVA_CACHE.get() {
+        *mutex.lock() = None;
+    }
+}
+
+const JAVA_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(60);
+
 pub fn find_java() -> Result<PathBuf, LauncherError> {
+    // 检查缓存（仅命中成功结果）
+    {
+        let cache = get_cache().lock();
+        if let Some((timestamp, ref path)) = *cache {
+            if timestamp.elapsed() < JAVA_CACHE_TTL {
+                return Ok(path.clone());
+            }
+        }
+    }
+
+    // 缓存未命中或已过期，执行实际查找
+    let result = find_java_uncached();
+
+    // 仅缓存成功结果
+    if let Ok(ref path) = result {
+        let mut cache = get_cache().lock();
+        *cache = Some((std::time::Instant::now(), path.clone()));
+    }
+
+    result
+}
+
+fn find_java_uncached() -> Result<PathBuf, LauncherError> {
     if let Some(custom) = find_custom_java() {
         return Ok(custom);
     }
@@ -104,7 +148,7 @@ pub fn find_all_java() -> Vec<JavaInfo> {
 }
 
 fn find_custom_java() -> Option<PathBuf> {
-    let cfg = crate::config::load_config().ok()?;
+    let cfg = crate::config::load_config_cached().ok()?;
     let java_path = cfg.java_path?;
     if java_path.is_empty() {
         return None;
@@ -392,6 +436,20 @@ fn find_all_linux_java() -> Vec<JavaInfo> {
 
 #[cfg(target_os = "macos")]
 fn find_macos_java() -> Option<PathBuf> {
+    // 先尝试无版本参数的 java_home（最快，1 次子进程），
+    // 再按版本号探测（兜底，最多 11 次子进程）。
+    let output = std::process::Command::new("/usr/libexec/java_home")
+        .output()
+        .ok()?;
+
+    if output.status.success() {
+        let home = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let java = PathBuf::from(&home).join("bin").join("java");
+        if java.exists() {
+            return Some(java);
+        }
+    }
+
     for major in [21, 17, 11, 8, 18, 19, 20, 22, 23, 24, 25] {
         let output = std::process::Command::new("/usr/libexec/java_home")
             .arg("-v")
@@ -407,18 +465,6 @@ fn find_macos_java() -> Option<PathBuf> {
                     return Some(java);
                 }
             }
-        }
-    }
-
-    let output = std::process::Command::new("/usr/libexec/java_home")
-        .output()
-        .ok()?;
-
-    if output.status.success() {
-        let home = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        let java = PathBuf::from(&home).join("bin").join("java");
-        if java.exists() {
-            return Some(java);
         }
     }
 

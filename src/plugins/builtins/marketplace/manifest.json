@@ -12,24 +12,34 @@
     "http:modpackindex.com",
     "fs:read:instances",
     "fs:write:instances",
-    "invoke:core",
     "invoke:marketplace",
+    "invoke:core:instances:read",
+    "invoke:core:instances:write",
+    "invoke:core:versions:read",
+    "invoke:core:versions:write",
+    "invoke:core:content:read",
+    "invoke:core:content:write",
+    "invoke:core:download",
     "events:listen",
     "events:emit"
   ],
+  "i18n": {
+    "en-US": {
+      "sidebar.store": "Store",
+      "sidebar.collections": "Collections",
+      "sidebar.library": "Library"
+    },
+    "zh-CN": {
+      "sidebar.store": "商店",
+      "sidebar.collections": "我的收藏",
+      "sidebar.library": "内容库"
+    }
+  },
   "contributes": {
     "routes": [
-      { "path": "/store", "component": "MarketplacePage" },
-      { "path": "/mods", "component": "MarketplacePage" },
-      { "path": "/store/:type/:slug", "component": "ContentDetailPage" },
-      { "path": "/collections", "component": "CollectionsPage" },
-      { "path": "/library", "component": "LibraryPage" }
+      { "path": "/store/:type/:slug", "component": "ContentDetailPage" }
     ],
-    "sidebar": [
-      { "id": "marketplace", "label": "Store", "icon": "🛒", "route": "/store", "order": 2 },
-      { "id": "collections", "label": "Collections", "icon": "📚", "route": "/collections", "order": 3 },
-      { "id": "library", "label": "Library", "icon": "📦", "route": "/library", "order": 5 }
-    ],
+    "sidebar": [],
     "settings": []
   }
 }

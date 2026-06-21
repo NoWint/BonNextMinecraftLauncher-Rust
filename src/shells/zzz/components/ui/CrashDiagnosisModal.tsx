@@ -3,6 +3,7 @@ import { Modal } from './Modal';
 import { Icon, type IconName } from './Icon';
 import { api } from '../../../../shared/api';
 import type { CrashDiagnosis } from '../../../../shared/api';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './CrashDiagnosisModal.module.css';
 
 interface CrashDiagnosisModalProps {
@@ -25,16 +26,17 @@ const severityClass: Record<string, string> = {
   info: styles.findingInfo,
 };
 
-const severityLabel: Record<string, string> = {
-  high: '严重',
-  medium: '警告',
-  low: '提示',
-  info: '信息',
-};
-
 export default function CrashDiagnosisModal({ isOpen, onClose, logContent }: CrashDiagnosisModalProps) {
+  const { t } = useI18n();
   const [diagnosis, setDiagnosis] = useState<CrashDiagnosis | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const severityLabel: Record<string, string> = {
+    high: t('crashDiagnosis.severity.critical'),
+    medium: t('crashDiagnosis.severity.warning'),
+    low: t('crashDiagnosis.severity.tip'),
+    info: t('crashDiagnosis.severity.info'),
+  };
 
   const handleDiagnose = async () => {
     setLoading(true);
@@ -44,8 +46,8 @@ export default function CrashDiagnosisModal({ isOpen, onClose, logContent }: Cra
     } catch {
       setDiagnosis({
         crash_info: {
-          description: '无法诊断崩溃原因',
-          suggestion: '请检查日志文件或寻求社区帮助',
+          description: t('crashDiagnosis.cannotDiagnose'),
+          suggestion: t('crashDiagnosis.cannotDiagnoseDesc'),
           severity: 'info',
           error_type: 'unknown',
         },
@@ -70,24 +72,24 @@ export default function CrashDiagnosisModal({ isOpen, onClose, logContent }: Cra
 
   const actions = diagnosis ? (
     <div className={styles.actions}>
-      <button onClick={handleExportLog} className={styles.exportBtn}>导出日志</button>
-      <button onClick={onClose} className={styles.closeBtn}>关闭</button>
+      <button onClick={handleExportLog} className={styles.exportBtn}>{t('crashDiagnosis.exportLogs')}</button>
+      <button onClick={onClose} className={styles.closeBtn}>{t('common.close')}</button>
     </div>
   ) : undefined;
 
   return (
-    <Modal open={isOpen} onClose={onClose} title="崩溃诊断" actions={actions}>
+    <Modal open={isOpen} onClose={onClose} title={t('crashDiagnosis.title')} actions={actions}>
       <div className={styles.container}>
         {!diagnosis && !loading && (
           <div className={styles.prompt}>
-            <p>检测到游戏异常退出，是否进行崩溃诊断？</p>
+            <p>{t('crashDiagnosis.prompt')}</p>
             <div className={styles.promptActions}>
-              <button onClick={handleDiagnose} className={styles.diagnoseBtn}>开始诊断</button>
-              <button onClick={handleExportLog} className={styles.exportBtn}>导出日志</button>
+              <button onClick={handleDiagnose} className={styles.diagnoseBtn}>{t('crashDiagnosis.startDiagnosis')}</button>
+              <button onClick={handleExportLog} className={styles.exportBtn}>{t('crashDiagnosis.exportLogs')}</button>
             </div>
           </div>
         )}
-        {loading && <div className={styles.loading}>正在分析崩溃日志...</div>}
+        {loading && <div className={styles.loading}>{t('crashDiagnosis.analyzing')}</div>}
         {diagnosis && (
           <div className={styles.result}>
             <div
@@ -113,7 +115,7 @@ export default function CrashDiagnosisModal({ isOpen, onClose, logContent }: Cra
                         : styles.severityInfo
                   }`}
                 >
-                  {severityLabel[diagnosis.crash_info.severity] || '未知'}
+                  {severityLabel[diagnosis.crash_info.severity] || t('common.unknown')}
                 </span>
               </div>
               <div className={styles.errorDesc}>{diagnosis.crash_info.description}</div>
@@ -122,7 +124,7 @@ export default function CrashDiagnosisModal({ isOpen, onClose, logContent }: Cra
 
             {diagnosis.additional_findings.length > 0 && (
               <div className={styles.findings}>
-                <div className={styles.findingsTitle}>附加发现</div>
+                <div className={styles.findingsTitle}>{t('crashDiagnosis.additionalFindings')}</div>
                 {diagnosis.additional_findings.map((f, i) => (
                   <div key={i} className={`${styles.finding} ${severityClass[f.severity] || styles.findingInfo}`}>
                     <span className={styles.findingIcon}>

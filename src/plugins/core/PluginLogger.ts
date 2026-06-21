@@ -1,17 +1,19 @@
 // src/plugins/core/PluginLogger.ts
 import type { PluginLogger } from './types';
+import { log } from '@/shared/utils/logger';
 
 export function createPluginLogger(pluginId: string): PluginLogger {
-  const prefix = `[plugin:${pluginId}]`;
+  const tag = `[plugin:${pluginId}]`;
+  const category = `plugin:${pluginId}`;
   return {
     info(message: string, ...args: unknown[]) {
-      console.log(prefix, message, ...args);
+      log('info', category, `${tag} ${message}`, args.length > 0 ? args : undefined);
     },
     warn(message: string, ...args: unknown[]) {
-      console.warn(prefix, message, ...args);
+      log('warn', category, `${tag} ${message}`, args.length > 0 ? args : undefined);
     },
     error(message: string, ...args: unknown[]) {
-      console.error(prefix, message, ...args);
+      log('error', category, `${tag} ${message}`, args.length > 0 ? args : undefined);
     },
   };
 }

@@ -7,8 +7,10 @@
   "minAppVersion": "1.0.0",
   "dependencies": [],
   "permissions": [
-    "invoke:core",
     "invoke:ai",
+    "invoke:core:instances:read",
+    "invoke:core:crash-watcher",
+    "invoke:core:workflow",
     "events:listen",
     "events:emit"
   ],

@@ -55,8 +55,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshAccounts = useCallback(async () => {
     try {
-      const accounts = await api.listAccounts();
-      const active = await api.getActiveAccount();
+      // 并行请求账户列表和活跃账户，减少 1 个 IPC 往返。
+      const [accounts, active] = await Promise.all([
+        api.listAccounts(),
+        api.getActiveAccount(),
+      ]);
       dispatch({
         type: 'SET_ALL',
         accounts,

@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal } from './Modal';
 import { Icon, type IconName } from './Icon';
 import type { CrashDiagnosis } from '../../../../shared/api';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './CrashModal.module.css';
 
 interface CrashModalProps {
@@ -26,6 +27,7 @@ const severityClass: Record<string, string> = {
 };
 
 export const CrashModal: React.FC<CrashModalProps> = ({ open, onClose, diagnosis, onAutoFix }) => {
+  const { t } = useI18n();
   if (!diagnosis) return null;
 
   const { crash_info, additional_findings, auto_fix_available, auto_fix_action } = diagnosis;
@@ -34,16 +36,16 @@ export const CrashModal: React.FC<CrashModalProps> = ({ open, onClose, diagnosis
     <Modal
       open={open}
       onClose={onClose}
-      title="崩溃诊断报告"
+      title={t('crashModal.title')}
       actions={
         <div className={styles.actions}>
           {auto_fix_available && auto_fix_action && onAutoFix && (
             <button className={styles.autoFixBtn} onClick={() => onAutoFix(auto_fix_action)}>
-              一键修复
+              {t('crashModal.oneClickFix')}
             </button>
           )}
           <button className={styles.closeBtn} onClick={onClose}>
-            关闭
+            {t('common.close')}
           </button>
         </div>
       }
@@ -64,7 +66,7 @@ export const CrashModal: React.FC<CrashModalProps> = ({ open, onClose, diagnosis
 
         {additional_findings.length > 0 && (
           <div className={styles.findings}>
-            <div className={styles.findingsTitle}>附加发现</div>
+            <div className={styles.findingsTitle}>{t('crashModal.additionalFindings')}</div>
             {additional_findings.map((f, i) => (
               <div key={i} className={`${styles.finding} ${severityClass[f.severity] || styles.findingInfo}`}>
                 <span className={styles.findingIcon}>

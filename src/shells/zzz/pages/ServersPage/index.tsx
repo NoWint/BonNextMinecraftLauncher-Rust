@@ -6,6 +6,7 @@ import { formatError } from '../../../../shared/utils/errorMapping';
 import { logger } from '../../../../shared/utils/logger';
 import { useToast } from '../../../../shared/stores/toastStore';
 import { useInstances } from '../../../../shared/stores/instanceStore';
+import { useI18n } from '../../../../shared/i18n';
 import { SectionHeader, Ticker } from '../../components/layout';
 import { Button, Modal } from '../../components/ui';
 import { ServerPingBadge } from '../../components/ui';
@@ -13,6 +14,51 @@ import { Icon } from '../../components/ui/Icon';
 import { CardSkeleton } from '../../components/ui/Skeleton';
 import styles from './ServersPage.module.css';
 import TextComponentRenderer from '../../components/ui/TextComponentRenderer';
+
+/**
+ * 常驻推荐服务器（6 个）— 始终显示，作为基础推荐列表。
+ * 跨平台：仅依赖 api.servers.pingServer，无平台特定代码。
+ */
+const FEATURED_SERVERS: Array<{ name: string; address: string; port: number; description: string }> = [
+  { name: 'Hypixel Network', address: 'mc.hypixel.net', port: 25565, description: '全球最大的迷你游戏服务器' },
+  { name: 'CubeCraft Games', address: 'play.cubecraft.net', port: 25565, description: '迷你游戏与生存游戏' },
+  { name: 'Mineplex', address: 'mineplex.com', port: 25565, description: '经典迷你游戏社区' },
+  { name: '2b2t', address: '2b2t.org', port: 25565, description: '最古老的纯无政府生存服务器' },
+  { name: 'Hive Games', address: 'play.hivemc.com', port: 25565, description: '迷你游戏与隐藏游戏' },
+  { name: 'Wynncraft', address: 'play.wynncraft.com', port: 25565, description: 'MMO RPG 体验' },
+];
+
+/**
+ * 从公共 API（mcsrvstat.us）获取额外推荐服务器。
+ * 失败时返回空数组，仅显示常驻 6 个。
+ * 跨平台：使用 fetch，无平台特定代码。
+ */
+async function fetchApiFeaturedServers(): Promise<Array<{ name: string; address: string; port: number; description: string }>> {
+  try {
+    // mcsrvstat.us 提供 API 查询服务器状态，这里仅作为"API 获取"的示例。
+    // 实际生产环境应替换为官方推荐服务器 API。
+    const response = await fetch('https://api.mcsrvstat.us/3/mc.hypixel.net', {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    // 如果 API 返回了在线服务器，则返回一个动态推荐（基于 API 验证）
+    if (data && data.online) {
+      return [
+        { name: 'Hypixel Network (API verified)', address: 'mc.hypixel.net', port: 25565, description: `API: ${data.motd?.clean?.join(' ') || 'Online'}` },
+      ];
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+interface FeaturedState {
+  info: MinecraftServerInfo | null;
+  latency: number | null;
+  loading: boolean;
+}
 
 function extractDescription(info: MinecraftServerInfo): string {
   if (!info) return '';
@@ -110,6 +156,7 @@ function ServerCard({ server, onPing, onFavorite, onRemove, pinging }: ServerCar
 export default function ServersPage() {
   const { addToast } = useToast();
   const { state: instanceState } = useInstances();
+  const { t } = useI18n();
 
   const [servers, setServers] = useState<ServerListEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,6 +179,10 @@ export default function ServersPage() {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // 推荐服务器状态（HMCL 风格：进入页面自动 ping 展示）
+  const [featuredStates, setFeaturedStates] = useState<Record<string, FeaturedState>>({});
+  const [featuredLoading, setFeaturedLoading] = useState(false);
+
   const loadServers = useCallback(async () => {
     try {
       const list = await api.servers.listServers();
@@ -146,6 +197,74 @@ export default function ServersPage() {
   useEffect(() => {
     loadServers();
   }, [loadServers]);
+
+  const [featuredServers, setFeaturedServers] = useState(FEATURED_SERVERS);
+
+  const loadFeaturedServers = useCallback(async () => {
+    setFeaturedLoading(true);
+    // 1. 从 API 获取动态推荐服务器（失败则仅使用常驻 6 个）
+    const apiServers = await fetchApiFeaturedServers();
+    // 2. 合并：常驻 6 个 + API 获取的（去重）
+    const merged: typeof FEATURED_SERVERS = [...FEATURED_SERVERS];
+    for (const s of apiServers) {
+      if (!merged.some((m) => m.address === s.address && m.port === s.port)) {
+        merged.push(s);
+      }
+    }
+    setFeaturedServers(merged);
+
+    // 3. 初始化为 loading 状态
+    const initial: Record<string, FeaturedState> = {};
+    for (const s of merged) {
+      initial[s.address] = { info: null, latency: null, loading: true };
+    }
+    setFeaturedStates(initial);
+
+    // 4. 并发 ping 所有推荐服务器
+    const results = await Promise.allSettled(
+      merged.map((s) => api.servers.pingServer(s.address, s.port)),
+    );
+
+    const next: Record<string, FeaturedState> = {};
+    merged.forEach((s, i) => {
+      const r = results[i];
+      if (r.status === 'fulfilled' && r.value) {
+        next[s.address] = {
+          info: r.value.info ?? null,
+          latency: r.value.latency_ms ?? null,
+          loading: false,
+        };
+      } else {
+        next[s.address] = { info: null, latency: null, loading: false };
+      }
+    });
+    setFeaturedStates(next);
+    setFeaturedLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadFeaturedServers();
+  }, [loadFeaturedServers]);
+
+  const handleAddFeatured = useCallback(async (featured: { name: string; address: string; port: number }) => {
+    // 检查是否已在列表中
+    const exists = servers.some((s) => s.address === featured.address && s.port === featured.port);
+    if (exists) {
+      addToast({ type: 'info', title: t('servers.featured.exists') });
+      return;
+    }
+    try {
+      await api.servers.addServer(featured.name, featured.address, featured.port);
+      addToast({ type: 'success', title: t('servers.featured.added'), message: featured.name });
+      loadServers();
+    } catch (e) {
+      addToast({ type: 'error', title: t('servers.addFailed'), message: formatError(e) });
+    }
+  }, [servers, addToast, t, loadServers]);
+
+  const isFeaturedInList = useCallback((address: string, port: number) => {
+    return servers.some((s) => s.address === address && s.port === port);
+  }, [servers]);
 
   const handlePing = useCallback(async (id: number) => {
     const server = servers.find((s) => s.id === id);
@@ -167,7 +286,7 @@ export default function ServersPage() {
       setServers((prev) =>
         prev.map((s) => (s.id === id ? { ...s, last_ping_result: null, last_ping_at: null, latency_ms: null } : s)),
       );
-      addToast({ type: 'error', title: 'Ping Failed', message: formatError(e) });
+      addToast({ type: 'error', title: t('servers.pingFailed'), message: formatError(e) });
     } finally {
       setPingingIds((prev) => {
         const next = new Set(prev);
@@ -175,7 +294,7 @@ export default function ServersPage() {
         return next;
       });
     }
-  }, [servers, addToast]);
+  }, [servers, addToast, t]);
 
   const handlePingAll = useCallback(async () => {
     if (servers.length === 0) return;
@@ -204,35 +323,35 @@ export default function ServersPage() {
       for (const r of results) {
         api.servers.updateServerPing(r.id, r.info, r.latency_ms).catch(() => {});
       }
-      addToast({ type: 'success', title: 'Ping All Complete', message: `Pinged ${results.length} servers` });
+      addToast({ type: 'success', title: t('servers.pingAllComplete'), message: t('servers.pingAllResult', { count: String(results.length) }) });
     } catch (e) {
       addToast({ type: 'error', title: 'Ping All Failed', message: formatError(e) });
     } finally {
       setPingingIds(new Set());
       setPingingAll(false);
     }
-  }, [servers, addToast]);
+  }, [servers, addToast, t]);
 
   const handleFavorite = useCallback(async (id: number, favorite: boolean) => {
     try {
       await api.servers.toggleServerFavorite(id, favorite);
       setServers((prev) => prev.map((s) => (s.id === id ? { ...s, is_favorite: favorite } : s)));
     } catch (e) {
-      addToast({ type: 'error', title: 'Favorite Failed', message: formatError(e) });
+      addToast({ type: 'error', title: t('servers.favoriteFailed'), message: formatError(e) });
     }
-  }, [addToast]);
+  }, [addToast, t]);
 
   const handleRemove = useCallback(async () => {
     if (!removeTarget) return;
     try {
       await api.servers.removeServer(removeTarget.id);
       setServers((prev) => prev.filter((s) => s.id !== removeTarget.id));
-      addToast({ type: 'success', title: 'Server Removed', message: removeTarget.name });
+      addToast({ type: 'success', title: t('servers.removed'), message: removeTarget.name });
       setRemoveTarget(null);
     } catch (e) {
-      addToast({ type: 'error', title: 'Remove Failed', message: formatError(e) });
+      addToast({ type: 'error', title: t('servers.removeFailed'), message: formatError(e) });
     }
-  }, [removeTarget, addToast]);
+  }, [removeTarget, addToast, t]);
 
   const handleAddServer = useCallback(async () => {
     if (!newName.trim() || !newAddress.trim()) return;
@@ -240,18 +359,18 @@ export default function ServersPage() {
     setAdding(true);
     try {
       await api.servers.addServer(newName.trim(), newAddress.trim(), port);
-      addToast({ type: 'success', title: 'Server Added', message: newName.trim() });
+      addToast({ type: 'success', title: t('servers.added'), message: newName.trim() });
       setNewName('');
       setNewAddress('');
       setNewPort('25565');
       setShowAddForm(false);
       loadServers();
     } catch (e) {
-      addToast({ type: 'error', title: 'Add Server Failed', message: formatError(e) });
+      addToast({ type: 'error', title: t('servers.addFailed'), message: formatError(e) });
     } finally {
       setAdding(false);
     }
-  }, [newName, newAddress, newPort, addToast, loadServers]);
+  }, [newName, newAddress, newPort, addToast, loadServers, t]);
 
   const handleImport = useCallback(async () => {
     if (!importInstanceId) return;
@@ -325,17 +444,85 @@ export default function ServersPage() {
 
   return (
     <div className={styles.page}>
-      <SectionHeader title="SERVERS" subtitle="Browse & ping multiplayer servers" />
+      <SectionHeader title={t('servers.title')} subtitle={t('servers.subtitle')} />
+
+      {/* 推荐服务器区（HMCL 风格：自动展示精选公开服务器） */}
+      <div className={styles.featured}>
+        <div className={styles.featured__header}>
+          <div>
+            <div className={styles.featured__title}>{t('servers.featured.title')}</div>
+            <div className={styles.featured__subtitle}>{t('servers.featured.subtitle')}</div>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={loadFeaturedServers}
+            disabled={featuredLoading}
+          >
+            <Icon name="loader" size={12} /> {t('servers.featured.refresh')}
+          </Button>
+        </div>
+        <div className={styles.featured__grid}>
+          {featuredServers.map((srv) => {
+            const state = featuredStates[srv.address];
+            const info = state?.info ?? null;
+            const latency = state?.latency ?? null;
+            const isLoading = state?.loading ?? false;
+            const online = info?.players?.online ?? null;
+            const max = info?.players?.max ?? null;
+            const inList = isFeaturedInList(srv.address, srv.port);
+            return (
+              <div key={srv.address} className={styles.featured__card}>
+                <div className={styles.featured__cardHeader}>
+                  <Icon name="cube" size={14} />
+                  <span className={styles.featured__cardName}>{srv.name}</span>
+                </div>
+                <div className={styles.featured__cardAddress}>{srv.address}:{srv.port}</div>
+                <div className={styles.featured__cardDesc}>{srv.description}</div>
+                <div className={styles.featured__cardMeta}>
+                  {isLoading ? (
+                    <span className={styles.featured__cardLoading}>{t('servers.featured.loading')}</span>
+                  ) : info ? (
+                    <>
+                      {online !== null && max !== null && (
+                        <span className={styles.featured__cardPlayers}>
+                          {t('servers.featured.players', { online: String(online), max: String(max) })}
+                        </span>
+                      )}
+                      {latency !== null && (
+                        <span className={styles.featured__cardLatency}>
+                          {t('servers.featured.latency', { ms: String(latency) })}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className={styles.featured__cardOffline}>{t('servers.featured.offline')}</span>
+                  )}
+                </div>
+                <Button
+                  variant={inList ? 'secondary' : 'primary'}
+                  size="sm"
+                  disabled={inList}
+                  onClick={() => handleAddFeatured(srv)}
+                  className={styles.featured__cardBtn}
+                >
+                  {inList ? t('servers.featured.added') : t('servers.featured.add')}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       <div className={styles.headerActions}>
         <Button variant="secondary" size="sm" disabled={pingingAll || servers.length === 0} onClick={handlePingAll}>
-          {pingingAll ? 'Pinging...' : 'Ping All'}
+          {pingingAll ? t('servers.pingingAll') : t('servers.pingAll')}
         </Button>
         <Button variant="secondary" size="sm" onClick={() => setShowImport(!showImport)}>
-          {showImport ? 'Cancel' : 'Import from Instance'}
+          {showImport ? t('servers.cancel') : t('servers.importFromInstance')}
         </Button>
         <Button variant="primary" size="sm" onClick={() => setShowAddForm(!showAddForm)}>
-          {showAddForm ? 'Cancel' : '+ Add Server'}
+          {showAddForm ? t('servers.cancel') : t('servers.addServer')}
         </Button>
       </div>
 
@@ -343,13 +530,13 @@ export default function ServersPage() {
         <div className={styles.addForm}>
           <div className={styles.addForm__row}>
             <div className={styles.addForm__field}>
-              <label className={styles.addForm__label}>INSTANCE</label>
+              <label className={styles.addForm__label}>{t('servers.form.instance')}</label>
               <select
                 className={styles.addForm__select}
                 value={importInstanceId}
                 onChange={(e) => setImportInstanceId(e.target.value)}
               >
-                <option value="">Select an instance...</option>
+                <option value="">{t('servers.form.selectInstance')}</option>
                 {instanceOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
@@ -366,37 +553,37 @@ export default function ServersPage() {
         <div className={styles.addForm}>
           <div className={styles.addForm__row}>
             <div className={styles.addForm__field}>
-              <label className={styles.addForm__label}>NAME</label>
+              <label className={styles.addForm__label}>{t('servers.form.name')}</label>
               <input
                 className={styles.addForm__input}
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="My Server"
+                placeholder={t('servers.form.namePlaceholder')}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddServer()}
               />
             </div>
             <div className={styles.addForm__field}>
-              <label className={styles.addForm__label}>ADDRESS</label>
+              <label className={styles.addForm__label}>{t('servers.form.address')}</label>
               <input
                 className={styles.addForm__input}
                 value={newAddress}
                 onChange={(e) => setNewAddress(e.target.value)}
-                placeholder="play.example.com"
+                placeholder={t('servers.form.addressPlaceholder')}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddServer()}
               />
             </div>
             <div className={styles.addForm__field}>
-              <label className={styles.addForm__label}>PORT</label>
+              <label className={styles.addForm__label}>{t('servers.form.port')}</label>
               <input
                 className={styles.addForm__input}
                 value={newPort}
                 onChange={(e) => setNewPort(e.target.value)}
-                placeholder="25565"
+                placeholder={t('servers.form.portPlaceholder')}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddServer()}
               />
             </div>
             <Button variant="primary" size="sm" disabled={adding || !newName.trim() || !newAddress.trim()} onClick={handleAddServer}>
-              {adding ? 'Adding...' : 'Add'}
+              {adding ? t('servers.adding') : 'Add'}
             </Button>
           </div>
         </div>
@@ -407,14 +594,14 @@ export default function ServersPage() {
           <input
             className={styles.controls__searchInput}
             type="text"
-            placeholder="Search servers..."
+            placeholder={t('servers.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
         <div className={styles.controls__filters}>
           <div className={styles.controls__filterGroup}>
-            <span className={styles.controls__label}>Status:</span>
+            <span className={styles.controls__label}>{t('servers.filter.status')}</span>
             {(['all', 'online', 'offline'] as FilterStatus[]).map((f) => (
               <button
                 key={f}
@@ -426,12 +613,12 @@ export default function ServersPage() {
             ))}
           </div>
           <div className={styles.controls__filterGroup}>
-            <span className={styles.controls__label}>Sort:</span>
+            <span className={styles.controls__label}>{t('servers.filter.sort')}</span>
             {([
-              ['favorite', 'Favorite'],
-              ['name', 'Name'],
-              ['latency', 'Latency'],
-              ['players', 'Players'],
+              ['favorite', t('servers.sort.favorite')],
+              ['name', t('servers.sort.name')],
+              ['latency', t('servers.sort.latency')],
+              ['players', t('servers.sort.players')],
             ] as [SortMode, string][]).map(([key, label]) => (
               <button
                 key={key}
@@ -453,21 +640,21 @@ export default function ServersPage() {
         </div>
       ) : servers.length === 0 ? (
         <div className={styles.empty}>
-          <div className={styles.empty__title}>No Servers</div>
-          <div className={styles.empty__desc}>Add a server or import from an instance to start browsing multiplayer worlds</div>
+          <div className={styles.empty__title}>{t('servers.empty.noServers')}</div>
+          <div className={styles.empty__desc}>{t('servers.empty.noServersDesc')}</div>
           <div className={styles.empty__actions}>
             <Button variant="secondary" size="sm" onClick={() => setShowAddForm(true)}>
-              + Add Server
+              {t('servers.addServer')}
             </Button>
             <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
-              Import from Instance
+              {t('servers.importFromInstance')}
             </Button>
           </div>
         </div>
       ) : sortedServers.length === 0 ? (
         <div className={styles.empty}>
-          <div className={styles.empty__title}>No Matches</div>
-          <div className={styles.empty__desc}>No servers match your current filters</div>
+          <div className={styles.empty__title}>{t('servers.empty.noMatches')}</div>
+          <div className={styles.empty__desc}>{t('servers.empty.noMatchesDesc')}</div>
         </div>
       ) : (
         <div className={styles.list}>
@@ -490,20 +677,20 @@ export default function ServersPage() {
       <Modal
         open={!!removeTarget}
         onClose={() => setRemoveTarget(null)}
-        title="Remove Server"
+        title={t('servers.remove.title')}
         actions={
           <>
             <Button variant="secondary" size="sm" onClick={() => setRemoveTarget(null)}>
-              Cancel
+              {t('servers.cancel')}
             </Button>
             <Button variant="danger" size="sm" onClick={handleRemove}>
-              Remove
+              {t('common.remove')}
             </Button>
           </>
         }
       >
         <p style={{ fontSize: '0.6em', color: 'var(--color-text-secondary)' }}>
-          Remove "{removeTarget?.name}" from your server list?
+          {t('servers.remove.confirm', { name: removeTarget?.name || '' })}
         </p>
       </Modal>
 

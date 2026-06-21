@@ -36,7 +36,8 @@
     "react-router-dom": "^7.1.1",
     "semver": "^7.8.5",
     "skinview3d": "^3.4.2",
-    "tauri-plugin-liquid-glass-api": "^0.1.6"
+    "tauri-plugin-liquid-glass-api": "^0.1.6",
+    "three": "^0.184.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

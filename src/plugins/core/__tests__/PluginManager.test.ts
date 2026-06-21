@@ -1,7 +1,19 @@
 // src/plugins/core/__tests__/PluginManager.test.ts
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PluginManager } from '../PluginManager';
 import type { PluginDefinition, PluginContext } from '../types';
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn().mockImplementation((cmd: string) => {
+    if (cmd === 'plugin_register_session') return Promise.resolve('mock-token');
+    if (cmd === 'plugin_revoke_session') return Promise.resolve();
+    return Promise.resolve();
+  }),
+}));
+
+vi.mock('@tauri-apps/api/app', () => ({
+  getVersion: vi.fn().mockResolvedValue('1.0.0'),
+}));
 
 function createMockPlugin(id: string) {
   const state = { activated: false, deactivated: false };
@@ -74,7 +86,8 @@ describe('PluginManager', () => {
       },
     };
     manager.register(badPlugin);
-    await manager.activate('com.test.bad');
+    // activate() now re-throws so callers can detect failure (e.g. toast UI).
+    await expect(manager.activate('com.test.bad')).rejects.toThrow('Activation failed');
     expect(manager.getPlugin('com.test.bad')?.state).toBe('error');
     expect(manager.getPlugin('com.test.bad')?.error).toContain('Activation failed');
   });

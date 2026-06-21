@@ -37,7 +37,7 @@ describe('SceneOverlay', () => {
     render(<SceneOverlay ctx={ctx} />);
     await waitFor(() => expect(screen.getByRole('button', { name: /实例/ })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /实例/ }));
-    // 转场时序：push 800ms → fade 300ms → navigate 1100ms，需等待超过 1100ms
-    await waitFor(() => expect(window.location.hash).toBe('#/instances'), { timeout: 2000 });
+    // 转场时序：push 1500ms → hold 800ms → fade 500ms → navigate 2800ms
+    await waitFor(() => expect(window.location.hash).toBe('#/instances'), { timeout: 4000 });
   });
 });

@@ -54,6 +54,17 @@ fn base_dirs() -> Option<BaseDirs> {
 }
 
 fn default_minecraft_dir() -> PathBuf {
+    // macOS 上官方 Minecraft 启动器目录是 ~/Library/Application Support/minecraft（不带点前缀）
+    // Linux/Windows 上是 ~/.minecraft 或 %APPDATA%/.minecraft
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(bd) = base_dirs() {
+            let candidate = bd.data_dir().join("minecraft");
+            if candidate.exists() {
+                return candidate;
+            }
+        }
+    }
     base_dirs()
         .map(|bd| bd.data_dir().join(".minecraft"))
         .unwrap_or_else(|| PathBuf::from(".minecraft"))
@@ -61,14 +72,51 @@ fn default_minecraft_dir() -> PathBuf {
 
 fn default_hmcl_dir() -> Option<PathBuf> {
     let home = base_dirs()?.home_dir().to_path_buf();
+    let data = base_dirs()?.data_dir().to_path_buf();
+
+    // macOS: HMCL 默认使用官方 Minecraft 目录 ~/Library/Application Support/minecraft
+    // HMCL 主配置文件是 hmcl.json（Windows）或 .hmcl.json（Linux/Mac）
+    #[cfg(target_os = "macos")]
+    {
+        let mac_mc_dir = data.join("minecraft");
+        if mac_mc_dir.exists() {
+            // 检查是否有 HMCL 标记文件
+            if mac_mc_dir.join("hmcl.json").exists()
+                || mac_mc_dir.join(".hmcl.json").exists()
+                || mac_mc_dir.join("hmclversion.cfg").exists()
+                || home.join(".hmcl").exists()
+            {
+                return Some(mac_mc_dir);
+            }
+        }
+    }
+
+    // 通用检测：~/.hmcl 目录（HMCL 当前目录）
     let candidate = home.join(".hmcl");
     if candidate.exists() {
         return Some(candidate);
     }
+
+    // 通用检测：~/.minecraft 下有 hmcl.json 或 .hmcl.json
     let candidate = home.join(".minecraft");
-    if candidate.join("hmclver.json").exists() {
+    if candidate.join("hmcl.json").exists() || candidate.join(".hmcl.json").exists() {
         return Some(candidate);
     }
+
+    // macOS/Linux: 检查 data_dir 下的 minecraft 或 .minecraft
+    #[cfg(target_os = "macos")]
+    {
+        let candidate = data.join("minecraft");
+        if candidate.join("hmcl.json").exists() || candidate.join(".hmcl.json").exists() {
+            return Some(candidate);
+        }
+    }
+
+    let candidate = data.join(".minecraft");
+    if candidate.join("hmcl.json").exists() || candidate.join(".hmcl.json").exists() {
+        return Some(candidate);
+    }
+
     None
 }
 
@@ -478,87 +526,229 @@ fn parse_version_json(path: &std::path::Path, fallback_id: &str) -> (String, Opt
 }
 
 fn parse_hmcl_profiles(dir: &std::path::Path) -> Result<Vec<MigrateableInstance>, LauncherError> {
-    let hmclver_path = dir.join("hmclver.json");
-    if !hmclver_path.exists() {
-        return Err(LauncherError::VersionNotFound("hmclver.json not found".into()));
-    }
+    // HMCL 主配置文件：hmcl.json（Windows）或 .hmcl.json（Linux/Mac）
+    let hmcl_json_path = dir.join("hmcl.json");
+    let hmcl_json_alt_path = dir.join(".hmcl.json");
+    let config_path = if hmcl_json_path.exists() {
+        &hmcl_json_path
+    } else if hmcl_json_alt_path.exists() {
+        &hmcl_json_alt_path
+    } else {
+        return Err(LauncherError::VersionNotFound("hmcl.json not found".into()));
+    };
 
-    let data = std::fs::read_to_string(&hmclver_path)?;
+    let data = std::fs::read_to_string(config_path)?;
     let json: serde_json::Value = serde_json::from_str(&data)?;
 
     let mut instances = Vec::new();
 
-    let global_java = json.get("globalSettings")
-        .and_then(|s| s.get("javaDir"))
+    // HMCL 配置结构：
+    // - configurations: Map<String, Profile> — 每个 Profile 是一个游戏文件夹
+    // - 每个 Profile 包含: gameDir, selectedMinecraftVersion, global (VersionSetting)
+    // - accounts: 账户列表
+    let configurations = json.get("configurations").and_then(|v| v.as_object());
+
+    // 全局设置（从第一个 Profile 的 global 字段读取，或从顶层读取）
+    let global_settings = configurations
+        .and_then(|c| c.values().next())
+        .and_then(|p| p.get("global"));
+
+    let global_java = global_settings
+        .and_then(|s| s.get("java"))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
-    let global_jvm_args = json.get("globalSettings")
+    let global_jvm_args = global_settings
         .and_then(|s| s.get("javaArgs"))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
-    let global_max_mem = json.get("globalSettings")
+    let global_max_mem = global_settings
         .and_then(|s| s.get("maxMemory"))
         .and_then(|v| v.as_u64())
         .map(|v| v as u32);
-    let global_min_mem = json.get("globalSettings")
+    let global_min_mem = global_settings
         .and_then(|s| s.get("minMemory"))
         .and_then(|v| v.as_u64())
         .map(|v| v as u32);
 
-    let profiles = if let Some(arr) = json.get("profiles").and_then(|v| v.as_array()) {
-        arr.clone()
-    } else if let Some(obj) = json.get("profiles").and_then(|v| v.as_object()) {
-        obj.values().cloned().collect()
-    } else {
-        return Ok(instances);
-    };
+    if let Some(profiles) = configurations {
+        for (profile_name, profile) in profiles {
+            // 每个 Profile 的 gameDir 指向一个 .minecraft 目录
+            let game_dir_str = profile.get("gameDir").and_then(|v| v.as_str());
+            let profile_dir = game_dir_str
+                .map(PathBuf::from)
+                .unwrap_or_else(|| dir.to_path_buf());
 
-    for profile in &profiles {
-        let name = profile.get("name").and_then(|v| v.as_str()).unwrap_or("Unknown").to_string();
-        let version_id = profile.get("version").and_then(|v| v.as_str()).unwrap_or("1.21").to_string();
-        let game_dir_str = profile.get("gameDir").and_then(|v| v.as_str());
-        let profile_dir = game_dir_str.map(PathBuf::from).unwrap_or_else(|| dir.to_path_buf());
+            // selectedMinecraftVersion 是当前选中的版本
+            let selected_version = profile
+                .get("selectedMinecraftVersion")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
 
-        let loader_type = profile.get("type").and_then(|v| v.as_str()).and_then(|t| {
-            match t {
-                "fabric" => Some("fabric".to_string()),
-                "forge" => Some("forge".to_string()),
-                "neoforge" => Some("neoforge".to_string()),
-                "quilt" => Some("quilt".to_string()),
-                _ => None,
+            // 扫描该 Profile 下的 versions 目录
+            let versions_dir = profile_dir.join("versions");
+            if !versions_dir.exists() {
+                continue;
             }
-        });
 
-        let loader_version = profile.get("loaderVersion").and_then(|v| v.as_str()).map(|s| s.to_string());
+            if let Ok(version_entries) = std::fs::read_dir(&versions_dir) {
+                for v_entry in version_entries.flatten() {
+                    let version_dir = v_entry.path();
+                    if !version_dir.is_dir() {
+                        continue;
+                    }
+                    let version_name = v_entry.file_name().to_string_lossy().to_string();
+                    let version_json = version_dir.join(format!("{}.json", &version_name));
+                    if !version_json.exists() {
+                        continue;
+                    }
 
-        let mods_dir = profile_dir.join("mods");
-        let has_mods = mods_dir.exists() && std::fs::read_dir(&mods_dir).map(|mut d| d.next().is_some()).unwrap_or(false);
-        let saves_dir = profile_dir.join("saves");
-        let has_saves = saves_dir.exists() && std::fs::read_dir(&saves_dir).map(|mut d| d.next().is_some()).unwrap_or(false);
+                    let (version_id, loader_type, loader_version) =
+                        parse_version_json(&version_json, &version_name);
 
-        let profile_java = profile.get("javaDir").and_then(|v| v.as_str()).map(|s| s.to_string());
-        let profile_jvm_args = profile.get("javaArgs").and_then(|v| v.as_str()).map(|s| s.to_string());
-        let profile_max_mem = profile.get("maxMemory").and_then(|v| v.as_u64()).map(|v| v as u32);
-        let profile_min_mem = profile.get("minMemory").and_then(|v| v.as_u64()).map(|v| v as u32);
+                    // 读取 hmclversion.cfg 获取版本特定设置
+                    let hmclversion_cfg = version_dir.join("hmclversion.cfg");
+                    let (ver_java, ver_jvm_args, ver_max_mem, ver_min_mem) =
+                        if hmclversion_cfg.exists() {
+                            parse_hmclversion_cfg(&hmclversion_cfg)
+                        } else {
+                            (None, None, None, None)
+                        };
 
-        instances.push(MigrateableInstance {
-            name,
-            version_id,
-            loader_type,
-            loader_version,
-            game_dir: profile_dir.to_string_lossy().to_string(),
-            launcher_type: "hmcl".to_string(),
-            has_mods,
-            has_saves,
-            size_mb: dir_size_mb(&profile_dir),
-            java_path: profile_java.or_else(|| global_java.clone()),
-            jvm_args: profile_jvm_args.or_else(|| global_jvm_args.clone()),
-            min_memory: profile_min_mem.or(global_min_mem),
-            max_memory: profile_max_mem.or(global_max_mem),
-        });
+                    // 检查 mods/saves 是否存在
+                    // HMCL 版本隔离：gameDirType=1 时，游戏数据在 versions/<id>/ 下
+                    // 否则在 .minecraft 根目录下
+                    let game_dir_type = global_settings
+                        .and_then(|s| s.get("gameDirType"))
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
+
+                    let (mods_dir, saves_dir) = if game_dir_type == 1 {
+                        (version_dir.join("mods"), version_dir.join("saves"))
+                    } else {
+                        (profile_dir.join("mods"), profile_dir.join("saves"))
+                    };
+
+                    let has_mods = mods_dir.exists()
+                        && std::fs::read_dir(&mods_dir)
+                            .map(|mut d| d.next().is_some())
+                            .unwrap_or(false);
+                    let has_saves = saves_dir.exists()
+                        && std::fs::read_dir(&saves_dir)
+                            .map(|mut d| d.next().is_some())
+                            .unwrap_or(false);
+
+                    // 实例名：Profile名/版本名（如果是选中版本则标记）
+                    let instance_name = if version_name == selected_version {
+                        format!("{} ★", version_name)
+                    } else {
+                        version_name
+                    };
+
+                    instances.push(MigrateableInstance {
+                        name: format!("{} - {}", profile_name, instance_name),
+                        version_id,
+                        loader_type,
+                        loader_version,
+                        game_dir: profile_dir.to_string_lossy().to_string(),
+                        launcher_type: "hmcl".to_string(),
+                        has_mods,
+                        has_saves,
+                        size_mb: dir_size_mb(&version_dir),
+                        java_path: ver_java.or_else(|| global_java.clone()),
+                        jvm_args: ver_jvm_args.or_else(|| global_jvm_args.clone()),
+                        min_memory: ver_min_mem.or(global_min_mem),
+                        max_memory: ver_max_mem.or(global_max_mem),
+                    });
+                }
+            }
+        }
+    }
+
+    // 如果没有找到 configurations，回退到扫描 versions 目录
+    if instances.is_empty() {
+        let versions_dir = dir.join("versions");
+        if versions_dir.exists() {
+            if let Ok(entries) = std::fs::read_dir(&versions_dir) {
+                for entry in entries.flatten() {
+                    let version_dir = entry.path();
+                    if !version_dir.is_dir() {
+                        continue;
+                    }
+                    let version_name = entry.file_name().to_string_lossy().to_string();
+                    let version_json = version_dir.join(format!("{}.json", &version_name));
+                    if !version_json.exists() {
+                        continue;
+                    }
+
+                    let (version_id, loader_type, loader_version) =
+                        parse_version_json(&version_json, &version_name);
+
+                    let mods_dir = dir.join("mods");
+                    let has_mods = mods_dir.exists()
+                        && std::fs::read_dir(&mods_dir)
+                            .map(|mut d| d.next().is_some())
+                            .unwrap_or(false);
+                    let saves_dir = dir.join("saves");
+                    let has_saves = saves_dir.exists()
+                        && std::fs::read_dir(&saves_dir)
+                            .map(|mut d| d.next().is_some())
+                            .unwrap_or(false);
+
+                    instances.push(MigrateableInstance {
+                        name: version_name.clone(),
+                        version_id,
+                        loader_type,
+                        loader_version,
+                        game_dir: dir.to_string_lossy().to_string(),
+                        launcher_type: "hmcl".to_string(),
+                        has_mods,
+                        has_saves,
+                        size_mb: dir_size_mb(&version_dir),
+                        java_path: global_java.clone(),
+                        jvm_args: global_jvm_args.clone(),
+                        min_memory: global_min_mem,
+                        max_memory: global_max_mem,
+                    });
+                }
+            }
+        }
     }
 
     Ok(instances)
+}
+
+/// 解析 HMCL 版本配置文件 hmclversion.cfg（JSON 格式的 VersionSetting）
+fn parse_hmclversion_cfg(
+    path: &std::path::Path,
+) -> (Option<String>, Option<String>, Option<u32>, Option<u32>) {
+    let data = match std::fs::read_to_string(path) {
+        Ok(d) => d,
+        Err(_) => return (None, None, None, None),
+    };
+    let json: serde_json::Value = match serde_json::from_str(&data) {
+        Ok(v) => v,
+        Err(_) => return (None, None, None, None),
+    };
+
+    let java = json
+        .get("java")
+        .and_then(|v| v.as_str())
+        .filter(|s| *s != "Auto" && !s.is_empty())
+        .map(|s| s.to_string());
+    let jvm_args = json
+        .get("javaArgs")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let max_mem = json
+        .get("maxMemory")
+        .and_then(|v| v.as_u64())
+        .map(|v| v as u32);
+    let min_mem = json
+        .get("minMemory")
+        .and_then(|v| v.as_u64())
+        .map(|v| v as u32);
+
+    (java, jvm_args, max_mem, min_mem)
 }
 
 fn parse_pcl2_profiles(dir: &std::path::Path) -> Result<Vec<MigrateableInstance>, LauncherError> {
@@ -1084,9 +1274,19 @@ pub async fn migrate_instance(
         return Err(LauncherError::VersionNotFound(format!("Source directory not found: {}", source_game_dir)));
     }
 
-    let manifest = crate::version::manifest::fetch_versions_sorted().await?;
-    let version_entry = manifest.iter().find(|v| v.id == version_id);
-    let version_url = version_entry.map(|v| v.url.clone()).unwrap_or_default();
+    // 关键修复：移除强制网络依赖。迁移本质上是本地文件复制操作，
+    // 不应因为无法拉取 Mojang 版本清单而失败。
+    // version_url 留空，后续启动时按需拉取。
+    let version_url = crate::version::manifest::fetch_versions_sorted()
+        .await
+        .ok()
+        .and_then(|manifest| {
+            manifest.iter().find(|v| v.id == version_id).map(|v| v.url.clone())
+        })
+        .unwrap_or_default();
+    if version_url.is_empty() {
+        tracing::warn!("Could not resolve version URL for {} (offline or not in manifest). Instance will be created without version_url; it will be resolved on first launch.", version_id);
+    }
 
     let inst_id = format!("migrated_{}_{}", version_id, chrono::Utc::now().timestamp_millis());
     let now = chrono::Local::now().to_rfc3339();
@@ -1105,28 +1305,42 @@ pub async fn migrate_instance(
         created_at: now,
         last_played: None,
         playtime_seconds: 0,
+        uses_global_config: true,
+        window_width: 0,
+        window_height: 0,
+        fullscreen: false,
+        debug_mode: false,
+        debug_port: 5005,
+        icon: None,
+        tags: Vec::new(),
+        server_address: None,
+        game_dir_type: "version".to_string(),
+        custom_game_dir: None,
+        pre_launch_command: None,
+        post_exit_command: None,
+        environment_variables: None,
+        process_priority: "normal".to_string(),
     };
 
     manager::create_instance(&instance)?;
 
     let dest_mc_dir = paths::get_instance_minecraft_dir(&inst_id);
 
-    let source_mc_dir = if launcher_type == "multimc" || launcher_type == "prism" {
-        let mmc_mc = source_dir.join(".minecraft");
-        if mmc_mc.exists() { mmc_mc } else { source_dir.clone() }
-    } else if launcher_type == "gdlauncher" || launcher_type == "xmcl" {
-        let inst_mc = source_dir.join(".minecraft");
-        if inst_mc.exists() { inst_mc } else { source_dir.clone() }
-    } else {
-        source_dir.clone()
-    };
+    // 关键修复：直接使用 source_game_dir 作为 source_mc_dir。
+    // scan_launcher_instances 阶段已经解析好了正确的 game_dir（含 .minecraft 子目录处理），
+    // 这里不应按 launcher_type 重新猜测路径，否则会导致路径不一致。
+    let source_mc_dir = source_dir.clone();
 
+    // 关键修复：增加 "versions" 目录复制。
+    // 旧代码漏掉了 versions 目录，导致迁移后的实例缺少版本 JSON/JAR 文件，
+    // 健康检查报 "Version JAR missing"，无法直接启动。
     let copy_dirs = [
-        "mods", "config", "saves", "resourcepacks", "shaderpacks",
+        "versions", "mods", "config", "saves", "resourcepacks", "shaderpacks",
         "defaultconfigs", "kubejs", "journeymap", "worldbackup",
         "blueprints", "structures", "datapacks",
         "options.txt", "optionsof.txt", "servers.dat",
         "optionsshaders.txt", "mods_list.json",
+        "logs", "crash-reports", "screenshots",
     ];
     let mut copied_files: u32 = 0;
     for item in &copy_dirs {
@@ -1229,8 +1443,10 @@ pub fn scan_custom_directory(path: &str) -> Result<Vec<MigrateableInstance>, Lau
         }
     }
 
-    if dir.join("versions").exists() || dir.join("hmclver.json").exists() {
-        let launcher_type = if dir.join("hmclver.json").exists() { "hmcl" } else { "vanilla" };
+    // 检测 HMCL（hmcl.json 或 .hmcl.json）或 vanilla（versions 目录）
+    let is_hmcl = dir.join("hmcl.json").exists() || dir.join(".hmcl.json").exists();
+    if dir.join("versions").exists() || is_hmcl {
+        let launcher_type = if is_hmcl { "hmcl" } else { "vanilla" };
         return scan_vanilla_style(&dir, launcher_type);
     }
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { getAchievements, checkAchievements } from '../../../../shared/api/system';
 import { Button } from './Button';
 import { formatDate } from '../../../../shared/utils/format';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './AchievementDisplay.module.css';
 
 interface Achievement {
@@ -29,6 +30,7 @@ const RARITY_COLORS: Record<string, string> = {
 };
 
 export default function AchievementDisplay() {
+  const { t } = useI18n();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
@@ -73,14 +75,14 @@ export default function AchievementDisplay() {
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
 
   if (loading) {
-    return <div className={styles.loading}>Loading achievements...</div>;
+    return <div className={styles.loading}>{t('achievement.loading')}</div>;
   }
 
   return (
     <div className={styles.wrapper}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <span className={styles.title}>Achievements</span>
+          <span className={styles.title}>{t('achievement.title')}</span>
           <span className={styles.count}>
             {unlockedCount}/{achievements.length}
           </span>
@@ -98,7 +100,7 @@ export default function AchievementDisplay() {
             ))}
           </div>
           <Button variant="secondary" size="sm" onClick={handleCheck} disabled={checking}>
-            {checking ? 'Checking...' : 'Check'}
+            {checking ? t('common.checking') : t('achievement.check')}
           </Button>
         </div>
       </div>

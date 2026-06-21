@@ -1,0 +1,11 @@
+[package]
+name = "sha1-asm"
+version = "0.5.3"
+edition = "2021"
+authors = ["RustCrypto Developers"]
+description = "Pure Rust fallback - clang assembler crash workaround on macOS Apple Silicon"
+license = "MIT"
+
+[lib]
+name = "sha1_asm"
+path = "src/lib.rs"

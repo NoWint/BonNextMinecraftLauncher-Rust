@@ -5,7 +5,7 @@
 .title {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 1.4em;
-  color: var(--text-primary);
+  color: var(--color-text);
   margin-bottom: 1em;
   letter-spacing: 0.05em;
 }
@@ -22,14 +22,14 @@
   align-items: center;
   gap: 1em;
   padding: 0.8em 1em;
-  background: var(--bg-card);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border);
   clip-path: var(--clip-small);
 }
 
 .shellCardActive {
-  border-color: var(--accent);
-  background: rgba(255, 230, 0, 0.05);
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 5%, transparent);
 }
 
 .shellCardInfo {
@@ -39,21 +39,21 @@
 
 .shellCardName {
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--color-text);
   font-size: 0.9em;
 }
 
 .shellCardMeta {
   font-size: 0.75em;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   margin-top: 0.2em;
 }
 
 .shellCardBadge {
   font-size: 0.65em;
   padding: 0.1em 0.4em;
-  background: var(--accent);
-  color: #000;
+  background: var(--color-accent);
+  color: var(--color-accent-action-text);
   border-radius: 2px;
   font-weight: 600;
   text-transform: uppercase;
@@ -73,8 +73,8 @@
 
 .importBtn {
   padding: 0.5em 1.2em;
-  background: var(--accent);
-  color: #000;
+  background: var(--color-accent);
+  color: var(--color-accent-action-text);
   border: none;
   clip-path: var(--clip-small);
   font-weight: 600;
@@ -90,20 +90,20 @@
 .removeBtn {
   padding: 0.3em 0.8em;
   background: transparent;
-  color: var(--danger, #ff4444);
-  border: 1px solid var(--danger, #ff4444);
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
   clip-path: var(--clip-small);
   font-size: 0.75em;
   cursor: pointer;
   transition: background 0.15s;
 
   &:hover {
-    background: rgba(255, 68, 68, 0.1);
+    background: color-mix(in srgb, var(--color-error) 10%, transparent);
   }
 }
 
 .emptyState {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 0.85em;
   padding: 1em 0;
 }

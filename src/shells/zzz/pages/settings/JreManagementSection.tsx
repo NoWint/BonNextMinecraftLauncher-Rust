@@ -4,12 +4,14 @@ import type { JreVersionInfo } from '../../../../shared/api';
 import { SectionCard } from './MemorySection';
 import { Button, Badge, StatusDot } from '../../components/ui';
 import { Icon } from '../../components/ui/Icon';
+import { useI18n } from '../../../../shared/i18n';
 
 interface JreManagementSectionProps {
   addToast: (toast: { type: 'success' | 'error' | 'info' | 'warning'; title: string; message?: string }) => void;
 }
 
 export default function JreManagementSection({ addToast }: JreManagementSectionProps) {
+  const { t } = useI18n();
   const [jreVersions, setJreVersions] = useState<JreVersionInfo[]>([]);
   const [downloading, setDownloading] = useState<number | null>(null);
   const [progress, setProgress] = useState<{ downloaded: number; total: number } | null>(null);
@@ -36,11 +38,11 @@ export default function JreManagementSection({ addToast }: JreManagementSectionP
     setProgress(null);
     try {
       await api.downloadJreVersionCmd(version);
-      addToast({ type: 'success', title: `Java ${version} downloaded` });
+      addToast({ type: 'success', title: t('settings.jre.toast.downloaded', { version: String(version) }) });
       const versions = await api.listJreVersions();
       setJreVersions(versions);
     } catch (e: unknown) {
-      addToast({ type: 'error', title: 'Download failed', message: String(e) });
+      addToast({ type: 'error', title: t('settings.jre.toast.downloadFailed'), message: String(e) });
     } finally {
       setDownloading(null);
       setProgress(null);
@@ -48,18 +50,17 @@ export default function JreManagementSection({ addToast }: JreManagementSectionP
   };
 
   const versionLabel = (v: number) => {
-    if (v === 8) return 'Java 8 (LTS)';
-    if (v === 11) return 'Java 11 (LTS)';
-    if (v === 17) return 'Java 17 (LTS)';
-    if (v === 21) return 'Java 21 (LTS)';
-    return `Java ${v}`;
+    if (v === 8) return t('settings.jre.version.java8');
+    if (v === 11) return t('settings.jre.version.java11');
+    if (v === 17) return t('settings.jre.version.java17');
+    if (v === 21) return t('settings.jre.version.java21');
+    return t('settings.jre.version.other', { version: String(v) });
   };
 
   return (
-    <SectionCard id="sec-jre-management" title="JRE Version Management">
+    <SectionCard id="sec-jre-management" title={t('settings.jre.title')}>
       <div style={{ fontSize: '0.55em', color: 'var(--color-text-muted)', marginBottom: '0.8em' }}>
-        Manage Java runtime versions for different Minecraft versions. Auto-select matches the right JRE for each
-        instance.
+        {t('settings.jre.description')}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6em' }}>
@@ -73,7 +74,7 @@ export default function JreManagementSection({ addToast }: JreManagementSectionP
               padding: '0.6em 0.8em',
               background: 'var(--color-panel-alt)',
               border: `1px solid ${jre.installed ? 'var(--color-accent-30)' : 'var(--color-border-light)'}`,
-              borderRadius: 4,
+              clipPath: 'var(--clip-small)',
             }}
           >
             <StatusDot status={jre.installed ? 'ready' : 'inactive'} />
@@ -81,13 +82,13 @@ export default function JreManagementSection({ addToast }: JreManagementSectionP
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4em' }}>
                 <span style={{ fontWeight: 600, fontSize: '0.65em' }}>{versionLabel(jre.major_version)}</span>
                 {jre.installed ? (
-                  <Badge variant="accent">Installed</Badge>
+                  <Badge variant="accent">{t('settings.jre.installed')}</Badge>
                 ) : (
-                  <Badge variant="default">Not Installed</Badge>
+                  <Badge variant="default">{t('settings.jre.notInstalled')}</Badge>
                 )}
               </div>
               <div style={{ fontSize: '0.5em', color: 'var(--color-text-muted)', marginTop: 2 }}>
-                Required for: {jre.required_for.join(', ')}
+                {t('settings.jre.requiredFor')} {jre.required_for.join(', ')}
               </div>
               {jre.path && (
                 <div
@@ -112,7 +113,7 @@ export default function JreManagementSection({ addToast }: JreManagementSectionP
                   style={{
                     height: 4,
                     background: 'var(--color-border-light)',
-                    borderRadius: 2,
+                    clipPath: 'var(--clip-badge)',
                     overflow: 'hidden',
                   }}
                 >
@@ -121,7 +122,6 @@ export default function JreManagementSection({ addToast }: JreManagementSectionP
                       height: '100%',
                       width: `${progress.total > 0 ? (progress.downloaded / progress.total) * 100 : 0}%`,
                       background: 'var(--color-accent)',
-                      borderRadius: 2,
                       transition: 'width 0.2s ease',
                     }}
                   />
@@ -147,10 +147,10 @@ export default function JreManagementSection({ addToast }: JreManagementSectionP
                 disabled={downloading !== null}
               >
                 {downloading === jre.major_version ? (
-                  'Downloading...'
+                  t('common.downloading')
                 ) : (
                   <>
-                    <Icon name="download" size={12} /> Install
+                    <Icon name="download" size={12} /> {t('common.install')}
                   </>
                 )}
               </Button>
@@ -161,7 +161,7 @@ export default function JreManagementSection({ addToast }: JreManagementSectionP
 
       {jreVersions.length === 0 && (
         <div style={{ fontSize: '0.6em', color: 'var(--color-text-dim)', textAlign: 'center', padding: '1em 0' }}>
-          Loading JRE information...
+          {t('settings.jre.loading')}
         </div>
       )}
     </SectionCard>

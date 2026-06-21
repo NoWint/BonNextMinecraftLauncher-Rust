@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { type ModResult } from '../../../../shared/api';
+import { useI18n } from '../../../../shared/i18n';
 import { Badge } from './Status';
 import { Button } from './Button';
 import { CollectionButton } from './CollectionButton';
@@ -40,6 +41,7 @@ export const ContentCard = memo(function ContentCard({
   onNavigate,
   installing,
 }: ContentCardProps) {
+  const { t } = useI18n();
   const variantClass = variant === 'gallery' ? styles['card--gallery'] : styles['card--list'];
 
   const handleClick = () => {
@@ -85,7 +87,7 @@ export const ContentCard = memo(function ContentCard({
             <Badge key={cat} variant="muted">{cat}</Badge>
           ))}
         </div>
-        <div className={styles.card__author}>by {content.author}</div>
+        <div className={styles.card__author}>{t('contentCard.by', { author: content.author })}</div>
         <div className={styles.card__desc}>{content.description}</div>
         {variant === 'list' && (
           <div className={styles.card__meta}>
@@ -93,7 +95,7 @@ export const ContentCard = memo(function ContentCard({
               <Badge variant="accent">{content.latest_version}</Badge>
             )}
             <span style={{ fontSize: '0.48em', color: 'var(--color-text-dim)' }}>
-              Updated {new Date(content.date_modified).toLocaleDateString()}
+              {t('contentCard.updated', { date: new Date(content.date_modified).toLocaleDateString() })}
             </span>
           </div>
         )}
@@ -111,14 +113,14 @@ export const ContentCard = memo(function ContentCard({
           categories={content.categories}
         />
         {onInstall && (
-          <Tooltip content={`Install ${content.title}`}>
+          <Tooltip content={t('contentCard.installTooltip', { title: content.title })}>
             <Button
               variant="secondary-highlight"
               size="sm"
               disabled={installing}
               onClick={handleInstall}
             >
-              {installing ? '...' : 'Install'}
+              {installing ? '...' : t('contentCard.install')}
             </Button>
           </Tooltip>
         )}

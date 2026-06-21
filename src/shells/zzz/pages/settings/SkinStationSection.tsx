@@ -504,7 +504,7 @@ export default function SkinStationSection({
                             yggdrasilUrlField.setValue(e.target.value);
                           }}
                           onBlur={yggdrasilUrlField.onBlur}
-                          placeholder="https://example.com/api/yggdrasil"
+                          placeholder={t('settings.skin.yggdrasilUrlPlaceholder')}
                         />
                         {yggdrasilUrlField.error && (
                           <div className={formStyles.errorText}>{yggdrasilUrlField.error}</div>
@@ -520,7 +520,7 @@ export default function SkinStationSection({
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="your@email.com"
+                    placeholder={t('settings.skin.emailPlaceholder')}
                   />
                 </div>
               </SettingRow>
@@ -530,7 +530,7 @@ export default function SkinStationSection({
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
+                    placeholder={t('settings.skin.passwordPlaceholder')}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleLogin();
                     }}
@@ -551,7 +551,7 @@ export default function SkinStationSection({
               <div className={styles.accountRow}>
                 <StatusDot status="ready" />
                 <span className={styles.accountName}>{yggdrasilAccount.username}</span>
-                <Badge variant="accent">YGGDRASIL</Badge>
+                <Badge variant="accent">{t('settings.skin.yggdrasil')}</Badge>
                 {yggdrasilAccount.yggdrasil_server_url && (
                   <span className={styles.skinServerUrl}>
                     {yggdrasilAccount.yggdrasil_server_url.replace(/https?:\/\//, '').replace(/\/api\/yggdrasil.*/, '')}
@@ -610,7 +610,7 @@ export default function SkinStationSection({
               <div className={styles.accountRow}>
                 <StatusDot status="ready" />
                 <span className={styles.accountName}>{microsoftAccount.username}</span>
-                <Badge variant="accent">MICROSOFT</Badge>
+                <Badge variant="accent">{t('settings.skin.microsoft')}</Badge>
               </div>
               {modelToggle}
               <div className={styles.actions}>
@@ -718,7 +718,7 @@ export default function SkinStationSection({
               <div className={styles.accountRow}>
                 <StatusDot status="ready" />
                 <span className={styles.accountName}>{activeAccount?.username}</span>
-                <Badge variant="accent">OFFLINE</Badge>
+                <Badge variant="accent">{t('settings.skin.offline')}</Badge>
               </div>
               <div className={styles.skinSubTitle}>{t('skinStation.localSkin')}</div>
               <div className={styles.skinDesc}>{t('skinStation.localSkinOfflineDesc')}</div>

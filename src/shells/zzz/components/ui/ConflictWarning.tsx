@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../../../shared/api';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './ConflictWarning.module.css';
 
 interface ConflictItem {
@@ -13,13 +14,14 @@ interface ConflictWarningProps {
   instanceId: string;
 }
 
-const severityLabel: Record<string, string> = {
-  high: '严重',
-  medium: '中等',
-};
-
 export function ConflictWarning({ instanceId }: ConflictWarningProps) {
+  const { t } = useI18n();
   const [conflicts, setConflicts] = useState<ConflictItem[] | null>(null);
+
+  const severityLabel: Record<string, string> = {
+    high: t('conflict.severity.critical'),
+    medium: t('conflict.severity.medium'),
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -38,7 +40,7 @@ export function ConflictWarning({ instanceId }: ConflictWarningProps) {
     return (
       <div className={styles.empty}>
         <span className={styles.emptyIcon}>&#10003;</span>
-        <span className={styles.emptyText}>No conflicts detected</span>
+        <span className={styles.emptyText}>{t('conflict.noConflicts')}</span>
       </div>
     );
   }
@@ -47,8 +49,8 @@ export function ConflictWarning({ instanceId }: ConflictWarningProps) {
     <div className={`${styles.panel} ${styles.panelWarning}`}>
       <div className={styles.header}>
         <span className={styles.headerIcon}>&#9888;</span>
-        <span className={styles.headerTitle}>模组冲突检测</span>
-        <span className={styles.headerCount}>{conflicts.length} conflicts</span>
+        <span className={styles.headerTitle}>{t('conflict.title')}</span>
+        <span className={styles.headerCount}>{t('conflict.count', { count: String(conflicts.length) })}</span>
       </div>
 
       <div className={styles.conflicts}>

@@ -84,7 +84,7 @@ export default function LoginPage() {
       const code = await api.startMicrosoftAuth();
       setDeviceCode(code);
     } catch (e: unknown) {
-      setMsError(formatError(e) || 'Failed to start Microsoft login');
+      setMsError(formatError(e) || t('login.error.msStartFailed'));
       setMsLoading(false);
     }
   };

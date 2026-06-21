@@ -4,10 +4,12 @@ import { formatError } from '../../../../shared/utils/errorMapping';
 import { api, type ModResult } from '../../../../shared/api';
 import { useInstances } from '../../../../shared/stores/instanceStore';
 import { useToast } from '../../../../shared/stores/toastStore';
+import { useI18n } from '../../../../shared/i18n';
 import { Button, Pagination, ContentCard, contentFromModResult } from '../ui';
 import { Icon } from '../ui/Icon';
 import type { ContentType, DataSource, ViewMode } from './types';
 import { PAGE_SIZE } from './types';
+import { searchContent, getBrowseContent } from './contentSource';
 import styles from './ResultsView.module.css';
 
 interface ResultsViewProps {
@@ -53,6 +55,7 @@ export default function ResultsView({
   const navigate = useNavigate();
   const { state: instState } = useInstances();
   const { addToast } = useToast();
+  const { t } = useI18n();
 
   const [mods, setMods] = useState<ModResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,6 +73,26 @@ export default function ResultsView({
   const instances = instState.instances;
   const activeInstance = instances.length > 0 ? instances[0] : null;
 
+  const fetchPage = useCallback(
+    async (offset: number): Promise<[ModResult[], number]> => {
+      const effectiveQuery = searchQuery || selectedTags.join(' ');
+      if (effectiveQuery.trim()) {
+        return searchContent(source, {
+          query: effectiveQuery,
+          contentType,
+          gameVersion: gameVersion || undefined,
+          loader: loader || undefined,
+          tags: selectedTags,
+          sortBy,
+          offset,
+        });
+      }
+      const results = await getBrowseContent(source, contentType, gameVersion || undefined);
+      return [results, results.length];
+    },
+    [contentType, source, searchQuery, selectedTags, gameVersion, loader, sortBy],
+  );
+
   const loadMods = useCallback(
     async (reset: boolean) => {
       if (loadingRef.current) return;
@@ -86,41 +109,8 @@ export default function ResultsView({
 
       setError('');
       try {
-        const effectiveQuery = searchQuery || selectedTags.join(' ');
         const offset = reset ? 0 : offsetRef.current;
-
-        let results: ModResult[];
-        let total: number;
-
-        if (effectiveQuery.trim()) {
-          if (source === 'curseforge') {
-            [results, total] = await api.searchCfMods(
-              effectiveQuery,
-              gameVersion || undefined,
-              selectedTags[0] || undefined,
-              sortBy,
-              PAGE_SIZE,
-              offset,
-            );
-          } else {
-            [results, total] = await api.searchContent(
-              effectiveQuery,
-              contentType,
-              gameVersion || undefined,
-              loader || undefined,
-              sortBy,
-              PAGE_SIZE,
-              offset,
-            );
-          }
-        } else {
-          if (source === 'curseforge') {
-            results = await api.getCfFeatured();
-          } else {
-            results = await api.getTrendingContent(contentType, gameVersion || undefined, PAGE_SIZE);
-          }
-          total = results.length;
-        }
+        const [results, total] = await fetchPage(offset);
 
         setTotalHits(total);
 
@@ -141,7 +131,7 @@ export default function ResultsView({
         loadingRef.current = false;
       }
     },
-    [contentType, source, searchQuery, selectedTags, gameVersion, loader, sortBy],
+    [fetchPage],
   );
 
   const loadModsAt = useCallback(
@@ -149,40 +139,7 @@ export default function ResultsView({
       setLoading(true);
       setError('');
       try {
-        const effectiveQuery = searchQuery || selectedTags.join(' ');
-        let results: ModResult[];
-        let total: number;
-
-        if (effectiveQuery.trim()) {
-          if (source === 'curseforge') {
-            [results, total] = await api.searchCfMods(
-              effectiveQuery,
-              gameVersion || undefined,
-              selectedTags[0] || undefined,
-              sortBy,
-              PAGE_SIZE,
-              targetOffset,
-            );
-          } else {
-            [results, total] = await api.searchContent(
-              effectiveQuery,
-              contentType,
-              gameVersion || undefined,
-              loader || undefined,
-              sortBy,
-              PAGE_SIZE,
-              targetOffset,
-            );
-          }
-        } else {
-          if (source === 'curseforge') {
-            results = await api.getCfFeatured();
-          } else {
-            results = await api.getTrendingContent(contentType, gameVersion || undefined, PAGE_SIZE);
-          }
-          total = results.length;
-        }
-
+        const [results, total] = await fetchPage(targetOffset);
         setMods(results);
         setTotalHits(total);
         setHasMore(targetOffset + results.length < total);
@@ -192,7 +149,7 @@ export default function ResultsView({
         setLoading(false);
       }
     },
-    [contentType, source, searchQuery, selectedTags, gameVersion, loader, sortBy],
+    [fetchPage],
   );
 
   // Reset and reload when filters change
@@ -217,7 +174,7 @@ export default function ResultsView({
 
   const handleInstall = async (mod: ModResult) => {
     if (!activeInstance) {
-      addToast({ type: 'warning', title: 'No instance', message: 'Create an instance first to install content.' });
+      addToast({ type: 'warning', title: t('marketplace.noInstance'), message: t('marketplace.noInstanceDesc') });
       return;
     }
     setInstalling(mod.slug);
@@ -226,7 +183,7 @@ export default function ResultsView({
         const modId = parseInt(mod.slug, 10);
         const files = await api.getCfModFiles(modId);
         if (files.length === 0) {
-          addToast({ type: 'error', title: 'No files', message: `${mod.title} has no downloadable files.` });
+          addToast({ type: 'error', title: t('marketplace.noFiles'), message: t('marketplace.noFilesDesc', { title: mod.title }) });
           setInstalling(null);
           return;
         }
@@ -240,7 +197,7 @@ export default function ResultsView({
           mod.slug,
           undefined,
         );
-        addToast({ type: 'success', title: 'Installed', message: `${mod.title}` });
+        addToast({ type: 'success', title: t('marketplace.installed'), message: `${mod.title}` });
       } else {
         const versions = await api.getModVersions(
           mod.slug,
@@ -248,7 +205,7 @@ export default function ResultsView({
           loader || activeInstance.loader_type || 'fabric',
         );
         if (versions.length === 0) {
-          addToast({ type: 'error', title: 'Not compatible', message: `${mod.title} has no version for your setup.` });
+          addToast({ type: 'error', title: t('marketplace.notCompatible'), message: t('marketplace.notCompatibleDesc', { title: mod.title }) });
           setInstalling(null);
           return;
         }
@@ -266,10 +223,10 @@ export default function ResultsView({
           mod.slug,
           latest.id,
         );
-        addToast({ type: 'success', title: 'Installed', message: `${mod.title} ${latest.version_number}` });
+        addToast({ type: 'success', title: t('marketplace.installed'), message: `${mod.title} ${latest.version_number}` });
       }
     } catch (e: unknown) {
-      addToast({ type: 'error', title: 'Install failed', message: formatError(e) });
+      addToast({ type: 'error', title: t('marketplace.installFailed'), message: formatError(e) });
     } finally {
       setInstalling(null);
     }
@@ -283,10 +240,10 @@ export default function ResultsView({
             <Icon name="warning" size={14} />
           </span>
           <span className={styles.warning__text}>
-            You need an instance before you can install content. Create one first.
+            {t('marketplace.needInstance')}
           </span>
           <Button variant="secondary" size="sm" onClick={() => navigate('/instances/new')}>
-            + New instance
+            {t('marketplace.newInstance')}
           </Button>
         </div>
       )}
@@ -301,12 +258,12 @@ export default function ResultsView({
             {searchQuery || selectedTags.length > 0 ? <Icon name="search" size={16} /> : <Icon name="cube" size={16} />}
           </div>
           <div className={styles.emptyState__title}>
-            {searchQuery || selectedTags.length > 0 ? 'NO RESULTS FOUND' : 'DISCOVER CONTENT'}
+            {searchQuery || selectedTags.length > 0 ? t('marketplace.noResults') : t('marketplace.discoverContent')}
           </div>
           <div className={styles.emptyState__desc}>
             {searchQuery || selectedTags.length > 0
-              ? 'Try a different search term or browse by category instead.'
-              : "Search for your favorite content or switch to the Discover view to see what's trending."}
+              ? t('marketplace.noResultsDesc')
+              : t('marketplace.discoverDesc')}
           </div>
         </div>
       ) : (
@@ -314,7 +271,7 @@ export default function ResultsView({
           <div className={viewMode === 'grid' ? styles.galleryView : styles.listView}>
             {mods.map((mod) => (
               <ContentCard
-                key={`${mod.slug}-${mod.title}`}
+                key={mod.slug}
                 content={contentFromModResult(mod)}
                 variant={viewMode === 'grid' ? 'gallery' : 'list'}
                 onInstall={activeInstance ? () => handleInstall(mod) : undefined}

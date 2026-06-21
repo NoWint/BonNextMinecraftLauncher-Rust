@@ -67,20 +67,31 @@ interface CommandCardProps {
   onRetry: (taskId: string) => void;
 }
 
-const CMD_LABELS: Record<string, string> = {
-  search_mods: 'Search',
-  install_mod: 'Install',
-  launch_game: 'Launch',
-  update_settings: 'Settings',
-  get_instances: 'Instances',
-  get_config: 'Config',
-  search_versions: 'Versions',
-};
-
 const CommandCard: React.FC<CommandCardProps> = ({ command, task, onRetry }) => {
   const { t } = useI18n();
   const status = task?.status || 'pending';
-  const label = CMD_LABELS[command.command] || command.command;
+
+  const getCmdLabel = (cmd: string): string => {
+    switch (cmd) {
+      case 'search_mods':
+        return t('ai.cmd.search');
+      case 'install_mod':
+        return t('ai.cmd.install');
+      case 'launch_game':
+        return t('ai.cmd.launch');
+      case 'update_settings':
+        return t('ai.cmd.settings');
+      case 'get_instances':
+        return t('ai.cmd.instances');
+      case 'get_config':
+        return t('ai.cmd.config');
+      case 'search_versions':
+        return t('ai.cmd.versions');
+      default:
+        return cmd;
+    }
+  };
+  const label = getCmdLabel(command.command);
 
   return (
     <div className={`${styles.commandCard} ${styles[`commandCard--${status}`]}`}>

@@ -275,14 +275,26 @@ pub(crate) async fn launch_game_inner(
         {
             let mut current = launch_state.lock();
             if current.can_transition_to(LaunchState::Downloading) {
+                tracing::info!("Launch state: {:?} -> {:?}", *current, LaunchState::Downloading);
                 *current = LaunchState::Downloading;
+                let _ = _app.emit("launch-state-changed", serde_json::json!({
+                    "state": LaunchState::Downloading,
+                    "instance_id": instance_id,
+                }));
             }
         }
         tracing::info!("Client JAR not found, downloading version {} first", version_id);
         download_version_inner(&version_id, &version_url, _app.clone(), &DownloadControlState::new()).await?;
+        // 下载完成后强制重置为 Idle（Downloading → Idle 是非法转换，但此处需要重置
+        // 以便后续 LaunchProcess::launch 从 Idle 开始正常状态机流程）。
         {
             let mut current = launch_state.lock();
+            tracing::info!("Launch state (forced): {:?} -> {:?}", *current, LaunchState::Idle);
             *current = LaunchState::Idle;
+            let _ = _app.emit("launch-state-changed", serde_json::json!({
+                "state": LaunchState::Idle,
+                "instance_id": instance_id,
+            }));
         }
         version::resolver::load_local_version(&version_id)
             .ok_or_else(|| LauncherError::VersionNotFound(format!("Version JSON for {} not found after download", version_id)))?
@@ -290,37 +302,96 @@ pub(crate) async fn launch_game_inner(
         version::resolver::resolve_version_with_parents(&version_id, &version_url).await?
     };
     let mut resolved = version::resolver::ResolvedVersion::from_details(&details);
+    // 保存原始版本 ID，用于文件系统路径构建。
+    // 安装 Loader 后 resolved.id 会被改为 loader 版本 ID（如 fabric-loader-0.15.11-1.21），
+    // 但版本文件（client JAR、log4j、natives）存储在原始版本目录下。
+    let original_version_id = resolved.id.clone();
+
+    // assets 完整性检查：client JAR 存在不代表 assets 完整。
+    // 之前出现过 assets 下载中断导致 72% 文件缺失，MC 启动后因 NoSuchFileException 崩溃。
+    // 启动前检查并下载缺失的 asset 文件，避免 MC 因资源缺失而崩溃。
+    // 只在 client JAR 已存在（跳过完整下载流程）时检查，避免与 download_version_inner 重复。
+    if client_jar_path.exists() {
+        if let Err(e) = verify_and_download_assets(&_app, &resolved.asset_index).await {
+            tracing::warn!("Asset verification failed: {}. Continuing launch anyway.", e);
+        }
+    }
 
     if let Some(ref iid) = &instance_id {
         if let Ok(Some(inst)) = instance::manager::get_instance(iid) {
             if let (Some(lt), Some(lv)) = (&inst.loader_type, &inst.loader_version) {
                 tracing::info!("Instance has loader {} {}, installing/verging loader...", lt, lv);
                 if let Some(loader_type) = loader::LoaderType::from_str(lt) {
-                    match loader::install_loader(&loader_type, &details, lv, iid).await {
-                        Ok(loader_result) => {
-                            if !loader_result.extra_libraries.is_empty() {
-                                let tasks = crate::download::queue::build_library_download_tasks(&loader_result.extra_libraries);
-                                let queue = DownloadQueue::new();
-                                match queue.download_all(tasks).await {
-                                    Ok(_) => tracing::info!("Loader libraries downloaded successfully"),
-                                    Err(e) => tracing::warn!("Failed to download some loader libraries: {}", e),
+                    // 加载器缓存：避免每次启动都从网络获取加载器元数据。
+                    // 之前每次启动都调用 install_loader()，依赖网络（meta.fabricmc.net 等），
+                    // 离线时加载器无法应用 → 游戏以原版模式启动 → 看不到模组。
+                    // 缓存文件名包含 loader_type 和 loader_version，版本变化时自动使用新缓存。
+                    let loader_cache_path = paths::get_instance_minecraft_dir(iid)
+                        .join(format!("loader_cache_{}_{}.json", lt, lv));
+
+                    let loader_result = if let Ok(cached) = std::fs::read_to_string(&loader_cache_path) {
+                        match serde_json::from_str::<loader::LoaderInstallResult>(&cached) {
+                            Ok(result) => {
+                                tracing::info!(
+                                    "Loader cache hit: {} {} -> {} (offline-ready)",
+                                    lt, lv, result.version_id
+                                );
+                                result
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    "Loader cache parse failed ({}), re-installing from network...", e
+                                );
+                                match loader::install_loader(&loader_type, &details, lv, iid).await {
+                                    Ok(result) => {
+                                        if let Ok(json) = serde_json::to_string(&result) {
+                                            let _ = std::fs::write(&loader_cache_path, json);
+                                            tracing::info!("Loader cache saved: {}", loader_cache_path.display());
+                                        }
+                                        result
+                                    }
+                                    Err(e) => {
+                                        tracing::error!("Failed to install loader: {}", e);
+                                        return Err(e);
+                                    }
                                 }
                             }
-                            resolved.main_class = loader_result.main_class;
-                            resolved.libraries.extend(loader_result.extra_libraries);
-                            resolved.jvm_args.extend(loader_result.extra_jvm_args);
-                            resolved.game_args.extend(loader_result.extra_game_args);
-                            resolved.id = loader_result.version_id;
-                            tracing::info!(
-                                "Loader merged: id={}, mainClass={}, total libs={}",
-                                resolved.id, resolved.main_class, resolved.libraries.len()
-                            );
                         }
-                        Err(e) => {
-                            tracing::error!("Failed to install loader: {}", e);
-                            return Err(e);
+                    } else {
+                        tracing::info!("No loader cache, installing {} {} from network...", lt, lv);
+                        match loader::install_loader(&loader_type, &details, lv, iid).await {
+                            Ok(result) => {
+                                if let Ok(json) = serde_json::to_string(&result) {
+                                    let _ = std::fs::write(&loader_cache_path, json);
+                                    tracing::info!("Loader cache saved: {}", loader_cache_path.display());
+                                }
+                                result
+                            }
+                            Err(e) => {
+                                tracing::error!("Failed to install loader: {}", e);
+                                return Err(e);
+                            }
+                        }
+                    };
+
+                    // 下载加载器库（DownloadQueue 会自动跳过已存在的文件）
+                    if !loader_result.extra_libraries.is_empty() {
+                        let tasks = crate::download::queue::build_library_download_tasks(&loader_result.extra_libraries);
+                        let queue = DownloadQueue::new();
+                        match queue.download_all(tasks).await {
+                            Ok(_) => tracing::info!("Loader libraries verified/downloaded successfully"),
+                            Err(e) => tracing::warn!("Failed to download some loader libraries: {}", e),
                         }
                     }
+                    resolved.main_class = loader_result.main_class;
+                    resolved.libraries.extend(loader_result.extra_libraries);
+                    resolved.jvm_args.extend(loader_result.extra_jvm_args);
+                    resolved.game_args.extend(loader_result.extra_game_args);
+                    resolved.id = loader_result.version_id;
+                    tracing::info!(
+                        "Loader merged: id={}, mainClass={}, total libs={}",
+                        resolved.id, resolved.main_class, resolved.libraries.len()
+                    );
                 }
             }
         }
@@ -334,7 +405,7 @@ pub(crate) async fn launch_game_inner(
     );
 
     let instance_settings = InstanceSettings { id: instance_id.clone(), max_memory, min_memory, java_path, jvm_args, user_type: Some(user_type), debug_mode: None, debug_port: None };
-    let ctx = LaunchContext::build(resolved, username, uuid, access_token, Some(instance_settings))?;
+    let ctx = LaunchContext::build(resolved, original_version_id, username, uuid, access_token, Some(instance_settings))?;
     let mut launcher = LaunchProcess::with_app_handle(launch_state, _app.clone())
         .with_running_games(running_games);
     if let Some(ref iid) = instance_id {
@@ -345,6 +416,90 @@ pub(crate) async fn launch_game_inner(
         crate::commands::achievement::try_unlock_achievement(&_app, "first_launch");
     }
     result
+}
+
+/// 启动前检查 assets 完整性，下载缺失的 asset 文件。
+///
+/// 只检查文件存在性（不校验 SHA1），速度快。下载时由 DownloadQueue 自动校验 SHA1。
+/// 解决问题：client JAR 存在但 assets 下载中断导致文件缺失，MC 启动后崩溃。
+async fn verify_and_download_assets(
+    app: &tauri::AppHandle,
+    asset_index: &crate::version::resolver::AssetIndex,
+) -> Result<(), LauncherError> {
+    let assets_dir = paths::get_assets_dir();
+    let index_path = assets_dir.join("indexes").join(format!("{}.json", asset_index.id));
+
+    // 如果 asset index 文件不存在，先下载
+    if !index_path.exists() {
+        tracing::info!("Asset index {} not found, downloading...", asset_index.id);
+        let index_task = crate::download::queue::build_asset_index_task(asset_index);
+        let queue = DownloadQueue::new();
+        queue.download_single(&index_task).await?;
+    }
+
+    // 构建 asset objects 下载任务
+    let asset_object_tasks = crate::download::queue::build_asset_object_tasks(&asset_index.id).await?;
+    let total_objects = asset_object_tasks.len();
+
+    // 只检查文件存在性（不校验 SHA1），过滤出缺失的文件
+    let missing_tasks: Vec<_> = asset_object_tasks.into_iter()
+        .filter(|t| !t.target_path.exists())
+        .collect();
+
+    if missing_tasks.is_empty() {
+        tracing::info!("Assets verification passed: all {} files present", total_objects);
+        return Ok(());
+    }
+
+    tracing::info!(
+        "Assets verification: {}/{} files missing, downloading...",
+        missing_tasks.len(), total_objects
+    );
+
+    // 下载缺失的文件（DownloadQueue 会自动校验 SHA1）
+    let total_assets = missing_tasks.len();
+    let progress_assets = Arc::new(Mutex::new(DownloadAggregateProgress {
+        completed: 0,
+        total: total_assets as u64,
+        bytes_downloaded: 0,
+        total_bytes: 0,
+        current_url: String::new(),
+        phase: "assets".to_string(),
+        start_time: std::time::Instant::now(),
+    }));
+
+    let app_for_assets = app.clone();
+    let progress_assets_cb = progress_assets.clone();
+    let asset_callback = move |p: DownloadProgress| {
+        let mut agg = progress_assets_cb.lock();
+        agg.bytes_downloaded = agg.bytes_downloaded.saturating_add(p.downloaded);
+        agg.current_url = p.url.clone();
+        if p.finished {
+            agg.completed += 1;
+        }
+        let (speed, eta) = compute_agg_speed_eta(agg.bytes_downloaded, agg.start_time);
+        let _ = app_for_assets.emit("download-progress", AggProgressSnapshot {
+            completed: agg.completed,
+            total: agg.total,
+            bytes_downloaded: agg.bytes_downloaded,
+            current_url: agg.current_url.clone(),
+            phase: agg.phase.clone(),
+            finished: agg.completed >= agg.total,
+            speed_bytes_per_sec: speed,
+            eta_seconds: eta,
+        });
+    };
+
+    let asset_queue = DownloadQueue::new().with_callback(asset_callback);
+    let results = asset_queue.download_all(missing_tasks).await?;
+    let errors: Vec<_> = results.into_iter().filter_map(|r| r.err()).collect();
+    if !errors.is_empty() {
+        tracing::error!("{} asset downloads failed", errors.len());
+    } else {
+        tracing::info!("Assets download completed: {} files", total_assets);
+    }
+
+    Ok(())
 }
 
 pub async fn download_version_inner(

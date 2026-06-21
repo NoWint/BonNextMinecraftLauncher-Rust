@@ -44,7 +44,7 @@
   font-size: 0.6em;
   font-family: var(--font-body);
   font-weight: 600;
-  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  clip-path: var(--clip-small);
 }
 
 .retryBtn:hover {
@@ -59,7 +59,7 @@
   cursor: pointer;
   font-size: 0.6em;
   font-family: var(--font-body);
-  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  clip-path: var(--clip-small);
 }
 
 .homeBtn:hover {

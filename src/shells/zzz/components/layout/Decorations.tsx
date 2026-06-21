@@ -3,15 +3,18 @@ import styles from './Decorations.module.css';
 
 interface HeadingProps {
   level?: 'xl' | 'lg' | 'md';
+  /** 语义化层级,默认 h2。设为 0 时渲染为 div(仅装饰用途) */
+  headingLevel?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
   className?: string;
   children: React.ReactNode;
 }
 
-export const Heading: React.FC<HeadingProps> = ({ level = 'xl', className = '', children }) => (
-  <div className={`${styles.heading} ${styles[`heading--${level}`]} ${className}`}>
-    {children}
-  </div>
-);
+export const Heading: React.FC<HeadingProps> = ({ level = 'xl', headingLevel = 2, className = '', children }) => {
+  const cls = `${styles.heading} ${styles[`heading--${level}`]} ${className}`;
+  if (headingLevel === 0) return <div className={cls}>{children}</div>;
+  const Tag = `h${headingLevel}` as keyof React.JSX.IntrinsicElements;
+  return <Tag className={cls}>{children}</Tag>;
+};
 
 interface SubLabelProps {
   className?: string;
@@ -65,7 +68,7 @@ interface TickerProps {
 }
 
 export const Ticker: React.FC<TickerProps> = ({ messages, className = '' }) => (
-  <div className={`${styles.ticker} ${className}`}>
+  <div className={`${styles.ticker} ${className}`} role="marquee" aria-live="off">
     <div className={styles.ticker__label}>NEWS</div>
     <div className={styles.ticker__content}>
       {messages.map((msg, i) => (

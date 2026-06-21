@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type VersionEntry, type GameInstance, type DetectedLauncher, type MigrateableInstance } from '../../../shared/api';
 import { useInstances } from '../../../shared/stores/instanceStore';
 import { useI18n } from '../../../shared/i18n';
+import { useToast } from '../../../shared/stores/toastStore';
 import { formatError } from '../../../shared/utils/errorMapping';
 import { SectionHeader, SubLabel } from '../components/layout';
 import { Button, TextInput, Select, Badge } from '../components/ui';
+import { Icon } from '../components/ui/Icon';
+import { open } from '@tauri-apps/plugin-dialog';
 import styles from './NewInstancePage.module.css';
 
 interface Template {
@@ -39,6 +42,20 @@ const getTemplates = (t: (key: string) => string): Template[] => [
     loaderType: 'forge',
   },
   {
+    id: 'neoforge',
+    name: t('newInstance.templateNeoForge'),
+    icon: '\u{1F525}',
+    description: t('newInstance.templateNeoForgeDesc'),
+    loaderType: 'neoforge',
+  },
+  {
+    id: 'quilt',
+    name: t('newInstance.templateQuilt'),
+    icon: '\u{1FAF6}',
+    description: t('newInstance.templateQuiltDesc'),
+    loaderType: 'quilt',
+  },
+  {
     id: 'optifine',
     name: t('newInstance.templateOptifine'),
     icon: '\u{1F50D}',
@@ -47,10 +64,13 @@ const getTemplates = (t: (key: string) => string): Template[] => [
   },
 ];
 
+type VersionFilter = 'all' | 'release' | 'snapshot' | 'old_beta';
+
 export default function NewInstancePage() {
   const navigate = useNavigate();
   const { createInstance } = useInstances();
   const { t } = useI18n();
+  const { addToast } = useToast();
   const TEMPLATES = getTemplates(t);
   const [name, setName] = useState('');
   const [versions, setVersions] = useState<VersionEntry[]>([]);
@@ -71,26 +91,72 @@ export default function NewInstancePage() {
   const [migrating, setMigrating] = useState<string | null>(null);
   const [migrationError, setMigrationError] = useState('');
 
-  useEffect(() => {
+  // 版本列表加载状态（HMCL 风格三态：loading/empty/error/data）
+  const [versionsLoading, setVersionsLoading] = useState(true);
+  const [versionsError, setVersionsError] = useState('');
+  const [versionFilter, setVersionFilter] = useState<VersionFilter>('release');
+  const [versionSearch, setVersionSearch] = useState('');
+
+  // 高级设置（参考 HMCL 实例创建向导的可选配置）
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [description, setDescription] = useState('');
+  const [maxMemory, setMaxMemory] = useState(2048);
+  const [minMemory, setMinMemory] = useState(512);
+  const [javaPath, setJavaPath] = useState('');
+  const [jvmArgs, setJvmArgs] = useState('');
+  const [serverAddress, setServerAddress] = useState('');
+  const [tags, setTags] = useState('');
+  const [iconPath, setIconPath] = useState<string | null>(null);
+
+  const loadVersions = () => {
+    setVersionsLoading(true);
+    setVersionsError('');
     api
       .getVersions()
       .then((v) => {
-        const releases = v.filter((ver) => ver.type === 'release');
-        setVersions(releases);
-        if (releases.length > 0) {
-          setSelectedVersion(releases[0].id);
-          setSelectedUrl(releases[0].url);
+        setVersions(v);
+        // 默认选中最新正式版（HMCL 行为）
+        const firstRelease = v.find((ver) => ver.type === 'release');
+        const first = firstRelease || v[0];
+        if (first) {
+          setSelectedVersion(first.id);
+          setSelectedUrl(first.url);
         }
       })
-      .catch(() => {});
+      .catch((e: unknown) => {
+        setVersionsError(formatError(e) || t('newInstance.versionLoadFailed'));
+      })
+      .finally(() => setVersionsLoading(false));
+  };
+
+  useEffect(() => {
+    loadVersions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 按类型 + 搜索过滤版本列表（HMCL 风格）
+  const filteredVersions = useMemo(() => {
+    let list = versions;
+    if (versionFilter === 'release') {
+      list = list.filter((v) => v.type === 'release');
+    } else if (versionFilter === 'snapshot') {
+      list = list.filter((v) => v.type === 'snapshot');
+    } else if (versionFilter === 'old_beta') {
+      list = list.filter((v) => v.type === 'old_beta' || v.type === 'old_alpha');
+    }
+    if (versionSearch.trim()) {
+      const q = versionSearch.trim().toLowerCase();
+      list = list.filter((v) => v.id.toLowerCase().includes(q));
+    }
+    return list;
+  }, [versions, versionFilter, versionSearch]);
 
   useEffect(() => {
     if (loaderType) {
       api
         .getLoaderVersions(loaderType)
         .then(setLoaderVersions)
-        .catch(() => {});
+        .catch(() => setLoaderVersions([]));
     } else {
       setLoaderVersions([]);
     }
@@ -107,7 +173,14 @@ export default function NewInstancePage() {
   };
 
   const handleCreate = async () => {
-    if (!name.trim() || !selectedVersion) return;
+    if (!name.trim()) {
+      setError(t('newInstance.requireName'));
+      return;
+    }
+    if (!selectedVersion) {
+      setError(t('newInstance.requireVersion'));
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -118,29 +191,70 @@ export default function NewInstancePage() {
         version_url: selectedUrl,
         loader_type: loaderType || null,
         loader_version: loaderVersion || null,
-        description: '',
-        max_memory: 2048,
-        min_memory: 512,
-        java_path: null,
-        jvm_args: null,
+        description: description.trim(),
+        max_memory: maxMemory,
+        min_memory: minMemory,
+        java_path: javaPath.trim() || null,
+        jvm_args: jvmArgs.trim() || null,
         created_at: new Date().toISOString(),
         last_played: null,
         playtime_seconds: 0,
+        uses_global_config: false,
+        window_width: 0,
+        window_height: 0,
+        fullscreen: false,
+        debug_mode: false,
+        debug_port: 5005,
+        icon: iconPath,
+        tags: tags.split(',').map((s) => s.trim()).filter(Boolean),
+        server_address: serverAddress.trim() || null,
+        game_dir_type: 'version',
+        custom_game_dir: null,
+        pre_launch_command: null,
+        post_exit_command: null,
+        environment_variables: null,
+        process_priority: 'normal',
       };
       await createInstance(inst);
+      addToast({ type: 'success', title: t('newInstance.createSuccess', { name: name.trim() }) });
+      if (iconPath) {
+        try {
+          await api.setInstanceIcon(inst.id, iconPath);
+        } catch {
+          /* 图标设置失败不阻断创建流程 */
+        }
+      }
       if (loaderType && loaderVersion) {
         try {
           await api.installLoader(loaderType, selectedVersion, selectedUrl, loaderVersion, inst.id);
         } catch (e: unknown) {
           setError(t('newInstance.loaderInstallFailed', { error: formatError(e) }));
+          addToast({ type: 'error', title: t('newInstance.loaderInstallFailed', { error: formatError(e) }) });
           return;
         }
       }
-      navigate('/');
+      // HMCL-style: 创建后跳转到实例详情页
+      navigate(`/instances/${inst.id}`);
     } catch (e: unknown) {
-      setError(formatError(e) || t('newInstance.createFailed'));
+      const msg = formatError(e) || t('newInstance.createFailed');
+      setError(msg);
+      addToast({ type: 'error', title: msg });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePickIcon = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'] }],
+      });
+      if (selected && typeof selected === 'string') {
+        setIconPath(selected);
+      }
+    } catch {
+      /* 用户取消 */
     }
   };
 
@@ -154,9 +268,14 @@ export default function NewInstancePage() {
       setDetectedLaunchers(launchers);
       if (launchers.length === 0) {
         setMigrationError(t('newInstance.noLaunchersFound'));
+        addToast({ type: 'info', title: t('newInstance.noLaunchersFound') });
+      } else {
+        addToast({ type: 'success', title: t('newInstance.detectSuccess', { count: String(launchers.length) }) });
       }
     } catch (e: unknown) {
-      setMigrationError(formatError(e) || t('newInstance.detectFailed'));
+      const msg = formatError(e) || t('newInstance.detectFailed');
+      setMigrationError(msg);
+      addToast({ type: 'error', title: msg });
     } finally {
       setDetecting(false);
     }
@@ -174,7 +293,9 @@ export default function NewInstancePage() {
         setMigrationError(t('newInstance.noInstancesFound'));
       }
     } catch (e: unknown) {
-      setMigrationError(formatError(e) || t('newInstance.scanFailed'));
+      const msg = formatError(e) || t('newInstance.scanFailed');
+      setMigrationError(msg);
+      addToast({ type: 'error', title: msg });
     } finally {
       setScanning(false);
     }
@@ -184,7 +305,7 @@ export default function NewInstancePage() {
     setMigrating(inst.name);
     setMigrationError('');
     try {
-      await api.migrateInstance({
+      const migrated = await api.migrateInstance({
         name: inst.name,
         versionId: inst.version_id,
         loaderType: inst.loader_type,
@@ -196,13 +317,19 @@ export default function NewInstancePage() {
         minMemory: inst.min_memory,
         maxMemory: inst.max_memory,
       });
-      navigate('/');
+      addToast({ type: 'success', title: t('newInstance.migrateSuccess', { name: inst.name }) });
+      // HMCL-style: 迁移后跳转到实例详情页
+      navigate(`/instances/${migrated.id}`);
     } catch (e: unknown) {
-      setMigrationError(formatError(e) || t('newInstance.migrateFailed'));
+      const msg = formatError(e) || t('newInstance.migrateFailed');
+      setMigrationError(msg);
+      addToast({ type: 'error', title: msg });
     } finally {
       setMigrating(null);
     }
   };
+
+  const canCreate = !loading && name.trim().length > 0 && selectedVersion.length > 0 && !versionsLoading;
 
   return (
     <div>
@@ -243,18 +370,71 @@ export default function NewInstancePage() {
           />
         </div>
 
-        {/* Version selector */}
+        {/* Version selector with filter + search + three-state UI (HMCL-style) */}
         <div data-tour="new-version">
           <SubLabel>{t('newInstance.version')}</SubLabel>
-          <Select
-            value={selectedVersion}
-            onChange={(e) => {
-              setSelectedVersion(e.target.value);
-              const v = versions.find((ver) => ver.id === e.target.value);
-              if (v) setSelectedUrl(v.url);
-            }}
-            options={versions.slice(0, 30).map((v) => ({ value: v.id, label: v.id }))}
-          />
+
+          {/* 过滤器与搜索框 */}
+          <div className={styles.versionToolbar}>
+            <div className={styles.versionFilterGroup}>
+              {(['all', 'release', 'snapshot', 'old_beta'] as VersionFilter[]).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  className={`${styles.versionFilterBtn} ${versionFilter === f ? styles.versionFilterBtnActive : ''}`}
+                  onClick={() => setVersionFilter(f)}
+                >
+                  {t(`newInstance.versionFilter${f.charAt(0).toUpperCase() + f.slice(1)}`)}
+                </button>
+              ))}
+            </div>
+            <TextInput
+              value={versionSearch}
+              onChange={(e) => setVersionSearch(e.target.value)}
+              placeholder={t('newInstance.versionSearchPlaceholder')}
+              className={styles.versionSearch}
+            />
+          </div>
+
+          {/* 三态显示 */}
+          {versionsLoading && (
+            <div className={styles.versionStatus}>
+              <Icon name="loader" size={14} />
+              <span>{t('newInstance.versionLoading')}</span>
+            </div>
+          )}
+
+          {!versionsLoading && versionsError && (
+            <div className={styles.versionError}>
+              <Icon name="warning" size={14} />
+              <span>{versionsError}</span>
+              <Button variant="secondary" size="sm" onClick={loadVersions}>
+                {t('newInstance.versionRetry')}
+              </Button>
+            </div>
+          )}
+
+          {!versionsLoading && !versionsError && filteredVersions.length === 0 && (
+            <div className={styles.versionStatus}>
+              <Icon name="info" size={14} />
+              <span>{t('newInstance.versionEmpty')}</span>
+            </div>
+          )}
+
+          {!versionsLoading && !versionsError && filteredVersions.length > 0 && (
+            <Select
+              value={selectedVersion}
+              onChange={(e) => {
+                setSelectedVersion(e.target.value);
+                const v = versions.find((ver) => ver.id === e.target.value);
+                if (v) setSelectedUrl(v.url);
+              }}
+              options={filteredVersions.map((v) => ({
+                value: v.id,
+                label: v.type === 'release' ? v.id : `${v.id} (${v.type})`,
+              }))}
+            />
+          )}
         </div>
 
         {/* Loader selector */}
@@ -289,8 +469,118 @@ export default function NewInstancePage() {
             <Select
               value={loaderVersion}
               onChange={(e) => setLoaderVersion(e.target.value)}
-              options={loaderVersions.slice(0, 20).map((v) => ({ value: v, label: v }))}
+              options={loaderVersions.map((v) => ({ value: v, label: v }))}
             />
+          </div>
+        )}
+
+        {/* Advanced settings toggle */}
+        <button
+          type="button"
+          className={styles.advancedToggle}
+          onClick={() => setShowAdvanced((v) => !v)}
+        >
+          <Icon name={showAdvanced ? 'chevronDown' : 'chevronRight'} size={12} />
+          <span>{t('newInstance.advancedSettings')}</span>
+          <span className={styles.advancedToggleHint}>{t('newInstance.advancedSettingsHint')}</span>
+        </button>
+
+        {showAdvanced && (
+          <div className={styles.advancedPanel}>
+            {/* Description */}
+            <div>
+              <SubLabel>{t('newInstance.description')}</SubLabel>
+              <TextInput
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder={t('newInstance.descriptionPlaceholder')}
+              />
+            </div>
+
+            {/* Memory */}
+            <div className={styles.advancedRow}>
+              <div className={styles.advancedField}>
+                <SubLabel>{t('newInstance.maxMemory')} (MB)</SubLabel>
+                <TextInput
+                  type="number"
+                  value={String(maxMemory)}
+                  onChange={(e) => setMaxMemory(Math.max(512, parseInt(e.target.value) || 2048))}
+                />
+              </div>
+              <div className={styles.advancedField}>
+                <SubLabel>{t('newInstance.minMemory')} (MB)</SubLabel>
+                <TextInput
+                  type="number"
+                  value={String(minMemory)}
+                  onChange={(e) => setMinMemory(Math.max(128, parseInt(e.target.value) || 512))}
+                />
+              </div>
+            </div>
+
+            {/* Java path */}
+            <div>
+              <SubLabel>{t('newInstance.javaPath')}</SubLabel>
+              <TextInput
+                value={javaPath}
+                onChange={(e) => setJavaPath(e.target.value)}
+                placeholder={t('newInstance.javaPathPlaceholder')}
+              />
+            </div>
+
+            {/* JVM args */}
+            <div>
+              <SubLabel>{t('newInstance.jvmArgs')}</SubLabel>
+              <TextInput
+                value={jvmArgs}
+                onChange={(e) => setJvmArgs(e.target.value)}
+                placeholder={t('newInstance.jvmArgsPlaceholder')}
+              />
+            </div>
+
+            {/* Server address */}
+            <div>
+              <SubLabel>{t('newInstance.serverAddress')}</SubLabel>
+              <TextInput
+                value={serverAddress}
+                onChange={(e) => setServerAddress(e.target.value)}
+                placeholder={t('newInstance.serverAddressPlaceholder')}
+              />
+            </div>
+
+            {/* Tags */}
+            <div>
+              <SubLabel>{t('newInstance.tags')}</SubLabel>
+              <TextInput
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder={t('newInstance.tagsPlaceholder')}
+              />
+            </div>
+
+            {/* Icon */}
+            <div>
+              <SubLabel>{t('newInstance.icon')}</SubLabel>
+              <div className={styles.iconRow}>
+                <Button variant="secondary" size="sm" onClick={handlePickIcon}>
+                  <Icon name="upload" size={14} /> {t('newInstance.iconPick')}
+                </Button>
+                {iconPath && (
+                  <span className={styles.iconPath} title={iconPath}>
+                    {iconPath.split(/[\\/]/).pop()}
+                  </span>
+                )}
+                {iconPath && (
+                  <button
+                    type="button"
+                    className={styles.iconClear}
+                    onClick={() => setIconPath(null)}
+                  >
+                    <Icon name="cross" size={12} />
+                  </button>
+                )}
+              </div>
+              <span className={styles.iconHint}>{t('newInstance.iconHint')}</span>
+            </div>
           </div>
         )}
 
@@ -299,9 +589,10 @@ export default function NewInstancePage() {
         <Button
           variant="primary"
           size="lg"
-          disabled={loading || !name.trim()}
+          disabled={!canCreate}
           onClick={handleCreate}
           data-tour="new-create"
+          title={!selectedVersion ? t('newInstance.requireVersion') : !name.trim() ? t('newInstance.requireName') : ''}
         >
           {loading ? t('newInstance.creating') : t('newInstance.create')}
         </Button>

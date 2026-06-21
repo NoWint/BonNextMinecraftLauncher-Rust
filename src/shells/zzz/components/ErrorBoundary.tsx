@@ -1,5 +1,6 @@
 import React from 'react';
 import { log } from '../../../shared/utils/logger';
+import { I18nContext } from '../../../shared/i18n';
 import styles from './ErrorBoundary.module.css';
 
 interface ErrorBoundaryState {
@@ -12,6 +13,9 @@ export class ErrorBoundary extends React.Component<
   { children: React.ReactNode; fallback?: React.ReactNode },
   ErrorBoundaryState
 > {
+  static contextType = I18nContext;
+  declare context: React.ContextType<typeof I18nContext>;
+
   constructor(props: { children: React.ReactNode; fallback?: React.ReactNode }) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
@@ -37,19 +41,20 @@ export class ErrorBoundary extends React.Component<
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback;
 
+      const t = this.context?.t ?? ((key: string) => key);
       const isDev = import.meta.env.DEV;
-      const errorMessage = this.state.error?.message || 'An unexpected error occurred';
+      const errorMessage = this.state.error?.message || t('error.defaultMessage');
       const stackTrace = this.state.error?.stack || '';
       const componentStack = this.state.errorInfo?.componentStack || '';
 
       return (
         <div className={styles.wrap}>
           <div className={styles.bar} />
-          <div className={styles.title}>SYSTEM ERROR</div>
+          <div className={styles.title}>{t('error.title')}</div>
           <div className={styles.message}>{errorMessage}</div>
           <div className={styles.actions}>
             <button className={styles.retryBtn} onClick={this.handleRetry}>
-              RETRY
+              {t('error.retry')}
             </button>
             <button
               className={styles.homeBtn}
@@ -58,16 +63,16 @@ export class ErrorBoundary extends React.Component<
                 window.location.hash = '#/';
               }}
             >
-              RETURN HOME
+              {t('error.returnHome')}
             </button>
           </div>
           {isDev && (stackTrace || componentStack) && (
             <details className={styles.details}>
-              <summary className={styles.summary}>Error Details</summary>
+              <summary className={styles.summary}>{t('error.details')}</summary>
               {stackTrace && <pre className={styles.stack}>{stackTrace}</pre>}
               {componentStack && (
                 <>
-                  <div className={styles.stackLabel}>Component Stack:</div>
+                  <div className={styles.stackLabel}>{t('error.componentStack')}</div>
                   <pre className={styles.stack}>{componentStack}</pre>
                 </>
               )}

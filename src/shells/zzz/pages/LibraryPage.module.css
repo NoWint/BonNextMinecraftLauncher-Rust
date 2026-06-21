@@ -62,6 +62,76 @@
   min-height: 0;
 }
 
+/* Toolbar */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Row (worlds list) */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  clip-path: var(--clip-small);
+  transition: border-color var(--transition-fast);
+}
+
+.row:hover {
+  border-color: var(--color-border-light);
+}
+
+.row__icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+  color: var(--color-accent);
+  clip-path: var(--clip-small);
+  flex-shrink: 0;
+}
+
+.row__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row__name {
+  font-size: 0.65em;
+  color: var(--color-text);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row__meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.row__metaItem {
+  font-size: 0.5em;
+  color: var(--color-text-dim);
+}
+
+.row__actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .item {
   display: flex;
   align-items: center;
@@ -328,7 +398,7 @@
 .dirChangedBadge {
   font-family: var(--font-mono);
   font-size: 0.5em;
-  color: var(--color-warning, #f0ad4e);
+  color: var(--color-warning);
   background: var(--color-accent-10);
   padding: 2px 8px;
   clip-path: var(--clip-badge);

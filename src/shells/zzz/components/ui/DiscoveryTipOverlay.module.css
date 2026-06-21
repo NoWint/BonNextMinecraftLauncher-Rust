@@ -113,7 +113,7 @@
 .tipGotItBtn {
   padding: 4px 14px;
   background: var(--color-accent);
-  color: #000;
+  color: var(--color-accent-action-text);
   border: none;
   font-family: var(--font-heading);
   font-size: 0.5em;

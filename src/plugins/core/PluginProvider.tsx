@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState, useMemo } from '
 import { listen } from '@tauri-apps/api/event';
 import { PluginManager } from './PluginManager';
 import { pluginLoader } from './PluginLoader';
+import { registerBuiltinComponents } from '../builtins/_registry';
 import type {
   DownloadProgressEvent,
   ContentDownloadProgress,
@@ -14,7 +15,15 @@ interface PluginProviderContext {
   ready: boolean;
 }
 
-const Context = createContext<PluginProviderContext | null>(null);
+// HMR-safe Context：将 Context 存储在 globalThis 上，
+// 模块热更新时复用同一 Context 实例，避免已挂载组件引用旧 Context 导致
+// "usePluginManager must be used within PluginProvider" 错误。
+const globalForPlugins = globalThis as unknown as {
+  __PluginProviderContext?: React.Context<PluginProviderContext | null>;
+};
+const Context =
+  globalForPlugins.__PluginProviderContext ??
+  (globalForPlugins.__PluginProviderContext = createContext<PluginProviderContext | null>(null));
 
 export function PluginProvider({ children }: { children: React.ReactNode }) {
   const [manager] = useState(() => new PluginManager());
@@ -24,10 +33,32 @@ export function PluginProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     async function init() {
-      // 通过 PluginLoader 加载并激活所有插件（内置 + 已安装）
-      await pluginLoader.loadAndActivateAll(manager);
+      // 启动性能优化：分两阶段加载插件。
+      // 阶段 1（同步快路径）：注册并激活内置插件，立即 setReady(true)，
+      //   让 AppRoutes 能尽快渲染核心路由。
+      // 阶段 2（后台异步）：加载已安装的第三方插件并激活。
+      //   失败不影响已 ready 状态。
+      try {
+        // 阶段 1：内置插件（同步注册 + 激活）
+        registerBuiltinComponents();
+        pluginLoader.loadBuiltinPlugins(manager);
+        await manager.activateAll();
+      } catch (e) {
+        console.error('[PluginProvider] Failed to activate builtin plugins:', e);
+      } finally {
+        if (!cancelled) {
+          setReady(true);
+        }
+      }
+
+      // 阶段 2：已安装的第三方插件（后台异步，不阻塞 UI）
       if (!cancelled) {
-        setReady(true);
+        try {
+          await pluginLoader.loadInstalledPlugins(manager);
+          await manager.activateAll();
+        } catch (e) {
+          console.error('[PluginProvider] Failed to load installed plugins:', e);
+        }
       }
     }
 
@@ -35,7 +66,11 @@ export function PluginProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       cancelled = true;
-      manager.deactivateAll();
+      // deactivateAll 是异步的，但 useEffect cleanup 不能是 async。
+      // 采用 fire-and-forget 并捕获错误，避免 unhandled rejection。
+      void manager.deactivateAll().catch((e) => {
+        console.error('[PluginProvider] Error during deactivateAll:', e);
+      });
     };
   }, [manager]);
 
@@ -45,11 +80,28 @@ export function PluginProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!ready) return;
 
+    let cancelled = false;
     const unlisteners: Array<() => void> = [];
 
+    // 竞态安全的监听器注册：若组件在 listen() resolve 前卸载，
+    // unlisten 函数会被立即调用，而不是被推入 cleanup 已遍历过的数组，
+    // 从而避免监听器泄漏。
+    const bridge = <T,>(eventName: string, handler: (payload: T) => void) => {
+      listen<T>(eventName, (event) => handler(event.payload))
+        .then((u) => {
+          if (cancelled) {
+            u();
+          } else {
+            unlisteners.push(u);
+          }
+        })
+        .catch((e) => {
+          console.error(`[PluginProvider] Failed to listen to "${eventName}":`, e);
+        });
+    };
+
     // 启动状态变更 → instance:launched / instance:exited / instance:crashed
-    listen<{ state: string; instance_id: string }>('launch-state-changed', (event) => {
-      const { state, instance_id } = event.payload;
+    bridge<{ state: string; instance_id: string }>('launch-state-changed', ({ state, instance_id }) => {
       const data = { instanceId: instance_id, state };
       if (state === 'running') {
         manager.emitEvent('instance:launched', data);
@@ -58,58 +110,78 @@ export function PluginProvider({ children }: { children: React.ReactNode }) {
       } else if (state === 'crashed') {
         manager.emitEvent('instance:crashed', data);
       }
-    }).then((u) => unlisteners.push(u));
+    });
 
     // 版本下载完成 → download:completed
-    listen<DownloadProgressEvent>('download-progress', (event) => {
-      if (event.payload.finished) {
+    bridge<DownloadProgressEvent>('download-progress', (payload) => {
+      if (payload.finished) {
         manager.emitEvent('download:completed', {
-          url: event.payload.current_url,
-          filename: event.payload.current_url?.split('/').pop() ?? null,
+          url: payload.current_url,
+          filename: payload.current_url?.split('/').pop() ?? null,
         });
       }
-    }).then((u) => unlisteners.push(u));
+    });
 
     // 内容（mod/资源包）下载完成 → download:completed
-    listen<ContentDownloadProgress>('content-download-progress', (event) => {
-      if (event.payload.finished) {
+    bridge<ContentDownloadProgress>('content-download-progress', (payload) => {
+      if (payload.finished) {
         manager.emitEvent('download:completed', {
-          filename: event.payload.filename,
-          slug: event.payload.slug,
+          filename: payload.filename,
+          slug: payload.slug,
         });
       }
-    }).then((u) => unlisteners.push(u));
+    });
 
     // 工作流完成 → workflow:completed
-    listen<WorkflowCompleteEvent>('workflow:complete', (event) => {
-      manager.emitEvent('workflow:completed', event.payload);
-    }).then((u) => unlisteners.push(u));
+    bridge<WorkflowCompleteEvent>('workflow:complete', (payload) => {
+      manager.emitEvent('workflow:completed', payload);
+    });
 
     // 崩溃监视器检测到崩溃报告 → instance:crashed
-    listen<{ instance_id: string; path: string; kind?: string }>('crash:detected', (event) => {
+    bridge<{ instance_id: string; path: string; kind?: string }>('crash:detected', (payload) => {
       manager.emitEvent('instance:crashed', {
-        instanceId: event.payload.instance_id,
-        crashReportPath: event.payload.path,
+        instanceId: payload.instance_id,
+        crashReportPath: payload.path,
       });
-    }).then((u) => unlisteners.push(u));
+    });
 
     // 前端 store 转发：实例创建
-    listen<{ instanceId: string; name: string }>('instance:created', (event) => {
-      manager.emitEvent('instance:created', event.payload);
-    }).then((u) => unlisteners.push(u));
+    bridge<{ instanceId: string; name: string }>('instance:created', (payload) => {
+      manager.emitEvent('instance:created', payload);
+    });
 
     // 前端 store 转发：登录成功
-    listen<{ username: string; uuid: string; method?: string }>('auth:login', (event) => {
-      manager.emitEvent('auth:login', event.payload);
-    }).then((u) => unlisteners.push(u));
+    bridge<{ username: string; uuid: string; method?: string }>('auth:login', (payload) => {
+      manager.emitEvent('auth:login', payload);
+    });
 
     // 前端转发：安全威胁检测
-    listen<unknown>('security:threat-detected', (event) => {
-      manager.emitEvent('security:threat-detected', event.payload);
-    }).then((u) => unlisteners.push(u));
+    bridge<unknown>('security:threat-detected', (payload) => {
+      manager.emitEvent('security:threat-detected', payload);
+    });
+
+    // 前端转发：mod 安装完成（由 shared/api 在 installMod/installContent/downloadCfMod 成功后发出）
+    bridge<{
+      instanceId: string;
+      filename: string;
+      slug?: string;
+      versionId?: string;
+      source?: string;
+      contentType?: string;
+      url?: string;
+    }>('mod:installed', (payload) => {
+      manager.emitEvent('mod:installed', payload);
+    });
 
     return () => {
-      unlisteners.forEach((fn) => fn());
+      cancelled = true;
+      for (const u of unlisteners) {
+        try {
+          u();
+        } catch (e) {
+          console.error('[PluginProvider] Error during unlisten:', e);
+        }
+      }
     };
   }, [manager, ready]);
 

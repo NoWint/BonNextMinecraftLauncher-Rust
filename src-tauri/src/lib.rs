@@ -145,6 +145,8 @@ pub fn run() {
             let data_dir = platform::paths::get_game_dir();
             std::sync::Arc::new(mod_scanner::cache_db::ModCacheDb::open(&data_dir).expect("Failed to open database"))
         })
+        .manage(commands::plugin_session::SessionStore::new())
+        .manage(commands::plugin_install::TrustedKeyStore::new())
         .invoke_handler(tauri::generate_handler![
             commands::version::get_versions,
             commands::launch::get_launch_state,
@@ -239,11 +241,20 @@ pub fn run() {
             commands::content::list_instance_mods,
             commands::content::list_instance_resourcepacks,
             commands::content::list_instance_shaders,
+            commands::content::list_instance_schematics,
             commands::world::list_instance_saves,
             commands::world::export_world,
             commands::world::list_instance_logs,
             commands::world::read_log_file,
             commands::world::get_recent_logs,
+            commands::world::backup_world,
+            commands::world::list_world_backups,
+            commands::world::restore_world,
+            commands::world::delete_world_backup,
+            commands::world::import_world,
+            commands::world::delete_world,
+            commands::world::rename_world,
+            commands::world::duplicate_world,
             commands::content::remove_installed_mod,
             commands::content::get_content_counts,
             commands::content::check_content_updates,
@@ -446,60 +457,95 @@ pub fn run() {
             commands::plugin_proxy::install_plugin,
             commands::plugin_proxy::uninstall_plugin,
             commands::plugin_proxy::get_plugin_manifest,
+            commands::plugin_proxy::plugin_fs_read,
+            commands::plugin_proxy::plugin_fs_write,
+            commands::plugin_proxy::plugin_fs_exists,
+            commands::plugin_proxy::plugin_fs_read_dir,
+            commands::plugin_session::plugin_register_session,
+            commands::plugin_session::plugin_revoke_session,
+            commands::plugin_install::list_trusted_keys,
+            commands::plugin_install::add_trusted_key,
+            commands::plugin_install::remove_trusted_key,
+            commands::plugin_install::verify_plugin_signature_command,
         ])
         .setup(|app| {
-            // Apply native window effects: Liquid Glass (macOS 26+) or Vibrancy fallback
+            // 1. 立即显示窗口 — 让用户看到 CSS boot loader，不等任何初始化。
+            //    这是启动性能的关键：窗口先显示，所有重初始化异步进行。
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+            }
+
+            // 2. 加载配置（使用缓存，避免重复文件 IO）
+            let cfg = config::load_config_cached().unwrap_or_else(|e| {
+                tracing::warn!("Failed to load config at startup: {}", e);
+                config::AppConfig::default()
+            });
+
+            // 3. 异步应用原生窗口效果 — Liquid Glass 是 GPU 密集型效果，
+            //    在窗口显示后异步应用，避免阻塞首屏渲染。
+            //    默认不启用 Liquid Glass（性能优先），用户可在设置中开启。
             #[cfg(target_os = "macos")]
             {
-                use tauri_plugin_liquid_glass::LiquidGlassExt;
-                if let Some(window) = app.get_webview_window("main") {
-                    let glass = app.liquid_glass();
-                    if glass.is_supported() {
-                        // macOS 26+: Liquid Glass
-                        match glass.set_effect(&window, tauri_plugin_liquid_glass::LiquidGlassConfig {
-                            variant: tauri_plugin_liquid_glass::GlassMaterialVariant::Sidebar,
-                            ..Default::default()
-                        }) {
-                            Ok(_) => tracing::info!("macOS 26+ Liquid Glass applied (Sidebar variant)"),
-                            Err(e) => tracing::warn!("Failed to apply Liquid Glass: {}", e),
+                let app_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    // 延迟 500ms 让首屏先渲染
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        use tauri_plugin_liquid_glass::LiquidGlassExt;
+                        let glass = app_handle.liquid_glass();
+                        if glass.is_supported() {
+                            match glass.set_effect(&window, tauri_plugin_liquid_glass::LiquidGlassConfig {
+                                variant: tauri_plugin_liquid_glass::GlassMaterialVariant::Sidebar,
+                                ..Default::default()
+                            }) {
+                                Ok(_) => tracing::info!("macOS 26+ Liquid Glass applied (async, Sidebar variant)"),
+                                Err(e) => tracing::warn!("Failed to apply Liquid Glass: {}", e),
+                            }
+                        } else {
+                            use tauri::window::{EffectsBuilder, Effect, EffectState};
+                            let effects = EffectsBuilder::new()
+                                .effects(vec![Effect::Sidebar])
+                                .state(EffectState::Active)
+                                .build();
+                            let _ = window.set_effects(effects);
+                            tracing::info!("macOS <26: Vibrancy fallback applied (async)");
                         }
-                    } else {
-                        // macOS <26: fallback to Vibrancy via EffectsBuilder
-                        use tauri::window::{EffectsBuilder, Effect, EffectState};
-                        let effects = EffectsBuilder::new()
-                            .effects(vec![Effect::Sidebar])
-                            .state(EffectState::Active)
-                            .build();
-                        let _ = window.set_effects(effects);
-                        tracing::info!("macOS <26: Vibrancy fallback applied (Sidebar)");
                     }
-                }
+                });
             }
             #[cfg(target_os = "windows")]
             {
-                if let Some(window) = app.get_webview_window("main") {
-                    use tauri::window::{EffectsBuilder, Effect, EffectState};
-                    let effects = EffectsBuilder::new()
-                        .effects(vec![Effect::Mica, Effect::Acrylic])
-                        .state(EffectState::Active)
-                        .build();
-                    let _ = window.set_effects(effects);
-                    tracing::info!("Windows: Mica/Acrylic effect applied");
-                }
+                let app_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        use tauri::window::{EffectsBuilder, Effect, EffectState};
+                        let effects = EffectsBuilder::new()
+                            .effects(vec![Effect::Mica, Effect::Acrylic])
+                            .state(EffectState::Active)
+                            .build();
+                        let _ = window.set_effects(effects);
+                        tracing::info!("Windows: Mica/Acrylic effect applied (async)");
+                    }
+                });
             }
 
-            app.manage(mod_watcher::watcher::ModWatcherState::new(app.handle().clone()));
-            let audit_enabled = config::load_config()
-                .map(|c| c.security.audit_log_enabled)
-                .unwrap_or(true);
+            // 4. 审计系统初始化（快速，同步执行）
+            let audit_enabled = cfg.security.audit_log_enabled;
             if let Err(e) = security::audit::init_audit(audit_enabled) {
                 tracing::warn!("Failed to initialize audit system: {}", e);
             }
-            if config::load_config().map(|c| c.security.credential_encryption).unwrap_or(true) && security::credential_store::is_plain() {
-                if let Err(e) = security::credential_store::migrate_plain_to_encrypted() {
-                    tracing::warn!("Failed to migrate credentials to encrypted storage: {}", e);
-                }
+
+            // 5. 凭证迁移 — 涉及加密运算，异步执行
+            if cfg.security.credential_encryption && security::credential_store::is_plain() {
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = security::credential_store::migrate_plain_to_encrypted() {
+                        tracing::warn!("Failed to migrate credentials to encrypted storage: {}", e);
+                    }
+                });
             }
+
+            // 6. 版本清单预加载 — 延迟 2 秒，非启动关键路径
             tauri::async_runtime::spawn(async {
                 tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                 match crate::version::manifest::fetch_version_manifest().await {
@@ -507,6 +553,10 @@ pub fn run() {
                     Err(e) => tracing::warn!("Version manifest preload failed: {}", e),
                 }
             });
+
+            // 7. ModWatcher 延迟初始化 — 非启动关键路径
+            app.manage(mod_watcher::watcher::ModWatcherState::new(app.handle().clone()));
+
             Ok(())
         })
         .run(tauri::generate_context!())

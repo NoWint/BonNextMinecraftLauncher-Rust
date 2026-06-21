@@ -18,18 +18,28 @@ const LINES = [
 
 export function Manifesto() {
   const ref = useRef<HTMLElement>(null);
-  const prefersReduced = useReducedMotion();
+  const prefersReducedMotion = useReducedMotion();
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ['start end', 'end start'],
   });
 
-  // Background tint breathes in and out across the section
+  // Faint yellow wash that breathes through the section as it scrolls into view.
   const tintOpacity = useTransform(scrollYProgress, [0, 0.5, 1], [0, 1, 0]);
+
+  // Emphasis scale for the "opened" keyword on the final line.
+  const lastIndex = LINES.length - 1;
+  const lastStart = lastIndex / LINES.length;
+  const lastEnd = lastStart + 1 / LINES.length;
+  const accentScale = useTransform(scrollYProgress, [lastStart, lastEnd], [0.94, 1.1]);
 
   return (
     <section id="manifesto" ref={ref} className={styles.manifesto}>
-      <motion.div className={styles.tint} style={{ opacity: tintOpacity }} aria-hidden="true" />
+      <motion.div
+        className={styles.tint}
+        style={prefersReducedMotion ? undefined : { opacity: tintOpacity }}
+        aria-hidden
+      />
       <div className="container-narrow">
         <p className={styles.text}>
           {LINES.map((line, i) => {
@@ -37,45 +47,31 @@ export function Manifesto() {
             const end = start + 1 / LINES.length;
             const opacity = useTransform(scrollYProgress, [start, end], [0.15, 1]);
             const y = useTransform(scrollYProgress, [start, end], [40, 0]);
-            const blurAmount = useTransform(scrollYProgress, [start, end], [8, 0]);
-            const filter = useMotionTemplate`blur(${blurAmount}px)`;
+            const blur = useTransform(scrollYProgress, [start, end], [8, 0]);
+            const filter = useMotionTemplate`blur(${blur}px)`;
 
-            // Last line: emphasize "opened" with accent color + scale
-            if (i === LINES.length - 1) {
-              const accentScale = useTransform(scrollYProgress, [start, end], [0.94, 1.1]);
-              return (
-                <motion.span
-                  key={i}
-                  style={
-                    prefersReduced
-                      ? { opacity }
-                      : { opacity, y, filter }
-                  }
-                  className={styles.line}
-                >
-                  {'to be '}
-                  <motion.span
-                    className={styles.accent}
-                    style={prefersReduced ? undefined : { scale: accentScale }}
-                  >
-                    opened
-                  </motion.span>
-                  .{' '}
-                </motion.span>
-              );
-            }
+            const isLast = i === lastIndex;
 
             return (
               <motion.span
                 key={i}
-                style={
-                  prefersReduced
-                    ? { opacity }
-                    : { opacity, y, filter }
-                }
                 className={styles.line}
+                style={prefersReducedMotion ? { opacity } : { opacity, y, filter }}
               >
-                {line}{' '}
+                {isLast ? (
+                  <>
+                    to be{' '}
+                    <motion.span
+                      className={styles.accent}
+                      style={prefersReducedMotion ? undefined : { scale: accentScale }}
+                    >
+                      opened
+                    </motion.span>
+                    .
+                  </>
+                ) : (
+                  line
+                )}{' '}
               </motion.span>
             );
           })}

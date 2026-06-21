@@ -120,7 +120,7 @@
   font-size: 0.55em;
   padding: 0.4em;
   background: var(--color-accent);
-  color: #000;
+  color: var(--color-accent-action-text);
   border: none;
   cursor: pointer;
   font-weight: 600;
@@ -172,7 +172,7 @@
 }
 
 .dot.online {
-  background: #4caf50;
+  background: var(--color-success);
 }
 .dot.offline {
   background: var(--color-text-secondary);
@@ -181,7 +181,7 @@
   background: var(--color-accent);
 }
 .dot.away {
-  background: #ff9800;
+  background: var(--color-warning);
 }
 
 .friendActions {
@@ -193,7 +193,7 @@
 .unreadBadge {
   font-size: 0.5em;
   background: var(--color-accent);
-  color: #000;
+  color: var(--color-accent-action-text);
   padding: 1px 5px;
   border-radius: 8px;
   font-weight: 700;

@@ -112,6 +112,35 @@ _Experiences, not checkboxes._
 
 <br />
 
+## 安装说明
+
+<br />
+
+### macOS
+1. 下载 `.dmg` 文件并打开
+2. 将 BonNext 拖入 Applications 文件夹
+3. 首次打开时 macOS 会显示安全警告（应用未签名）
+4. **右键点击** BonNext → 选择**"打开"** → 在弹窗中点击**"打开"**
+5. 或前往 系统偏好设置 → 安全性与隐私 → 点击**"仍要打开"**
+
+### Windows
+1. 下载 `.msi` 或 `.exe` 安装包
+2. 运行安装程序，如遇 SmartScreen 弹窗：
+3. 点击**"更多信息"** → 点击**"仍要运行"**
+
+### Linux
+1. 下载 `.AppImage`（推荐）或 `.deb`
+2. AppImage：`chmod +x BonNext-*.AppImage && ./BonNext-*.AppImage`
+3. deb：`sudo dpkg -i BonNext-*.deb`
+
+> **关于安全警告**：BonNext 是开源项目，未购买商业开发者证书签名。代码完全公开，可自行审查或从源码构建。
+
+<br />
+
+---
+
+<br />
+
 ## Built with
 
 <div align="center">
@@ -233,7 +262,7 @@ See [LICENSE](LICENSE).
 
 <br />
 
-[![Star on GitHub](https://img.shields.io/github/stars/NoWint/BonNext?style=social)](https://github.com/NoWint/BonNext)
+[![Star on GitHub](https://img.shields.io/github/stars/NoWint/BonNextMinecraftLauncher-Rust?style=social)](https://github.com/NoWint/BonNextMinecraftLauncher-Rust)
 
 <br />
 <br />

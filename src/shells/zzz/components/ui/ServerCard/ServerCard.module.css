@@ -90,7 +90,7 @@
   font-weight: 600;
   padding: 0.2em 0.5em;
   background: var(--color-accent);
-  color: #000;
+  color: var(--color-accent-action-text);
   border: none;
   clip-path: var(--clip-badge);
   cursor: pointer;
@@ -132,6 +132,6 @@
 }
 
 .removeBtn:hover {
-  border-color: #f16436;
-  color: #f16436;
+  border-color: var(--color-error);
+  color: var(--color-error);
 }

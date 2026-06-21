@@ -1,5 +1,6 @@
 import React from 'react';
 import { Icon } from './Icon';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './Pagination.module.css';
 
 interface PaginationProps {
@@ -10,6 +11,7 @@ interface PaginationProps {
 }
 
 export const Pagination: React.FC<PaginationProps> = ({ current, total, onPage, className = '' }) => {
+  const { t } = useI18n();
   if (total <= 1) return null;
 
   const pages: number[] = [];
@@ -22,8 +24,8 @@ export const Pagination: React.FC<PaginationProps> = ({ current, total, onPage, 
   }
 
   return (
-    <div className={`${styles.pagination} ${className}`} role="navigation" aria-label="Pagination">
-      <button className={styles.page} aria-label="Previous page" disabled={current <= 1} onClick={() => onPage(current - 1)}>
+    <div className={`${styles.pagination} ${className}`} role="navigation" aria-label={t('pagination.ariaLabel')}>
+      <button className={styles.page} aria-label={t('pagination.prevAriaLabel')} disabled={current <= 1} onClick={() => onPage(current - 1)}>
         <Icon name="chevronLeft" size={14} />
       </button>
       {pages.map((p) =>
@@ -42,7 +44,7 @@ export const Pagination: React.FC<PaginationProps> = ({ current, total, onPage, 
           </button>
         ),
       )}
-      <button className={styles.page} aria-label="Next page" disabled={current >= total} onClick={() => onPage(current + 1)}>
+      <button className={styles.page} aria-label={t('pagination.nextAriaLabel')} disabled={current >= total} onClick={() => onPage(current + 1)}>
         <Icon name="chevronRight" size={14} />
       </button>
     </div>

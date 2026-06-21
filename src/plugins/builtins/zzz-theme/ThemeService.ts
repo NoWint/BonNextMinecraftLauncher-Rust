@@ -31,21 +31,24 @@ interface RegisteredTheme {
   fonts?: Array<{ family: string; src: string; weight?: number; style?: string }>;
 }
 
-const THEME_CLASSES = ['theme-dark', 'theme-light', 'theme-oled'];
-
-function getThemeClass(themeId: string): string {
-  if (themeId.startsWith('zzz-')) {
-    const modeMap: Record<string, string> = { dark: 'theme-dark', light: 'theme-light', oled: 'theme-oled' };
-    const legacy = themeId.replace('zzz-', '');
-    return modeMap[legacy] || 'theme-dark';
-  }
-  return `theme-${themeId}`;
-}
-
+/**
+ * ThemeService is a pure theme registry / state service.
+ *
+ * It no longer manipulates the DOM. Theme CSS variables and theme classes are
+ * applied exclusively by the core themeStore, which consumes plugin theme
+ * contributions via the usePluginThemes hook. This removes the previous
+ * conflict where ThemeService.switchTheme() and themeStore both wrote to the
+ * same documentElement attributes (CSS variables + theme classes) and
+ * overwrote each other.
+ *
+ * @deprecated Theme application is handled by the core themeStore. This class
+ * is retained as a metadata registry + rules engine for plugin/service-registry
+ * compatibility. switchTheme() only updates internal state and notifies
+ * listeners; it does not touch the DOM.
+ */
 export class ThemeService {
   private themes = new Map<string, RegisteredTheme>();
   private currentThemeId: string | null = null;
-  private currentAppliedVars: Set<string> = new Set();
   private listeners: ThemeChangeCallback[] = [];
   private rules: ThemeRule[] = [];
 
@@ -89,7 +92,14 @@ export class ThemeService {
     return this.themes.get(id)?.cssVariables;
   }
 
-  async switchTheme(themeId: string, options?: { animate?: boolean; seedColor?: string }): Promise<void> {
+  /**
+   * Update the active theme id and notify listeners.
+   *
+   * DOM application is intentionally NOT performed here; the core themeStore
+   * owns all DOM writes. The options argument is accepted for backwards
+   * compatibility but has no effect.
+   */
+  async switchTheme(themeId: string, _options?: { animate?: boolean; seedColor?: string }): Promise<void> {
     const theme = this.themes.get(themeId);
     if (!theme) {
       throw new Error(`Theme "${themeId}" not found`);
@@ -97,42 +107,8 @@ export class ThemeService {
 
     this.currentThemeId = themeId;
 
-    if (typeof document !== 'undefined') {
-      this.applyThemeToDOM(theme, options?.animate ?? true);
-    }
-
     for (const listener of this.listeners) {
       listener(theme.info);
-    }
-  }
-
-  private applyThemeToDOM(theme: RegisteredTheme, animate: boolean): void {
-    const root = document.documentElement;
-
-    if (animate) {
-      root.classList.add('theme-transition');
-    }
-
-    for (const key of this.currentAppliedVars) {
-      root.style.removeProperty(key);
-    }
-    this.currentAppliedVars.clear();
-
-    for (const THEME_CLASS of THEME_CLASSES) {
-      root.classList.remove(THEME_CLASS);
-    }
-
-    for (const [key, value] of Object.entries(theme.cssVariables)) {
-      root.style.setProperty(key, value);
-      this.currentAppliedVars.add(key);
-    }
-
-    root.classList.add(getThemeClass(theme.info.id));
-
-    if (animate) {
-      setTimeout(() => {
-        root.classList.remove('theme-transition');
-      }, 350);
     }
   }
 

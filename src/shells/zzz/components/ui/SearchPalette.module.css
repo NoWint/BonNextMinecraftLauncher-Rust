@@ -89,7 +89,7 @@
   font-size: 0.75em;
   background: var(--color-bg);
   flex-shrink: 0;
-  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+  clip-path: var(--clip-badge);
 }
 
 .resultInfo {
@@ -130,7 +130,7 @@
   font-family: var(--font-mono);
   font-size: 0.5em;
   font-weight: 700;
-  color: #000;
+  color: var(--color-accent-action-text);
   background: var(--color-accent);
   padding: 2px 6px;
   clip-path: var(--clip-badge);
@@ -170,7 +170,7 @@
   font-size: 0.75em;
   background: var(--color-bg);
   flex-shrink: 0;
-  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
+  clip-path: var(--clip-badge);
 }
 
 .nlpInterpretation {

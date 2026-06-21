@@ -1,0 +1,10 @@
+[package]
+name = "sha1-asm"
+version = "0.5.3"
+edition = "2021"
+description = "Pure Rust fallback for sha1-asm (bypasses assembly compilation on macOS 27.0 beta)"
+license = "MIT"
+
+[lib]
+name = "sha1_asm"
+path = "src/lib.rs"

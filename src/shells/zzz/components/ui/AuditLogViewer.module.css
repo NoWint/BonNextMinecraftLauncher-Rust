@@ -9,8 +9,8 @@
 }
 
 .modal {
-  background: #1a1a2e;
-  border: 1px solid rgba(255, 230, 0, 0.2);
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-accent-20);
   border-radius: 0.6em;
   width: 90%;
   max-width: 50em;
@@ -25,20 +25,20 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.8em 1em;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--color-border-mid);
 }
 
 .title {
   font-family: var(--font-display, 'Bebas Neue', sans-serif);
   font-size: 0.7em;
-  color: var(--accent, #FFE600);
+  color: var(--color-accent);
   margin: 0;
 }
 
 .closeBtn {
   background: none;
   border: none;
-  color: #888;
+  color: var(--color-text-dim);
   cursor: pointer;
   font-size: 0.6em;
 }
@@ -48,10 +48,10 @@
 }
 
 .select {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
+  border: 1px solid var(--color-border-mid);
   border-radius: 0.3em;
-  color: #fff;
+  color: var(--color-text);
   font-size: 0.5em;
   padding: 0.3em 0.5em;
 }
@@ -71,25 +71,25 @@
 
 .logEntry {
   padding: 0.2em 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   gap: 0.5em;
   flex-wrap: wrap;
 }
 
-.logEntry--error { color: #ff4444; }
-.logEntry--warn { color: #ffaa00; }
-.logEntry--info { color: #aaa; }
+.logEntry--error { color: var(--color-error); }
+.logEntry--warn { color: var(--color-warning); }
+.logEntry--info { color: var(--color-text-secondary); }
 
-.logTime { color: #666; white-space: nowrap; }
+.logTime { color: var(--color-text-faint); white-space: nowrap; }
 .logLevel { font-weight: 700; min-width: 3em; }
-.logCategory { color: var(--accent, #FFE600); }
+.logCategory { color: var(--color-accent); }
 .logMessage { flex: 1; }
 
 .empty {
   text-align: center;
   padding: 2em;
-  color: #666;
+  color: var(--color-text-faint);
   font-size: 0.6em;
 }
 
@@ -97,14 +97,14 @@
   padding: 0.6em 1em;
   display: flex;
   justify-content: flex-end;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--color-border-mid);
 }
 
 .closeFooterBtn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: color-mix(in srgb, var(--color-text) 10%, transparent);
+  border: 1px solid var(--color-border-light);
   border-radius: 0.3em;
-  color: #ccc;
+  color: var(--color-text-secondary);
   cursor: pointer;
   font-size: 0.5em;
   padding: 0.4em 1em;
@@ -113,5 +113,5 @@
 }
 
 .closeFooterBtn:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: color-mix(in srgb, var(--color-text) 15%, transparent);
 }

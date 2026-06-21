@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useChat } from '../../../../shared/stores/chatStore';
 import { useSocial } from '../../../../shared/stores/socialStore';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './ChatWindow.module.css';
 
 export default function ChatWindow() {
+  const { t } = useI18n();
   const { activeChat, messages, closeChat, sendMessage } = useChat();
   const { friends } = useSocial();
   const [input, setInput] = useState('');
@@ -28,9 +30,9 @@ export default function ChatWindow() {
       </div>
 
       <div className={styles.messages}>
-        {chatMessages.length === 0 && <div className={styles.empty}>Start chatting!</div>}
+        {chatMessages.length === 0 && <div className={styles.empty}>{t('social.chat.emptyState')}</div>}
         {chatMessages.map((msg, i) => (
-          <div key={msg.id || i} className={`${styles.bubble} ${msg.sent_by_me ? styles.me : styles.them}`}>
+          <div key={msg.id ?? `msg-${msg.timestamp}-${i}`} className={`${styles.bubble} ${msg.sent_by_me ? styles.me : styles.them}`}>
             <div className={styles.content}>{msg.content}</div>
             <div className={styles.time}>
               {new Date(msg.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -50,7 +52,7 @@ export default function ChatWindow() {
               setInput('');
             }
           }}
-          placeholder="Type a message..."
+          placeholder={t('social.chat.inputPlaceholder')}
         />
         <button
           onClick={() => {
@@ -61,7 +63,7 @@ export default function ChatWindow() {
           }}
           disabled={!input.trim()}
         >
-          Send
+          {t('social.chat.send')}
         </button>
       </div>
     </div>

@@ -17,6 +17,10 @@ import { sceneMenuPlugin, manifest as sceneMenuManifest } from './scene-menu';
 export interface BuiltinPluginEntry {
   definition: PluginDefinition;
   manifest?: PluginManifest;
+  /** 是否默认启用（默认 true）。
+   * 设为 false 的内置插件会注册到 PluginManager 但不会被 activateAll() 自动激活，
+   * 用户可在设置 → 插件管理中手动激活。激活后通过 localStorage 持久化。 */
+  enabledByDefault?: boolean;
 }
 
 /**
@@ -37,7 +41,7 @@ export const builtinPlugins: BuiltinPluginEntry[] = [
   // Shell 插件（备选 Shell）
   { definition: swiftUIShellPlugin, manifest: swiftUIShellManifest as PluginManifest },
   { definition: shellEditorPlugin, manifest: shellEditorManifest as PluginManifest },
-  // 3D 场景主菜单（覆盖首页，可逆）
-  { definition: sceneMenuPlugin, manifest: sceneMenuManifest as PluginManifest },
+  // 3D 场景主菜单（覆盖首页，可逆）— 默认关闭，用户可在设置中手动启用
+  { definition: sceneMenuPlugin, manifest: sceneMenuManifest as PluginManifest, enabledByDefault: false },
 ];
 

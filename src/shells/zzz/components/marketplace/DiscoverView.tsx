@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { api, type ModResult } from '../../../../shared/api';
+import { type ModResult } from '../../../../shared/api';
 import { logger } from '../../../../shared/utils/logger';
+import { useI18n } from '../../../../shared/i18n';
 import { SectionHeader } from '../layout';
 import { Button, ContentCard, contentFromModResult, CollectionButton } from '../ui';
 import { CardSkeleton } from '../ui/Skeleton';
 import type { ContentType, DataSource } from './types';
+import { getDiscoverData } from './contentSource';
 import styles from './DiscoverView.module.css';
 
 interface DiscoverViewProps {
@@ -14,10 +16,12 @@ interface DiscoverViewProps {
 }
 
 export default function DiscoverView({ contentType, source, onNavigate }: DiscoverViewProps) {
+  const { t } = useI18n();
   const [featured, setFeatured] = useState<ModResult[]>([]);
   const [trending, setTrending] = useState<ModResult[]>([]);
   const [recent, setRecent] = useState<ModResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [featuredIndex, setFeaturedIndex] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -26,27 +30,19 @@ export default function DiscoverView({ contentType, source, onNavigate }: Discov
 
     const load = async () => {
       setLoading(true);
+      setError(null);
       try {
-        if (source === 'curseforge') {
-          const cfData = await api.getCfFeatured();
-          if (!cancelled) {
-            setFeatured(cfData.slice(0, 5));
-            setTrending(cfData.slice(0, 10));
-            setRecent([]);
-          }
-        } else {
-          const [t, r] = await Promise.all([
-            api.getTrendingContent(contentType, undefined, 10),
-            api.getRecentlyUpdated(contentType, 10),
-          ]);
-          if (!cancelled) {
-            setTrending(t);
-            setFeatured(t.slice(0, 5));
-            setRecent(r);
-          }
+        const data = await getDiscoverData(source, contentType);
+        if (!cancelled) {
+          setFeatured(data.featured);
+          setTrending(data.trending);
+          setRecent(data.recent);
         }
       } catch (e) {
-        logger.error('Failed to load discover data:', e);
+        if (!cancelled) {
+          logger.error('Failed to load discover data:', e);
+          setError(e instanceof Error ? e.message : String(e));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -58,11 +54,35 @@ export default function DiscoverView({ contentType, source, onNavigate }: Discov
 
   useEffect(() => {
     if (featured.length <= 1) return;
-    intervalRef.current = setInterval(() => {
-      setFeaturedIndex((i) => (i + 1) % featured.length);
-    }, 5000);
+
+    const start = () => {
+      if (intervalRef.current) return;
+      intervalRef.current = setInterval(() => {
+        setFeaturedIndex((i) => (i + 1) % featured.length);
+      }, 5000);
+    };
+    const stop = () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        stop();
+      } else {
+        start();
+      }
+    };
+
+    // 页面隐藏时暂停轮播,可见时恢复,避免后台耗电与 race condition
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      stop();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [featured.length]);
 
@@ -72,6 +92,32 @@ export default function DiscoverView({ contentType, source, onNavigate }: Discov
         <CardSkeleton />
         <CardSkeleton />
         <CardSkeleton />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles.error}>
+        <div className={styles.error__message}>{error}</div>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            setError(null);
+            setLoading(true);
+            getDiscoverData(source, contentType)
+              .then((data) => {
+                setFeatured(data.featured);
+                setTrending(data.trending);
+                setRecent(data.recent);
+              })
+              .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+              .finally(() => setLoading(false));
+          }}
+        >
+          {t('common.retry')}
+        </Button>
       </div>
     );
   }
@@ -92,7 +138,7 @@ export default function DiscoverView({ contentType, source, onNavigate }: Discov
               )}
               <div className={styles.banner__body}>
                 <div className={styles.banner__title}>{item.title}</div>
-                <div className={styles.banner__author}>by {item.author}</div>
+                <div className={styles.banner__author}>{t('contentCard.by', { author: item.author })}</div>
                 <div className={styles.banner__desc}>{item.description}</div>
                 <div className={styles.banner__actions}>
                   <CollectionButton
@@ -107,7 +153,7 @@ export default function DiscoverView({ contentType, source, onNavigate }: Discov
                     size="md"
                   />
                   <Button variant="primary" size="md" onClick={() => onNavigate(item.slug)}>
-                    View
+                    {t('marketplace.view')}
                   </Button>
                 </div>
               </div>
@@ -128,7 +174,7 @@ export default function DiscoverView({ contentType, source, onNavigate }: Discov
       {trending.length > 0 && (
         <div className={styles.row}>
           <div className={styles.row__header}>
-            <SectionHeader title="TRENDING THIS WEEK" />
+            <SectionHeader title={t('marketplace.trending')} />
           </div>
           <div className={styles.row__scroll}>
             {trending.map((mod) => (
@@ -146,7 +192,7 @@ export default function DiscoverView({ contentType, source, onNavigate }: Discov
       {recent.length > 0 && (
         <div className={styles.row}>
           <div className={styles.row__header}>
-            <SectionHeader title="RECENTLY UPDATED" />
+            <SectionHeader title={t('marketplace.recentlyUpdated')} />
           </div>
           <div className={styles.row__scroll}>
             {recent.map((mod) => (

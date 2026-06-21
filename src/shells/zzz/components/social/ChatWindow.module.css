@@ -52,7 +52,7 @@
 .me {
   align-self: flex-end;
   background: var(--color-accent);
-  color: #000;
+  color: var(--color-accent-action-text);
   clip-path: var(--clip-badge);
 }
 

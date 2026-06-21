@@ -56,9 +56,12 @@ export function isShellRegistered(id: string): boolean {
   return registry.has(id);
 }
 
-// Phase 4: 多 Shell 架构已移除 — ZZZ Shell 是唯一内置 Shell。
-// Swift Shell / Editor Shell 已作为插件存在于 plugins/builtins/ 中，
-// 不再作为内置 Shell 注册。Fluent / TV Shell 已弃用。
+// Phase 4: 多 Shell 架构 — ZZZ 是默认 Shell，SwiftUI / Editor 作为可选 Shell 注册。
+// Fluent / TV Shell 已弃用。
 import { zzzShell } from './shells/zzz';
+import { swiftuiShell } from './shells/swiftui';
+import { editorShell } from './shells/editor';
 
 registerShell(zzzShell);
+registerShell(swiftuiShell);
+registerShell(editorShell);

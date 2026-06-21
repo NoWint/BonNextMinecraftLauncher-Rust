@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './Status.module.css';
 
 interface StatusDotProps {
@@ -34,20 +35,23 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   done = false,
   showLabel = true,
   className = '',
-}) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-    <div className={`${styles.progressBar} ${done ? styles['progressBar--done'] : ''} ${className}`}>
-      <div
-        className={styles.progressBar__fill}
-        style={{ width: `${Math.min(100, progress)}%` }}
-      />
+}) => {
+  const { t } = useI18n();
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div className={`${styles.progressBar} ${done ? styles['progressBar--done'] : ''} ${className}`}>
+        <div
+          className={styles.progressBar__fill}
+          style={{ width: `${Math.min(100, progress)}%` }}
+        />
+      </div>
+      {showLabel && (
+        <span
+          className={`${styles.progressBar__label} ${done ? styles['progressBar__label--done'] : styles['progressBar__label--active']}`}
+        >
+          {done ? t('ui.progress.done') : `${Math.round(progress)}%`}
+        </span>
+      )}
     </div>
-    {showLabel && (
-      <span
-        className={`${styles.progressBar__label} ${done ? styles['progressBar__label--done'] : styles['progressBar__label--active']}`}
-      >
-        {done ? 'DONE' : `${Math.round(progress)}%`}
-      </span>
-    )}
-  </div>
-);
+  );
+};

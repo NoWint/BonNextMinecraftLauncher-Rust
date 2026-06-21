@@ -150,4 +150,4 @@ Default game directory: `~/.local/share/bonnext/` (Linux), `~/Library/Applicatio
 - **Overlays** — `.noise-overlay` (SVG noise) and `.scanline-overlay` (horizontal lines) for CRT effect
 - **Sizes use `em`** — base is 16px set on `html`. Component font sizes typically 0.55em–0.9em range
 - **All new UI must use CSS Modules** — no inline styles except for truly dynamic values
-- **Light theme contrast** — accent color #6B5F00 meets WCAG AA (4.6:1 contrast ratio)
+- **Light theme contrast** — accent color #807000 meets WCAG AA (4.8:1 contrast ratio)

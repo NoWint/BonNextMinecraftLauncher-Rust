@@ -5,14 +5,14 @@
 .title {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 1.4em;
-  color: var(--text-primary);
+  color: var(--color-text);
   margin-bottom: 0.3em;
   letter-spacing: 0.05em;
 }
 
 .subtitle {
   font-size: 0.78em;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   margin-bottom: 1.2em;
 }
 
@@ -20,13 +20,13 @@
   display: flex;
   gap: 0.5em;
   margin-bottom: 1em;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .tab {
   padding: 0.5em 1em;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   border: none;
   border-bottom: 2px solid transparent;
   font-size: 0.85em;
@@ -34,13 +34,13 @@
   transition: color 0.15s, border-color 0.15s;
 
   &:hover {
-    color: var(--text-primary);
+    color: var(--color-text);
   }
 }
 
 .tabActive {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
 }
 
 .pluginList {
@@ -55,19 +55,19 @@
   align-items: flex-start;
   gap: 1em;
   padding: 0.8em 1em;
-  background: var(--bg-card);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--color-panel-alt);
+  border: 1px solid var(--color-border);
   clip-path: var(--clip-small);
 }
 
 .pluginCardActive {
-  border-color: rgba(80, 220, 120, 0.4);
-  background: rgba(80, 220, 120, 0.04);
+  border-color: color-mix(in srgb, var(--color-success) 40%, transparent);
+  background: color-mix(in srgb, var(--color-success) 4%, transparent);
 }
 
 .pluginCardError {
-  border-color: rgba(255, 68, 68, 0.4);
-  background: rgba(255, 68, 68, 0.04);
+  border-color: color-mix(in srgb, var(--color-error) 40%, transparent);
+  background: color-mix(in srgb, var(--color-error) 4%, transparent);
 }
 
 .pluginCardInfo {
@@ -84,13 +84,13 @@
 
 .pluginCardName {
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--color-text);
   font-size: 0.9em;
 }
 
 .pluginCardVersion {
   font-size: 0.7em;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-family: 'JetBrains Mono', monospace;
 }
 
@@ -104,39 +104,39 @@
 }
 
 .badgeBuiltin {
-  background: rgba(100, 160, 255, 0.18);
-  color: rgb(140, 190, 255);
+  background: color-mix(in srgb, var(--color-info) 18%, transparent);
+  color: var(--color-info);
 }
 
 .badgeThirdParty {
-  background: rgba(255, 180, 60, 0.18);
-  color: rgb(255, 200, 100);
+  background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+  color: var(--color-warning);
 }
 
 .badgeStateActive {
-  background: rgba(80, 220, 120, 0.18);
-  color: rgb(120, 230, 150);
+  background: color-mix(in srgb, var(--color-success) 18%, transparent);
+  color: var(--color-success);
 }
 
 .badgeStateInactive {
-  background: rgba(150, 150, 150, 0.18);
-  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--color-text-dim) 18%, transparent);
+  color: var(--color-text-secondary);
 }
 
 .badgeStateError {
-  background: rgba(255, 68, 68, 0.18);
-  color: rgb(255, 120, 120);
+  background: color-mix(in srgb, var(--color-error) 18%, transparent);
+  color: var(--color-error);
 }
 
 .pluginCardMeta {
   font-size: 0.74em;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   margin-top: 0.25em;
 }
 
 .pluginCardDesc {
   font-size: 0.78em;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   margin-top: 0.3em;
 }
 
@@ -150,9 +150,9 @@
 .permissionChip {
   font-size: 0.65em;
   padding: 0.1em 0.45em;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
   border-radius: 2px;
   font-family: 'JetBrains Mono', monospace;
 }
@@ -165,8 +165,8 @@
 
 .actionBtn {
   padding: 0.4em 0.9em;
-  background: var(--accent);
-  color: #000;
+  background: var(--color-accent);
+  color: var(--color-accent-action-text);
   border: none;
   clip-path: var(--clip-small);
   font-weight: 600;
@@ -185,21 +185,37 @@
 }
 
 .deactivateBtn {
-  background: rgba(255, 200, 60, 0.85);
+  background: color-mix(in srgb, var(--color-warning) 85%, transparent);
+}
+
+.logsBtn {
+  padding: 0.3em 0.8em;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-mid);
+  clip-path: var(--clip-small);
+  font-size: 0.72em;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-text) 8%, transparent);
+    color: var(--color-text);
+  }
 }
 
 .uninstallBtn {
   padding: 0.3em 0.8em;
   background: transparent;
-  color: var(--danger, #ff4444);
-  border: 1px solid var(--danger, #ff4444);
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
   clip-path: var(--clip-small);
   font-size: 0.72em;
   cursor: pointer;
   transition: background 0.15s;
 
   &:hover {
-    background: rgba(255, 68, 68, 0.1);
+    background: color-mix(in srgb, var(--color-error) 10%, transparent);
   }
 }
 
@@ -208,20 +224,134 @@
   gap: 0.8em;
   align-items: center;
   padding: 0.8em;
-  background: var(--bg-secondary, rgba(0, 0, 0, 0.2));
-  border: 1px dashed rgba(255, 255, 255, 0.1);
+  background: var(--color-panel, rgba(0, 0, 0, 0.2));
+  border: 1px dashed var(--color-border-mid);
   clip-path: var(--clip-small);
 }
 
 .emptyState {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 0.85em;
   padding: 1.2em 0;
   text-align: center;
 }
 
 .errorText {
-  color: var(--danger, #ff4444);
+  color: var(--color-error);
   font-size: 0.78em;
   margin-top: 0.5em;
+}
+
+/* Permission approval modal content */
+.approvalPrompt {
+  margin: 0 0 0.75em;
+}
+
+.approvalName {
+  margin: 0 0 0.75em;
+  font-weight: 600;
+}
+
+.approvalVersion {
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.approvalPermList {
+  margin: 0;
+  padding-left: 1.25em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.approvalPermItem {
+  list-style: disc;
+}
+
+.approvalPermCode {
+  margin-right: 0.5em;
+}
+
+.approvalNoPerms {
+  margin: 0;
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.badgeAutoDisabled {
+  background: color-mix(in srgb, var(--color-error) 22%, transparent);
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+}
+
+.failureInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin-top: 0.4em;
+  font-size: 0.72em;
+  color: var(--color-warning);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.errorDetailsBtn {
+  padding: 0.15em 0.5em;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-mid);
+  clip-path: var(--clip-small);
+  font-size: 0.95em;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-text) 8%, transparent);
+    color: var(--color-text);
+  }
+}
+
+.errorDetailsContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  font-size: 0.85em;
+}
+
+.errorDetailsRow {
+  display: flex;
+  gap: 0.6em;
+  align-items: flex-start;
+}
+
+.errorDetailsLabel {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  min-width: 5em;
+  flex-shrink: 0;
+}
+
+.errorDetailsValue {
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+.errorDetailsStack {
+  margin-top: 0.5em;
+  padding: 0.6em;
+  background: color-mix(in srgb, var(--color-error) 6%, transparent);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  overflow-x: auto;
+  max-height: 18em;
+  overflow-y: auto;
+
+  & pre {
+    margin: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78em;
+    color: var(--color-text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
 }

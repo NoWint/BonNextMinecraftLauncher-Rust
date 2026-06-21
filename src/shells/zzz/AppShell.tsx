@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo, Suspense, lazy } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../../shared/api';
 import { useAuth } from '../../shared/stores/authStore';
 import { useInstances } from '../../shared/stores/instanceStore';
@@ -7,21 +7,26 @@ import { useI18n } from '../../shared/i18n';
 import { useAIAssistant } from '../../shared/stores/aiAssistantStore';
 import { useShortcutBindings } from '../../shared/hooks/useKeyboardShortcuts';
 import { logger } from '../../shared/utils/logger';
+import { useAllPlugins } from '../../app/hooks/useAllPlugins';
+import { useTheme } from '../../shared/stores/themeStore';
 import { Sidebar } from './components/layout';
+import { PageBreadcrumb } from './components/layout/PageBreadcrumb';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { CommandPalette } from './components/CommandPalette';
-import { SearchPalette } from './components/ui/SearchPalette';
 import { DownloadPanel } from './components/ui/DownloadPanel';
-import { UpdateNotification } from './components/ui';
-import { ChatPanel } from './components/ai/ChatPanel';
-import FriendsPanel from './components/social/FriendsPanel';
+import { UpdateNotification, OnboardingWizard, isOnboardingForceShow, isOnboardingCompleted, clearForceShow } from './components/ui';
 import { AppRoutes } from '../../app/components/AppRoutes';
 import { usePluginSidebarItems } from '../../app/hooks/usePluginSidebarItems';
 import LoginPage from './pages/LoginPage';
 
+// 覆盖层组件懒加载：这些组件仅在用户交互时显示，无需进入首屏 bundle。
+const CommandPalette = lazy(() => import('./components/CommandPalette').then(m => ({ default: m.CommandPalette })));
+const SearchPalette = lazy(() => import('./components/ui/SearchPalette').then(m => ({ default: m.SearchPalette })));
+const ChatPanel = lazy(() => import('./components/ai/ChatPanel').then(m => ({ default: m.ChatPanel })));
+const FriendsPanel = lazy(() => import('./components/social/FriendsPanel'));
+
 const PAGE_ID_TO_PATH: Record<string, string> = {
   home: '/home',
-  marketplace: '/store',
+  marketplace: '/versions',
   collections: '/collections',
   instances: '/instances',
   new_instance: '/instances/new',
@@ -31,8 +36,8 @@ const PAGE_ID_TO_PATH: Record<string, string> = {
   versions: '/versions',
   servers: '/servers',
   settings: '/settings',
-  mods: '/store',
-  store: '/store',
+  mods: '/versions',
+  store: '/versions',
 };
 
 function ZZZAppShell() {
@@ -41,10 +46,23 @@ function ZZZAppShell() {
   const { t } = useI18n();
   const { state, togglePanel: toggleAIPanel } = useAIAssistant();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { homeMode, homeBackground } = useTheme();
   const [searchOpen, setSearchOpen] = useState(false);
   const [socialOpen, setSocialOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const pluginSidebarItems = usePluginSidebarItems();
+  const allPlugins = useAllPlugins();
+
+  // 极简主页模式：仅在 /home 路由下生效。
+  // 保留侧边栏，主区域使用模糊背景 + 玩家皮肤模型，模仿 HMCL 默认主页。
+  const isMinimalistHome = homeMode === 'minimalist' && location.pathname === '/home';
+
+  // 检测是否有非内置插件安装（用户主动安装的第三方插件）
+  // 仅当存在第三方插件时才显示 AI 助手/社交/好友面板（避免空壳功能困扰用户）
+  const hasThirdPartyPlugins = useMemo(() => {
+    return allPlugins.some((p) => !p.definition.id.startsWith('com.bonnext.'));
+  }, [allPlugins]);
 
   // 登录后检查是否需要显示新手引导
   useEffect(() => {
@@ -80,6 +98,7 @@ function ZZZAppShell() {
     const pluginItems = pluginSidebarItems.map((item) => ({
       id: item.id,
       label: item.label,
+      shortcut: '',
       path: item.route,
       order: item.order,
     }));
@@ -126,6 +145,13 @@ function ZZZAppShell() {
     enabled: !!authState.currentUser,
   });
 
+  // totalPlaytimeHours 必须在 early return 之前调用，否则当 authState.currentUser
+  // 从 null 变为非 null 时会触发 "Rendered more hooks than during the previous render"。
+  const totalPlaytimeHours = useMemo(
+    () => instState.instances.reduce((sum, inst) => sum + (inst.playtime_seconds || 0), 0) / 3600,
+    [instState.instances],
+  );
+
   if (!authState.currentUser) {
     return (
       <ErrorBoundary>
@@ -136,44 +162,83 @@ function ZZZAppShell() {
     );
   }
 
-  const totalPlaytimeHours = instState.instances.reduce((sum, inst) => sum + (inst.playtime_seconds || 0), 0) / 3600;
-
   return (
     <>
-      <div className="noise-overlay" />
-      <div className="scanline-overlay" />
-      <div className="app-layout">
-        <Sidebar
-          navItems={navItems}
-          username={authState.currentUser.username}
-          accountType={authState.currentUser.access_token?.startsWith('offline_') ? 'OFFLINE' : 'MICROSOFT'}
-          playtimeHours={totalPlaytimeHours}
-          onAIToggle={toggleAIPanel}
-          onSocialToggle={() => setSocialOpen(!socialOpen)}
-          onSocialOpen={() => setSocialOpen(true)}
+      <a href="#main-content" className="skip-link">{t('a11y.skipToContent')}</a>
+      {!isMinimalistHome && (
+        <>
+          <div className="noise-overlay" />
+          <div className="scanline-overlay" />
+        </>
+      )}
+      {isMinimalistHome ? (
+        // 极简主页模式：保留侧边栏，主区域使用模糊背景图
+        <div
+          className="app-layout app-layout--minimalist-home"
+          style={homeBackground ? { backgroundImage: `url(${homeBackground})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+        >
+          <Sidebar
+            navItems={navItems}
+            username={authState.currentUser.username}
+            accountType={authState.currentUser.access_token?.startsWith('offline_') ? 'OFFLINE' : 'MICROSOFT'}
+            playtimeHours={totalPlaytimeHours}
+            onAIToggle={hasThirdPartyPlugins ? toggleAIPanel : undefined}
+            onSocialToggle={hasThirdPartyPlugins ? () => setSocialOpen(!socialOpen) : undefined}
+            onSocialOpen={hasThirdPartyPlugins ? () => setSocialOpen(true) : undefined}
+          />
+          <main id="main-content" className="app-main app-main--minimalist-home">
+            <ErrorBoundary>
+              <AppRoutes isAuthenticated={!!authState.currentUser} />
+            </ErrorBoundary>
+          </main>
+        </div>
+      ) : (
+        <div className="app-layout">
+          <Sidebar
+            navItems={navItems}
+            username={authState.currentUser.username}
+            accountType={authState.currentUser.access_token?.startsWith('offline_') ? 'OFFLINE' : 'MICROSOFT'}
+            playtimeHours={totalPlaytimeHours}
+            onAIToggle={hasThirdPartyPlugins ? toggleAIPanel : undefined}
+            onSocialToggle={hasThirdPartyPlugins ? () => setSocialOpen(!socialOpen) : undefined}
+            onSocialOpen={hasThirdPartyPlugins ? () => setSocialOpen(true) : undefined}
+          />
+          <main id="main-content" className={`app-main ${state.isOpen ? 'app-main--ai-open' : ''}`}>
+            <div className="decorative-rect decorative-rect--top-right" />
+            <div className="decorative-rect decorative-rect--bottom-left" />
+            <PageBreadcrumb />
+            <ErrorBoundary>
+              <AppRoutes isAuthenticated={!!authState.currentUser} />
+            </ErrorBoundary>
+          </main>
+        </div>
+      )}
+
+      <Suspense fallback={null}>
+        <SearchPalette
+          open={searchOpen}
+          onClose={() => setSearchOpen(false)}
+          instances={instState.instances}
+          versions={[]}
+          navigate={navigateTo}
         />
-        <main className={`app-main ${state.isOpen ? 'app-main--ai-open' : ''}`}>
-          <div className="decorative-rect decorative-rect--top-right" />
-          <div className="decorative-rect decorative-rect--bottom-left" />
+      </Suspense>
 
-          <ErrorBoundary>
-            <AppRoutes isAuthenticated={!!authState.currentUser} />
-          </ErrorBoundary>
-        </main>
-      </div>
-
-      <SearchPalette
-        open={searchOpen}
-        onClose={() => setSearchOpen(false)}
-        instances={instState.instances}
-        versions={[]}
-        navigate={navigateTo}
-      />
-
-      <ChatPanel />
-      <FriendsPanel isOpen={socialOpen} onClose={() => setSocialOpen(false)} />
+      {/* AI 助手与社交面板仅在安装了第三方插件时渲染（避免空壳功能） */}
+      {hasThirdPartyPlugins && (
+        <Suspense fallback={null}>
+          <ChatPanel />
+        </Suspense>
+      )}
+      {hasThirdPartyPlugins && (
+        <Suspense fallback={null}>
+          <FriendsPanel isOpen={socialOpen} onClose={() => setSocialOpen(false)} />
+        </Suspense>
+      )}
       <UpdateNotification />
-      <CommandPalette />
+      <Suspense fallback={null}>
+        <CommandPalette />
+      </Suspense>
       <DownloadPanel />
       <OnboardingWizard open={onboardingOpen} onClose={handleCloseOnboarding} />
     </>

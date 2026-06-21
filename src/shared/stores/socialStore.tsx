@@ -98,8 +98,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'REMOVE_FRIEND', id });
   }, []);
 
+  // 延迟加载社交数据：社交功能非启动必需，避免与关键 IPC 竞争。
   useEffect(() => {
-    load();
+    const timer = setTimeout(() => load(), 5000);
+    return () => clearTimeout(timer);
   }, [load]);
 
   return (

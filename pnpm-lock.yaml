@@ -19,7 +19,7 @@ importers:
         version: 3.2.2(react@18.3.1)
       '@mkkellogg/gaussian-splats-3d':
         specifier: ^0.4.7
-        version: 0.4.7(three@0.156.1)
+        version: 0.4.7(three@0.184.0)
       '@tauri-apps/api':
         specifier: ^2
         version: 2.11.0
@@ -62,6 +62,9 @@ importers:
       tauri-plugin-liquid-glass-api:
         specifier: ^0.1.6
         version: 0.1.6(@tauri-apps/api@2.11.0)
+      three:
+        specifier: ^0.184.0
+        version: 0.184.0
     devDependencies:
       '@tauri-apps/cli':
         specifier: ^2
@@ -1345,6 +1348,9 @@ packages:
   three@0.156.1:
     resolution: {integrity: sha512-kP7H0FK9d/k6t/XvQ9FO6i+QrePoDcNhwl0I02+wmUJRNSLCUIDMcfObnzQvxb37/0Uc9TDT0T1HgsRRrO6SYQ==}
 
+  three@0.184.0:
+    resolution: {integrity: sha512-wtTRjG92pM5eUg/KuUnHsqSAlPM296brTOcLgMRqEeylYTh/CdtvKUvCyyCQTzFuStieWxvZb8mVTMvdPyUpxg==}
+
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
 
@@ -1817,9 +1823,9 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@mkkellogg/gaussian-splats-3d@0.4.7(three@0.156.1)':
+  '@mkkellogg/gaussian-splats-3d@0.4.7(three@0.184.0)':
     dependencies:
-      three: 0.156.1
+      three: 0.184.0
 
   '@rolldown/pluginutils@1.0.0-beta.27': {}
 
@@ -2618,6 +2624,8 @@ snapshots:
       '@tauri-apps/api': 2.11.0
 
   three@0.156.1: {}
+
+  three@0.184.0: {}
 
   tinybench@2.9.0: {}
 

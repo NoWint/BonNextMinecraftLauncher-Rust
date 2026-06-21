@@ -32,3 +32,5 @@ pub mod p2p;
 pub mod cache;
 pub mod shell;
 pub mod plugin_proxy;
+pub mod plugin_session;
+pub mod plugin_install;

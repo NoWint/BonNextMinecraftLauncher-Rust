@@ -161,16 +161,15 @@ pub async fn get_system_info() -> Result<serde_json::Value, LauncherError> {
     let used_ram = sys.used_memory() / 1024 / 1024;
     let cpu_name = sys.cpus().first().map(|c| c.brand().to_string()).unwrap_or_default();
     let cpu_count = sys.cpus().len() as u32;
-    let java_ver = crate::platform::java::find_java()
-        .ok().and_then(|p| crate::platform::java::check_java_version(&p))
-        .map(|v| format!("Java {}", v));
+    // 不在此处调用 find_java() — 它会串行 spawn 11 个子进程，
+    // 导致启动卡顿。前端通过独立的 findJava() IPC 获取 Java 版本。
 
     Ok(serde_json::json!({
         "total_ram_mb": total_ram,
         "used_ram_mb": used_ram,
         "cpu_name": cpu_name,
         "cpu_count": cpu_count,
-        "java_version": java_ver,
+        "java_version": null,
         "os": std::env::consts::OS,
         "arch": std::env::consts::ARCH,
     }))

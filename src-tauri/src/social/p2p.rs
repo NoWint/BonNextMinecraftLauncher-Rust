@@ -163,6 +163,10 @@ fn handle_incoming(
         .map_err(|_| "Invalid signature bytes".to_string())?;
 
     // TODO: Verify signature against the friend's stored public key.
+    // NOTE: Social/P2P functionality is not exposed in the 1.0.0 release.
+    // This signature verification MUST be implemented before the social feature
+    // is enabled in a future release. Until then, the P2P code path is not
+    // reachable from the UI.
     // Full verification requires the peer's public key, which should come from
     // a friend request handshake or out-of-band exchange.
     let peer_id = &response.peer_id;

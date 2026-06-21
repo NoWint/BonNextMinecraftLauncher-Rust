@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { emit } from '@tauri-apps/api/event';
 import type { ModResult, ModVersion, ModFile, ModProjectFull } from './types';
 
 export const searchCfMods = (
@@ -14,7 +15,7 @@ export const getCfProjectDetails = (modId: number) => invoke<ModProjectFull>('ge
 export const getCfModVersions = (modId: number) => invoke<ModVersion[]>('get_cf_mod_versions', { modId });
 export const getCfFeatured = () => invoke<ModResult[]>('get_cf_featured');
 export const getCfModFiles = (modId: number) => invoke<ModFile[]>('get_cf_mod_files', { modId });
-export const downloadCfMod = (
+export const downloadCfMod = async (
   fileUrl: string,
   filename: string,
   instanceId: string,
@@ -22,4 +23,25 @@ export const downloadCfMod = (
   sha1?: string,
   slug?: string,
   versionId?: string,
-) => invoke<string>('download_cf_mod', { fileUrl, filename, instanceId, contentType, sha1, slug, versionId });
+) => {
+  const result = await invoke<string>('download_cf_mod', {
+    fileUrl,
+    filename,
+    instanceId,
+    contentType,
+    sha1,
+    slug,
+    versionId,
+  });
+  // 通知插件 EventBus：mod 安装完成（mod-tools 等插件监听此事件）
+  void emit('mod:installed', {
+    instanceId,
+    filename,
+    slug,
+    versionId,
+    source: 'curseforge',
+    contentType: contentType || 'mod',
+    url: fileUrl,
+  });
+  return result;
+};

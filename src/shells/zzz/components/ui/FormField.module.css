@@ -6,9 +6,9 @@
 }
 
 .input {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
+  border: 1px solid var(--color-border-mid);
+  color: var(--color-text);
   font-family: var(--font-body, 'Inter', sans-serif);
   font-size: 0.55em;
   padding: 0.4em 0.6em;
@@ -19,24 +19,24 @@
 }
 
 .input:focus {
-  border-color: var(--color-accent, #ffe600);
+  border-color: var(--color-accent);
 }
 
 .inputHasError {
-  border-color: var(--color-error, #e53e3e);
-  background: rgba(229, 62, 62, 0.04);
+  border-color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 4%, transparent);
 }
 
 .inputHasError:focus {
-  border-color: var(--color-error, #e53e3e);
+  border-color: var(--color-error);
 }
 
 .errorText {
   font-size: 0.42em;
-  color: var(--color-error, #e53e3e);
+  color: var(--color-error);
   letter-spacing: 0.5px;
   padding: 2px 6px;
-  background: rgba(229, 62, 62, 0.06);
-  border-left: 2px solid var(--color-error, #e53e3e);
+  background: color-mix(in srgb, var(--color-error) 6%, transparent);
+  border-left: 2px solid var(--color-error);
   clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 3px, 100% 100%, 0 100%);
 }

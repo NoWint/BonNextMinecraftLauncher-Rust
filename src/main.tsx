@@ -1,6 +1,10 @@
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { formatError } from './shared/utils/errorMapping';
+// 直接 import 各 CSS 文件（而非 @import 串行加载），Vite 会合并为单个 CSS 文件。
+import './shells/zzz/styles/tokens.css';
+import './shells/zzz/styles/themes.css';
+import './shells/zzz/styles/ux-delight.css';
 import './shells/zzz/styles/global.css';
 
 window.addEventListener('error', (event) => {

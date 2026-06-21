@@ -60,7 +60,7 @@
   background-size: 100% 200%;
   filter: blur(1px);
   box-shadow:
-    0 0 12px rgba(72, 219, 251, 0.3),
+    0 0 12px color-mix(in srgb, var(--color-info) 30%, transparent),
     0 0 24px rgba(255, 159, 243, 0.15);
 }
 
@@ -71,7 +71,7 @@
   height: 3px;
   width: 100%;
   filter: blur(1px);
-  box-shadow: 0 0 12px rgba(72, 219, 251, 0.3);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-info) 30%, transparent);
   transform-origin: right center;
 }
 
@@ -96,8 +96,8 @@
   background-size: 100% 200%;
   filter: blur(1px);
   box-shadow:
-    0 0 12px rgba(72, 219, 251, 0.3),
-    0 0 24px rgba(84, 160, 255, 0.15);
+    0 0 12px color-mix(in srgb, var(--color-info) 30%, transparent),
+    0 0 24px color-mix(in srgb, var(--color-info) 15%, transparent);
 }
 
 /* Rainbow flow for horizontal edges */
@@ -191,23 +191,30 @@
   flex-direction: column;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  transform: perspective(1500px) rotateY(25deg) scale(1.18) translateZ(120px) translateX(-150px);
+  /* 景深增强：更大的 rotateY + translateZ + scale，配合更小 perspective 营造更强深度感 */
+  transform: perspective(1200px) rotateY(35deg) scale(1.25) translateZ(180px) translateX(-180px);
   opacity: 0;
-  filter: blur(16px);
+  filter: blur(24px);
   pointer-events: none;
   transition:
-    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
-    filter 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    transform 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.9s cubic-bezier(0.16, 1, 0.3, 1);
   transform-origin: center center;
   will-change: transform, opacity, filter;
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.5),
+    0 0 60px color-mix(in srgb, var(--color-info) 15%, transparent);
 }
 
 .controlsCard--open {
-  transform: perspective(1500px) rotateY(0deg) scale(1) translateZ(0) translateX(0);
+  transform: perspective(1200px) rotateY(0deg) scale(1) translateZ(0) translateX(0);
   opacity: 1;
   filter: blur(0);
   pointer-events: auto;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.4),
+    0 0 40px color-mix(in srgb, var(--color-info) 10%, transparent);
 }
 
 /* ========================================
@@ -227,7 +234,7 @@
   font-size: 0.95em;
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: rgba(255, 255, 255, 0.85);
+  color: color-mix(in srgb, var(--color-text) 85%, transparent);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -239,8 +246,8 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #48dbfb, #54a0ff);
-  box-shadow: 0 0 10px rgba(72, 219, 251, 0.5);
+  background: linear-gradient(135deg, var(--color-info), var(--color-info));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-info) 50%, transparent);
   flex-shrink: 0;
 }
 
@@ -250,9 +257,9 @@
 }
 
 .controlsCard__actionBtn {
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
   border: none;
-  color: rgba(255, 255, 255, 0.45);
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
   cursor: pointer;
   width: 28px;
   height: 28px;
@@ -267,8 +274,8 @@
 }
 
 .controlsCard__actionBtn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.8);
+  background: color-mix(in srgb, var(--color-text) 12%, transparent);
+  color: color-mix(in srgb, var(--color-text) 80%, transparent);
 }
 
 /* ========================================
@@ -289,7 +296,7 @@
   width: 2px;
 }
 .controlsCard__messages::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
   border-radius: 2px;
 }
 
@@ -301,7 +308,7 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: rgba(255, 255, 255, 0.25);
+  color: color-mix(in srgb, var(--color-text) 25%, transparent);
   font-size: 0.7em;
 }
 
@@ -309,13 +316,13 @@
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(72, 219, 251, 0.12), rgba(255, 159, 243, 0.1));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-info) 12%, transparent), rgba(255, 159, 243, 0.1));
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.1em;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.4);
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
 }
 
 .controlsCard__emptyText {
@@ -339,10 +346,10 @@
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 0.5px solid rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
+  border: 0.5px solid var(--color-border);
   border-radius: 14px;
-  color: rgba(255, 255, 255, 0.6);
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
   font-size: 0.7em;
   cursor: pointer;
@@ -351,9 +358,9 @@
 }
 
 .controlsCard__suggestionChip:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.85);
+  background: color-mix(in srgb, var(--color-text) 10%, transparent);
+  border-color: var(--color-border-light);
+  color: color-mix(in srgb, var(--color-text) 85%, transparent);
   transform: translateY(-1px);
 }
 
@@ -379,24 +386,24 @@
   display: flex;
   gap: 8px;
   align-items: flex-end;
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
   border-radius: 22px;
   padding: 5px 5px 5px 18px;
-  border: 0.5px solid rgba(255, 255, 255, 0.04);
+  border: 0.5px solid var(--color-border);
   transition: all 0.25s ease;
 }
 
 .controlsCard__inputWrapper:focus-within {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 0 0 3px rgba(72, 219, 251, 0.06);
+  background: color-mix(in srgb, var(--color-text) 10%, transparent);
+  border-color: var(--color-border-mid);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-info) 6%, transparent);
 }
 
 .controlsCard__input {
   flex: 1;
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.85);
+  color: color-mix(in srgb, var(--color-text) 85%, transparent);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
   font-size: 0.76em;
   padding: 7px 0;
@@ -408,12 +415,12 @@
 }
 
 .controlsCard__input::placeholder {
-  color: rgba(255, 255, 255, 0.2);
+  color: color-mix(in srgb, var(--color-text) 20%, transparent);
 }
 
 .controlsCard__sendBtn {
-  background: linear-gradient(135deg, #48dbfb, #54a0ff);
-  color: #fff;
+  background: linear-gradient(135deg, var(--color-info), var(--color-info));
+  color: var(--color-text);
   border: none;
   cursor: pointer;
   width: 34px;
@@ -426,12 +433,12 @@
   font-weight: 700;
   flex-shrink: 0;
   transition: all 0.2s cubic-bezier(0.22, 0.8, 0.25, 1);
-  box-shadow: 0 2px 10px rgba(72, 219, 251, 0.2);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--color-info) 20%, transparent);
 }
 
 .controlsCard__sendBtn:hover:not(:disabled) {
   transform: scale(1.06);
-  box-shadow: 0 4px 18px rgba(72, 219, 251, 0.35);
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--color-info) 35%, transparent);
 }
 
 .controlsCard__sendBtn:active:not(:disabled) {
@@ -450,7 +457,7 @@
 
 .controlsCard__error {
   font-size: 0.55em;
-  color: #ff6b6b;
+  color: var(--color-error);
   padding: 6px 20px 4px;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
   font-weight: 500;

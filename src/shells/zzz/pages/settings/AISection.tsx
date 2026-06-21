@@ -41,24 +41,24 @@ export default function AISection() {
         </label>
       </SettingRow>
 
-      <SettingRow label="API URL">
+      <SettingRow label={t('settings.ai.apiUrl')}>
         <div style={{ flex: 1 }}>
           <TextInput
             value={localConfig.api_url}
             onChange={(e) => handleChange({ api_url: e.target.value })}
-            placeholder="http://127.0.0.1:7860/v1/chat/completions"
+            placeholder={t('settings.ai.endpointPlaceholder')}
           />
         </div>
       </SettingRow>
 
-      <SettingRow label="API Key">
+      <SettingRow label={t('settings.ai.apiKey')}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5em', flex: 1 }}>
           <div style={{ position: 'relative', flex: 1 }}>
             <input
               type={showApiKey ? 'text' : 'password'}
               value={localConfig.api_key}
               onChange={(e) => handleChange({ api_key: e.target.value })}
-              placeholder="sk-..."
+              placeholder={t('settings.ai.apiKeyPlaceholder')}
               className={styles.textInput}
               style={{ width: '100%', paddingRight: '3em' }}
             />

@@ -456,7 +456,12 @@ fn add_dir_to_zip(
     for entry in entries {
         let entry = entry?;
         let path = entry.path();
-        let name = format!("{}/{}", prefix, entry.file_name().to_string_lossy());
+        let file_name = entry.file_name();
+        // 跳过 session.lock（参考 HMCL WorldBackupTask）
+        if file_name == "session.lock" {
+            continue;
+        }
+        let name = format!("{}/{}", prefix, file_name.to_string_lossy());
 
         if path.is_dir() {
             zip.add_directory(&name, options)?;
@@ -465,6 +470,360 @@ fn add_dir_to_zip(
             zip.start_file(&name, options)?;
             let mut f = std::fs::File::open(&path)?;
             std::io::copy(&mut f, zip)?;
+        }
+    }
+    Ok(())
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 世界备份/恢复系统（参考 HMCL WorldBackupTask + WorldBackupsPage）
+// ═══════════════════════════════════════════════════════════════════
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorldBackupInfo {
+    pub filename: String,
+    pub world_name: String,
+    pub created_at: String,
+    pub size_mb: f64,
+}
+
+/// 获取实例的世界备份目录
+fn get_backups_dir(instance_id: &str) -> std::path::PathBuf {
+    paths::get_game_dir().join("backups").join(instance_id)
+}
+
+/// 备份世界为 ZIP。参考 HMCL WorldBackupTask：
+/// - 备份位置：backups/<instance_id>/
+/// - 命名：yyyy-MM-dd_HH-mm-ss_<worldName>.zip，重名加序号
+/// - 跳过 session.lock
+#[tauri::command]
+pub async fn backup_world(instance_id: String, save_name: String) -> Result<String, LauncherError> {
+    if save_name.contains("..") || save_name.contains('/') || save_name.contains('\\') {
+        return Err(LauncherError::SecurityValidation("Invalid save name".into()));
+    }
+
+    let saves_dir = paths::get_instance_saves_dir(&instance_id);
+    let save_dir = saves_dir.join(&save_name);
+    if !save_dir.exists() {
+        return Err(LauncherError::VersionNotFound(format!("World not found: {}", save_name)));
+    }
+
+    let backups_dir = get_backups_dir(&instance_id);
+    std::fs::create_dir_all(&backups_dir)?;
+
+    // 生成备份文件名：yyyy-MM-dd_HH-mm-ss_<worldName>.zip，重名加序号
+    let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string();
+    let mut backup_filename = format!("{}_{}.zip", timestamp, save_name);
+    let mut seq = 1;
+    while backups_dir.join(&backup_filename).exists() && seq < 256 {
+        backup_filename = format!("{}_{}_{}.zip", timestamp, save_name, seq);
+        seq += 1;
+    }
+
+    let backup_path = backups_dir.join(&backup_filename);
+    let file = std::fs::File::create(&backup_path)?;
+    let mut zip = zip::ZipWriter::new(file);
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+
+    add_dir_to_zip(&save_dir, &mut zip, options, &save_name)?;
+    zip.finish().map_err(|e| LauncherError::Other(format!("Failed to finalize backup zip: {}", e)))?;
+
+    tracing::info!("World '{}' backed up to {}", save_name, backup_path.display());
+    Ok(backup_filename)
+}
+
+/// 列出实例的所有世界备份
+#[tauri::command]
+pub async fn list_world_backups(instance_id: String) -> Result<Vec<WorldBackupInfo>, LauncherError> {
+    let backups_dir = get_backups_dir(&instance_id);
+    if !backups_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut backups = Vec::new();
+    for entry in std::fs::read_dir(&backups_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("zip") {
+            continue;
+        }
+
+        let filename = entry.file_name().to_string_lossy().to_string();
+        // 解析文件名：yyyy-MM-dd_HH-mm-ss_<worldName>[_seq].zip
+        let world_name = filename
+            .strip_suffix(".zip")
+            .and_then(|s| {
+                // 提取时间戳后的世界名部分
+                let parts: Vec<&str> = s.splitn(3, '_').collect();
+                if parts.len() >= 3 {
+                    let rest = parts[2];
+                    // 去除可能的序号后缀 _N
+                    if let Some(pos) = rest.rfind('_') {
+                        if rest[pos + 1..].parse::<u32>().is_ok() {
+                            return Some(&rest[..pos]);
+                        }
+                    }
+                    Some(rest)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or("unknown")
+            .to_string();
+
+        let size_mb = std::fs::metadata(&path).map(|m| m.len() as f64 / 1_048_576.0).unwrap_or(0.0);
+
+        let created_at = std::fs::metadata(&path)
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .map(|t| {
+                let duration = t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+                chrono::DateTime::from_timestamp(duration.as_secs() as i64, duration.subsec_nanos())
+                    .map(|dt| dt.to_rfc3339())
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default();
+
+        backups.push(WorldBackupInfo {
+            filename,
+            world_name,
+            created_at,
+            size_mb,
+        });
+    }
+
+    backups.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    Ok(backups)
+}
+
+/// 从备份恢复世界
+#[tauri::command]
+pub async fn restore_world(instance_id: String, backup_filename: String, target_name: Option<String>) -> Result<String, LauncherError> {
+    if backup_filename.contains("..") || backup_filename.contains('/') || backup_filename.contains('\\') {
+        return Err(LauncherError::SecurityValidation("Invalid backup filename".into()));
+    }
+
+    let backups_dir = get_backups_dir(&instance_id);
+    let backup_path = backups_dir.join(&backup_filename);
+    if !backup_path.exists() {
+        return Err(LauncherError::VersionNotFound(format!("Backup not found: {}", backup_filename)));
+    }
+
+    let saves_dir = paths::get_instance_saves_dir(&instance_id);
+    std::fs::create_dir_all(&saves_dir)?;
+
+    // 恢复目标名称：优先使用用户指定，否则从备份文件名提取
+    let restore_name = target_name.unwrap_or_else(|| {
+        backup_filename
+            .strip_suffix(".zip")
+            .and_then(|s| {
+                let parts: Vec<&str> = s.splitn(3, '_').collect();
+                if parts.len() >= 3 {
+                    let rest = parts[2];
+                    if let Some(pos) = rest.rfind('_') {
+                        if rest[pos + 1..].parse::<u32>().is_ok() {
+                            return Some(rest[..pos].to_string());
+                        }
+                    }
+                    Some(rest.to_string())
+                } else {
+                    Some("restored_world".to_string())
+                }
+            })
+            .unwrap_or_else(|| "restored_world".to_string())
+    });
+
+    let target_dir = saves_dir.join(&restore_name);
+    if target_dir.exists() {
+        // 目标已存在，加序号
+        let mut seq = 1;
+        loop {
+            let candidate = saves_dir.join(format!("{}_{}", restore_name, seq));
+            if !candidate.exists() {
+                std::fs::create_dir_all(&candidate)?;
+                extract_zip_to_dir(&backup_path, &candidate)?;
+                return Ok(format!("{}_{}", restore_name, seq));
+            }
+            seq += 1;
+            if seq > 999 {
+                return Err(LauncherError::Other("Too many restored worlds with same name".into()));
+            }
+        }
+    } else {
+        std::fs::create_dir_all(&target_dir)?;
+        extract_zip_to_dir(&backup_path, &target_dir)?;
+        Ok(restore_name)
+    }
+}
+
+/// 删除世界备份
+#[tauri::command]
+pub async fn delete_world_backup(instance_id: String, backup_filename: String) -> Result<(), LauncherError> {
+    if backup_filename.contains("..") || backup_filename.contains('/') || backup_filename.contains('\\') {
+        return Err(LauncherError::SecurityValidation("Invalid backup filename".into()));
+    }
+
+    let backup_path = get_backups_dir(&instance_id).join(&backup_filename);
+    if !backup_path.exists() {
+        return Err(LauncherError::VersionNotFound(format!("Backup not found: {}", backup_filename)));
+    }
+
+    std::fs::remove_file(&backup_path)?;
+    tracing::info!("Deleted world backup: {}", backup_filename);
+    Ok(())
+}
+
+/// 从 ZIP 导入世界
+#[tauri::command]
+pub async fn import_world(instance_id: String, zip_path: String, world_name: Option<String>) -> Result<String, LauncherError> {
+    let zip_path = std::path::PathBuf::from(&zip_path);
+    if !zip_path.exists() {
+        return Err(LauncherError::VersionNotFound(format!("ZIP file not found: {}", zip_path.display())));
+    }
+
+    let saves_dir = paths::get_instance_saves_dir(&instance_id);
+    std::fs::create_dir_all(&saves_dir)?;
+
+    // 确定世界名称
+    let name = world_name.unwrap_or_else(|| {
+        zip_path.file_stem()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| "imported_world".to_string())
+    });
+
+    let target_dir = saves_dir.join(&name);
+    if target_dir.exists() {
+        return Err(LauncherError::Other(format!("World '{}' already exists", name)));
+    }
+
+    std::fs::create_dir_all(&target_dir)?;
+    extract_zip_to_dir(&zip_path, &target_dir)?;
+    tracing::info!("World imported from {} as {}", zip_path.display(), name);
+    Ok(name)
+}
+
+/// 删除世界
+#[tauri::command]
+pub async fn delete_world(instance_id: String, save_name: String) -> Result<(), LauncherError> {
+    if save_name.contains("..") || save_name.contains('/') || save_name.contains('\\') {
+        return Err(LauncherError::SecurityValidation("Invalid save name".into()));
+    }
+
+    let save_dir = paths::get_instance_saves_dir(&instance_id).join(&save_name);
+    if !save_dir.exists() {
+        return Err(LauncherError::VersionNotFound(format!("World not found: {}", save_name)));
+    }
+
+    std::fs::remove_dir_all(&save_dir)?;
+    tracing::info!("World deleted: {}", save_name);
+    Ok(())
+}
+
+/// 重命名世界
+#[tauri::command]
+pub async fn rename_world(instance_id: String, old_name: String, new_name: String) -> Result<(), LauncherError> {
+    if old_name.contains("..") || old_name.contains('/') || old_name.contains('\\') ||
+       new_name.contains("..") || new_name.contains('/') || new_name.contains('\\') {
+        return Err(LauncherError::SecurityValidation("Invalid save name".into()));
+    }
+
+    let saves_dir = paths::get_instance_saves_dir(&instance_id);
+    let old_dir = saves_dir.join(&old_name);
+    let new_dir = saves_dir.join(&new_name);
+
+    if !old_dir.exists() {
+        return Err(LauncherError::VersionNotFound(format!("World not found: {}", old_name)));
+    }
+    if new_dir.exists() {
+        return Err(LauncherError::Other(format!("World '{}' already exists", new_name)));
+    }
+
+    std::fs::rename(&old_dir, &new_dir)?;
+    tracing::info!("World renamed: {} -> {}", old_name, new_name);
+    Ok(())
+}
+
+/// 复制世界
+#[tauri::command]
+pub async fn duplicate_world(instance_id: String, save_name: String, new_name: String) -> Result<(), LauncherError> {
+    if save_name.contains("..") || save_name.contains('/') || save_name.contains('\\') ||
+       new_name.contains("..") || new_name.contains('/') || new_name.contains('\\') {
+        return Err(LauncherError::SecurityValidation("Invalid save name".into()));
+    }
+
+    let saves_dir = paths::get_instance_saves_dir(&instance_id);
+    let src_dir = saves_dir.join(&save_name);
+    let dst_dir = saves_dir.join(&new_name);
+
+    if !src_dir.exists() {
+        return Err(LauncherError::VersionNotFound(format!("World not found: {}", save_name)));
+    }
+    if dst_dir.exists() {
+        return Err(LauncherError::Other(format!("World '{}' already exists", new_name)));
+    }
+
+    copy_world_dir_recursive(&src_dir, &dst_dir)?;
+    tracing::info!("World duplicated: {} -> {}", save_name, new_name);
+    Ok(())
+}
+
+/// 解压 ZIP 到目录
+fn extract_zip_to_dir(zip_path: &std::path::Path, target_dir: &std::path::Path) -> Result<(), LauncherError> {
+    let file = std::fs::File::open(zip_path)?;
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|e| LauncherError::Other(format!("Failed to open zip: {}", e)))?;
+
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i)
+            .map_err(|e| LauncherError::Other(format!("Failed to read zip entry: {}", e)))?;
+        let name = entry.name().to_string();
+
+        // 跳过路径遍历攻击
+        if name.contains("..") {
+            continue;
+        }
+
+        // ZIP 中的路径可能包含顶层目录前缀，需要去掉
+        let relative = if let Some(pos) = name.find('/') {
+            &name[pos + 1..]
+        } else {
+            &name
+        };
+
+        if relative.is_empty() {
+            continue;
+        }
+
+        let out_path = target_dir.join(relative);
+        if entry.is_dir() {
+            std::fs::create_dir_all(&out_path)?;
+        } else {
+            if let Some(parent) = out_path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            let mut out_file = std::fs::File::create(&out_path)?;
+            std::io::copy(&mut entry, &mut out_file)?;
+        }
+    }
+    Ok(())
+}
+
+/// 递归复制世界目录（跳过 session.lock）
+fn copy_world_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<(), LauncherError> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let file_name = entry.file_name();
+        if file_name == "session.lock" {
+            continue;
+        }
+        let path = entry.path();
+        let dst_path = dst.join(&file_name);
+        if path.is_dir() {
+            copy_world_dir_recursive(&path, &dst_path)?;
+        } else {
+            std::fs::copy(&path, &dst_path)?;
         }
     }
     Ok(())

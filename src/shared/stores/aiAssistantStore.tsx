@@ -419,28 +419,31 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
     return unsubscribe;
   }, []);
 
+  // 延迟注册工作流事件监听：AI 助手非启动必需，避免与关键 IPC 竞争。
   React.useEffect(() => {
     const unlisteners: Array<() => void> = [];
-    (async () => {
-      const u1 = await workflowApi.onWorkflowProgress((e: WorkflowProgressEvent) => {
-        dispatch({ type: 'UPDATE_WORKFLOW', payload: { id: e.workflow_id, step: e.step, totalSteps: e.total_steps, stepName: e.step_name } });
-      });
-      unlisteners.push(u1);
-      const u2 = await workflowApi.onWorkflowComplete((e: WorkflowCompleteEvent) => {
-        dispatch({ type: 'REMOVE_WORKFLOW', id: e.workflow_id });
-        dispatch({ type: 'ADD_MESSAGE', message: { id: nextMessageId(), role: 'assistant', content: e.result === 'success' ? `✅ Workflow completed!${e.instance_id ? ` Instance: ${e.instance_id}` : ''}` : '⚠️ Workflow finished with issues', commands: [], timestamp: Date.now() } });
-      });
-      unlisteners.push(u2);
-      const u3 = await workflowApi.onWorkflowError((e: WorkflowErrorEvent) => {
-        dispatch({ type: 'ADD_MESSAGE', message: { id: nextMessageId(), role: 'assistant', content: `❌ Workflow error (${e.step}): ${e.error}${e.recoverable ? ' — can retry' : ''}`, commands: [], timestamp: Date.now() } });
-      });
-      unlisteners.push(u3);
-      const u4 = await workflowApi.onCrashDetected((e: CrashDetectedEvent) => {
-        dispatch({ type: 'SET_CRASH_ALERT', payload: { instanceId: e.instance_id, crashReportPath: e.crash_report_path, severity: e.severity } });
-      });
-      unlisteners.push(u4);
-    })();
-    return () => { unlisteners.forEach((fn) => fn()); };
+    const timer = setTimeout(() => {
+      (async () => {
+        const u1 = await workflowApi.onWorkflowProgress((e: WorkflowProgressEvent) => {
+          dispatch({ type: 'UPDATE_WORKFLOW', payload: { id: e.workflow_id, step: e.step, totalSteps: e.total_steps, stepName: e.step_name } });
+        });
+        unlisteners.push(u1);
+        const u2 = await workflowApi.onWorkflowComplete((e: WorkflowCompleteEvent) => {
+          dispatch({ type: 'REMOVE_WORKFLOW', id: e.workflow_id });
+          dispatch({ type: 'ADD_MESSAGE', message: { id: nextMessageId(), role: 'assistant', content: e.result === 'success' ? `✅ Workflow completed!${e.instance_id ? ` Instance: ${e.instance_id}` : ''}` : '⚠️ Workflow finished with issues', commands: [], timestamp: Date.now() } });
+        });
+        unlisteners.push(u2);
+        const u3 = await workflowApi.onWorkflowError((e: WorkflowErrorEvent) => {
+          dispatch({ type: 'ADD_MESSAGE', message: { id: nextMessageId(), role: 'assistant', content: `❌ Workflow error (${e.step}): ${e.error}${e.recoverable ? ' — can retry' : ''}`, commands: [], timestamp: Date.now() } });
+        });
+        unlisteners.push(u3);
+        const u4 = await workflowApi.onCrashDetected((e: CrashDetectedEvent) => {
+          dispatch({ type: 'SET_CRASH_ALERT', payload: { instanceId: e.instance_id, crashReportPath: e.crash_report_path, severity: e.severity } });
+        });
+        unlisteners.push(u4);
+      })();
+    }, 5000);
+    return () => { clearTimeout(timer); unlisteners.forEach((fn) => fn()); };
   }, []);
 
   const contextValue = useMemo(

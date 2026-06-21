@@ -55,7 +55,7 @@
 .activeDot {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  clip-path: var(--clip-diamond);
   background: var(--color-accent);
   box-shadow: 0 0 6px var(--color-accent-50);
   animation: breathe-yellow 2s ease-in-out infinite;

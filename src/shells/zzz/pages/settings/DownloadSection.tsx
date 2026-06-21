@@ -44,9 +44,9 @@ export default function DownloadSection({
         active_during_game: !downloadConfig.pauseDuringGame,
         priority: downloadConfig.priority,
       });
-      addToast({ type: 'success', title: t('settings.saved') || 'Saved' });
+      addToast({ type: 'success', title: t('settings.saved') });
     } catch (e) {
-      addToast({ type: 'error', title: t('settings.saveFailed') || 'Save failed', message: formatError(e) });
+      addToast({ type: 'error', title: t('settings.saveFailed'), message: formatError(e) });
     }
   };
 
@@ -57,9 +57,9 @@ export default function DownloadSection({
       config.download_source = newSource;
       await api.saveConfig(config);
       setDownloadSource(newSource);
-      addToast({ type: 'success', title: t('settings.downloadSourceChanged') || 'Download source changed' });
+      addToast({ type: 'success', title: t('settings.downloadSourceChanged') });
     } catch (e) {
-      addToast({ type: 'error', title: t('settings.saveFailed') || 'Save failed', message: formatError(e) });
+      addToast({ type: 'error', title: t('settings.saveFailed'), message: formatError(e) });
     } finally {
       setSavingSource(false);
     }
@@ -70,9 +70,9 @@ export default function DownloadSection({
     try {
       const best = await api.selectFastestMirror();
       setDownloadSource(best);
-      addToast({ type: 'success', title: t('settings.fastestMirrorSelected') || 'Fastest mirror selected', message: best });
+      addToast({ type: 'success', title: t('settings.fastestMirrorSelected'), message: best });
     } catch (e) {
-      addToast({ type: 'error', title: t('settings.fastestMirrorFailed') || 'Failed to select mirror', message: formatError(e) });
+      addToast({ type: 'error', title: t('settings.fastestMirrorFailed'), message: formatError(e) });
     } finally {
       setSelectingMirror(false);
     }

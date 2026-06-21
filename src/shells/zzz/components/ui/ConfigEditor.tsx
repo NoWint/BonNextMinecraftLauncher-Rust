@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { readConfigFile, writeConfigFile } from '../../../../shared/api/instances';
 import { Button } from './Button';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './ConfigEditor.module.css';
 
 interface ConfigEditorProps {
@@ -10,6 +11,7 @@ interface ConfigEditorProps {
 }
 
 export default function ConfigEditor({ instanceId, relativePath, onClose }: ConfigEditorProps) {
+  const { t } = useI18n();
   const [content, setContent] = useState('');
   const [originalContent, setOriginalContent] = useState('');
   const [loading, setLoading] = useState(true);
@@ -74,7 +76,7 @@ export default function ConfigEditor({ instanceId, relativePath, onClose }: Conf
   }, [dirty, originalContent, onClose]);
 
   if (loading) {
-    return <div className={styles.loading}>Loading...</div>;
+    return <div className={styles.loading}>{t('common.loading')}</div>;
   }
 
   if (error && !isBinary) {
@@ -86,9 +88,9 @@ export default function ConfigEditor({ instanceId, relativePath, onClose }: Conf
       <div className={styles.wrapper}>
         <div className={styles.header}>
           <span className={styles.path}>{relativePath}</span>
-          <span className={styles.binaryBadge}>Binary</span>
+          <span className={styles.binaryBadge}>{t('configEditor.binary')}</span>
         </div>
-        <div className={styles.readOnlyNotice}>This is a binary file and cannot be edited in the text editor.</div>
+        <div className={styles.readOnlyNotice}>{t('configEditor.binaryDesc')}</div>
       </div>
     );
   }
@@ -97,16 +99,16 @@ export default function ConfigEditor({ instanceId, relativePath, onClose }: Conf
     <div className={styles.wrapper}>
       <div className={styles.header}>
         <span className={styles.path}>{relativePath}</span>
-        {dirty && <span className={styles.dirtyBadge}>Modified</span>}
+        {dirty && <span className={styles.dirtyBadge}>{t('configEditor.modified')}</span>}
       </div>
       {error && <div className={styles.error}>{error}</div>}
       <textarea className={styles.editor} value={content} onChange={handleChange} spellCheck={false} />
       <div className={styles.actions}>
         <Button variant="secondary" size="sm" onClick={handleCancel}>
-          {dirty ? 'Revert' : 'Close'}
+          {dirty ? t('common.revert') : t('common.close')}
         </Button>
         <Button variant="primary" size="sm" onClick={handleSave} disabled={!dirty || saving}>
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t('common.saving') : t('common.save')}
         </Button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 use std::io::Write;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use tauri::Emitter;
 
 use crate::error::LauncherError;
 use crate::platform::paths;
@@ -22,7 +23,57 @@ pub struct GameInstance {
     pub created_at: String,
     pub last_played: Option<String>,
     pub playtime_seconds: u64,
+    /// 是否使用全局配置（true=全局，false=实例特定）。参考 HMCL usesGlobal。
+    #[serde(default = "default_true")]
+    pub uses_global_config: bool,
+    /// 窗口宽度（0=使用全局默认）
+    #[serde(default)]
+    pub window_width: u32,
+    /// 窗口高度（0=使用全局默认）
+    #[serde(default)]
+    pub window_height: u32,
+    /// 是否全屏
+    #[serde(default)]
+    pub fullscreen: bool,
+    /// 调试模式
+    #[serde(default)]
+    pub debug_mode: bool,
+    /// 调试端口
+    #[serde(default = "default_debug_port")]
+    pub debug_port: u16,
+    /// 实例图标路径（相对于实例目录或绝对路径）
+    #[serde(default)]
+    pub icon: Option<String>,
+    /// 标签/分类
+    #[serde(default)]
+    pub tags: Vec<String>,
+    /// 默认服务器地址（QuickPlay）
+    #[serde(default)]
+    pub server_address: Option<String>,
+    /// 游戏目录类型："root"(共享根目录) / "version"(版本隔离) / "custom"(自定义)
+    #[serde(default = "default_game_dir_type")]
+    pub game_dir_type: String,
+    /// 自定义游戏目录路径（game_dir_type="custom" 时使用）
+    #[serde(default)]
+    pub custom_game_dir: Option<String>,
+    /// 启动前命令
+    #[serde(default)]
+    pub pre_launch_command: Option<String>,
+    /// 退出后命令
+    #[serde(default)]
+    pub post_exit_command: Option<String>,
+    /// 环境变量（KEY=VALUE 换行分隔）
+    #[serde(default)]
+    pub environment_variables: Option<String>,
+    /// 进程优先级："low" / "below_normal" / "normal" / "above_normal" / "high"
+    #[serde(default = "default_process_priority")]
+    pub process_priority: String,
 }
+
+fn default_true() -> bool { true }
+fn default_debug_port() -> u16 { 5005 }
+fn default_game_dir_type() -> String { "version".to_string() }
+fn default_process_priority() -> String { "normal".to_string() }
 
 // Reserved for programmatic instance creation
 #[allow(dead_code)]
@@ -45,6 +96,21 @@ impl GameInstance {
             created_at: now,
             last_played: None,
             playtime_seconds: 0,
+            uses_global_config: true,
+            window_width: 0,
+            window_height: 0,
+            fullscreen: false,
+            debug_mode: false,
+            debug_port: 5005,
+            icon: None,
+            tags: Vec::new(),
+            server_address: None,
+            game_dir_type: "version".to_string(),
+            custom_game_dir: None,
+            pre_launch_command: None,
+            post_exit_command: None,
+            environment_variables: None,
+            process_priority: "normal".to_string(),
         }
     }
 
@@ -146,13 +212,13 @@ pub fn check_instance_ready(id: &str) -> Result<bool, LauncherError> {
 /// Duplicate an instance with a new name.
 pub fn duplicate_instance(id: &str, new_name: &str) -> Result<GameInstance, LauncherError> {
     let instances = list_instances()?;
-    let original = instances.iter().find(|i| i.id == id).ok_or_else(|| {
+    let original = instances.iter().find(|i| i.id == id).cloned().ok_or_else(|| {
         LauncherError::InstanceNotReady(format!("Instance not found: {}", id))
     })?;
     let new_id = format!("{}_{}", original.version_id, chrono::Utc::now().timestamp_millis());
     let now = chrono::Local::now().to_rfc3339();
     let duplicated = GameInstance {
-        id: new_id,
+        id: new_id.clone(),
         name: new_name.to_string(),
         version_id: original.version_id.clone(),
         version_url: original.version_url.clone(),
@@ -166,12 +232,67 @@ pub fn duplicate_instance(id: &str, new_name: &str) -> Result<GameInstance, Laun
         created_at: now,
         last_played: None,
         playtime_seconds: 0,
+        uses_global_config: original.uses_global_config,
+        window_width: original.window_width,
+        window_height: original.window_height,
+        fullscreen: original.fullscreen,
+        debug_mode: original.debug_mode,
+        debug_port: original.debug_port,
+        icon: original.icon.clone(),
+        tags: original.tags.clone(),
+        server_address: original.server_address.clone(),
+        game_dir_type: original.game_dir_type.clone(),
+        custom_game_dir: None,
+        pre_launch_command: original.pre_launch_command.clone(),
+        post_exit_command: original.post_exit_command.clone(),
+        environment_variables: original.environment_variables.clone(),
+        process_priority: original.process_priority.clone(),
     };
     let mut instances = instances;
     instances.push(duplicated.clone());
     save_instances(&instances)?;
     paths::ensure_instance_dirs(&duplicated.id)?;
+
+    // 复制实例文件：mods/saves/resourcepacks/config/screenshots
+    // 参考 HMCL duplicateVersion 的 copySaves 逻辑，但更全面。
+    let src_dir = original.dir();
+    let dst_dir = duplicated.dir();
+    if src_dir.exists() {
+        let minecraft_src = src_dir.join(".minecraft");
+        let minecraft_dst = dst_dir.join(".minecraft");
+        if minecraft_src.exists() {
+            let copy_subdirs = ["mods", "saves", "resourcepacks", "shaderpacks", "config", "screenshots"];
+            for subdir in &copy_subdirs {
+                let src = minecraft_src.join(subdir);
+                let dst = minecraft_dst.join(subdir);
+                if src.exists() {
+                    if let Err(e) = copy_dir_recursive(&src, &dst) {
+                        tracing::warn!("Failed to copy {} during duplication: {}", subdir, e);
+                    }
+                }
+            }
+            tracing::info!("Instance {} duplicated with files to {}", id, new_id);
+        }
+    }
+
     Ok(duplicated)
+}
+
+/// 递归复制目录
+fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<(), LauncherError> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let path = entry.path();
+        let file_name = entry.file_name();
+        let dst_path = dst.join(&file_name);
+        if path.is_dir() {
+            copy_dir_recursive(&path, &dst_path)?;
+        } else {
+            std::fs::copy(&path, &dst_path)?;
+        }
+    }
+    Ok(())
 }
 
 /// Export an instance directory as a ZIP file.
@@ -328,7 +449,7 @@ fn extract_zip_overrides(
 }
 
 /// Import a .mrpack modpack. Returns the created GameInstance.
-pub async fn import_modpack(path: &str) -> Result<GameInstance, LauncherError> {
+pub async fn import_modpack(path: &str, app: Option<&tauri::AppHandle>) -> Result<GameInstance, LauncherError> {
     let zip_path = std::path::Path::new(path);
     if !zip_path.exists() {
         return Err(LauncherError::VersionNotFound(format!("File not found: {}", path)));
@@ -385,6 +506,21 @@ pub async fn import_modpack(path: &str) -> Result<GameInstance, LauncherError> {
         created_at: now,
         last_played: None,
         playtime_seconds: 0,
+        uses_global_config: true,
+        window_width: 0,
+        window_height: 0,
+        fullscreen: false,
+        debug_mode: false,
+        debug_port: 5005,
+        icon: None,
+        tags: Vec::new(),
+        server_address: None,
+        game_dir_type: "version".to_string(),
+        custom_game_dir: None,
+        pre_launch_command: None,
+        post_exit_command: None,
+        environment_variables: None,
+        process_priority: "normal".to_string(),
     };
 
     create_instance(&instance)?;
@@ -410,7 +546,37 @@ pub async fn import_modpack(path: &str) -> Result<GameInstance, LauncherError> {
 
     if !download_tasks.is_empty() {
         tracing::info!("Downloading {} mod files for modpack '{}'...", download_tasks.len(), index.name);
-        let queue = DownloadQueue::new();
+        let total = download_tasks.len() as u32;
+        let completed_count = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+
+        // 发射下载开始事件，前端 downloadStore 创建 modpack 任务
+        if let Some(app) = app {
+            let _ = app.emit("modpack-import-progress", serde_json::json!({
+                "stage": "downloading",
+                "name": index.name,
+                "total": total,
+                "completed": 0,
+            }));
+        }
+
+        let app_clone = app.map(|a| a.clone());
+        let completed_clone = completed_count.clone();
+        let modpack_name = index.name.clone();
+        let queue = DownloadQueue::new().with_callback(move |progress| {
+            if progress.finished {
+                let c = completed_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                if let Some(ref app) = app_clone {
+                    let _ = app.emit("modpack-import-progress", serde_json::json!({
+                        "stage": "downloading",
+                        "name": modpack_name,
+                        "total": total,
+                        "completed": c,
+                        "current_url": progress.url,
+                        "error": progress.error,
+                    }));
+                }
+            }
+        });
         let results = queue.download_all(download_tasks).await?;
         let succeeded = results.iter().filter(|r| r.is_ok()).count();
         let failed = results.len() - succeeded;
@@ -492,7 +658,7 @@ pub fn detect_modpack_format(path: &str) -> Result<ModpackFormat, LauncherError>
     Ok(ModpackFormat::Unknown)
 }
 
-pub async fn import_curseforge_modpack(path: &str) -> Result<GameInstance, LauncherError> {
+pub async fn import_curseforge_modpack(path: &str, app: Option<&tauri::AppHandle>) -> Result<GameInstance, LauncherError> {
     let zip_path = std::path::Path::new(path);
     let file = std::fs::File::open(zip_path)?;
     let mut archive = zip::ZipArchive::new(file)?;
@@ -538,7 +704,7 @@ pub async fn import_curseforge_modpack(path: &str) -> Result<GameInstance, Launc
     let now = chrono::Local::now().to_rfc3339();
     let instance = GameInstance {
         id: inst_id.clone(),
-        name,
+        name: name.clone(),
         version_id: version_id.clone(),
         version_url,
         loader_type,
@@ -551,6 +717,21 @@ pub async fn import_curseforge_modpack(path: &str) -> Result<GameInstance, Launc
         created_at: now,
         last_played: None,
         playtime_seconds: 0,
+        uses_global_config: true,
+        window_width: 0,
+        window_height: 0,
+        fullscreen: false,
+        debug_mode: false,
+        debug_port: 5005,
+        icon: None,
+        tags: Vec::new(),
+        server_address: None,
+        game_dir_type: "version".to_string(),
+        custom_game_dir: None,
+        pre_launch_command: None,
+        post_exit_command: None,
+        environment_variables: None,
+        process_priority: "normal".to_string(),
     };
 
     create_instance(&instance)?;
@@ -562,6 +743,18 @@ pub async fn import_curseforge_modpack(path: &str) -> Result<GameInstance, Launc
     let client = crate::http_client::build_client();
     let mut downloaded: u32 = 0;
     let mut failed: u32 = 0;
+    let total_cf = manifest.files.iter().filter(|f| f.required.unwrap_or(true)).count() as u32;
+
+    // 发射下载开始事件
+    if let Some(app) = app {
+        let _ = app.emit("modpack-import-progress", serde_json::json!({
+            "stage": "downloading",
+            "name": name,
+            "total": total_cf,
+            "completed": 0,
+        }));
+    }
+
     for cf_file in &manifest.files {
         if !cf_file.required.unwrap_or(true) {
             tracing::debug!("Skipping optional CF file: project {} file {}", cf_file.project_id, cf_file.file_id);
@@ -605,10 +798,31 @@ pub async fn import_curseforge_modpack(path: &str) -> Result<GameInstance, Launc
                             let task = DownloadTask::new(download_url, dest, sha1_hash, file_size);
                             let queue = DownloadQueue::new();
                             match queue.download_single(&task).await {
-                                Ok(_) => downloaded += 1,
+                                Ok(_) => {
+                                    downloaded += 1;
+                                    if let Some(app) = app {
+                                        let _ = app.emit("modpack-import-progress", serde_json::json!({
+                                            "stage": "downloading",
+                                            "name": name,
+                                            "total": total_cf,
+                                            "completed": downloaded + failed,
+                                            "current_file": filename,
+                                        }));
+                                    }
+                                }
                                 Err(e) => {
                                     tracing::warn!("Failed to download CF mod {}: {}", filename, e);
                                     failed += 1;
+                                    if let Some(app) = app {
+                                        let _ = app.emit("modpack-import-progress", serde_json::json!({
+                                            "stage": "downloading",
+                                            "name": name,
+                                            "total": total_cf,
+                                            "completed": downloaded + failed,
+                                            "current_file": filename,
+                                            "error": e.to_string(),
+                                        }));
+                                    }
                                 }
                             }
                         } else {
@@ -630,11 +844,11 @@ pub async fn import_curseforge_modpack(path: &str) -> Result<GameInstance, Launc
     Ok(instance)
 }
 
-pub async fn import_modpack_auto(path: &str) -> Result<GameInstance, LauncherError> {
+pub async fn import_modpack_auto(path: &str, app: Option<&tauri::AppHandle>) -> Result<GameInstance, LauncherError> {
     let format = detect_modpack_format(path)?;
     match format {
-        ModpackFormat::MrPack => import_modpack(path).await,
-        ModpackFormat::CurseForge => import_curseforge_modpack(path).await,
+        ModpackFormat::MrPack => import_modpack(path, app).await,
+        ModpackFormat::CurseForge => import_curseforge_modpack(path, app).await,
         ModpackFormat::Unknown => Err(LauncherError::InvalidConfig(
             "Unknown modpack format. Supported: .mrpack (Modrinth), CurseForge ZIP".into()
         )),

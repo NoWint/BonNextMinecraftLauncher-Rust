@@ -27,15 +27,28 @@ interface ToggleProps {
   on: boolean;
   onChange: (on: boolean) => void;
   className?: string;
+  disabled?: boolean;
+  'aria-label'?: string;
+  id?: string;
 }
 
-export const Toggle: React.FC<ToggleProps> = ({ on, onChange, className = '' }) => (
+export const Toggle: React.FC<ToggleProps> = ({
+  on,
+  onChange,
+  className = '',
+  disabled = false,
+  'aria-label': ariaLabel,
+  id,
+}) => (
   <button
     type="button"
+    id={id}
     className={`${styles.toggle} ${on ? styles['toggle--on'] : styles['toggle--off']} ${className}`}
     onClick={() => onChange(!on)}
     role="switch"
     aria-checked={on}
+    aria-label={ariaLabel}
+    disabled={disabled}
   >
     <div className={styles.toggle__thumb} />
   </button>
@@ -45,15 +58,28 @@ interface CheckboxProps {
   on: boolean;
   onChange: (on: boolean) => void;
   className?: string;
+  disabled?: boolean;
+  'aria-label'?: string;
+  id?: string;
 }
 
-export const Checkbox: React.FC<CheckboxProps> = ({ on, onChange, className = '' }) => (
+export const Checkbox: React.FC<CheckboxProps> = ({
+  on,
+  onChange,
+  className = '',
+  disabled = false,
+  'aria-label': ariaLabel,
+  id,
+}) => (
   <button
     type="button"
+    id={id}
     className={`${styles.checkbox} ${on ? styles['checkbox--on'] : styles['checkbox--off']} ${className}`}
     onClick={() => onChange(!on)}
     role="checkbox"
     aria-checked={on}
+    aria-label={ariaLabel}
+    disabled={disabled}
   >
     {on && <Icon name="check" size={12} />}
   </button>

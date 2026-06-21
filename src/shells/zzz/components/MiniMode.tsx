@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { formatError } from '../../../shared/utils/errorMapping';
+import { getLoaderEmoji } from '../../../shared/utils/loader';
 import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
 import { api, type LaunchState, type RunningGameInfo } from '../../../shared/api';
 import { useAuth } from '../../../shared/stores/authStore';
@@ -13,21 +14,6 @@ const MINI_WIDTH = 320;
 const MINI_HEIGHT = 220;
 const FULL_MIN_WIDTH = 960;
 const FULL_MIN_HEIGHT = 640;
-
-function getLoaderIcon(loaderType: string | null): string {
-  switch (loaderType) {
-    case 'fabric':
-      return '\u{1F9F5}';
-    case 'forge':
-      return '\u{2692}';
-    case 'quilt':
-      return '\u{1F9F5}';
-    case 'neoforge':
-      return '\u{2699}';
-    default:
-      return '\u{1F4E6}';
-  }
-}
 
 export const MiniMode: React.FC<{
   onExpand: () => void;
@@ -191,7 +177,7 @@ export const MiniMode: React.FC<{
                 }
               }}
             >
-              <div className={styles.miniMode__instanceIcon}>{getLoaderIcon(activeInstance.loader_type)}</div>
+              <div className={styles.miniMode__instanceIcon}>{getLoaderEmoji(activeInstance.loader_type)}</div>
               <div className={styles.miniMode__instanceInfo}>
                 <div className={styles.miniMode__instanceName}>{activeInstance.name}</div>
                 <div className={styles.miniMode__instanceMeta}>
@@ -220,7 +206,7 @@ export const MiniMode: React.FC<{
                       setShowSwitcher(false);
                     }}
                   >
-                    <span className={styles.miniMode__switcherIcon}>{getLoaderIcon(inst.loader_type)}</span>
+                    <span className={styles.miniMode__switcherIcon}>{getLoaderEmoji(inst.loader_type)}</span>
                     <span className={styles.miniMode__switcherName}>{inst.name}</span>
                     <span className={styles.miniMode__switcherVersion}>{inst.version_id}</span>
                   </button>

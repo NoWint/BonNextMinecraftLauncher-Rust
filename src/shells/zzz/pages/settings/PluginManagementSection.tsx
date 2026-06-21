@@ -7,6 +7,7 @@ import { useToast } from '../../../../shared/stores/toastStore';
 import { useI18n } from '../../../../shared/i18n';
 import { logger } from '../../../../shared/utils/logger';
 import { Modal, Button } from '../../components/ui';
+import { PluginLogViewer } from '../../../../app/components/PluginLogViewer';
 import type { RegisteredPlugin } from '../../../../plugins/core/types';
 import styles from './PluginManagementSection.module.css';
 
@@ -56,6 +57,7 @@ export function PluginManagementSection() {
   const [busyPluginId, setBusyPluginId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [pendingApproval, setPendingApproval] = useState<{
+    mode: 'install' | 'activate';
     permissions: string[];
     onApprove: () => void;
     onCancel: () => void;
@@ -83,32 +85,35 @@ export function PluginManagementSection() {
 
   const handleActivate = async (pluginId: string) => {
     const plugin = registeredPlugins.find((p) => p.definition.id === pluginId);
-    const permissions = plugin?.manifest?.permissions ?? [];
-    if (permissions.length > 0 && plugin) {
-      setPendingApproval({
-        permissions,
-        pluginName: plugin.definition.name,
-        pluginVersion: plugin.definition.version,
-        onApprove: () => {
-          setPendingApproval(null);
-          void doActivate(pluginId);
-        },
-        onCancel: () => {
-          setPendingApproval(null);
-        },
-      });
+    if (!plugin) {
+      void doActivate(pluginId);
       return;
     }
-    void doActivate(pluginId);
+    const permissions = plugin.manifest?.permissions ?? [];
+    // Always show a confirmation modal so the user explicitly acknowledges
+    // what they are activating — even when no permissions are declared.
+    setPendingApproval({
+      mode: 'activate',
+      permissions,
+      pluginName: plugin.definition.name,
+      pluginVersion: plugin.definition.version,
+      onApprove: () => {
+        setPendingApproval(null);
+        void doActivate(pluginId);
+      },
+      onCancel: () => {
+        setPendingApproval(null);
+      },
+    });
   };
 
   const doActivate = async (pluginId: string) => {
     setBusyPluginId(pluginId);
     try {
       await manager.activate(pluginId);
-      addToast(`Plugin "${pluginId}" activated`, 'success');
+      addToast({ type: 'success', title: `Plugin "${pluginId}" activated` });
     } catch (e) {
-      addToast(`Failed to activate: ${String(e)}`, 'error');
+      addToast({ type: 'error', title: `Failed to activate: ${String(e)}` });
     } finally {
       setBusyPluginId(null);
     }
@@ -118,12 +123,17 @@ export function PluginManagementSection() {
     setBusyPluginId(pluginId);
     try {
       await manager.deactivate(pluginId);
-      addToast(`Plugin "${pluginId}" deactivated`, 'info');
+      addToast({ type: 'info', title: `Plugin "${pluginId}" deactivated` });
     } catch (e) {
-      addToast(`Failed to deactivate: ${String(e)}`, 'error');
+      addToast({ type: 'error', title: `Failed to deactivate: ${String(e)}` });
     } finally {
       setBusyPluginId(null);
     }
+  };
+
+  const handleReset = (pluginId: string) => {
+    manager.resetPlugin(pluginId);
+    addToast({ type: 'info', title: `Plugin "${pluginId}" reset` });
   };
 
   const handleInstallFromDialog = async () => {
@@ -146,38 +156,59 @@ export function PluginManagementSection() {
     setInstalling(true);
     setError('');
     try {
+      // Backend constraint: install_plugin extracts the archive to disk and
+      // returns InstalledPluginInfo (there is no preview-only command). Per
+      // spec §7 we must validate permissions before activation, so we install,
+      // re-read the on-disk manifest to confirm the declared permissions, then
+      // require explicit user approval before keeping the plugin. Denial
+      // triggers a full uninstall to clean up.
       const info = await invoke<InstalledPluginInfo>('install_plugin', { zipPath });
-      if (info.permissions && info.permissions.length > 0) {
-        setPendingApproval({
-          permissions: info.permissions,
-          pluginName: info.name,
-          pluginVersion: info.version,
-          onApprove: () => {
-            setPendingApproval(null);
-            addToast(`Plugin "${info.name}" v${info.version} installed`, 'success');
-            void refreshInstalled();
-          },
-          onCancel: () => {
-            setPendingApproval(null);
-            void (async () => {
-              try {
-                await invoke('uninstall_plugin', { pluginId: info.id });
-                addToast(`Plugin "${info.name}" uninstalled (permissions denied)`, 'info');
-              } catch (e) {
-                addToast(`Failed to uninstall after denial: ${String(e)}`, 'error');
-              } finally {
-                await refreshInstalled();
-              }
-            })();
-          },
+
+      // Re-read the actual on-disk manifest so the permissions shown to the
+      // user come from the installed plugin, not just the install return value.
+      let permissions = info.permissions;
+      try {
+        const manifest = await invoke<Record<string, unknown>>('get_plugin_manifest', {
+          pluginId: info.id,
         });
-      } else {
-        addToast(`Plugin "${info.name}" v${info.version} installed`, 'success');
-        await refreshInstalled();
+        const raw = manifest['permissions'];
+        if (Array.isArray(raw)) {
+          permissions = raw.filter((v): v is string => typeof v === 'string');
+        }
+      } catch (e) {
+        logger.warn(
+          'Failed to re-read manifest after install; falling back to install_plugin permissions:',
+          e,
+        );
       }
+
+      setPendingApproval({
+        mode: 'install',
+        permissions,
+        pluginName: info.name,
+        pluginVersion: info.version,
+        onApprove: () => {
+          setPendingApproval(null);
+          addToast({ type: 'success', title: `Plugin "${info.name}" v${info.version} installed` });
+          void refreshInstalled();
+        },
+        onCancel: () => {
+          setPendingApproval(null);
+          void (async () => {
+            try {
+              await invoke('uninstall_plugin', { pluginId: info.id });
+              addToast({ type: 'info', title: `Plugin "${info.name}" uninstalled (permissions denied)` });
+            } catch (e) {
+              addToast({ type: 'error', title: `Failed to uninstall after denial: ${String(e)}` });
+            } finally {
+              await refreshInstalled();
+            }
+          })();
+        },
+      });
     } catch (e) {
       setError(`Install failed: ${String(e)}`);
-      addToast(`Install failed: ${String(e)}`, 'error');
+      addToast({ type: 'error', title: `Install failed: ${String(e)}` });
     } finally {
       setInstalling(false);
     }
@@ -188,10 +219,10 @@ export function PluginManagementSection() {
     setBusyPluginId(pluginId);
     try {
       await invoke('uninstall_plugin', { pluginId });
-      addToast(`Plugin "${pluginId}" uninstalled`, 'info');
+      addToast({ type: 'info', title: `Plugin "${pluginId}" uninstalled` });
       await refreshInstalled();
     } catch (e) {
-      addToast(`Uninstall failed: ${String(e)}`, 'error');
+      addToast({ type: 'error', title: `Uninstall failed: ${String(e)}` });
     } finally {
       setBusyPluginId(null);
     }
@@ -236,6 +267,7 @@ export function PluginManagementSection() {
               busy={busyPluginId === p.definition.id}
               onActivate={handleActivate}
               onDeactivate={handleDeactivate}
+              onReset={handleReset}
             />
           ))}
         </div>
@@ -283,7 +315,12 @@ export function PluginManagementSection() {
       <Modal
         open={pendingApproval !== null}
         onClose={() => pendingApproval?.onCancel()}
-        title={t('settings.plugins.permissionApproval') || 'Plugin Permission Approval'}
+        title={
+          pendingApproval?.mode === 'install'
+            ? t('settings.plugins.downloadedAwaitingApproval') ||
+              'Plugin downloaded — awaiting approval'
+            : t('settings.plugins.permissionApproval') || 'Plugin Permission Approval'
+        }
         actions={
           <>
             <Button variant="secondary" onClick={() => pendingApproval?.onCancel()}>
@@ -297,24 +334,39 @@ export function PluginManagementSection() {
       >
         {pendingApproval && (
           <div>
-            <p style={{ margin: '0 0 12px' }}>
-              {t('settings.plugins.permissionPrompt') ||
-                'This plugin requests the following permissions. Approve to continue:'}
+            <p className={styles.approvalPrompt}>
+              {pendingApproval.mode === 'install'
+                ? pendingApproval.permissions.length > 0
+                  ? t('settings.plugins.downloadedPrompt') ||
+                    'This plugin has been downloaded. Review its permissions and approve to keep it installed. Cancel will uninstall it.'
+                  : t('settings.plugins.downloadedNoPermsPrompt') ||
+                    'This plugin has been downloaded and declares no permissions. Approve to keep it installed. Cancel will uninstall it.'
+                : pendingApproval.permissions.length > 0
+                  ? t('settings.plugins.permissionPrompt') ||
+                    'This plugin requests the following permissions. Approve to continue:'
+                  : t('settings.plugins.activateNoPermsPrompt') ||
+                    'This plugin does not declare any permissions. Confirm to activate?'}
             </p>
-            <p style={{ margin: '0 0 12px', fontWeight: 600 }}>
+            <p className={styles.approvalName}>
               {pendingApproval.pluginName}{' '}
-              <span style={{ fontWeight: 400, opacity: 0.7 }}>
+              <span className={styles.approvalVersion}>
                 v{pendingApproval.pluginVersion}
               </span>
             </p>
-            <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {pendingApproval.permissions.map((perm) => (
-                <li key={perm} style={{ listStyle: 'disc' }}>
-                  <code style={{ marginRight: '8px' }}>{perm}</code>
-                  <span>{permissionDescription(perm)}</span>
-                </li>
-              ))}
-            </ul>
+            {pendingApproval.permissions.length > 0 ? (
+              <ul className={styles.approvalPermList}>
+                {pendingApproval.permissions.map((perm) => (
+                  <li key={perm} className={styles.approvalPermItem}>
+                    <code className={styles.approvalPermCode}>{perm}</code>
+                    <span>{permissionDescription(perm)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className={styles.approvalNoPerms}>
+                {t('settings.plugins.noPermissionsDeclared') || 'No permissions declared.'}
+              </p>
+            )}
           </div>
         )}
       </Modal>
@@ -327,79 +379,161 @@ function RegisteredPluginCard({
   busy,
   onActivate,
   onDeactivate,
+  onReset,
 }: {
   plugin: RegisteredPlugin;
   busy: boolean;
   onActivate: (id: string) => void;
   onDeactivate: (id: string) => void;
+  onReset: (id: string) => void;
 }) {
-  const { definition, manifest, state, error } = plugin;
+  const { t } = useI18n();
+  const { definition, manifest, state, error, failureCount, lastError, autoDisabled } = plugin;
   const isActive = state === 'active';
   const isError = state === 'error';
   const permissions = manifest?.permissions ?? [];
+  const [showLogs, setShowLogs] = useState(false);
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
+
+  const handleResetAndRetry = async () => {
+    onReset(definition.id);
+    // 重置后立即尝试激活
+    onActivate(definition.id);
+  };
 
   return (
-    <div
-      className={`${styles.pluginCard} ${
-        isActive ? styles.pluginCardActive : ''
-      } ${isError ? styles.pluginCardError : ''}`}
-    >
-      <div className={styles.pluginCardInfo}>
-        <div className={styles.pluginCardHeader}>
-          <span className={styles.pluginCardName}>{definition.name}</span>
-          <span className={styles.pluginCardVersion}>v{definition.version}</span>
-          <span className={`${styles.pluginCardBadge} ${styles.badgeBuiltin}`}>builtin</span>
-          <span
-            className={`${styles.pluginCardBadge} ${
-              isActive
-                ? styles.badgeStateActive
-                : isError
-                  ? styles.badgeStateError
-                  : styles.badgeStateInactive
-            }`}
-          >
-            {state}
-          </span>
-        </div>
-        {definition.description && (
-          <div className={styles.pluginCardDesc}>{definition.description}</div>
-        )}
-        <div className={styles.pluginCardMeta}>
-          <code>{definition.id}</code>
-          {manifest?.author && <span> · by {manifest.author}</span>}
-        </div>
-        {permissions.length > 0 && (
-          <div className={styles.permissionsRow}>
-            {permissions.map((perm) => (
-              <span key={perm} className={styles.permissionChip}>
-                {perm}
+    <>
+      <div
+        className={`${styles.pluginCard} ${
+          isActive ? styles.pluginCardActive : ''
+        } ${isError ? styles.pluginCardError : ''}`}
+      >
+        <div className={styles.pluginCardInfo}>
+          <div className={styles.pluginCardHeader}>
+            <span className={styles.pluginCardName}>{definition.name}</span>
+            <span className={styles.pluginCardVersion}>v{definition.version}</span>
+            <span className={`${styles.pluginCardBadge} ${styles.badgeBuiltin}`}>{t('settings.plugin.builtin')}</span>
+            <span
+              className={`${styles.pluginCardBadge} ${
+                isActive
+                  ? styles.badgeStateActive
+                  : isError
+                    ? styles.badgeStateError
+                    : styles.badgeStateInactive
+              }`}
+            >
+              {state}
+            </span>
+            {autoDisabled && (
+              <span className={`${styles.pluginCardBadge} ${styles.badgeAutoDisabled}`}>
+                {t('settings.plugin.autoDisabled')}
               </span>
-            ))}
+            )}
+          </div>
+          {definition.description && (
+            <div className={styles.pluginCardDesc}>{definition.description}</div>
+          )}
+          <div className={styles.pluginCardMeta}>
+            <code>{definition.id}</code>
+            {manifest?.author && <span> · {t('settings.plugin.byAuthor', { author: manifest.author })}</span>}
+          </div>
+          {permissions.length > 0 && (
+            <div className={styles.permissionsRow}>
+              {permissions.map((perm) => (
+                <span key={perm} className={styles.permissionChip}>
+                  {perm}
+                </span>
+              ))}
+            </div>
+          )}
+          {error && <div className={styles.errorText}>{error}</div>}
+          {failureCount && failureCount > 0 && !isActive && (
+            <div className={styles.failureInfo}>
+              {t('settings.plugin.failures')} {failureCount}
+              {lastError && (
+                <button
+                  className={styles.errorDetailsBtn}
+                  onClick={() => setShowErrorDetails(true)}
+                >
+                  {t('settings.plugin.details')}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        <div className={styles.pluginCardActions}>
+          <button
+            className={styles.logsBtn}
+            onClick={() => setShowLogs(true)}
+          >
+            {t('settings.plugin.viewLogs')}
+          </button>
+          {autoDisabled && (
+            <button
+              className={styles.actionBtn}
+              disabled={busy}
+              onClick={handleResetAndRetry}
+            >
+              {t('settings.plugin.resetRetry')}
+            </button>
+          )}
+          {!isActive && (
+            <button
+              className={styles.actionBtn}
+              disabled={busy}
+              onClick={() => onActivate(definition.id)}
+            >
+              {t('settings.plugin.activate')}
+            </button>
+          )}
+          {isActive && (
+            <button
+              className={`${styles.actionBtn} ${styles.deactivateBtn}`}
+              disabled={busy}
+              onClick={() => onDeactivate(definition.id)}
+            >
+              {t('settings.plugin.deactivate')}
+            </button>
+          )}
+        </div>
+      </div>
+      <Modal
+        open={showLogs}
+        onClose={() => setShowLogs(false)}
+        title={t('settings.plugin.pluginLogs', { name: definition.name })}
+      >
+        <PluginLogViewer pluginId={definition.id} />
+      </Modal>
+      <Modal
+        open={showErrorDetails}
+        onClose={() => setShowErrorDetails(false)}
+        title={t('settings.plugin.errorDetails', { name: definition.name })}
+      >
+        {lastError && (
+          <div className={styles.errorDetailsContent}>
+            <div className={styles.errorDetailsRow}>
+              <span className={styles.errorDetailsLabel}>{t('settings.plugin.time')}</span>
+              <span className={styles.errorDetailsValue}>
+                {new Date(lastError.timestamp).toLocaleString()}
+              </span>
+            </div>
+            <div className={styles.errorDetailsRow}>
+              <span className={styles.errorDetailsLabel}>{t('settings.plugin.failures')}</span>
+              <span className={styles.errorDetailsValue}>{failureCount ?? 0}</span>
+            </div>
+            <div className={styles.errorDetailsRow}>
+              <span className={styles.errorDetailsLabel}>{t('settings.plugin.message')}</span>
+              <span className={styles.errorDetailsValue}>{lastError.message}</span>
+            </div>
+            {lastError.stack && (
+              <div className={styles.errorDetailsStack}>
+                <pre>{lastError.stack}</pre>
+              </div>
+            )}
           </div>
         )}
-        {error && <div className={styles.errorText}>{error}</div>}
-      </div>
-      <div className={styles.pluginCardActions}>
-        {!isActive && (
-          <button
-            className={styles.actionBtn}
-            disabled={busy}
-            onClick={() => onActivate(definition.id)}
-          >
-            Activate
-          </button>
-        )}
-        {isActive && (
-          <button
-            className={`${styles.actionBtn} ${styles.deactivateBtn}`}
-            disabled={busy}
-            onClick={() => onDeactivate(definition.id)}
-          >
-            Deactivate
-          </button>
-        )}
-      </div>
-    </div>
+      </Modal>
+    </>
   );
 }
 
@@ -412,20 +546,21 @@ function InstalledPluginCard({
   busy: boolean;
   onUninstall: (id: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className={styles.pluginCard}>
       <div className={styles.pluginCardInfo}>
         <div className={styles.pluginCardHeader}>
           <span className={styles.pluginCardName}>{plugin.name}</span>
           <span className={styles.pluginCardVersion}>v{plugin.version}</span>
-          <span className={`${styles.pluginCardBadge} ${styles.badgeThirdParty}`}>3rd-party</span>
+          <span className={`${styles.pluginCardBadge} ${styles.badgeThirdParty}`}>{t('settings.plugin.thirdParty')}</span>
         </div>
         {plugin.description && (
           <div className={styles.pluginCardDesc}>{plugin.description}</div>
         )}
         <div className={styles.pluginCardMeta}>
           <code>{plugin.id}</code>
-          {plugin.author && <span> · by {plugin.author}</span>}
+          {plugin.author && <span> · {t('settings.plugin.byAuthor', { author: plugin.author })}</span>}
         </div>
         {plugin.permissions.length > 0 && (
           <div className={styles.permissionsRow}>
@@ -443,7 +578,7 @@ function InstalledPluginCard({
           disabled={busy}
           onClick={() => onUninstall(plugin.id)}
         >
-          Uninstall
+          {t('settings.plugin.uninstall')}
         </button>
       </div>
     </div>

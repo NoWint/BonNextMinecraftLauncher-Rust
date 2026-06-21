@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api, type AuditEntry } from '../../../../shared/api';
 import { Icon } from './Icon';
+import { useI18n } from '../../../../shared/i18n';
 import styles from './AuditLogViewer.module.css';
 
 interface AuditLogViewerProps {
@@ -11,6 +12,7 @@ interface AuditLogViewerProps {
 const CATEGORIES = ['ALL', 'AUTH', 'CRYPTO', 'DOWNLOAD', 'CONFIG', 'FILE', 'LAUNCH', 'SANDBOX'];
 
 export default function AuditLogViewer({ open, onClose }: AuditLogViewerProps) {
+  const { t } = useI18n();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [category, setCategory] = useState<string>('ALL');
   const [loading, setLoading] = useState(false);
@@ -31,8 +33,8 @@ export default function AuditLogViewer({ open, onClose }: AuditLogViewerProps) {
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
-          <h3 className={styles.title}>安全审计日志</h3>
-          <button className={styles.closeBtn} onClick={onClose} aria-label="Close audit log">
+          <h3 className={styles.title}>{t('auditLog.title')}</h3>
+          <button className={styles.closeBtn} onClick={onClose} aria-label={t('auditLog.closeAriaLabel')}>
             <Icon name="cross" size={14} />
           </button>
         </div>
@@ -47,9 +49,9 @@ export default function AuditLogViewer({ open, onClose }: AuditLogViewerProps) {
         </div>
         <div className={styles.logList}>
           {loading ? (
-            <div className={styles.empty}>加载中...</div>
+            <div className={styles.empty}>{t('common.loading')}</div>
           ) : entries.length === 0 ? (
-            <div className={styles.empty}>暂无日志</div>
+            <div className={styles.empty}>{t('auditLog.empty')}</div>
           ) : (
             entries.map((entry, i) => (
               <div key={i} className={`${styles.logEntry} ${styles[`logEntry--${entry.level.toLowerCase()}`]}`}>
@@ -63,7 +65,7 @@ export default function AuditLogViewer({ open, onClose }: AuditLogViewerProps) {
         </div>
         <div className={styles.footer}>
           <button className={styles.closeFooterBtn} onClick={onClose}>
-            关闭
+            {t('common.close')}
           </button>
         </div>
       </div>

@@ -93,7 +93,7 @@
 
 .modeCard:hover {
   border-color: var(--color-accent);
-  background: rgba(255, 230, 0, 0.04);
+  background: color-mix(in srgb, var(--color-accent) 4%, transparent);
   transform: translateY(-2px);
 }
 
@@ -157,7 +157,7 @@
 
 .detailDotActive {
   background: var(--color-accent);
-  box-shadow: 0 0 8px rgba(255, 230, 0, 0.4);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-accent) 40%, transparent);
   transform: scale(1.4);
 }
 
@@ -217,7 +217,7 @@
 .detailNextBtn {
   padding: 8px 24px;
   background: var(--color-accent);
-  color: #000;
+  color: var(--color-accent-action-text);
   border: none;
   font-family: var(--font-heading);
   font-size: 0.6em;

@@ -225,8 +225,11 @@ struct ModrinthProject {
 
 #[derive(Debug, Deserialize)]
 struct ModrinthProjectFull {
+    #[serde(default, deserialize_with = "deserialize_null_string")]
     slug: String,
+    #[serde(default, deserialize_with = "deserialize_null_string")]
     title: String,
+    #[serde(default, deserialize_with = "deserialize_null_string")]
     description: String,
     #[serde(default)]
     body: String,
@@ -238,7 +241,9 @@ struct ModrinthProjectFull {
     organization: String,
     #[serde(default)]
     categories: Vec<String>,
+    #[serde(default)]
     downloads: u64,
+    #[serde(default)]
     follows: u64,
     #[serde(default, deserialize_with = "deserialize_null_string")]
     icon_url: String,
@@ -250,22 +255,32 @@ struct ModrinthProjectFull {
     project_type: String,
     #[serde(default)]
     gallery: Vec<ModrinthGalleryImage>,
+    #[serde(default)]
     issues_url: Option<String>,
+    #[serde(default)]
     source_url: Option<String>,
+    #[serde(default)]
     wiki_url: Option<String>,
+    #[serde(default)]
     discord_url: Option<String>,
+    #[serde(default)]
     license: Option<ModrinthLicense>,
+    #[serde(default)]
     date_created: String,
+    #[serde(default)]
     date_modified: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct ModrinthGalleryImage {
-    #[serde(default, deserialize_with = "deserialize_null_string")]
+    // 关键修复：Modrinth API v2 gallery 对象使用 image_url 字段，而非 url。
+    #[serde(default, deserialize_with = "deserialize_null_string", alias = "url", rename = "image_url")]
     url: String,
     #[serde(default)]
     featured: bool,
+    #[serde(default)]
     title: Option<String>,
+    #[serde(default)]
     description: Option<String>,
     #[serde(default, deserialize_with = "deserialize_null_string")]
     created: String,
@@ -395,14 +410,9 @@ pub async fn get_mod_versions(
 
     let bases = all_api_bases();
 
-    let resp: Vec<ModrinthVersion> = http_client::retry_api_get_with_fallback(&url_template, &bases, 2, None)
-        .await?
-        .json()
-        .await
-        .map_err(|e| {
-            tracing::error!("Modrinth versions JSON parse failed for {}: {}", slug, e);
-            LauncherError::Http(e)
-        })?;
+    // 关键修复：使用 retry_api_get_json_with_fallback 将 JSON 解码纳入回退循环。
+    let resp: Vec<ModrinthVersion> = http_client::retry_api_get_json_with_fallback(&url_template, &bases, 2, None)
+        .await?;
 
     Ok(resp
         .into_iter()
@@ -513,14 +523,11 @@ pub async fn get_project_full(slug: &str) -> Result<ModProjectFull, LauncherErro
     let url_template = format!("{{API_BASE}}/project/{}", slug);
     let bases = all_api_bases();
 
-    let resp: ModrinthProjectFull = http_client::retry_api_get_with_fallback(&url_template, &bases, 2, None)
-        .await?
-        .json()
-        .await
-        .map_err(|e| {
-            tracing::error!("Modrinth project JSON parse failed for {}: {}", slug, e);
-            LauncherError::Http(e)
-        })?;
+    // 关键修复：使用 retry_api_get_json_with_fallback 将 JSON 解码纳入回退循环。
+    // BMCLAPI 镜像对 /project/{slug} 端点支持不完整，可能返回非 JSON 响应，
+    // 旧逻辑在 decode 失败后直接报错，现在会自动回退到官方 Modrinth API。
+    let resp: ModrinthProjectFull = http_client::retry_api_get_json_with_fallback(&url_template, &bases, 2, None)
+        .await?;
 
     Ok(ModProjectFull {
         slug: resp.slug,
@@ -565,9 +572,7 @@ pub async fn get_version_by_id(version_id: &str) -> Result<ModVersion, LauncherE
     let url_template = format!("{{API_BASE}}/version/{}", version_id);
     let bases = all_api_bases();
 
-    let v: ModrinthVersion = http_client::retry_api_get_with_fallback(&url_template, &bases, 2, None)
-        .await?
-        .json()
+    let v: ModrinthVersion = http_client::retry_api_get_json_with_fallback(&url_template, &bases, 2, None)
         .await?;
 
     Ok(ModVersion {

@@ -1,6 +1,5 @@
-@import './tokens.css';
-@import './themes.css';
-@import './ux-delight.css';
+/* tokens.css / themes.css / ux-delight.css 已在 main.tsx 中直接 import，
+   不再使用 CSS @import（串行阻塞渲染）。 */
 
 * {
   margin: 0;
@@ -63,21 +62,22 @@ body,
   left: 0;
   right: 0;
   bottom: 0;
-  opacity: 0.025;
+  opacity: var(--noise-opacity, 0.025);
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
   pointer-events: none;
   z-index: var(--z-overlay);
-  animation: noise-flicker 0.15s steps(2) infinite;
-  animation-play-state: var(--overlay-animation-state, running);
+  /* 动画已禁用：noise-flicker 每 150ms 全屏重绘，是 GPU 性能杀手。
+     静态噪点纹理已足够提供 CRT 视觉效果。 */
+  animation: none;
 }
 
 @keyframes noise-flicker {
   0%,
   100% {
-    opacity: 0.025;
+    opacity: var(--noise-opacity, 0.025);
   }
   50% {
-    opacity: 0.02;
+    opacity: var(--noise-opacity-dim, 0.02);
   }
 }
 
@@ -87,18 +87,19 @@ body,
   left: 0;
   right: 0;
   bottom: 0;
-  opacity: 0.02;
+  opacity: var(--scanline-opacity, 0.02);
   background: repeating-linear-gradient(
     0deg,
     transparent,
     transparent 2px,
-    rgba(255, 255, 255, 1) 2px,
-    rgba(255, 255, 255, 1) 3px
+    var(--color-text) 2px,
+    var(--color-text) 3px
   );
   pointer-events: none;
   z-index: var(--z-overlay);
-  animation: scanline-scroll 10s linear infinite;
-  animation-play-state: var(--overlay-animation-state, running);
+  /* 动画已禁用：scanline-scroll 无限滚动导致持续 GPU 合成。
+     静态扫描线已足够提供 CRT 视觉效果。 */
+  animation: none;
 }
 
 @keyframes scanline-scroll {
@@ -110,9 +111,11 @@ body,
   }
 }
 
-.theme-light .noise-overlay,
-.theme-light .scanline-overlay {
-  display: none;
+/* Light theme: keep overlays visible (ZZZ signature) but reduce intensity */
+.theme-light {
+  --noise-opacity: 0.015;
+  --noise-opacity-dim: 0.012;
+  --scanline-opacity: 0.012;
 }
 
 .app-layout {
@@ -120,6 +123,32 @@ body,
   height: 100%;
   position: relative;
   perspective: 1500px;
+}
+
+/* 极简主页模式：保留侧边栏，主区域模糊背景（可通过 homeBlurEnabled 切换） */
+.app-layout--minimalist-home {
+  background-color: var(--color-bg);
+  background-repeat: no-repeat;
+}
+
+.app-main--minimalist-home {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  position: relative;
+  overflow-y: auto;
+  /* 模糊效果通过 body 上的 .home-blur-disabled 类切换 */
+  background: color-mix(in srgb, var(--color-bg) 55%, transparent);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+}
+
+/* 关闭模糊时：主区域不使用 backdrop-filter */
+body.home-blur-disabled .app-main--minimalist-home {
+  background: color-mix(in srgb, var(--color-bg) 75%, transparent);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .app-sidebar {
@@ -145,7 +174,7 @@ body,
   flex-direction: column;
   overflow: hidden;
   transform: perspective(1500px) rotateY(0deg) scale(1) translateZ(0);
-  filter: brightness(1) blur(0);
+  filter: brightness(1);
   transition:
     transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
     filter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -154,7 +183,7 @@ body,
 
 .app-main--ai-open {
   transform: perspective(1500px) rotateY(-1deg) scale(0.97) translateZ(-20px);
-  filter: brightness(0.85) blur(1px);
+  filter: brightness(0.85);
 }
 
 .decorative-rect {
@@ -277,8 +306,8 @@ body {
   pointer-events: none;
   z-index: -1;
   background-image:
-    linear-gradient(rgba(255, 230, 0, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 230, 0, 0.03) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--color-accent) 3%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 3%, transparent) 1px, transparent 1px);
   background-size: 60px 60px;
   animation: bg-cyber-drift 20s linear infinite;
 }
@@ -298,7 +327,7 @@ body {
   inset: 0;
   pointer-events: none;
   z-index: -1;
-  background: radial-gradient(ellipse at 50% 0%, rgba(255, 230, 0, 0.04) 0%, transparent 60%);
+  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--color-accent) 4%, transparent) 0%, transparent 60%);
 }
 
 /* Starfield — drifting particles */
@@ -309,20 +338,20 @@ body {
   pointer-events: none;
   z-index: -1;
   background-image:
-    radial-gradient(1px 1px at 20px 30px, rgba(255, 255, 255, 0.15), transparent),
-    radial-gradient(1px 1px at 80px 120px, rgba(255, 255, 255, 0.1), transparent),
-    radial-gradient(1px 1px at 150px 40px, rgba(255, 255, 255, 0.12), transparent),
-    radial-gradient(1px 1px at 220px 180px, rgba(255, 255, 255, 0.08), transparent),
-    radial-gradient(1px 1px at 300px 80px, rgba(255, 255, 255, 0.14), transparent),
-    radial-gradient(1px 1px at 400px 200px, rgba(255, 255, 255, 0.1), transparent),
-    radial-gradient(1px 1px at 50px 250px, rgba(255, 255, 255, 0.09), transparent),
-    radial-gradient(2px 2px at 350px 150px, rgba(255, 255, 255, 0.12), transparent),
-    radial-gradient(1px 1px at 180px 280px, rgba(255, 255, 255, 0.11), transparent),
-    radial-gradient(2px 2px at 420px 60px, rgba(255, 255, 255, 0.08), transparent),
-    radial-gradient(1px 1px at 480px 240px, rgba(255, 255, 255, 0.1), transparent),
-    radial-gradient(1px 1px at 30px 350px, rgba(255, 255, 255, 0.07), transparent),
-    radial-gradient(1px 1px at 250px 320px, rgba(255, 255, 255, 0.13), transparent),
-    radial-gradient(1px 1px at 460px 300px, rgba(255, 255, 255, 0.09), transparent);
+    radial-gradient(1px 1px at 20px 30px, color-mix(in srgb, var(--color-text) 15%, transparent), transparent),
+    radial-gradient(1px 1px at 80px 120px, color-mix(in srgb, var(--color-text) 10%, transparent), transparent),
+    radial-gradient(1px 1px at 150px 40px, color-mix(in srgb, var(--color-text) 12%, transparent), transparent),
+    radial-gradient(1px 1px at 220px 180px, color-mix(in srgb, var(--color-text) 8%, transparent), transparent),
+    radial-gradient(1px 1px at 300px 80px, color-mix(in srgb, var(--color-text) 14%, transparent), transparent),
+    radial-gradient(1px 1px at 400px 200px, color-mix(in srgb, var(--color-text) 10%, transparent), transparent),
+    radial-gradient(1px 1px at 50px 250px, color-mix(in srgb, var(--color-text) 9%, transparent), transparent),
+    radial-gradient(2px 2px at 350px 150px, color-mix(in srgb, var(--color-text) 12%, transparent), transparent),
+    radial-gradient(1px 1px at 180px 280px, color-mix(in srgb, var(--color-text) 11%, transparent), transparent),
+    radial-gradient(2px 2px at 420px 60px, color-mix(in srgb, var(--color-text) 8%, transparent), transparent),
+    radial-gradient(1px 1px at 480px 240px, color-mix(in srgb, var(--color-text) 10%, transparent), transparent),
+    radial-gradient(1px 1px at 30px 350px, color-mix(in srgb, var(--color-text) 7%, transparent), transparent),
+    radial-gradient(1px 1px at 250px 320px, color-mix(in srgb, var(--color-text) 13%, transparent), transparent),
+    radial-gradient(1px 1px at 460px 300px, color-mix(in srgb, var(--color-text) 9%, transparent), transparent);
   background-size: 500px 400px;
   animation: bg-star-drift 60s linear infinite;
 }
@@ -379,6 +408,28 @@ body {
   }
 }
 
+/* ──────────────────────────────────────────────────────────────────
+   性能优化：禁用全屏背景无限动画（GPU 合成开销的主要来源）。
+   bg-cyber-drift / bg-star-drift / bg-matrix-rain 都是 position:fixed
+   全屏伪元素的无限循环动画，持续触发 GPU 重绘。静态背景已足够提供
+   视觉效果，动画带来的性能损失不值得。
+   ────────────────────────────────────────────────────────────────── */
+.bg-cyberpunk body::before,
+.bg-starfield body::before,
+.bg-matrix body::before {
+  animation: none !important;
+}
+
+/* 性能优化：禁用所有 box-shadow 无限呼吸动画。
+   box-shadow 动画无法利用 GPU 合成，会触发持续的布局重绘，
+   是运行时卡顿的主要来源。保留一次性入场动画。 */
+.hero-glow-breathe,
+[data-stream],
+.data-stream,
+.data-stream-border::after {
+  animation: none !important;
+}
+
 .skip-link {
   position: absolute;
   top: -40px;
@@ -407,4 +458,56 @@ body {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* ===== 布局风格：极简 =====
+   极简布局关闭装饰矩形、噪声/扫描线叠加、霓虹辉光，
+   减小阴影与圆角，使界面更克制。 */
+.layout-minimalist .decorative-rect,
+.layout-minimalist .noise-overlay,
+.layout-minimalist .scanline-overlay,
+.layout-minimalist .float-subtle,
+.layout-minimalist .neon-flicker,
+.layout-minimalist .cursor-blink {
+  display: none !important;
+}
+
+.layout-minimalist body,
+.layout-minimalist .app-main {
+  background-image: none !important;
+}
+
+.layout-minimalist .app-main {
+  padding: 16px 20px;
+}
+
+.layout-minimalist .app-sidebar {
+  background: var(--color-bg) !important;
+  border-right: 1px solid var(--color-border) !important;
+}
+
+/* 极简模式下卡片减弱阴影与切角 */
+.layout-minimalist [class*='card'],
+.layout-minimalist [class*='Card'] {
+  box-shadow: none !important;
+  clip-path: none !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 4px !important;
+}
+
+/* ===== 界面密度 ===== */
+.density-compact {
+  --density-gap: 4px;
+  --density-pad: 6px;
+  --density-row: 28px;
+}
+.density-comfortable {
+  --density-gap: 8px;
+  --density-pad: 10px;
+  --density-row: 36px;
+}
+.density-spacious {
+  --density-gap: 14px;
+  --density-pad: 16px;
+  --density-row: 48px;
 }

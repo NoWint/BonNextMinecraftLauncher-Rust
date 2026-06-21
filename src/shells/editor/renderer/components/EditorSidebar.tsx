@@ -13,7 +13,7 @@ export function EditorSidebar({ node }: EditorSidebarProps) {
       width: collapsed ? '48px' : width,
       minWidth: collapsed ? '48px' : width,
       height: '100%',
-      background: 'var(--bg-secondary, #141414)',
+      background: 'var(--color-panel, #141414)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',

@@ -1,0 +1,93 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  font-size: 0.8em;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.title {
+  margin: 0;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.1em;
+  letter-spacing: 0.05em;
+  color: var(--color-text);
+}
+
+.filter {
+  font-size: 0.85em;
+  padding: 0.25em 0.5em;
+  background: var(--color-panel-alt);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  clip-path: var(--clip-small);
+  cursor: pointer;
+}
+
+.logList {
+  overflow-y: auto;
+  max-height: 22em;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-panel) 60%, transparent);
+  clip-path: var(--clip-small);
+}
+
+.empty {
+  padding: 1.2em;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 0.85em;
+}
+
+.logEntry {
+  display: flex;
+  gap: 0.6em;
+  padding: 0.3em 0.6em;
+  border-bottom: 1px solid var(--color-border);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78em;
+  line-height: 1.4;
+}
+
+.logEntry:last-child {
+  border-bottom: none;
+}
+
+.timestamp {
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.level {
+  flex-shrink: 0;
+  width: 3.2em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.message {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+  color: var(--color-text);
+}
+
+.info .level {
+  color: var(--color-info);
+}
+
+.warn .level {
+  color: var(--color-warning);
+}
+
+.error .level {
+  color: var(--color-error);
+}

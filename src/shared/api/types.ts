@@ -20,6 +20,17 @@ export interface ContentDownloadProgress {
   finished: boolean;
 }
 
+export interface ModpackImportProgress {
+  stage: 'detecting' | 'downloading' | 'completed';
+  name?: string;
+  total?: number;
+  completed?: number;
+  current_file?: string;
+  current_url?: string;
+  error?: string;
+  instanceId?: string;
+}
+
 export interface VersionEntry {
   id: string;
   type: string;
@@ -104,6 +115,23 @@ export interface FilePermissionFixResult {
   fixed: boolean;
 }
 
+/** Trusted public key for plugin signature verification. */
+export interface TrustedKey {
+  id: string;
+  label: string;
+  /** Hex-encoded Ed25519 public key (64 hex chars / 32 bytes). */
+  public_key: string;
+  /** Whether this key is built-in (cannot be removed). */
+  builtin: boolean;
+}
+
+/** Result of verifying a plugin archive's signature. */
+export type SignatureVerificationResult =
+  | { status: 'valid'; key_id: string; key_label: string }
+  | { status: 'invalid'; reason: string }
+  | { status: 'untrusted'; public_key: string }
+  | { status: 'unsigned' };
+
 export interface JreSourceInfo {
   id: string;
   label: string;
@@ -140,6 +168,36 @@ export interface GameInstance {
   created_at: string;
   last_played: string | null;
   playtime_seconds: number;
+  /** 是否使用全局配置（true=全局，false=实例特定） */
+  uses_global_config?: boolean;
+  /** 窗口宽度（0=使用全局默认） */
+  window_width?: number;
+  /** 窗口高度（0=使用全局默认） */
+  window_height?: number;
+  /** 是否全屏 */
+  fullscreen?: boolean;
+  /** 调试模式 */
+  debug_mode?: boolean;
+  /** 调试端口 */
+  debug_port?: number;
+  /** 实例图标路径 */
+  icon?: string | null;
+  /** 标签/分类 */
+  tags?: string[];
+  /** 默认服务器地址（QuickPlay） */
+  server_address?: string | null;
+  /** 游戏目录类型 */
+  game_dir_type?: string;
+  /** 自定义游戏目录路径 */
+  custom_game_dir?: string | null;
+  /** 启动前命令 */
+  pre_launch_command?: string | null;
+  /** 退出后命令 */
+  post_exit_command?: string | null;
+  /** 环境变量（KEY=VALUE 换行分隔） */
+  environment_variables?: string | null;
+  /** 进程优先级 */
+  process_priority?: string;
 }
 
 export interface DetectedLauncher {
@@ -397,6 +455,13 @@ export interface LogFileInfo {
   modified_at: string;
 }
 
+export interface WorldBackupInfo {
+  filename: string;
+  world_name: string;
+  created_at: string;
+  size_mb: number;
+}
+
 export interface ContentCounts {
   mods: number;
   resourcepacks: number;
@@ -601,7 +666,6 @@ export interface AppUpdateInfo {
   version: string;
   date: string;
   body: string | null;
-  download_url: string | null;
 }
 
 export interface JreVersionInfo {

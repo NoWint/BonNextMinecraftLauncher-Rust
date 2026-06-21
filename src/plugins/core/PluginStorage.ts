@@ -1,26 +1,32 @@
 // src/plugins/core/PluginStorage.ts
 import type { PluginStorage } from './types';
 import { invoke } from '@tauri-apps/api/core';
+import type { PluginSession } from './PluginSession';
 
-export function createPluginStorage(pluginId: string): PluginStorage {
-  const getStorageKey = (key: string) => `plugin:${pluginId}:${key}`;
-
+export function createPluginStorage(session: PluginSession): PluginStorage {
   return {
-    async get(key: string): Promise<unknown> {
+    async get(key) {
       try {
-        const value = await invoke<string | null>('plugin_storage_get', { key: getStorageKey(key) });
+        const value = await invoke<string | null>('plugin_storage_get', {
+          token: session.getToken(),
+          key,
+        });
         return value ? JSON.parse(value) : null;
       } catch {
         return null;
       }
     },
 
-    async set(key: string, value: unknown): Promise<void> {
-      await invoke('plugin_storage_set', { key: getStorageKey(key), value: JSON.stringify(value) });
+    async set(key, value) {
+      await invoke('plugin_storage_set', {
+        token: session.getToken(),
+        key,
+        value: JSON.stringify(value),
+      });
     },
 
-    async delete(key: string): Promise<void> {
-      await invoke('plugin_storage_delete', { key: getStorageKey(key) });
+    async delete(key) {
+      await invoke('plugin_storage_delete', { token: session.getToken(), key });
     },
   };
 }
