@@ -16,11 +16,11 @@ export interface SceneOverlayProps {
   plyUrl?: string | null;
 }
 
-// 各菜单项转场推进方向（相对原点）
+// 各菜单项转场推进方向（相对原点）— 大幅推进 + 侧移，模拟 3A 大作运镜特写
 const TRANSITION_TARGETS: Record<Exclude<MenuAction, 'launch'>, CameraOffset> = {
-  instances: { x: 0.15, y: 0.08, z: 0.6 },
-  store: { x: 0.25, y: -0.08, z: 0.6 },
-  settings: { x: 0.2, y: -0.12, z: 0.6 },
+  instances: { x: 0.4, y: 0.2, z: 1.5 },
+  store: { x: 0.6, y: -0.2, z: 1.5 },
+  settings: { x: 0.5, y: -0.3, z: 1.5 },
 };
 
 export function SceneOverlay({ ctx, plyUrl = null }: SceneOverlayProps) {
@@ -36,20 +36,20 @@ export function SceneOverlay({ ctx, plyUrl = null }: SceneOverlayProps) {
   const handleAction = useCallback(
     (action: MenuAction) => {
       if (action === 'launch') {
-        // 一键启动：相机快速推进
-        setTransitionTarget({ x: 0, y: 0, z: 0.8 });
+        // 一键启动：相机大幅推进
+        setTransitionTarget({ x: 0, y: 0, z: 1.8 });
         void launch.launch();
         return;
       }
-      // 进入转场 → 先推进 500ms → 再淡出 300ms → 导航
+      // 进入转场 → 先推进 800ms → 再淡出 300ms → 导航
       setTransitionTarget(TRANSITION_TARGETS[action]);
-      window.setTimeout(() => setFadingOut(true), 500);
+      window.setTimeout(() => setFadingOut(true), 800);
       window.setTimeout(() => {
         const hash = action === 'instances' ? '#/instances' : action === 'store' ? '#/store' : '#/settings';
         window.location.hash = hash;
         setFadingOut(false);
         setTransitionTarget(null);
-      }, 800);
+      }, 1100);
     },
     [launch],
   );

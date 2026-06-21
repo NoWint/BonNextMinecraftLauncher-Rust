@@ -9,14 +9,14 @@ export interface CameraOffset {
 }
 
 export const SAFE_RANGE = {
-  translate: 0.4,
-  push: 0.8,
+  translate: 0.8,
+  push: 2.0,
   rotateDeg: 15,
 };
 
-/** expo 缓动（ease-out） */
-function expoEase(t: number): number {
-  return t === 0 ? 0 : t >= 1 ? 1 : 1 - Math.pow(2, -10 * t);
+/** 电影感缓动（ease-in-out cubic）— 起步慢、中间快、结束慢 */
+function cinematicEase(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
 export function clampPosition(o: CameraOffset): CameraOffset {
@@ -47,9 +47,9 @@ export function parallaxOffset(mouseX: number, mouseY: number, strength: number)
   });
 }
 
-/** 转场推进：从 0 到 target，durationMs 内 expo 缓动 */
+/** 转场推进：从 0 到 target，durationMs 内电影感缓动 */
 export function transitionOffset(elapsedMs: number, target: CameraOffset, durationMs: number): CameraOffset {
-  const t = expoEase(Math.min(1, elapsedMs / durationMs));
+  const t = cinematicEase(Math.min(1, elapsedMs / durationMs));
   return {
     x: target.x * t,
     y: target.y * t,
@@ -96,8 +96,8 @@ export function useCameraDolly(
       if (transitionTarget) {
         if (transitionStartRef.current === null) transitionStartRef.current = now;
         const elapsed = now - transitionStartRef.current;
-        trans = transitionOffset(elapsed, transitionTarget, 600);
-        if (elapsed >= 600 && onTransitionEnd) onTransitionEnd();
+        trans = transitionOffset(elapsed, transitionTarget, 1000);
+        if (elapsed >= 1000 && onTransitionEnd) onTransitionEnd();
       }
       setOffset(
         clampPosition({

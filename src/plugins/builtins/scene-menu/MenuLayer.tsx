@@ -31,11 +31,11 @@ const PANELS: PanelDef[] = [
 ];
 
 export function MenuLayer({ onAction, launchingName, launchState, launchError, offset }: MenuLayerProps) {
-  // 面板视差：跟随相机移动（仿佛嵌入场景），推进时略微放大
+  // 面板视差：跟随相机移动（仿佛嵌入场景），推进时放大（模拟靠近）
   const ox = offset?.x ?? 0;
   const oy = offset?.y ?? 0;
   const oz = offset?.z ?? 0;
-  const transform = `translate(${ox * 30}px, ${oy * 30}px) scale(${1 + oz * 0.12})`;
+  const transform = `translate(${ox * 40}px, ${oy * 40}px) scale(${1 + oz * 0.15})`;
 
   return (
     <div className={styles.menuLayer} role="menu" aria-label="3D 主菜单" style={{ transform }}>
