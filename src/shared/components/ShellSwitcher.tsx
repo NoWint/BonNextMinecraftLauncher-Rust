@@ -16,16 +16,10 @@ const SHELL_ICONS: Record<string, JSX.Element> = {
       <circle cx="8" cy="8" r="1" fill="currentColor" />
     </svg>
   ),
-  fluent: (
+  editor: (
     <svg viewBox="0 0 16 16" fill="none" className={styles.shellItemIcon}>
       <rect x="1" y="1" width="14" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
       <path d="M4 5h8M4 8h6M4 11h4" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-    </svg>
-  ),
-  tv: (
-    <svg viewBox="0 0 16 16" fill="none" className={styles.shellItemIcon}>
-      <rect x="1" y="2" width="14" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M5 14h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
     </svg>
   ),
 };

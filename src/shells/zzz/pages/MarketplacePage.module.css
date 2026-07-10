@@ -1,95 +1,94 @@
-.recommendations {
-  margin-bottom: 6px;
+.marketplace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 12px;
 }
 
-.recommendations__header {
+.sidebar {
+  width: 180px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  padding-right: 4px;
+  border-right: 1px solid var(--color-border);
+}
+
+.sidebarCategory {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebarCategoryTitle {
+  font-family: var(--font-heading);
+  font-size: 0.5em;
+  letter-spacing: 2px;
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+  padding: 8px 10px 4px;
+}
+
+.sidebarItem {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
-}
-
-.recommendations__title {
-  font-family: var(--font-heading);
-  font-size: 0.55em;
-  color: var(--color-accent);
-  letter-spacing: 2px;
-  font-weight: 700;
-}
-
-.recommendations__row {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-border) transparent;
-}
-
-.recommendations__row::-webkit-scrollbar {
-  height: 4px;
-}
-
-.recommendations__row::-webkit-scrollbar-track {
+  padding: 8px 10px;
+  font-size: 0.6em;
+  color: var(--color-text-secondary);
   background: transparent;
-}
-
-.recommendations__row::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-}
-
-.recommendations__card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex-shrink: 0;
-  width: 180px;
-  padding: 10px 12px;
-  background: var(--color-panel-alt);
-  border: 1px solid var(--color-border);
-  clip-path: var(--clip-medium);
+  border: 1px solid transparent;
   cursor: pointer;
+  clip-path: var(--clip-small);
+  transition: all var(--transition-fast);
   text-align: left;
-  transition:
-    border-color 0.15s var(--ease-out-expo),
-    background 0.15s var(--ease-out-expo);
+  width: 100%;
 }
 
-.recommendations__card:hover {
-  border-color: var(--color-accent);
-  background: var(--color-panel);
-}
-
-.recommendations__cardName {
-  font-size: 0.62em;
-  font-weight: 700;
+.sidebarItem:hover {
+  background: var(--color-panel-alt);
   color: var(--color-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.recommendations__cardReason {
-  font-size: 0.5em;
-  color: var(--color-text-muted);
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.sidebarItemActive {
+  background: var(--color-panel-alt);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
-.recommendations__cardBadge {
-  align-self: flex-start;
-  margin-top: auto;
-}
-
-.page {
+.content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+}
+
+.emptyHint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
   flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding-right: 6px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.emptyHint__btn {
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border: none;
+  padding: 8px 16px;
+  font-size: 0.6em;
+  cursor: pointer;
+  clip-path: var(--clip-small);
+  transition: opacity var(--transition-fast);
+}
+
+.emptyHint__btn:hover {
+  opacity: 0.85;
 }

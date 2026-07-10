@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatError } from '../../../shared/utils/errorMapping';
 import { api, type VersionEntry } from '../../../shared/api';
-import { useInstances } from '../../../shared/stores/instanceStore';
 import { useToast } from '../../../shared/stores/toastStore';
 import { useI18n } from '../../../shared/i18n';
 import { SectionHeader } from '../components/layout';
@@ -12,18 +11,16 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { useSkeleton } from '../../../shared/hooks/useSkeleton';
 import { open } from '@tauri-apps/plugin-dialog';
 import ContentBrowser from '../components/marketplace/ContentBrowser';
-import CollectionsView from '../components/marketplace/CollectionsView';
 import styles from './VersionsPage.module.css';
 
-// 内容库（已安装内容管理）懒加载：原 /library 路由已合并到下载中心
-const LibraryView = lazy(() => import('./LibraryPage'));
-
-type DownloadTab = 'game' | 'modpack' | 'mod' | 'resourcepack' | 'shader' | 'world' | 'collections' | 'library';
+// 下载中心：仅游戏版本下载 + 整合包导入。
+// 模组/资源包/光影/世界/收藏 已迁至独立 /mods 模组市场页；
+// 已安装内容管理已迁至独立 /library 内容库页。
+type DownloadTab = 'game' | 'modpack';
 
 export default function VersionsPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const { state: instanceState } = useInstances();
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState<DownloadTab>('game');
 
@@ -38,17 +35,6 @@ export default function VersionsPage() {
 
   // 整合包导入状态
   const [importing, setImporting] = useState(false);
-
-  // 目标实例选择（内容安装时使用）
-  const [targetInstanceId, setTargetInstanceId] = useState<string>(() => {
-    return instanceState.instances[0]?.id || '';
-  });
-
-  useEffect(() => {
-    if (!targetInstanceId && instanceState.instances.length > 0) {
-      setTargetInstanceId(instanceState.instances[0].id);
-    }
-  }, [instanceState.instances, targetInstanceId]);
 
   useEffect(() => {
     loadVersions();
@@ -117,7 +103,6 @@ export default function VersionsPage() {
     return result;
   }, [versions, filter, versionSearch]);
 
-  // 左侧分类标签（参考 HMCL DownloadPage：2 类别 6 标签 + 收藏 + 内容库）
   const sidebarCategories = [
     {
       category: t('versions.catGame'),
@@ -126,25 +111,10 @@ export default function VersionsPage() {
         { id: 'modpack' as DownloadTab, label: t('versions.tabModpack'), icon: 'puzzle' as const },
       ],
     },
-    {
-      category: t('versions.catContent'),
-      items: [
-        { id: 'mod' as DownloadTab, label: t('versions.tabMod'), icon: 'puzzle' as const },
-        { id: 'resourcepack' as DownloadTab, label: t('versions.tabResourcePack'), icon: 'palette' as const },
-        { id: 'shader' as DownloadTab, label: t('versions.tabShader'), icon: 'sun' as const },
-        { id: 'world' as DownloadTab, label: t('versions.tabWorld'), icon: 'globe' as const },
-        { id: 'collections' as DownloadTab, label: t('sidebar.collections'), icon: 'heart' as const },
-        { id: 'library' as DownloadTab, label: t('sidebar.library'), icon: 'cube' as const },
-      ],
-    },
   ];
-
-  // 是否为内容浏览标签（需要实例选择器）
-  const isContentTab = ['mod', 'resourcepack', 'shader', 'world', 'modpack'].includes(activeTab);
 
   return (
     <div className={styles.downloadCenter}>
-      {/* 左侧分类侧边栏（参考 HMCL DownloadPage AdvancedListBox） */}
       <aside className={styles.sidebar}>
         {sidebarCategories.map((cat) => (
           <div key={cat.category} className={styles.sidebarCategory}>
@@ -163,23 +133,7 @@ export default function VersionsPage() {
         ))}
       </aside>
 
-      {/* 右侧内容区 */}
       <div className={styles.content}>
-        {/* 内容标签页的实例选择器（安装内容时需要选择目标实例） */}
-        {isContentTab && instanceState.instances.length > 0 && (
-          <div className={styles.instanceSelector}>
-            <span className={styles.instanceSelector__label}>{t('instanceDetail.targetInstance')}</span>
-            <Select
-              value={targetInstanceId}
-              onChange={(e) => setTargetInstanceId(e.target.value)}
-              options={instanceState.instances.map((inst) => ({
-                value: inst.id,
-                label: `${inst.name} (${inst.version_id}${inst.loader_type ? `/${inst.loader_type}` : ''})`,
-              }))}
-            />
-          </div>
-        )}
-
         {activeTab === 'game' && (
           <>
             <SectionHeader title={t('versions.title').toUpperCase()} subtitle={`${versions.length} ${t('versions.count')}`} />
@@ -266,32 +220,6 @@ export default function VersionsPage() {
             {/* 在线整合包浏览（HMCL 风格：本地导入 + 在线浏览合一） */}
             <ContentBrowser contentType="modpack" showSubViewSwitch={false} />
           </>
-        )}
-
-        {activeTab === 'mod' && (
-          <ContentBrowser contentType="mod" />
-        )}
-
-        {activeTab === 'resourcepack' && (
-          <ContentBrowser contentType="resourcepack" />
-        )}
-
-        {activeTab === 'shader' && (
-          <ContentBrowser contentType="shader" />
-        )}
-
-        {activeTab === 'world' && (
-          <ContentBrowser contentType="datapack" />
-        )}
-
-        {activeTab === 'collections' && (
-          <CollectionsView showHeader />
-        )}
-
-        {activeTab === 'library' && (
-          <Suspense fallback={<div className={styles.error}>{t('versions.loading')}</div>}>
-            <LibraryView />
-          </Suspense>
         )}
       </div>
     </div>

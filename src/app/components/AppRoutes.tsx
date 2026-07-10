@@ -14,6 +14,8 @@ const InstancesPage = lazy(() => import('../../shells/zzz/pages/InstancesPage'))
 const InstanceDetailPage = lazy(() => import('../../shells/zzz/pages/InstanceDetailPage'));
 const NewInstancePage = lazy(() => import('../../shells/zzz/pages/NewInstancePage'));
 const VersionsPage = lazy(() => import('../../shells/zzz/pages/VersionsPage'));
+const MarketplacePage = lazy(() => import('../../shells/zzz/pages/MarketplacePage'));
+const LibraryPage = lazy(() => import('../../shells/zzz/pages/LibraryPage'));
 const SettingsPage = lazy(() => import('../../shells/zzz/pages/SettingsPage'));
 
 function RouteLoading() {
@@ -56,13 +58,13 @@ export function AppRoutes({ isAuthenticated }: AppRoutesProps) {
         <Route path="/instances/new" element={<NewInstancePage />} />
         <Route path="/instances/:id" element={<InstanceDetailPage />} />
         <Route path="/versions" element={<VersionsPage />} />
+        <Route path="/mods" element={<MarketplacePage />} />
+        <Route path="/library" element={<LibraryPage />} />
         <Route path="/settings" element={<SettingsPage />} />
 
-        {/* 商店、收藏、内容库已迁入下载中心，重定向到 /versions */}
-        <Route path="/store" element={<Navigate to="/versions" replace />} />
-        <Route path="/mods" element={<Navigate to="/versions" replace />} />
-        <Route path="/collections" element={<Navigate to="/versions" replace />} />
-        <Route path="/library" element={<Navigate to="/versions" replace />} />
+        {/* 旧入口重定向到对应新页面 */}
+        <Route path="/store" element={<Navigate to="/mods" replace />} />
+        <Route path="/collections" element={<Navigate to="/mods" replace />} />
 
         {/* 插件路由（由 PluginManager 注入） */}
         {pluginRoutes.map((route) => {

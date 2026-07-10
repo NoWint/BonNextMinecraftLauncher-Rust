@@ -26,18 +26,18 @@ const FriendsPanel = lazy(() => import('./components/social/FriendsPanel'));
 
 const PAGE_ID_TO_PATH: Record<string, string> = {
   home: '/home',
-  marketplace: '/versions',
-  collections: '/collections',
+  marketplace: '/mods',
+  collections: '/mods',
   instances: '/instances',
   new_instance: '/instances/new',
   instance_detail: '/instances',
-  content_detail: '/store',
+  content_detail: '/mods',
   library: '/library',
   versions: '/versions',
   servers: '/servers',
   settings: '/settings',
-  mods: '/versions',
-  store: '/versions',
+  mods: '/mods',
+  store: '/mods',
 };
 
 function ZZZAppShell() {
@@ -88,6 +88,8 @@ function ZZZAppShell() {
       { id: 'home', label: t('nav.home'), shortcut: 'H', path: '/home' },
       { id: 'instances', label: t('nav.instances'), shortcut: 'I', path: '/instances' },
       { id: 'versions', label: t('nav.versions'), shortcut: 'V', path: '/versions' },
+      { id: 'mods', label: t('nav.marketplace'), shortcut: 'M', path: '/mods' },
+      { id: 'library', label: t('nav.library'), shortcut: 'L', path: '/library' },
       { id: 'settings', label: t('nav.settings'), shortcut: ',', path: '/settings' },
     ],
     [t],

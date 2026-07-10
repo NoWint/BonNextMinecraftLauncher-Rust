@@ -1,198 +1,70 @@
-import { useReducer, useCallback, useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SectionHeader } from '../components/layout';
-import TypeTabs from '../components/marketplace/TypeTabs';
-import FilterBar from '../components/marketplace/FilterBar';
-import SubViewSwitch from '../components/marketplace/SubViewSwitch';
-import DiscoverView from '../components/marketplace/DiscoverView';
-import ResultsView from '../components/marketplace/ResultsView';
-import { Skeleton } from '../components/ui/Skeleton';
-import {
-  marketplaceReducer,
-  INITIAL_STATE,
-  type ContentType,
-  type DataSource,
-  type SubView,
-  type ViewMode,
-} from '../components/marketplace/types';
-import { useConfig } from '../../../shared/stores/configStore';
 import { useInstances } from '../../../shared/stores/instanceStore';
 import { useI18n } from '../../../shared/i18n';
-import { api } from '../../../shared/api';
+import { SectionHeader } from '../components/layout';
+import { Icon } from '../components/ui/Icon';
+import ContentBrowser from '../components/marketplace/ContentBrowser';
+import CollectionsView from '../components/marketplace/CollectionsView';
 import styles from './MarketplacePage.module.css';
-import badgeStyles from '../components/ui/Status.module.css';
 
-interface RecommendationItem {
-  slug: string;
-  name: string;
-  reason: string;
-  category: string;
-}
+// 模组市场页：从原"下载中心"拆分而来，专注在线内容浏览与安装。
+// 游戏版本下载与整合包导入留在 /versions；已安装内容管理在 /library。
+type MarketTab = 'mod' | 'resourcepack' | 'shader' | 'world' | 'collections';
 
 export default function MarketplacePage() {
-  const navigate = useNavigate();
-  const [state, dispatch] = useReducer(marketplaceReducer, INITIAL_STATE);
-  const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
-  const [recsLoading, setRecsLoading] = useState(true);
-  const { state: configState } = useConfig();
-  const { state: instanceState } = useInstances();
   const { t } = useI18n();
+  const navigate = useNavigate();
+  const { state: instanceState } = useInstances();
+  const [activeTab, setActiveTab] = useState<MarketTab>('mod');
 
-  const instanceId = configState.config?.selected_instance || instanceState.instances[0]?.id || null;
+  const hasInstances = instanceState.instances.length > 0;
 
-  useEffect(() => {
-    if (!instanceId) return;
-    let cancelled = false;
-    setRecsLoading(true);
-    api
-      .getRecommendations(instanceId)
-      .then((recs) => {
-        if (!cancelled) {
-          setRecommendations(recs);
-          setRecsLoading(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setRecsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [instanceId]);
+  const sidebarItems: { id: MarketTab; label: string; icon: string }[] = [
+    { id: 'mod', label: t('versions.tabMod'), icon: 'puzzle' },
+    { id: 'resourcepack', label: t('versions.tabResourcePack'), icon: 'palette' },
+    { id: 'shader', label: t('versions.tabShader'), icon: 'sun' },
+    { id: 'world', label: t('versions.tabWorld'), icon: 'globe' },
+    { id: 'collections', label: t('sidebar.collections'), icon: 'heart' },
+  ];
 
-  const handleTabChange = useCallback((tab: ContentType) => {
-    dispatch({ type: 'SET_TAB', payload: tab });
-  }, []);
-
-  const handleSubViewChange = useCallback((view: SubView) => {
-    dispatch({ type: 'SET_SUB_VIEW', payload: view });
-  }, []);
-
-  const handleSourceChange = useCallback((source: DataSource) => {
-    dispatch({ type: 'SET_SOURCE', payload: source });
-  }, []);
-
-  const handleSearchChange = useCallback((query: string) => {
-    dispatch({ type: 'SET_SEARCH', payload: query });
-  }, []);
-
-  const handleSearchSubmit = useCallback(() => {
-    dispatch({ type: 'SEARCH_TRIGGERED' });
-  }, []);
-
-  const handleTagToggle = useCallback((tag: string) => {
-    dispatch({ type: 'TOGGLE_TAG', payload: tag });
-  }, []);
-
-  const handleClearTags = useCallback(() => {
-    dispatch({ type: 'CLEAR_TAGS' });
-  }, []);
-
-  const handleVersionChange = useCallback((version: string) => {
-    dispatch({ type: 'SET_VERSION', payload: version });
-  }, []);
-
-  const handleLoaderChange = useCallback((loader: string) => {
-    dispatch({ type: 'SET_LOADER', payload: loader });
-  }, []);
-
-  const handleSortChange = useCallback((sort: string) => {
-    dispatch({ type: 'SET_SORT', payload: sort });
-  }, []);
-
-  const handleViewModeChange = useCallback((mode: ViewMode) => {
-    dispatch({ type: 'SET_VIEW_MODE', payload: mode });
-  }, []);
-
-  const handleNavigate = useCallback(
-    (slug: string) => {
-      const sourceParam = state.source === 'curseforge' ? '?source=curseforge' : '';
-      navigate(`/store/${state.activeTab}/${slug}${sourceParam}`);
-    },
-    [state.source, state.activeTab],
-  );
+  const isContentTab = activeTab !== 'collections';
 
   return (
-    <div className={styles.page}>
-      <SectionHeader title={t('marketplace.title')} subtitle={t('marketplace.subtitle')} />
-
-      {(recsLoading || recommendations.length > 0) && (
-        <div className={styles.recommendations}>
-          <div className={styles.recommendations__header}>
-            <span className={styles.recommendations__title}>{t('marketplace.recommendedForYou')}</span>
-          </div>
-          <div className={styles.recommendations__row}>
-            {recsLoading
-              ? Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className={styles.recommendations__card}>
-                    <Skeleton variant="title" />
-                    <Skeleton variant="text" width="80%" />
-                    <Skeleton variant="text" width="50px" />
-                  </div>
-                ))
-              : recommendations.map((rec) => (
-                  <button
-                    key={rec.slug}
-                    className={styles.recommendations__card}
-                    onClick={() => {
-                      navigate(`/store/mod/${rec.slug}`);
-                    }}
-                  >
-                    <div className={styles.recommendations__cardName}>{rec.name}</div>
-                    <div className={styles.recommendations__cardReason}>{rec.reason}</div>
-                    <span
-                      className={`${badgeStyles.badge} ${badgeStyles['badge--accent']} ${styles.recommendations__cardBadge}`}
-                    >
-                      {rec.category}
-                    </span>
-                  </button>
-                ))}
-          </div>
+    <div className={styles.marketplace}>
+      <aside className={styles.sidebar}>
+        <div className={styles.sidebarCategory}>
+          <div className={styles.sidebarCategoryTitle}>{t('versions.catContent')}</div>
+          {sidebarItems.map((item) => (
+            <button
+              key={item.id}
+              className={`${styles.sidebarItem} ${activeTab === item.id ? styles.sidebarItemActive : ''}`}
+              onClick={() => setActiveTab(item.id)}
+            >
+              <Icon name={item.icon as never} size={14} />
+              <span>{item.label}</span>
+            </button>
+          ))}
         </div>
-      )}
+      </aside>
 
-      <TypeTabs activeTab={state.activeTab} onTabChange={handleTabChange} />
+      <div className={styles.content}>
+        {isContentTab && !hasInstances && (
+          <div className={styles.emptyHint}>
+            <SectionHeader title={t('marketplace.title').toUpperCase()} subtitle={t('marketplace.needInstance')} />
+            <button className={styles.emptyHint__btn} onClick={() => navigate('/instances/new')}>
+              + {t('home.newInstance')}
+            </button>
+          </div>
+        )}
 
-      <FilterBar
-        contentType={state.activeTab}
-        source={state.source}
-        searchQuery={state.searchQuery}
-        selectedTags={state.selectedTags}
-        gameVersion={state.gameVersion}
-        loader={state.loader}
-        sortBy={state.sortBy}
-        onSourceChange={handleSourceChange}
-        onSearchChange={handleSearchChange}
-        onSearchSubmit={handleSearchSubmit}
-        onTagToggle={handleTagToggle}
-        onClearTags={handleClearTags}
-        onVersionChange={handleVersionChange}
-        onLoaderChange={handleLoaderChange}
-        onSortChange={handleSortChange}
-      />
+        {activeTab === 'mod' && hasInstances && <ContentBrowser contentType="mod" />}
+        {activeTab === 'resourcepack' && hasInstances && <ContentBrowser contentType="resourcepack" />}
+        {activeTab === 'shader' && hasInstances && <ContentBrowser contentType="shader" />}
+        {activeTab === 'world' && hasInstances && <ContentBrowser contentType="datapack" />}
 
-      <SubViewSwitch
-        subView={state.subView}
-        viewMode={state.viewMode}
-        onSubViewChange={handleSubViewChange}
-        onViewModeChange={handleViewModeChange}
-      />
-
-      {state.subView === 'discover' ? (
-        <DiscoverView contentType={state.activeTab} source={state.source} onNavigate={handleNavigate} />
-      ) : (
-        <ResultsView
-          contentType={state.activeTab}
-          source={state.source}
-          searchQuery={state.searchQuery}
-          selectedTags={state.selectedTags}
-          gameVersion={state.gameVersion}
-          loader={state.loader}
-          sortBy={state.sortBy}
-          viewMode={state.viewMode}
-          onNavigate={handleNavigate}
-        />
-      )}
+        {activeTab === 'collections' && <CollectionsView showHeader />}
+      </div>
     </div>
   );
 }

@@ -68,13 +68,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const getIsActive = (path: string) => {
     const current = location.pathname;
-    // /store 和 /mods 已重定向到 /versions，激活态统一归到 /versions
+    // /versions 仅对应游戏版本下载页
     if (path === '/versions') {
-      return current === '/versions' || current === '/store' || current === '/mods' || current.startsWith('/versions/');
+      return current === '/versions' || current.startsWith('/versions/');
     }
-    // /store/:type/:slug 内容详情页仍属于 store 范畴
-    if (path === '/store') {
-      return current.startsWith('/store/');
+    // /mods 模组市场：含 /store/* 内容详情页（旧入口）
+    if (path === '/mods') {
+      return current === '/mods' || current === '/store' || current.startsWith('/store/') || current.startsWith('/mods/');
     }
     return current === path || current.startsWith(path + '/');
   };
@@ -89,8 +89,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const startWidthRef = useRef(0);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    // 社交功能未启用时不发起后端调用
+    if (onSocialToggle) load();
+  }, [load, onSocialToggle]);
 
   const handleResizeStart = useCallback(
     (e: React.MouseEvent) => {
@@ -208,6 +209,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <div className={styles.sidebar__spacer} />
 
+      {/* 好友/社交面板仅在社交功能可用（安装了第三方插件）时渲染，避免死功能外露 */}
+      {onSocialToggle && (
       <div className={styles.sidebar__friends}>
         <button className={styles.sidebar__friendsHeader} onClick={() => setFriendsOpen(!friendsOpen)}>
           <span
@@ -304,6 +307,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
       </div>
+      )}
 
       <div className={styles.sidebar__playtime}>
         <div className={styles.sidebar__playtimeLabel}>{t('sidebar.total')}</div>
