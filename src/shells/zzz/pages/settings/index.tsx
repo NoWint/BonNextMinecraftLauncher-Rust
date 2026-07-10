@@ -49,21 +49,14 @@ import { SectionCard, SettingRow } from './MemorySection';
 import ThemeSection from './ThemeSection';
 import FontCustomizationSection from './FontCustomizationSection';
 import WindowEffectsSection from './WindowEffectsSection';
-import SoundThemesSection from './SoundThemesSection';
-import DynamicBgSection from './DynamicBgSection';
 import DownloadSection from './DownloadSection';
 import NetworkSection from './NetworkSection';
 import AccessibilitySection from './AccessibilitySection';
-import MiniModeSection from './MiniModeSection';
 import DiscordSection from './DiscordSection';
-import BatterySection from './BatterySection';
 import SkinStationSection from './SkinStationSection';
 import AISection from './AISection';
 import AchievementDisplay from '../../components/ui/AchievementDisplay';
 import JreManagementSection from './JreManagementSection';
-import { ShellManagementSection } from './ShellManagementSection';
-import { PluginManagementSection } from './PluginManagementSection';
-import { TrustedKeysSection } from './TrustedKeysSection';
 import { AboutSection } from './AboutSection';
 import { PluginErrorBoundary } from '../../../../app/components/PluginErrorBoundary';
 import { usePluginSettingsSections } from '../../../../app/hooks/usePluginSettingsSections';
@@ -394,12 +387,8 @@ export default function SettingsPage() {
     'sec-file-mgmt': [t('settings.fileManagement'), 'file', 'manage', 'versions'],
     'sec-launch-behavior': [t('settings.launchBehavior'), 'launch', 'start', 'auto close'],
     'sec-data-dir': [t('settings.dataDirectory'), 'directory', 'path', 'game dir'],
-    'sec-dynamic-bg': [t('settings.dynamicBackground'), 'background', 'wallpaper', 'bg'],
-    'sec-sound-themes': [t('settings.soundThemes'), 'sound', 'audio', 'sfx'],
     'sec-window-effects': [t('settings.windowEffects'), 'window', 'effects', 'animation'],
-    'sec-mini-mode': [t('settings.miniMode'), 'mini', 'compact', 'overlay'],
     'sec-hardware': [t('settings.hardware'), 'hardware', 'cpu', 'gpu', 'system'],
-    'sec-battery': [t('settings.battery'), 'battery', 'power'],
     'sec-download': [t('settings.download'), 'download', 'source', 'mirror', 'bmclapi', 'mcbbs', 'speed', 'priority'],
     'sec-network': [t('settings.network') || 'Network', 'network', 'github', 'proxy', 'git', 'mirror', 'gh-proxy'],
     'sec-discord': [t('settings.discord'), 'discord', 'rpc', 'rich presence'],
@@ -410,7 +399,6 @@ export default function SettingsPage() {
     'sec-network-security': [t('settings.networkSecurity'), 'network', 'proxy', 'ssl', 'tls'],
     'sec-launch-security': [t('settings.launchSecurity'), 'sandbox', 'jvm whitelist', 'launch security'],
     'sec-api-key-management': [t('settings.apiKeyManagement'), 'api key', 'curseforge', 'cf key'],
-    'sec-trusted-keys': [t('settings.security.trustedKeys'), 'trusted key', 'signature', 'ed25519', 'plugin signature'],
     'sec-security-audit': [t('settings.securityAudit'), 'audit', 'log'],
     'sec-ai-assistant': [t('settings.aiAssistant'), 'ai', 'assistant', 'chat'],
     'sec-achievements': [t('settings.achievements'), 'achievement', 'unlock'],
@@ -464,12 +452,12 @@ export default function SettingsPage() {
       {
         id: 'appearance',
         label: t('settings.nav.appearance'),
-        sectionIds: ['sec-dynamic-bg', 'sec-sound-themes', 'sec-window-effects', 'sec-mini-mode'],
+        sectionIds: ['sec-window-effects'],
       },
       {
         id: 'system',
         label: t('settings.nav.system'),
-        sectionIds: ['sec-hardware', 'sec-battery', 'sec-download', 'sec-network'],
+        sectionIds: ['sec-hardware', 'sec-download', 'sec-network'],
       },
       {
         id: 'social',
@@ -485,7 +473,6 @@ export default function SettingsPage() {
           'sec-network-security',
           'sec-launch-security',
           'sec-api-key-management',
-          'sec-trusted-keys',
           'sec-security-audit',
         ],
       },
@@ -498,11 +485,6 @@ export default function SettingsPage() {
         id: 'achievements',
         label: t('settings.nav.achievements'),
         sectionIds: ['sec-achievements'],
-      },
-      {
-        id: 'plugins',
-        label: t('settings.nav.plugins') || 'Plugins',
-        sectionIds: ['sec-plugins'],
       },
     ],
     [t],
@@ -1059,10 +1041,6 @@ export default function SettingsPage() {
       </SectionCard>
 
       <ThemeSection t={t} />
-      <ShellManagementSection />
-      <SectionCard id="sec-plugins" title={t('settings.nav.plugins') || 'Plugins'}>
-        <PluginManagementSection />
-      </SectionCard>
 
       {pluginSettingsSections.map((section) => {
         const LazyComponent = pluginSettingsComponents[section.id];
@@ -1376,9 +1354,6 @@ export default function SettingsPage() {
         </div>
       </SectionCard>
 
-      <DynamicBgSection t={t} />
-      <SoundThemesSection t={t} />
-      <MiniModeSection t={t} />
       <FontCustomizationSection t={t} />
       <AccessibilitySection t={t} />
       <WindowEffectsSection t={t} />
@@ -1803,8 +1778,6 @@ export default function SettingsPage() {
         </SettingRow>
       </SectionCard>
 
-      <TrustedKeysSection />
-
       <SectionCard id="sec-security-audit" title={t('settings.security.securityAudit')}>
         <SettingRow label={t('settings.security.auditLogShort')}>
           <label className={styles.checkboxLabel}>
@@ -1864,7 +1837,6 @@ export default function SettingsPage() {
         <AuditLogViewer open={auditLogOpen} onClose={() => setAuditLogOpen(false)} />
       </SectionCard>
 
-      <BatterySection t={t} />
       <DownloadSection t={t} addToast={addToast} />
       <NetworkSection t={t} addToast={addToast} />
       <AISection />

@@ -14,9 +14,6 @@ mod loader;
 mod modrinth;
 mod platform;
 pub mod security;
-mod social;
-mod chat;
-mod social_feed;
 mod recommendation;
 mod types;
 mod url_config;
@@ -25,15 +22,12 @@ mod curseforge;
 mod modpackindex;
 mod commands;
 mod web_api;
-mod terracotta;
-mod workflow;
 mod crash_knowledge;
 mod crash_watcher;
 mod mod_compat;
 mod mod_scanner;
 mod server_ping;
 mod mod_watcher;
-mod p2p;
 mod persistent_cache;
 
 pub use config::AppConfig;
@@ -66,11 +60,6 @@ pub struct RunningGame {
 struct AppState {
     launch_state: Arc<Mutex<LaunchState>>,
     running_games: Arc<Mutex<HashMap<String, RunningGame>>>,
-}
-
-pub struct TerracottaState {
-    pub port: tokio::sync::Mutex<Option<u16>>,
-    pub child: tokio::sync::Mutex<Option<std::process::Child>>,
 }
 
 #[derive(serde::Serialize)]
@@ -132,13 +121,9 @@ pub fn run() {
         .manage(AppState { launch_state: Arc::new(Mutex::new(LaunchState::Idle)), running_games: Arc::new(Mutex::new(HashMap::new())) })
         .manage(download::queue::DownloadControlState::new())
         .manage(cache::ApiCache::new())
-        .manage(TerracottaState { port: tokio::sync::Mutex::new(None), child: tokio::sync::Mutex::new(None) })
-        .manage(crate::social::p2p::P2pState::new())
-        .manage(Arc::new(tokio::sync::Mutex::new(crate::p2p::P2PState::new())))
         .manage(commands::cache::PersistentCacheState(Arc::new(parking_lot::Mutex::new(
             persistent_cache::PersistentCache::new(&platform::paths::get_game_dir().to_string_lossy())
         ))))
-        .manage(commands::workflow::WorkflowState(crate::workflow::WorkflowEngine::new()))
         .manage(crate::crash_watcher::CrashWatcherState::new())
         .manage(std::sync::Arc::new(tokio::sync::Mutex::new(mod_scanner::scanner::ScanCache::new())))
         .manage({
@@ -329,32 +314,9 @@ pub fn run() {
             commands::network::get_web_api_status,
             commands::network::start_web_api,
             commands::network::stop_web_api,
-            commands::social::list_friends,
-            commands::social::add_friend,
-            commands::social::remove_friend,
-            commands::social::get_my_peer_id,
-            commands::social::export_identity_key,
-            commands::social::import_identity_key,
-            commands::social::start_social_discovery,
-            commands::social::stop_social_discovery,
-            commands::social::scan_social_peers,
-            commands::social::generate_instance_snapshot,
-            commands::social::compute_coplay_diff,
-            commands::chat::send_message,
-            commands::chat::get_messages,
-            commands::chat::mark_messages_read,
-            commands::chat::get_unread_count,
             commands::network::start_lan_discovery,
             commands::network::stop_lan_discovery,
             commands::network::get_lan_worlds,
-            commands::network::scan_p2p_peers,
-            commands::network::send_file_p2p,
-            commands::social::start_discord_rpc,
-            commands::social::stop_discord_rpc,
-            commands::social::update_discord_presence,
-            commands::social::start_p2p_listener,
-            commands::social::send_p2p_message,
-            commands::social::get_peer_public_key,
             commands::misc::get_launch_profiling_data,
             commands::misc::get_frame_time_data,
             commands::misc::nlp_search_content,
@@ -372,14 +334,6 @@ pub fn run() {
             commands::misc::fix_file_permissions,
             commands::misc::validate_jvm_args,
             commands::misc::get_sandbox_availability,
-            commands::terracotta::download_terracotta,
-            commands::terracotta::is_terracotta_installed,
-            commands::terracotta::start_terracotta,
-            commands::terracotta::stop_terracotta,
-            commands::terracotta::get_terracotta_state,
-            commands::terracotta::terracotta_set_host,
-            commands::terracotta::terracotta_set_guest,
-            commands::terracotta::terracotta_set_idle,
             commands::auth::yggdrasil_login,
             commands::auth::yggdrasil_refresh_token,
             commands::auth::yggdrasil_get_profile,
@@ -408,13 +362,6 @@ pub fn run() {
             commands::auth::download_authlib_injector,
             commands::auth::login_yggdrasil,
 
-            commands::workflow::generate_modpack_plan,
-            commands::workflow::execute_modpack_plan,
-            commands::workflow::execute_crash_fix,
-            commands::workflow::abort_workflow,
-            commands::workflow::get_workflow_status,
-            commands::workflow::rollback_workflow,
-            commands::workflow::check_mod_compatibility,
             commands::crash_watcher::start_crash_watcher,
             commands::crash_watcher::stop_crash_watcher,
 
@@ -441,9 +388,6 @@ pub fn run() {
             commands::server_ping::write_servers_dat,
             commands::mod_watcher::watch_instance_mods,
             commands::mod_watcher::unwatch_instance_mods,
-            commands::p2p::p2p_get_status,
-            commands::p2p::p2p_connect,
-            commands::p2p::p2p_disconnect,
             commands::cache::cache_get,
             commands::cache::cache_set,
             commands::cache::cache_invalidate,
