@@ -51,6 +51,7 @@ export const getRunningGames = () => invoke<RunningGameInfo[]>('get_running_game
 export const resetLaunchState = () => invoke<void>('reset_launch_state');
 export const resetInstanceLaunchState = (instanceId: string, force?: boolean) =>
   invoke<void>('reset_instance_launch_state', { instanceId, force });
+export const cancelLaunch = (instanceId: string) => invoke<void>('cancel_launch', { instanceId });
 
 export const pauseDownload = () => invoke<void>('pause_download');
 export const resumeDownload = () => invoke<void>('resume_download');

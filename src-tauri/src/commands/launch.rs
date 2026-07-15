@@ -154,6 +154,69 @@ pub async fn reset_instance_launch_state(
 }
 
 #[tauri::command]
+pub async fn cancel_launch(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    instance_id: String,
+) -> Result<(), LauncherError> {
+    // 取消运行中的游戏：置 cancel 标记 → kill 进程 → 状态切回 Idle。
+    // 此前无取消能力，用户只能强杀启动器或等游戏自己退出，体验差且
+    // 残留状态需手动 reset。cancel 走状态机合法路径 Running→Idle。
+    let (pid, cancelled) = {
+        let games = state.running_games.lock();
+        let game = games.get(&instance_id)
+            .ok_or_else(|| LauncherError::LaunchFailed(format!("Instance {} is not running", instance_id)))?;
+        let s = game.state.lock();
+        if !matches!(*s, LaunchState::Running | LaunchState::Launching) {
+            return Err(LauncherError::LaunchFailed(format!(
+                "Instance {} is not in a cancellable state: {:?}", instance_id, *s
+            )));
+        }
+        (game.pid, game.cancelled.clone())
+    };
+
+    // 必须在 kill 之前置位：等待线程在 wait() 返回后读取此标记，
+    // 据此把退出归类为 Idle（用户取消）而非 Crashed（崩溃）。
+    cancelled.store(true, std::sync::atomic::Ordering::SeqCst);
+
+    if pid > 0 {
+        // 跨平台终止：Unix 用 kill(SIGTERM) 让 MC 有机会保存世界；
+        // Windows 用 taskkill /T /F 终止进程树（JVM 子进程一并清理）。
+        let kill_result = if cfg!(target_os = "windows") {
+            std::process::Command::new("taskkill")
+                .args(["/PID", &pid.to_string(), "/T", "/F"])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status()
+        } else {
+            std::process::Command::new("kill")
+                .arg(pid.to_string())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status()
+        };
+        if let Err(e) = kill_result {
+            tracing::warn!("Failed to signal process {}: {}", pid, e);
+        }
+    }
+
+    // 立即把状态切到 Idle，前端可即时反馈（等待线程随后会确认 Idle，幂等）。
+    {
+        let games = state.running_games.lock();
+        if let Some(game) = games.get(&instance_id) {
+            let mut s = game.state.lock();
+            *s = LaunchState::Idle;
+        }
+    }
+    let _ = app.emit("launch-state-changed", serde_json::json!({
+        "state": LaunchState::Idle,
+        "instance_id": instance_id,
+    }));
+
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn download_version(
     app: tauri::AppHandle,
     version_id: String,
@@ -167,6 +230,7 @@ pub async fn download_version(
 pub async fn launch_game(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
+    control: tauri::State<'_, DownloadControlState>,
     version_id: String,
     version_url: String,
     username: String,
@@ -220,6 +284,7 @@ pub async fn launch_game(
             pid: 0,
             instance_id: iid.clone(),
             started_at: std::time::Instant::now(),
+            cancelled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         });
         game.state.clone()
     };
@@ -234,6 +299,7 @@ pub async fn launch_game(
         user_type,
         max_memory, min_memory, java_path, jvm_args,
         instance_id,
+        &control,
     ).await;
 
     if let Err(ref e) = result {
@@ -263,6 +329,7 @@ pub(crate) async fn launch_game_inner(
     java_path: Option<String>,
     jvm_args: Option<String>,
     instance_id: Option<String>,
+    control: &DownloadControlState,
 ) -> Result<(), LauncherError> {
     {
         let mut current = launch_state.lock();
@@ -291,7 +358,10 @@ pub(crate) async fn launch_game_inner(
             }
         }
         tracing::info!("Client JAR not found, downloading version {} first", version_id);
-        download_version_inner(&version_id, &version_url, _app.clone(), &DownloadControlState::new()).await?;
+        // 复用 tauri::State 中托管的 DownloadControlState：此前 new() 了一个
+        // 全新实例，用户的暂停/取消按钮无法作用到启动期自动下载，点取消后
+        // 后台仍在下，体验割裂。复用后取消/暂停立即生效。
+        download_version_inner(&version_id, &version_url, _app.clone(), control).await?;
         // 下载完成后强制重置为 Idle（Downloading → Idle 是非法转换，但此处需要重置
         // 以便后续 LaunchProcess::launch 从 Idle 开始正常状态机流程）。
         {

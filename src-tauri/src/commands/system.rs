@@ -133,9 +133,9 @@ pub async fn quick_start(
     let mem = auto_tune_memory();
     tracing::info!("Quick start: {} ({}MB RAM)", latest_release.id, mem);
 
-    crate::commands::launch::download_version(app.clone(), latest_release.id.clone(), latest_release.url.clone(), control).await?;
+    crate::commands::launch::download_version(app.clone(), latest_release.id.clone(), latest_release.url.clone(), control.clone()).await?;
     crate::commands::launch::launch_game(
-        app, state,
+        app, state, control,
         latest_release.id.clone(), latest_release.url.clone(),
         auth.username, auth.uuid, auth.access_token,
         Some(mem), Some(256), None, None, None,

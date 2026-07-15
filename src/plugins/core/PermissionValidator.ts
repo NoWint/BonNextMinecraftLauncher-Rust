@@ -153,6 +153,7 @@ const COMMAND_PERMISSION_MAP: Record<string, string> = {
   get_running_games: 'core:launch',
   reset_launch_state: 'core:launch',
   reset_instance_launch_state: 'core:launch',
+  cancel_launch: 'core:launch',
   pre_launch_check: 'core:launch',
   warmup_launch: 'core:launch',
   cli_launch: 'core:launch',

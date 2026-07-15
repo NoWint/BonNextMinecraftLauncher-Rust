@@ -228,10 +228,12 @@ impl LaunchProcess {
 
         // Drain stdout and stderr pipes continuously to prevent buffer exhaustion.
         // The OS pipe buffer is typically 64KB; if not drained, the game blocks on write().
+        // 保留 JoinHandle，进程退出后 join，确保状态切换前所有 stdout/stderr 落盘
+        // （此前丢弃 handle，崩溃时末尾日志可能丢失，影响诊断）。
         let child_stdout = child.stdout.take();
         let child_stderr = child.stderr.take();
 
-        if let Some(stdout) = child_stdout {
+        let stdout_handle = child_stdout.map(|stdout| {
             let app_stdout = self.app_handle.clone();
             std::thread::spawn(move || {
                 let mut reader = std::io::BufReader::new(stdout);
@@ -254,10 +256,10 @@ impl LaunchProcess {
                         Err(_) => break,
                     }
                 }
-            });
-        }
+            })
+        });
 
-        if let Some(stderr) = child_stderr {
+        let stderr_handle = child_stderr.map(|stderr| {
             let app_stderr = self.app_handle.clone();
             std::thread::spawn(move || {
                 let mut reader = std::io::BufReader::new(stderr);
@@ -277,8 +279,8 @@ impl LaunchProcess {
                         Err(_) => break,
                     }
                 }
-            });
-        }
+            })
+        });
 
         // Wait for the process to exit
         let state_clone = self.state.clone();
@@ -288,16 +290,32 @@ impl LaunchProcess {
         let launch_start_clone = launch_start;
         let app_handle_for_exit = self.app_handle.clone();
         std::thread::spawn(move || {
+            // 先 join drain 线程：进程退出后管道 EOF，drain 线程 read 返回 0 自然退出。
+            // join 保证状态切换时 stdout/stderr 已全部读取，崩溃末尾日志不丢。
+            if let Some(h) = stdout_handle { let _ = h.join(); }
+            if let Some(h) = stderr_handle { let _ = h.join(); }
+
             let output = child.wait();
             let elapsed = launch_instant.elapsed().as_secs();
 
-            if elapsed < 2 {
-                std::thread::sleep(std::time::Duration::from_millis(500));
-            }
+            // 读取 cancel 标记：cancel_launch 在 kill 前置位，故 wait 返回时已可见。
+            // 注意必须在持有 games 锁时 load（返回 bool，Copy），不能返回 &RunningGame
+            // 否则引用逃逸出 MutexGuard 生命周期。
+            let was_cancelled = running_games_for_exit.as_ref()
+                .and_then(|games| {
+                    let g = games.lock();
+                    instance_id_for_exit.as_ref().and_then(|iid| {
+                        g.get(iid).map(|e| e.cancelled.load(std::sync::atomic::Ordering::SeqCst))
+                    })
+                })
+                .unwrap_or(false);
 
             match output {
                 Ok(status) => {
-                    let new_state = if status.success() {
+                    let new_state = if was_cancelled {
+                        tracing::info!("Game was cancelled by user after {}s", elapsed);
+                        LaunchState::Idle
+                    } else if status.success() {
                         tracing::info!("Game exited normally after {}s", elapsed);
                         LaunchState::Exited
                     } else {
@@ -318,9 +336,8 @@ impl LaunchProcess {
                             "instance_id": instance_id_for_exit,
                         }));
                     }
-                    crate::auth::skin_server::stop_skin_server();
                     if let Some(ref iid) = instance_id_for_exit {
-                        if elapsed > 0 {
+                        if elapsed > 0 && !was_cancelled {
                             if let Err(e) = instance::manager::update_playtime(iid, elapsed) {
                                 tracing::warn!("Failed to record playtime for {}: {}", iid, e);
                             }
@@ -345,12 +362,16 @@ impl LaunchProcess {
                     drop(state);
                 }
             }
+            // 无条件停止皮肤服务器：此前仅 Ok 分支停止，Err 分支
+            // （wait 失败）会泄漏 axum 监听任务，下次启动端口冲突。
+            crate::auth::skin_server::stop_skin_server();
             if let Some(ref games) = running_games_for_exit {
                 if let Some(ref iid) = instance_id_for_exit {
                     let mut g = games.lock();
                     if let Some(entry) = g.get_mut(iid) {
                         let s = entry.state.lock();
-                        if matches!(*s, LaunchState::Exited | LaunchState::Crashed | LaunchState::Error) {
+                        // Idle 也算终态（cancel 路径），需清理 pid。
+                        if matches!(*s, LaunchState::Exited | LaunchState::Crashed | LaunchState::Error | LaunchState::Idle) {
                             drop(s);
                             entry.pid = 0;
                             tracing::info!("Instance {} marked as terminated, waiting for reset", iid);

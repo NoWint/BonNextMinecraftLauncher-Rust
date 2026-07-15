@@ -8,7 +8,14 @@ import * as collections from './collections';
 import * as content from './content';
 import * as security from './security';
 import * as system from './system';
-import { invalidateCache, persistentCacheGet, persistentCacheSet, persistentCacheInvalidate, persistentCacheEvictExpired, twoLayerCachedInvoke } from './cache';
+import {
+  invalidateCache,
+  persistentCacheGet,
+  persistentCacheSet,
+  persistentCacheInvalidate,
+  persistentCacheEvictExpired,
+  twoLayerCachedInvoke,
+} from './cache';
 import { socialApi } from './social';
 import { chatApi } from './chat';
 import { modpackindexApi } from './modpackindex';
@@ -23,8 +30,25 @@ import * as shell from './shell';
 export type * from './types';
 export type { MojangProfile, YggdrasilServerPreset } from './auth';
 export type { ServerListEntry, MinecraftServerInfo, PingResult, ServerAddress, BatchPingResult } from './servers';
-export { invalidateCache, persistentCacheGet, persistentCacheSet, persistentCacheInvalidate, persistentCacheEvictExpired, twoLayerCachedInvoke } from './cache';
-export { getActiveShell, setActiveShell, scanCustomShells, importCustomShell, removeCustomShell, getCustomShellEntry, getCustomShellCss, saveShellConfig, loadShellConfig } from './shell';
+export {
+  invalidateCache,
+  persistentCacheGet,
+  persistentCacheSet,
+  persistentCacheInvalidate,
+  persistentCacheEvictExpired,
+  twoLayerCachedInvoke,
+} from './cache';
+export {
+  getActiveShell,
+  setActiveShell,
+  scanCustomShells,
+  importCustomShell,
+  removeCustomShell,
+  getCustomShellEntry,
+  getCustomShellCss,
+  saveShellConfig,
+  loadShellConfig,
+} from './shell';
 
 const downloadVersion = (versionId: string, versionUrl: string) =>
   invoke<void>('download_version', { versionId, versionUrl });
@@ -45,6 +69,7 @@ export const api = {
   getRunningGames: versions.getRunningGames,
   resetLaunchState: versions.resetLaunchState,
   resetInstanceLaunchState: versions.resetInstanceLaunchState,
+  cancelLaunch: versions.cancelLaunch,
 
   getConfig: instances.getConfig,
   saveConfig: instances.saveConfig,

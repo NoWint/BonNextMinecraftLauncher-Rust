@@ -55,6 +55,9 @@ pub struct RunningGame {
     pub pid: u32,
     pub instance_id: String,
     pub started_at: std::time::Instant,
+    // 用户主动取消（cancel_launch）标记。等待线程据此把退出归类为 Idle
+    // 而非 Crashed，避免取消后弹出“崩溃”误导。
+    pub cancelled: Arc<std::sync::atomic::AtomicBool>,
 }
 
 struct AppState {
@@ -139,6 +142,7 @@ pub fn run() {
             commands::launch::get_running_games,
             commands::launch::reset_launch_state,
             commands::launch::reset_instance_launch_state,
+            commands::launch::cancel_launch,
             commands::launch::pre_launch_check,
             commands::config::get_config,
             commands::config::save_config,

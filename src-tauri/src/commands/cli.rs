@@ -15,6 +15,7 @@ pub struct BatteryStatus {
 pub async fn cli_launch(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
+    control: tauri::State<'_, crate::download::queue::DownloadControlState>,
     instance_id: String,
 ) -> Result<(), LauncherError> {
     let inst = instance::manager::get_instance(&instance_id)?
@@ -58,6 +59,7 @@ pub async fn cli_launch(
         inst.java_path,
         inst.jvm_args,
         Some(instance_id),
+        &control,
     )
     .await
 }

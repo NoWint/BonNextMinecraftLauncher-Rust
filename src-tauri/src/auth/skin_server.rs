@@ -13,8 +13,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-static HANDLE_LOCK: parking_lot::Mutex<()> = parking_lot::Mutex::new(());
-static mut ACTIVE_HANDLE: Option<SkinServerHandle> = None;
+// 此前用 `static mut ACTIVE_HANDLE` + `HANDLE_LOCK` 互斥锁保护写入，
+// 但 Rust 别名规则下 `static mut` 的并发访问即使加锁也是未定义行为
+// (https://doc.rust-lang.org/reference/behavior-considered-undefined.html)。
+// 改为 `Mutex<Option<SkinServerHandle>>`，把内部可变性收进 Mutex，消除 unsafe。
+static ACTIVE_HANDLE: parking_lot::Mutex<Option<SkinServerHandle>> = parking_lot::Mutex::new(None);
 
 #[derive(Debug, Clone)]
 struct SkinEntry {
@@ -50,25 +53,19 @@ impl Drop for SkinServerHandle {
 }
 
 pub fn set_active_handle(handle: SkinServerHandle) {
-    let _lock = HANDLE_LOCK.lock();
-    stop_skin_server_internal();
-    unsafe {
-        ACTIVE_HANDLE = Some(handle);
+    let mut guard = ACTIVE_HANDLE.lock();
+    if let Some(ref mut old) = *guard {
+        old.stop();
     }
+    *guard = Some(handle);
 }
 
 pub fn stop_skin_server() {
-    let _lock = HANDLE_LOCK.lock();
-    stop_skin_server_internal();
-}
-
-fn stop_skin_server_internal() {
-    unsafe {
-        if let Some(ref mut handle) = ACTIVE_HANDLE {
-            handle.stop();
-        }
-        ACTIVE_HANDLE = None;
+    let mut guard = ACTIVE_HANDLE.lock();
+    if let Some(ref mut handle) = *guard {
+        handle.stop();
     }
+    *guard = None;
 }
 
 pub async fn start_skin_server(

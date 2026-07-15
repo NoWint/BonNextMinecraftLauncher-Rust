@@ -26,7 +26,10 @@ impl LaunchState {
             LaunchState::Downloading => matches!(next, LaunchState::Checking | LaunchState::Validating | LaunchState::Error),
             LaunchState::Validating => matches!(next, LaunchState::Launching | LaunchState::Error),
             LaunchState::Launching => matches!(next, LaunchState::Running | LaunchState::Crashed | LaunchState::Error),
-            LaunchState::Running => matches!(next, LaunchState::Exited | LaunchState::Crashed),
+            // Running → Idle：仅用于用户主动取消（cancel_launch）。
+            // 与崩溃/正常退出的 Exited/Crashed 区分：cancel 是用户意图，
+            // 直接回到 Idle 终态，前端立即允许重新启动。
+            LaunchState::Running => matches!(next, LaunchState::Exited | LaunchState::Crashed | LaunchState::Idle),
             LaunchState::Exited | LaunchState::Crashed | LaunchState::Error => matches!(next, LaunchState::Idle),
         }
     }
@@ -194,8 +197,13 @@ mod tests {
     }
 
     #[test]
+    fn valid_transition_running_to_idle_cancel() {
+        // cancel_launch 主动取消：Running → Idle 合法
+        assert!(LaunchState::Running.can_transition_to(LaunchState::Idle));
+    }
+
+    #[test]
     fn invalid_transitions_from_running() {
-        assert!(!LaunchState::Running.can_transition_to(LaunchState::Idle));
         assert!(!LaunchState::Running.can_transition_to(LaunchState::Checking));
         assert!(!LaunchState::Running.can_transition_to(LaunchState::Downloading));
         assert!(!LaunchState::Running.can_transition_to(LaunchState::Validating));
