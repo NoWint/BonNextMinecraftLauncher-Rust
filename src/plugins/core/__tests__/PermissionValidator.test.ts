@@ -77,4 +77,48 @@ describe('PermissionValidator', () => {
     expect(v.canInvoke('list_instances')).toBe(true);
     expect(v.canInvoke('create_instance')).toBe(false);
   });
+
+  it('should grant core:world:write for backup_world', () => {
+    const v = new PermissionValidator(['invoke:core:world:write']);
+    expect(v.canInvoke('backup_world')).toBe(true);
+    expect(v.canInvoke('restore_world')).toBe(true);
+    expect(v.canInvoke('delete_world')).toBe(true);
+  });
+
+  it('should deny core:world:write commands with only core:world (read-only)', () => {
+    const v = new PermissionValidator(['invoke:core:world']);
+    expect(v.canInvoke('list_instance_saves')).toBe(true);
+    expect(v.canInvoke('backup_world')).toBe(false);
+  });
+
+  it('should grant core:world:write via parent core:world permission', () => {
+    const v = new PermissionValidator(['invoke:core:world:write']);
+    // 子命名空间权限不自动授予父命名空间的所有命令
+    expect(v.canInvoke('list_instance_saves')).toBe(false);
+  });
+
+  it('should grant system:plugins for install_plugin', () => {
+    const v = new PermissionValidator(['invoke:system:plugins']);
+    expect(v.canInvoke('install_plugin')).toBe(true);
+    expect(v.canInvoke('uninstall_plugin')).toBe(true);
+    expect(v.canInvoke('verify_plugin_signature_command')).toBe(true);
+  });
+
+  it('should deny system:plugins commands with invoke:core (isolation)', () => {
+    const v = new PermissionValidator(['invoke:core']);
+    // system:plugins 必须显式授权，invoke:core 不应自动授予
+    expect(v.canInvoke('install_plugin')).toBe(false);
+    expect(v.canInvoke('list_trusted_keys')).toBe(false);
+  });
+
+  it('should grant list_instance_schematics under core:content:read', () => {
+    const v = new PermissionValidator(['invoke:core:content:read']);
+    expect(v.canInvoke('list_instance_schematics')).toBe(true);
+  });
+
+  it('should grant list_world_backups under core:world (read)', () => {
+    const v = new PermissionValidator(['invoke:core:world']);
+    expect(v.canInvoke('list_world_backups')).toBe(true);
+    expect(v.canInvoke('delete_world_backup')).toBe(false);
+  });
 });

@@ -284,6 +284,7 @@ const COMMAND_PERMISSION_MAP: Record<string, string> = {
   list_instance_mods: 'core:content:read',
   list_instance_resourcepacks: 'core:content:read',
   list_instance_shaders: 'core:content:read',
+  list_instance_schematics: 'core:content:read',
   get_content_counts: 'core:content:read',
   check_mod_updates: 'core:content:read',
   is_mod_pinned: 'core:content:read',
@@ -300,12 +301,40 @@ const COMMAND_PERMISSION_MAP: Record<string, string> = {
   get_minecraft_article: 'core:news',
   open_url: 'core:news',
 
-  // ===== core:world =====
+  // ===== core:world (read-only) =====
+  // 存档/日志读取属于读操作；写操作（备份/恢复/删除/重命名/导入）拆到 core:world:write
   list_instance_saves: 'core:world',
-  export_world: 'core:world',
   list_instance_logs: 'core:world',
   read_log_file: 'core:world',
   get_recent_logs: 'core:world',
+  list_world_backups: 'core:world',
+
+  // ===== core:world:write =====
+  // 之前 bug：export_world/backup_world/restore_world/delete_world_backup/import_world/delete_world/rename_world/duplicate_world
+  // 全部未映射 → 任何插件调用 backup_world 等都会 fail-closed，相当于功能死代码。
+  export_world: 'core:world:write',
+  backup_world: 'core:world:write',
+  restore_world: 'core:world:write',
+  delete_world_backup: 'core:world:write',
+  import_world: 'core:world:write',
+  delete_world: 'core:world:write',
+  rename_world: 'core:world:write',
+  duplicate_world: 'core:world:write',
+
+  // ===== system:plugins =====
+  // 插件管理命令：极度敏感（可安装/卸载/签名验证插件），独立命名空间
+  // 与 core:* 隔离，invoke:core 父级权限不会自动授予这些命令。
+  // plugin_proxy::plugin_http_get 等是沙箱宿主上下文调用的基础设施命令
+  // （由 PluginHttpClient/PluginStorage/PluginFileSystem 通过 invoke 直接调用，
+  // 后端用 session token 验证权限），不在此映射中——这是有意为之的 fail-closed。
+  list_installed_plugins: 'system:plugins',
+  install_plugin: 'system:plugins',
+  uninstall_plugin: 'system:plugins',
+  get_plugin_manifest: 'system:plugins',
+  list_trusted_keys: 'system:plugins',
+  add_trusted_key: 'system:plugins',
+  remove_trusted_key: 'system:plugins',
+  verify_plugin_signature_command: 'system:plugins',
 
   // ===== core:achievement =====
   get_achievements: 'core:achievement',
