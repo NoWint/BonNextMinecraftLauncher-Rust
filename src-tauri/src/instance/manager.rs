@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Read, Write};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::Emitter;
@@ -460,7 +460,14 @@ fn extract_zip_overrides(
     prefixes: &[&str],
     dest_base: &std::path::Path,
 ) -> Result<u32, LauncherError> {
+    // Zip bomb 防护：modpack overrides 理论上是配置/小资源文件，
+    // 单文件 >512MB 或总计 >4GB 几乎必然是恶意压缩炸弹。
+    // 用 take() 限制实际读取字节数（而非仅信任 zip 声明的 size），
+    // 可拦截“声明小、实际解压大”的伪造 zip。
+    const MAX_ENTRY_BYTES: u64 = 512 * 1024 * 1024;
+    const MAX_TOTAL_BYTES: u64 = 4 * 1024 * 1024 * 1024;
     let mut extracted: u32 = 0;
+    let mut total: u64 = 0;
     for i in 0..archive.len() {
         let entry = archive.by_index(i)?;
         let name = entry.name().to_string();
@@ -469,6 +476,12 @@ fn extract_zip_overrides(
             .find_map(|p| name.strip_prefix(p))
             .unwrap_or("");
         if relative.is_empty() { continue; }
+        // 预检：按 zip 声明的未压缩大小提前跳过明显过大的条目，
+        // 避免为恶意大文件创建磁盘文件。下方 take() 再兜底拦截谎报者。
+        if entry.size() > MAX_ENTRY_BYTES {
+            tracing::warn!("Skipping oversized zip entry ({} bytes): {}", entry.size(), name);
+            continue;
+        }
         if let Some(safe_relative) = safe_extract_path(relative) {
             let dest = dest_base.join(&safe_relative);
             if let Some(parent) = dest.parent() {
@@ -476,7 +489,22 @@ fn extract_zip_overrides(
             }
             let mut entry = entry;
             let mut out = std::fs::File::create(&dest)?;
-            std::io::copy(&mut entry, &mut out)?;
+            // take(MAX+1)：若实际拷贝 > MAX 说明条目超限（zip 谎报大小），中止。
+            let copied = std::io::copy(&mut (&mut entry).take(MAX_ENTRY_BYTES + 1), &mut out)?;
+            if copied > MAX_ENTRY_BYTES {
+                let _ = std::fs::remove_file(&dest);
+                return Err(LauncherError::Other(format!(
+                    "Zip entry exceeded {} byte limit (possible zip bomb): {}",
+                    MAX_ENTRY_BYTES, name
+                )));
+            }
+            total = total.saturating_add(copied);
+            if total > MAX_TOTAL_BYTES {
+                let _ = std::fs::remove_file(&dest);
+                return Err(LauncherError::Other(
+                    "Zip total uncompressed size exceeded 4GB limit (possible zip bomb)".into()
+                ));
+            }
             extracted += 1;
         }
     }

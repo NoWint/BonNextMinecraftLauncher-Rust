@@ -12,6 +12,7 @@ use crate::AppState;
 use parking_lot::Mutex;
 use serde::Deserialize;
 use serde::Serialize;
+use std::io::Read;
 use std::sync::Arc;
 use tauri::Emitter;
 
@@ -214,6 +215,50 @@ pub async fn cancel_launch(
     }));
 
     Ok(())
+}
+
+/// 运行实例配置的启动前命令（pre_launch_command）。
+/// 跨平台：Unix sh -c，Windows cmd /C。带 60s 超时，避免用户脚本卡死启动流程。
+/// 失败仅记录日志不传播：用户自定义命令不应阻断游戏启动主流程（与 Prism 行为一致）。
+async fn run_pre_launch_command(cmd: &str) {
+    if cmd.trim().is_empty() { return; }
+    tracing::info!("Running pre-launch command: {}", cmd);
+    let cmd = cmd.to_string();
+    let timeout_result = tokio::time::timeout(
+        std::time::Duration::from_secs(60),
+        tokio::task::spawn_blocking(move || {
+            let mut command = if cfg!(target_os = "windows") {
+                let mut c = std::process::Command::new("cmd");
+                c.arg("/C").arg(&cmd);
+                c
+            } else {
+                let mut c = std::process::Command::new("sh");
+                c.arg("-c").arg(&cmd);
+                c
+            };
+            command.stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped());
+            match command.spawn() {
+                Ok(child) => match child.wait_with_output() {
+                    Ok(o) => {
+                        if !o.stdout.is_empty() {
+                            tracing::info!("pre-launch stdout: {}", String::from_utf8_lossy(&o.stdout).trim_end());
+                        }
+                        if !o.stderr.is_empty() {
+                            tracing::warn!("pre-launch stderr: {}", String::from_utf8_lossy(&o.stderr).trim_end());
+                        }
+                        if !o.status.success() {
+                            tracing::warn!("pre-launch command exited with code: {:?}", o.status.code());
+                        }
+                    }
+                    Err(e) => tracing::warn!("pre-launch command wait failed: {}", e),
+                },
+                Err(e) => tracing::warn!("pre-launch command spawn failed: {}", e),
+            }
+        }),
+    ).await;
+    if timeout_result.is_err() {
+        tracing::warn!("pre-launch command timed out after 60s, continuing launch anyway");
+    }
 }
 
 #[tauri::command]
@@ -481,12 +526,31 @@ pub(crate) async fn launch_game_inner(
         resolved.java_version.major_version,
     );
 
+    // 实例 pre/post 自定义命令：此前 InstanceConfig 的 pre_launch_command /
+    // post_exit_command 字段存在但从未被读取执行，是误导性死字段。现接入：
+    // pre_launch 在 spawn 前运行（阻塞启动，带超时），post_exit 在游戏退出后
+    // 由等待线程触发（fire-and-forget，不阻塞状态清理）。
+    let (pre_cmd, post_cmd) = if let Some(ref iid) = instance_id {
+        match instance::manager::get_instance(iid) {
+            Ok(Some(inst)) => (inst.pre_launch_command, inst.post_exit_command),
+            _ => (None, None),
+        }
+    } else {
+        (None, None)
+    };
+    if let Some(ref pre) = pre_cmd {
+        run_pre_launch_command(pre).await;
+    }
+
     let instance_settings = InstanceSettings { id: instance_id.clone(), max_memory, min_memory, java_path, jvm_args, user_type: Some(user_type), debug_mode: None, debug_port: None };
     let ctx = LaunchContext::build(resolved, original_version_id, username, uuid, access_token, Some(instance_settings))?;
     let mut launcher = LaunchProcess::with_app_handle(launch_state, _app.clone())
         .with_running_games(running_games);
     if let Some(ref iid) = instance_id {
         launcher = launcher.with_instance_id(iid.clone());
+    }
+    if let Some(post) = post_cmd {
+        launcher = launcher.with_post_exit_command(post);
     }
     let result = launcher.launch(ctx).await;
     if result.is_ok() {
@@ -729,6 +793,14 @@ fn extract_natives(jar_path: &std::path::Path, natives_dir: &std::path::Path) ->
     let mut archive = zip::ZipArchive::new(file)?;
     std::fs::create_dir_all(natives_dir)?;
 
+    // Zip bomb 防护：natives 单个 .so/.dll/.dylib 通常 <50MB，
+    // 单条目 >256MB 或总计 >1GB 几乎必然是恶意构造。
+    // file_name() 已阻断路径穿越（仅取文件名丢弃目录部分），
+    // 此处再加大小上限兜底，防御伪造的 natives jar。
+    const MAX_NATIVE_ENTRY_BYTES: u64 = 256 * 1024 * 1024;
+    const MAX_NATIVE_TOTAL_BYTES: u64 = 1024 * 1024 * 1024;
+    let mut total: u64 = 0;
+
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i)?;
         let name = entry.name().to_string();
@@ -743,6 +815,10 @@ fn extract_natives(jar_path: &std::path::Path, natives_dir: &std::path::Path) ->
         };
 
         if is_platform_native {
+            if entry.size() > MAX_NATIVE_ENTRY_BYTES {
+                tracing::warn!("Skipping oversized native entry ({} bytes): {}", entry.size(), name);
+                continue;
+            }
             if let Some(file_name) = std::path::Path::new(&name).file_name() {
                 let out_path = natives_dir.join(file_name);
 
@@ -755,13 +831,35 @@ fn extract_natives(jar_path: &std::path::Path, natives_dir: &std::path::Path) ->
                         .truncate(true)
                         .mode(0o755)
                         .open(&out_path)?;
-                    std::io::copy(&mut entry, &mut out)?;
+                    let copied = std::io::copy(&mut (&mut entry).take(MAX_NATIVE_ENTRY_BYTES + 1), &mut out)?;
+                    if copied > MAX_NATIVE_ENTRY_BYTES {
+                        let _ = std::fs::remove_file(&out_path);
+                        return Err(LauncherError::Other(format!(
+                            "Native zip entry exceeded {} byte limit (possible zip bomb): {}",
+                            MAX_NATIVE_ENTRY_BYTES, name
+                        )));
+                    }
+                    total = total.saturating_add(copied);
                 }
 
                 #[cfg(not(unix))]
                 {
                     let mut out = std::fs::File::create(&out_path)?;
-                    std::io::copy(&mut entry, &mut out)?;
+                    let copied = std::io::copy(&mut (&mut entry).take(MAX_NATIVE_ENTRY_BYTES + 1), &mut out)?;
+                    if copied > MAX_NATIVE_ENTRY_BYTES {
+                        let _ = std::fs::remove_file(&out_path);
+                        return Err(LauncherError::Other(format!(
+                            "Native zip entry exceeded {} byte limit (possible zip bomb): {}",
+                            MAX_NATIVE_ENTRY_BYTES, name
+                        )));
+                    }
+                    total = total.saturating_add(copied);
+                }
+
+                if total > MAX_NATIVE_TOTAL_BYTES {
+                    return Err(LauncherError::Other(
+                        "Native zip total uncompressed size exceeded 1GB limit (possible zip bomb)".into()
+                    ));
                 }
             }
         }

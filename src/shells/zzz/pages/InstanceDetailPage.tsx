@@ -1,4 +1,13 @@
-import { useState, useEffect, useCallback, useMemo, lazy, Suspense, type LazyExoticComponent, type ComponentType } from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  lazy,
+  Suspense,
+  type LazyExoticComponent,
+  type ComponentType,
+} from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   api,
@@ -224,7 +233,8 @@ export default function InstanceDetailPage() {
   useEffect(() => {
     if (activeTab === 'resourcepacks' && instanceId) {
       setResourcePacksLoading(true);
-      api.listInstanceResourcepacks(instanceId)
+      api
+        .listInstanceResourcepacks(instanceId)
         .then(setResourcePacks)
         .catch(() => setResourcePacks([]))
         .finally(() => setResourcePacksLoading(false));
@@ -234,7 +244,8 @@ export default function InstanceDetailPage() {
   useEffect(() => {
     if (activeTab === 'schematics' && instanceId) {
       setSchematicsLoading(true);
-      api.listInstanceSchematics(instanceId)
+      api
+        .listInstanceSchematics(instanceId)
         .then(setSchematics)
         .catch(() => setSchematics([]))
         .finally(() => setSchematicsLoading(false));
@@ -342,9 +353,7 @@ export default function InstanceDetailPage() {
     setTogglingMod(filename);
     try {
       const newEnabled = await api.toggleMod(instanceId, filename);
-      setInstalledMods((prev) =>
-        prev.map((m) => (m.filename === filename ? { ...m, enabled: newEnabled } : m)),
-      );
+      setInstalledMods((prev) => prev.map((m) => (m.filename === filename ? { ...m, enabled: newEnabled } : m)));
     } catch (e: unknown) {
       addToast({ type: 'error', title: t('library.toggleModFailed'), message: formatError(e) });
     } finally {
@@ -371,9 +380,7 @@ export default function InstanceDetailPage() {
     for (const mod of targets) {
       try {
         const newEnabled = await api.toggleMod(instanceId, mod.filename);
-        setInstalledMods((prev) =>
-          prev.map((m) => (m.filename === mod.filename ? { ...m, enabled: newEnabled } : m)),
-        );
+        setInstalledMods((prev) => prev.map((m) => (m.filename === mod.filename ? { ...m, enabled: newEnabled } : m)));
       } catch {
         /* 静默忽略单个失败 */
       }
@@ -442,7 +449,10 @@ export default function InstanceDetailPage() {
   // ═══════════════════════════════════════════════════════════════════
   const refreshWorlds = useCallback(() => {
     if (!instanceId) return;
-    api.listInstanceSaves(instanceId).then(setWorlds).catch(() => {});
+    api
+      .listInstanceSaves(instanceId)
+      .then(setWorlds)
+      .catch(() => {});
   }, [instanceId]);
 
   const refreshBackups = useCallback(async () => {
@@ -480,7 +490,11 @@ export default function InstanceDetailPage() {
     setRestoringBackup(backupFilename);
     try {
       const restoredName = await api.restoreWorld(instanceId, backupFilename);
-      addToast({ type: 'success', title: t('instanceDetail.restoreBackup'), message: t('instanceDetail.restoreSuccess', { name: restoredName }) });
+      addToast({
+        type: 'success',
+        title: t('instanceDetail.restoreBackup'),
+        message: t('instanceDetail.restoreSuccess', { name: restoredName }),
+      });
       refreshWorlds();
     } catch (e: unknown) {
       addToast({ type: 'error', title: t('instanceDetail.restoreFailed'), message: formatError(e) });
@@ -525,7 +539,11 @@ export default function InstanceDetailPage() {
       });
       if (selected && typeof selected === 'string') {
         const worldName = await api.importWorld(instanceId, selected);
-        addToast({ type: 'success', title: t('instanceDetail.importWorld'), message: t('instanceDetail.importWorldSuccess', { name: worldName }) });
+        addToast({
+          type: 'success',
+          title: t('instanceDetail.importWorld'),
+          message: t('instanceDetail.importWorldSuccess', { name: worldName }),
+        });
         refreshWorlds();
       }
     } catch (e: unknown) {
@@ -579,7 +597,12 @@ export default function InstanceDetailPage() {
       { id: 'sep2', label: '', separator: true, action: () => {} },
       { id: 'openFolder', label: t('instanceDetail.openWorldFolder'), action: () => handleOpenWorldFolder(world.name) },
       { id: 'sep3', label: '', separator: true, action: () => {} },
-      { id: 'delete', label: t('instanceDetail.deleteWorld'), danger: true, action: () => handleDeleteWorld(world.name) },
+      {
+        id: 'delete',
+        label: t('instanceDetail.deleteWorld'),
+        danger: true,
+        action: () => handleDeleteWorld(world.name),
+      },
     ];
     showContextMenu(e, items);
   };
@@ -884,10 +907,7 @@ export default function InstanceDetailPage() {
   }, [pluginTabs]);
   const DETAIL_TABS = useMemo(() => {
     const base = buildDetailTabs(t, installedMods.length);
-    return [
-      ...base,
-      ...pluginTabs.map((tab) => ({ id: tab.id, label: tab.label })),
-    ];
+    return [...base, ...pluginTabs.map((tab) => ({ id: tab.id, label: tab.label }))];
   }, [t, installedMods.length, pluginTabs]);
 
   // 过滤后的模组列表（搜索 + 启用/禁用过滤）
@@ -930,18 +950,36 @@ export default function InstanceDetailPage() {
           {iconUrl ? (
             <img src={iconUrl} alt={instance.name} className={styles.topBarIconImg} onError={() => setIconUrl(null)} />
           ) : (
-            <span className={styles.topBarIconEmoji}><Icon name={getLoaderIcon(instance.loader_type)} size={28} /></span>
+            <span className={styles.topBarIconEmoji}>
+              <Icon name={getLoaderIcon(instance.loader_type)} size={28} />
+            </span>
           )}
-          {iconStatus === 'loading' && <span className={styles.iconStatusOverlay}><Icon name="hourglass" size={12} /></span>}
-          {iconStatus === 'success' && <span className={styles.iconStatusOverlay}><Icon name="check" size={12} /></span>}
-          {iconStatus === 'error' && <span className={styles.iconStatusOverlay}><Icon name="cross" size={12} /></span>}
+          {iconStatus === 'loading' && (
+            <span className={styles.iconStatusOverlay}>
+              <Icon name="hourglass" size={12} />
+            </span>
+          )}
+          {iconStatus === 'success' && (
+            <span className={styles.iconStatusOverlay}>
+              <Icon name="check" size={12} />
+            </span>
+          )}
+          {iconStatus === 'error' && (
+            <span className={styles.iconStatusOverlay}>
+              <Icon name="cross" size={12} />
+            </span>
+          )}
         </div>
         <div className={styles.topBarInfo}>
           <div className={styles.topBarNameRow}>
             <span className={styles.topBarName}>{instance.name.toUpperCase()}</span>
             <Badge variant="accent">{instance.version_id}</Badge>
             {instance.loader_type && <Badge variant="muted">{instance.loader_type}</Badge>}
-            {isReady !== null && <span style={{ fontSize: '0.6em' }}>{isReady ? <Icon name="checkCircle" size={12} /> : <Icon name="warning" size={12} />}</span>}
+            {isReady !== null && (
+              <span style={{ fontSize: '0.6em' }}>
+                {isReady ? <Icon name="checkCircle" size={12} /> : <Icon name="warning" size={12} />}
+              </span>
+            )}
           </div>
           <div className={styles.topBarMeta}>
             <span className={styles.topBarMetaText}>
@@ -971,7 +1009,8 @@ export default function InstanceDetailPage() {
           </Tooltip>
           <Tooltip content={t('instanceDetail.healthCheck')}>
             <Button variant="secondary" size="sm" onClick={handleHealthCheck} disabled={healthLoading}>
-              <Icon name="lightbulb" size={14} /> {healthLoading ? t('common.checking') : t('instanceDetail.healthCheck')}
+              <Icon name="lightbulb" size={14} />{' '}
+              {healthLoading ? t('common.checking') : t('instanceDetail.healthCheck')}
             </Button>
           </Tooltip>
         </div>
@@ -1006,30 +1045,43 @@ export default function InstanceDetailPage() {
                   { id: 'root', label: t('instanceDetail.folderGameDir'), action: () => handleOpenSubFolder('') },
                   { id: 'mods', label: t('instanceDetail.folderMods'), action: () => handleOpenSubFolder('mods') },
                   { id: 'saves', label: t('instanceDetail.folderSaves'), action: () => handleOpenSubFolder('saves') },
-                  { id: 'resourcepacks', label: t('instanceDetail.folderResourcePacks'), action: () => handleOpenSubFolder('resourcepacks') },
-                  { id: 'shaderpacks', label: t('instanceDetail.folderShaderPacks'), action: () => handleOpenSubFolder('shaderpacks') },
-                  { id: 'screenshots', label: t('instanceDetail.folderScreenshots'), action: () => handleOpenSubFolder('screenshots') },
-                  { id: 'config', label: t('instanceDetail.folderConfig'), action: () => handleOpenSubFolder('config') },
+                  {
+                    id: 'resourcepacks',
+                    label: t('instanceDetail.folderResourcePacks'),
+                    action: () => handleOpenSubFolder('resourcepacks'),
+                  },
+                  {
+                    id: 'shaderpacks',
+                    label: t('instanceDetail.folderShaderPacks'),
+                    action: () => handleOpenSubFolder('shaderpacks'),
+                  },
+                  {
+                    id: 'screenshots',
+                    label: t('instanceDetail.folderScreenshots'),
+                    action: () => handleOpenSubFolder('screenshots'),
+                  },
+                  {
+                    id: 'config',
+                    label: t('instanceDetail.folderConfig'),
+                    action: () => handleOpenSubFolder('config'),
+                  },
                   { id: 'logs', label: t('instanceDetail.folderLogs'), action: () => handleOpenSubFolder('logs') },
-                  { id: 'crashreports', label: t('instanceDetail.folderCrashReports'), action: () => handleOpenSubFolder('crash-reports') },
+                  {
+                    id: 'crashreports',
+                    label: t('instanceDetail.folderCrashReports'),
+                    action: () => handleOpenSubFolder('crash-reports'),
+                  },
                 ]);
               }}
             >
               <Icon name="folder" size={14} /> {t('instanceDetail.browse')}
             </button>
             {/* 导出 */}
-            <button
-              className={styles.toolbarBtn}
-              onClick={handleExport}
-              disabled={exporting}
-            >
+            <button className={styles.toolbarBtn} onClick={handleExport} disabled={exporting}>
               <Icon name="upload" size={14} /> {exporting ? t('instanceDetail.exporting') : t('instanceDetail.export')}
             </button>
             {/* 复制 */}
-            <button
-              className={styles.toolbarBtn}
-              onClick={handleDuplicate}
-            >
+            <button className={styles.toolbarBtn} onClick={handleDuplicate}>
               <Icon name="copy" size={14} /> {t('instanceDetail.duplicate')}
             </button>
             {/* 管理下拉菜单 */}
@@ -1058,874 +1110,979 @@ export default function InstanceDetailPage() {
 
         {/* 右侧内容区 */}
         <div className={styles.detailContent}>
-      {activeTab === 'overview' && (
-        <div className={styles.tabContent}>
-          {/* Left column */}
-          <div className={styles.leftCol}>
-            <div className={styles.infoCard}>
-              <div className={styles.infoCardHeader}>{t('instanceDetail.versionInfo').toUpperCase()}</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <InfoRow label={t('instanceDetail.info.minecraft')} value={instance.version_id} />
-                <InfoRow
-                  label={t('instanceDetail.info.loader')}
-                  value={
-                    instance.loader_type
-                      ? `${getLoaderLabel(instance.loader_type)} ${instance.loader_version || ''}`
-                      : t('common.vanilla')
-                  }
-                />
-                <InfoRow label={t('instanceDetail.info.java')} value={instance.java_path || t('instanceDetail.autoDetect')} />
-                <InfoRow label={t('instanceDetail.info.created')} value={new Date(instance.created_at).toLocaleDateString()} />
-                <InfoRow
-                  label={t('instanceDetail.status')}
-                  value={
-                    isReady === null ? t('common.checking') : isReady ? t('common.ready') : t('common.needsDownload')
-                  }
-                  mono
-                />
-              </div>
-            </div>
-
-            <div className={styles.infoCard}>
-              <div className={styles.infoCardHeader}>{t('instanceDetail.launchConfig').toUpperCase()}</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span className={styles.infoRowLabel}>{t('instanceDetail.allocatedMemory')}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <input
-                      type="range"
-                      min={1}
-                      max={16}
-                      step={1}
-                      value={memoryGB}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        handleUpdateInstance({ max_memory: val * 1024 });
-                      }}
-                      style={{ width: 120, accentColor: 'var(--color-accent)' }}
+          {activeTab === 'overview' && (
+            <div className={styles.tabContent}>
+              {/* Left column */}
+              <div className={styles.leftCol}>
+                <div className={styles.infoCard}>
+                  <div className={styles.infoCardHeader}>{t('instanceDetail.versionInfo').toUpperCase()}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <InfoRow label={t('instanceDetail.info.minecraft')} value={instance.version_id} />
+                    <InfoRow
+                      label={t('instanceDetail.info.loader')}
+                      value={
+                        instance.loader_type
+                          ? `${getLoaderLabel(instance.loader_type)} ${instance.loader_version || ''}`
+                          : t('common.vanilla')
+                      }
                     />
-                    <span className={styles.infoRowValueMono}>{memoryGB} GB</span>
+                    <InfoRow
+                      label={t('instanceDetail.info.java')}
+                      value={instance.java_path || t('instanceDetail.autoDetect')}
+                    />
+                    <InfoRow
+                      label={t('instanceDetail.info.created')}
+                      value={new Date(instance.created_at).toLocaleDateString()}
+                    />
+                    <InfoRow
+                      label={t('instanceDetail.status')}
+                      value={
+                        isReady === null
+                          ? t('common.checking')
+                          : isReady
+                            ? t('common.ready')
+                            : t('common.needsDownload')
+                      }
+                      mono
+                    />
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span className={styles.infoRowLabel}>{t('instanceDetail.minMemory')}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <input
-                      type="range"
-                      min={256}
-                      max={4096}
-                      step={256}
-                      value={instance.min_memory}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        handleUpdateInstance({ min_memory: val });
-                      }}
-                      style={{ width: 120, accentColor: 'var(--color-accent)' }}
-                    />
-                    <span className={styles.infoRowValueMono}>{Math.round(instance.min_memory / 1024)} GB</span>
+
+                <div className={styles.infoCard}>
+                  <div className={styles.infoCardHeader}>{t('instanceDetail.launchConfig').toUpperCase()}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span className={styles.infoRowLabel}>{t('instanceDetail.allocatedMemory')}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                          type="range"
+                          min={1}
+                          max={16}
+                          step={1}
+                          value={memoryGB}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            handleUpdateInstance({ max_memory: val * 1024 });
+                          }}
+                          style={{ width: 120, accentColor: 'var(--color-accent)' }}
+                        />
+                        <span className={styles.infoRowValueMono}>{memoryGB} GB</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span className={styles.infoRowLabel}>{t('instanceDetail.minMemory')}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                          type="range"
+                          min={256}
+                          max={4096}
+                          step={256}
+                          value={instance.min_memory}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            handleUpdateInstance({ min_memory: val });
+                          }}
+                          style={{ width: 120, accentColor: 'var(--color-accent)' }}
+                        />
+                        <span className={styles.infoRowValueMono}>{Math.round(instance.min_memory / 1024)} GB</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span className={styles.infoRowLabel}>{t('settings.jvmArgs')}</span>
+                      <input
+                        type="text"
+                        value={instance.jvm_args || ''}
+                        placeholder={t('instanceDetail.default')}
+                        onChange={(e) => handleUpdateInstance({ jvm_args: e.target.value })}
+                        style={{
+                          background: '#0A0A0A',
+                          border: '1px solid #1C1C1C',
+                          color: '#FFF',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.55em',
+                          padding: '4px 8px',
+                          width: 200,
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span className={styles.infoRowLabel}>{t('instanceDetail.javaPath')}</span>
+                      <input
+                        type="text"
+                        value={instance.java_path || ''}
+                        placeholder={t('instanceDetail.autoDetect')}
+                        onChange={(e) => handleUpdateInstance({ java_path: e.target.value })}
+                        style={{
+                          background: '#0A0A0A',
+                          border: '1px solid #1C1C1C',
+                          color: '#FFF',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.55em',
+                          padding: '4px 8px',
+                          width: 200,
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span className={styles.infoRowLabel}>{t('instanceDetail.preLaunchCommand')}</span>
+                      <input
+                        type="text"
+                        value={instance.pre_launch_command || ''}
+                        placeholder={t('instanceDetail.preLaunchCommandPlaceholder')}
+                        onChange={(e) => handleUpdateInstance({ pre_launch_command: e.target.value || null })}
+                        style={{
+                          background: '#0A0A0A',
+                          border: '1px solid #1C1C1C',
+                          color: '#FFF',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.55em',
+                          padding: '4px 8px',
+                          width: 200,
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span className={styles.infoRowLabel}>{t('instanceDetail.postExitCommand')}</span>
+                      <input
+                        type="text"
+                        value={instance.post_exit_command || ''}
+                        placeholder={t('instanceDetail.postExitCommandPlaceholder')}
+                        onChange={(e) => handleUpdateInstance({ post_exit_command: e.target.value || null })}
+                        style={{
+                          background: '#0A0A0A',
+                          border: '1px solid #1C1C1C',
+                          color: '#FFF',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.55em',
+                          padding: '4px 8px',
+                          width: 200,
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span className={styles.infoRowLabel}>{t('settings.jvmArgs')}</span>
-                  <input
-                    type="text"
-                    value={instance.jvm_args || ''}
-                    placeholder={t('instanceDetail.default')}
-                    onChange={(e) => handleUpdateInstance({ jvm_args: e.target.value })}
-                    style={{
-                      background: '#0A0A0A',
-                      border: '1px solid #1C1C1C',
-                      color: '#FFF',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.55em',
-                      padding: '4px 8px',
-                      width: 200,
-                    }}
-                  />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span className={styles.infoRowLabel}>{t('instanceDetail.javaPath')}</span>
-                  <input
-                    type="text"
-                    value={instance.java_path || ''}
-                    placeholder={t('instanceDetail.autoDetect')}
-                    onChange={(e) => handleUpdateInstance({ java_path: e.target.value })}
-                    style={{
-                      background: '#0A0A0A',
-                      border: '1px solid #1C1C1C',
-                      color: '#FFF',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.55em',
-                      padding: '4px 8px',
-                      width: 200,
-                    }}
-                  />
-                </div>
               </div>
-            </div>
-          </div>
 
-          {/* Right column */}
-          <div className={styles.rightCol}>
-            <div className={styles.statCard}>
-              <div className={styles.statCardLabel}>{t('instanceDetail.playtime').toUpperCase()}</div>
-              <div className={styles.statCardValue}>{playtimeH} h</div>
-              <div className={styles.statCardSub}>
-                {instance.playtime_seconds > 0
-                  ? t('instanceDetail.playtimeMinutes', { minutes: String(Math.floor(instance.playtime_seconds / 60)) })
-                  : t('instanceDetail.noPlaytime')}
-              </div>
-            </div>
-
-            <div className={styles.statCard}>
-              <div className={styles.statCardLabel}>{t('instanceDetail.downloadStatus')}</div>
-              <div className={styles.statCardValue}>
-                {isReady === null ? <Icon name="hourglass" size={12} /> : isReady ? <><Icon name="checkCircle" size={12} /> {t('common.ready')}</> : <><Icon name="warning" size={12} /> {t('common.needsDownload')}</>}
-              </div>
-              <div className={styles.statCardSub}>
-                {isReady ? t('instanceDetail.readyStatus') : t('instanceDetail.notReadyStatus')}
-              </div>
-              {!isReady && isReady !== null && (
-                <div className={styles.statBar}>
-                  <div className={styles.statBarFill} style={{ width: '10%' }} />
+              {/* Right column */}
+              <div className={styles.rightCol}>
+                <div className={styles.statCard}>
+                  <div className={styles.statCardLabel}>{t('instanceDetail.playtime').toUpperCase()}</div>
+                  <div className={styles.statCardValue}>{playtimeH} h</div>
+                  <div className={styles.statCardSub}>
+                    {instance.playtime_seconds > 0
+                      ? t('instanceDetail.playtimeMinutes', {
+                          minutes: String(Math.floor(instance.playtime_seconds / 60)),
+                        })
+                      : t('instanceDetail.noPlaytime')}
+                  </div>
                 </div>
-              )}
-            </div>
 
-            <div className={styles.exportBtn}>
-              <Tooltip content={t('instanceDetail.exportAsZip')}>
-                <Button
-                  variant="secondary-highlight"
-                  size="md"
-                  style={{ width: '100%', justifyContent: 'center' }}
-                  onClick={handleExport}
-                  disabled={exporting}
-                >
-                  {exporting ? <><Icon name="hourglass" size={12} /> {t('instanceDetail.exporting')}</> : <><Icon name="upload" size={14} /> {t('instanceDetail.exportInstance')}</>}
-                </Button>
-              </Tooltip>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'mods' && (
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {installedMods.length === 0 ? (
-            <div className={styles.placeholderTab}>{t('instanceDetail.noModsInstalled')}</div>
-          ) : (
-            <>
-              {/* 工具栏（参考 HMCL ModListPage 三态：Normal / Selecting / Search） */}
-              {selectedMods.size > 0 ? (
-                /* Selecting 态：批量操作 */
-                <div className={styles.modToolbar}>
-                  <span className={styles.modCount}>
-                    {t('instanceDetail.selectedCount', { count: String(selectedMods.size) })}
-                  </span>
-                  <Button variant="primary" size="sm" onClick={() => handleBatchToggleMods(true)}>
-                    <Icon name="check" size={12} /> {t('library.enable')}
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={() => handleBatchToggleMods(false)}>
-                    <Icon name="cross" size={12} /> {t('library.disable')}
-                  </Button>
-                  <Button variant="danger" size="sm" onClick={handleBatchDeleteMods}>
-                    <Icon name="trash" size={12} /> {t('common.delete')}
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={handleSelectAllMods}>
-                    {t('instanceDetail.selectAll')}
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={handleClearModSelection}>
-                    {t('instanceDetail.deselectAll')}
-                  </Button>
-                </div>
-              ) : (
-                /* Normal 态：搜索/过滤/操作 */
-                <div className={styles.modToolbar}>
-                  <div className={styles.modSearchWrap}>
-                    <Icon name="search" size={12} />
-                    <input
-                      type="text"
-                      className={styles.modSearchInput}
-                      placeholder={t('instanceDetail.modSearchPlaceholder')}
-                      value={modSearch}
-                      onChange={(e) => setModSearch(e.target.value)}
-                    />
-                    {modSearch && (
-                      <button
-                        type="button"
-                        className={styles.modSearchClear}
-                        onClick={() => setModSearch('')}
-                        title={t('common.clear')}
-                      >
-                        <Icon name="cross" size={12} />
-                      </button>
+                <div className={styles.statCard}>
+                  <div className={styles.statCardLabel}>{t('instanceDetail.downloadStatus')}</div>
+                  <div className={styles.statCardValue}>
+                    {isReady === null ? (
+                      <Icon name="hourglass" size={12} />
+                    ) : isReady ? (
+                      <>
+                        <Icon name="checkCircle" size={12} /> {t('common.ready')}
+                      </>
+                    ) : (
+                      <>
+                        <Icon name="warning" size={12} /> {t('common.needsDownload')}
+                      </>
                     )}
                   </div>
-                  <div className={styles.modFilterGroup}>
-                    {(['all', 'enabled', 'disabled'] as const).map((f) => (
-                      <button
-                        key={f}
-                        type="button"
-                        className={`${styles.modFilterBtn} ${modFilter === f ? styles.modFilterBtnActive : ''}`}
-                        onClick={() => setModFilter(f)}
-                      >
-                        {f === 'all'
-                          ? t('instanceDetail.modFilterAll')
-                          : f === 'enabled'
-                            ? t('instanceDetail.modFilterEnabled')
-                            : t('instanceDetail.modFilterDisabled')}
-                      </button>
-                    ))}
+                  <div className={styles.statCardSub}>
+                    {isReady ? t('instanceDetail.readyStatus') : t('instanceDetail.notReadyStatus')}
                   </div>
-                  <Tooltip content={t('instanceDetail.openModsFolder')}>
-                    <Button variant="secondary" size="sm" onClick={() => handleOpenSubFolder('mods')}>
-                      <Icon name="settings" size={12} />
+                  {!isReady && isReady !== null && (
+                    <div className={styles.statBar}>
+                      <div className={styles.statBarFill} style={{ width: '10%' }} />
+                    </div>
+                  )}
+                </div>
+
+                <div className={styles.exportBtn}>
+                  <Tooltip content={t('instanceDetail.exportAsZip')}>
+                    <Button
+                      variant="secondary-highlight"
+                      size="md"
+                      style={{ width: '100%', justifyContent: 'center' }}
+                      onClick={handleExport}
+                      disabled={exporting}
+                    >
+                      {exporting ? (
+                        <>
+                          <Icon name="hourglass" size={12} /> {t('instanceDetail.exporting')}
+                        </>
+                      ) : (
+                        <>
+                          <Icon name="upload" size={14} /> {t('instanceDetail.exportInstance')}
+                        </>
+                      )}
                     </Button>
                   </Tooltip>
-                  <span className={styles.modCount}>
-                    {filteredMods.length} / {installedMods.length}
-                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'mods' && (
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {installedMods.length === 0 ? (
+                <div className={styles.placeholderTab}>{t('instanceDetail.noModsInstalled')}</div>
+              ) : (
+                <>
+                  {/* 工具栏（参考 HMCL ModListPage 三态：Normal / Selecting / Search） */}
+                  {selectedMods.size > 0 ? (
+                    /* Selecting 态：批量操作 */
+                    <div className={styles.modToolbar}>
+                      <span className={styles.modCount}>
+                        {t('instanceDetail.selectedCount', { count: String(selectedMods.size) })}
+                      </span>
+                      <Button variant="primary" size="sm" onClick={() => handleBatchToggleMods(true)}>
+                        <Icon name="check" size={12} /> {t('library.enable')}
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => handleBatchToggleMods(false)}>
+                        <Icon name="cross" size={12} /> {t('library.disable')}
+                      </Button>
+                      <Button variant="danger" size="sm" onClick={handleBatchDeleteMods}>
+                        <Icon name="trash" size={12} /> {t('common.delete')}
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={handleSelectAllMods}>
+                        {t('instanceDetail.selectAll')}
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={handleClearModSelection}>
+                        {t('instanceDetail.deselectAll')}
+                      </Button>
+                    </div>
+                  ) : (
+                    /* Normal 态：搜索/过滤/操作 */
+                    <div className={styles.modToolbar}>
+                      <div className={styles.modSearchWrap}>
+                        <Icon name="search" size={12} />
+                        <input
+                          type="text"
+                          className={styles.modSearchInput}
+                          placeholder={t('instanceDetail.modSearchPlaceholder')}
+                          value={modSearch}
+                          onChange={(e) => setModSearch(e.target.value)}
+                        />
+                        {modSearch && (
+                          <button
+                            type="button"
+                            className={styles.modSearchClear}
+                            onClick={() => setModSearch('')}
+                            title={t('common.clear')}
+                          >
+                            <Icon name="cross" size={12} />
+                          </button>
+                        )}
+                      </div>
+                      <div className={styles.modFilterGroup}>
+                        {(['all', 'enabled', 'disabled'] as const).map((f) => (
+                          <button
+                            key={f}
+                            type="button"
+                            className={`${styles.modFilterBtn} ${modFilter === f ? styles.modFilterBtnActive : ''}`}
+                            onClick={() => setModFilter(f)}
+                          >
+                            {f === 'all'
+                              ? t('instanceDetail.modFilterAll')
+                              : f === 'enabled'
+                                ? t('instanceDetail.modFilterEnabled')
+                                : t('instanceDetail.modFilterDisabled')}
+                          </button>
+                        ))}
+                      </div>
+                      <Tooltip content={t('instanceDetail.openModsFolder')}>
+                        <Button variant="secondary" size="sm" onClick={() => handleOpenSubFolder('mods')}>
+                          <Icon name="settings" size={12} />
+                        </Button>
+                      </Tooltip>
+                      <span className={styles.modCount}>
+                        {filteredMods.length} / {installedMods.length}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Mod 列表 */}
+                  {filteredMods.length === 0 ? (
+                    <div className={styles.placeholderTab}>{t('instanceDetail.noModsMatched')}</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {filteredMods.map((mod) => {
+                        const isDisabled = mod.enabled === false;
+                        const isSelected = selectedMods.has(mod.filename);
+                        return (
+                          <div
+                            key={mod.filename}
+                            className={`${styles.modRow} ${isDisabled ? styles.modRowDisabled : ''} ${isSelected ? styles.modRowSelected : ''}`}
+                          >
+                            <label className={styles.modCheckbox} onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleToggleModSelection(mod.filename)}
+                              />
+                            </label>
+                            <div className={styles.modRow__info}>
+                              <div className={styles.modRow__name}>{mod.filename}</div>
+                              <div className={styles.modRow__meta}>
+                                {t('instanceDetail.modSize', {
+                                  size: (mod.size / 1024).toFixed(1),
+                                  date: new Date(mod.installed_at).toLocaleDateString(),
+                                })}
+                                {mod.slug && ` · ${mod.slug}`}
+                                {mod.source && ` · ${mod.source}`}
+                              </div>
+                            </div>
+                            <div className={styles.modRow__actions}>
+                              {mod.pinned && <Badge variant="accent">PIN</Badge>}
+                              {isDisabled && <Badge variant="muted">{t('library.disable')}</Badge>}
+                              <Tooltip content={t('instanceDetail.modInfo')}>
+                                <Button variant="secondary" size="sm" onClick={() => setModInfoTarget(mod)}>
+                                  <Icon name="lightbulb" size={12} />
+                                </Button>
+                              </Tooltip>
+                              <Button
+                                variant={isDisabled ? 'primary' : 'secondary'}
+                                size="sm"
+                                disabled={togglingMod === mod.filename}
+                                onClick={() => handleToggleMod(mod.filename)}
+                              >
+                                {togglingMod === mod.filename ? (
+                                  <Icon name="hourglass" size={12} />
+                                ) : isDisabled ? (
+                                  t('library.enable')
+                                ) : (
+                                  t('library.disable')
+                                )}
+                              </Button>
+                              <Button variant="danger" size="sm" onClick={() => setRemoveModTarget(mod.filename)}>
+                                <Icon name="trash" size={12} />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'saves' && (
+            <div
+              style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10 }}
+            >
+              {/* 顶部操作栏（参考 HMCL WorldListPage） */}
+              <div className={styles.savesToolbar}>
+                <Button variant="secondary" size="sm" onClick={handleImportWorld}>
+                  <Icon name="download" size={14} /> {t('instanceDetail.importWorld')}
+                </Button>
+                <Button variant="secondary" size="sm" onClick={refreshWorlds}>
+                  <Icon name="arrowCurveLeft" size={14} /> {t('common.refresh') || 'Refresh'}
+                </Button>
+              </div>
+
+              {/* 存档列表 */}
+              {worlds.length === 0 ? (
+                <div className={styles.placeholderTab}>{t('instanceDetail.noSaves')}</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {worlds.map((world) => (
+                    <div
+                      key={world.name}
+                      className={styles.worldRow}
+                      onContextMenu={(e) => handleShowWorldMenu(e, world)}
+                    >
+                      <div className={styles.worldRow__info}>
+                        <div className={styles.worldRow__name}>
+                          <Icon name="globe" size={14} /> {world.name}
+                        </div>
+                        <div className={styles.worldRow__meta}>
+                          {world.game_mode} · {world.difficulty} · {world.size_mb.toFixed(1)} MB
+                          {world.last_played && ` · ${relativeTime(world.last_played)}`}
+                          {world.version_name && ` · ${world.version_name}`}
+                        </div>
+                      </div>
+                      <div className={styles.worldRow__badges}>
+                        {world.seed != null && <Badge variant="muted">Seed: {world.seed}</Badge>}
+                        {world.hardcore && <Badge variant="accent">Hardcore</Badge>}
+                      </div>
+                      <div className={styles.worldRow__actions}>
+                        {/* 主操作：备份（最常用） */}
+                        <Tooltip content={t('instanceDetail.backupWorld')}>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            disabled={backingUpWorld === world.name}
+                            onClick={() => handleBackupWorld(world.name)}
+                          >
+                            {backingUpWorld === world.name ? (
+                              <Icon name="hourglass" size={12} />
+                            ) : (
+                              <Icon name="copy" size={12} />
+                            )}
+                          </Button>
+                        </Tooltip>
+                        {/* 更多操作：右键菜单（参考 HMCL WorldListCell PopupMenu） */}
+                        <Tooltip content={t('instanceDetail.moreActions')}>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={(e) => handleShowWorldMenu(e as unknown as React.MouseEvent, world)}
+                          >
+                            <Icon name="settings" size={12} />
+                          </Button>
+                        </Tooltip>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {/* Mod 列表 */}
-              {filteredMods.length === 0 ? (
-                <div className={styles.placeholderTab}>{t('instanceDetail.noModsMatched')}</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {filteredMods.map((mod) => {
-                    const isDisabled = mod.enabled === false;
-                    const isSelected = selectedMods.has(mod.filename);
-                    return (
-                      <div
-                        key={mod.filename}
-                        className={`${styles.modRow} ${isDisabled ? styles.modRowDisabled : ''} ${isSelected ? styles.modRowSelected : ''}`}
-                      >
-                        <label className={styles.modCheckbox} onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => handleToggleModSelection(mod.filename)}
-                          />
-                        </label>
-                        <div className={styles.modRow__info}>
-                          <div className={styles.modRow__name}>{mod.filename}</div>
-                          <div className={styles.modRow__meta}>
-                            {t('instanceDetail.modSize', {
-                              size: (mod.size / 1024).toFixed(1),
-                              date: new Date(mod.installed_at).toLocaleDateString(),
+              {/* 备份列表（参考 HMCL WorldBackupTask） */}
+              <div className={styles.backupsSection}>
+                <div className={styles.backupsHeader}>
+                  <span className={styles.backupsTitle}>
+                    {t('instanceDetail.worldBackupsCount', { count: String(worldBackups.length) })}
+                  </span>
+                </div>
+                {worldBackups.length === 0 ? (
+                  <div className={styles.backupsEmpty}>{t('instanceDetail.noBackups')}</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {worldBackups.map((backup) => (
+                      <div key={backup.filename} className={styles.backupRow}>
+                        <div className={styles.backupRow__info}>
+                          <div className={styles.backupRow__name}>{backup.world_name}</div>
+                          <div className={styles.backupRow__meta}>
+                            {new Date(backup.created_at).toLocaleString('zh-CN', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
                             })}
-                            {mod.slug && ` · ${mod.slug}`}
-                            {mod.source && ` · ${mod.source}`}
+                            {' · '}
+                            {backup.size_mb.toFixed(1)} MB
                           </div>
+                          <div className={styles.backupRow__file}>{backup.filename}</div>
                         </div>
-                        <div className={styles.modRow__actions}>
-                          {mod.pinned && <Badge variant="accent">PIN</Badge>}
-                          {isDisabled && <Badge variant="muted">{t('library.disable')}</Badge>}
-                          <Tooltip content={t('instanceDetail.modInfo')}>
-                            <Button variant="secondary" size="sm" onClick={() => setModInfoTarget(mod)}>
-                              <Icon name="lightbulb" size={12} />
-                            </Button>
-                          </Tooltip>
+                        <div className={styles.backupRow__actions}>
                           <Button
-                            variant={isDisabled ? 'primary' : 'secondary'}
+                            variant="secondary"
                             size="sm"
-                            disabled={togglingMod === mod.filename}
-                            onClick={() => handleToggleMod(mod.filename)}
+                            disabled={restoringBackup === backup.filename}
+                            onClick={() => handleRestoreBackup(backup.filename)}
                           >
-                            {togglingMod === mod.filename
-                              ? <Icon name="hourglass" size={12} />
-                              : isDisabled ? t('library.enable') : t('library.disable')}
+                            {restoringBackup === backup.filename ? (
+                              <Icon name="hourglass" size={12} />
+                            ) : (
+                              <>
+                                <Icon name="arrowCurveLeft" size={12} /> {t('instanceDetail.restoreBackup')}
+                              </>
+                            )}
                           </Button>
-                          <Button variant="danger" size="sm" onClick={() => setRemoveModTarget(mod.filename)}>
+                          <Button variant="danger" size="sm" onClick={() => handleDeleteBackup(backup.filename)}>
                             <Icon name="trash" size={12} />
                           </Button>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'saves' && (
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {/* 顶部操作栏（参考 HMCL WorldListPage） */}
-          <div className={styles.savesToolbar}>
-            <Button variant="secondary" size="sm" onClick={handleImportWorld}>
-              <Icon name="download" size={14} /> {t('instanceDetail.importWorld')}
-            </Button>
-            <Button variant="secondary" size="sm" onClick={refreshWorlds}>
-              <Icon name="arrowCurveLeft" size={14} /> {t('common.refresh') || 'Refresh'}
-            </Button>
-          </div>
-
-          {/* 存档列表 */}
-          {worlds.length === 0 ? (
-            <div className={styles.placeholderTab}>{t('instanceDetail.noSaves')}</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {worlds.map((world) => (
-                <div
-                  key={world.name}
-                  className={styles.worldRow}
-                  onContextMenu={(e) => handleShowWorldMenu(e, world)}
-                >
-                  <div className={styles.worldRow__info}>
-                    <div className={styles.worldRow__name}>
-                      <Icon name="globe" size={14} /> {world.name}
-                    </div>
-                    <div className={styles.worldRow__meta}>
-                      {world.game_mode} · {world.difficulty} · {world.size_mb.toFixed(1)} MB
-                      {world.last_played && ` · ${relativeTime(world.last_played)}`}
-                      {world.version_name && ` · ${world.version_name}`}
-                    </div>
+                    ))}
                   </div>
-                  <div className={styles.worldRow__badges}>
-                    {world.seed != null && <Badge variant="muted">Seed: {world.seed}</Badge>}
-                    {world.hardcore && <Badge variant="accent">Hardcore</Badge>}
-                  </div>
-                  <div className={styles.worldRow__actions}>
-                    {/* 主操作：备份（最常用） */}
-                    <Tooltip content={t('instanceDetail.backupWorld')}>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={backingUpWorld === world.name}
-                        onClick={() => handleBackupWorld(world.name)}
-                      >
-                        {backingUpWorld === world.name ? <Icon name="hourglass" size={12} /> : <Icon name="copy" size={12} />}
-                      </Button>
-                    </Tooltip>
-                    {/* 更多操作：右键菜单（参考 HMCL WorldListCell PopupMenu） */}
-                    <Tooltip content={t('instanceDetail.moreActions')}>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={(e) => handleShowWorldMenu(e as unknown as React.MouseEvent, world)}
-                      >
-                        <Icon name="settings" size={12} />
-                      </Button>
-                    </Tooltip>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* 备份列表（参考 HMCL WorldBackupTask） */}
-          <div className={styles.backupsSection}>
-            <div className={styles.backupsHeader}>
-              <span className={styles.backupsTitle}>
-                {t('instanceDetail.worldBackupsCount', { count: String(worldBackups.length) })}
-              </span>
-            </div>
-            {worldBackups.length === 0 ? (
-              <div className={styles.backupsEmpty}>{t('instanceDetail.noBackups')}</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {worldBackups.map((backup) => (
-                  <div key={backup.filename} className={styles.backupRow}>
-                    <div className={styles.backupRow__info}>
-                      <div className={styles.backupRow__name}>{backup.world_name}</div>
-                      <div className={styles.backupRow__meta}>
-                        {new Date(backup.created_at).toLocaleString('zh-CN', {
-                          year: 'numeric', month: '2-digit', day: '2-digit',
-                          hour: '2-digit', minute: '2-digit',
-                        })}
-                        {' · '}{backup.size_mb.toFixed(1)} MB
-                      </div>
-                      <div className={styles.backupRow__file}>{backup.filename}</div>
-                    </div>
-                    <div className={styles.backupRow__actions}>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={restoringBackup === backup.filename}
-                        onClick={() => handleRestoreBackup(backup.filename)}
-                      >
-                        {restoringBackup === backup.filename
-                          ? <Icon name="hourglass" size={12} />
-                          : <><Icon name="arrowCurveLeft" size={12} /> {t('instanceDetail.restoreBackup')}</>}
-                      </Button>
-                      <Button variant="danger" size="sm" onClick={() => handleDeleteBackup(backup.filename)}>
-                        <Icon name="trash" size={12} />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                )}
               </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 资源包管理（参考 HMCL VersionPage resourcePackTab） */}
-      {activeTab === 'resourcepacks' && (
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div className={styles.savesToolbar}>
-            <Button variant="secondary" size="sm" onClick={() => handleOpenSubFolder('resourcepacks')}>
-              <Icon name="settings" size={14} /> {t('instanceDetail.openFolder')}
-            </Button>
-          </div>
-          {resourcePacksLoading ? (
-            <div className={styles.placeholderTab}>{t('common.loading') || 'Loading...'}</div>
-          ) : resourcePacks.length === 0 ? (
-            <div className={styles.placeholderTab}>{t('instanceDetail.noResourcePacks')}</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {resourcePacks.map((name) => (
-                <div key={name} className={styles.modRow}>
-                  <div className={styles.modRow__info}>
-                    <div className={styles.modRow__name}>
-                      <Icon name="palette" size={14} /> {name}
-                    </div>
-                  </div>
-                  <div className={styles.modRow__actions}>
-                    <Button variant="secondary" size="sm" onClick={() => handleOpenSubFolder(`resourcepacks/${name}`)}>
-                      <Icon name="settings" size={12} />
-                    </Button>
-                  </div>
-                </div>
-              ))}
             </div>
           )}
-        </div>
-      )}
 
-      {/* 投影文件管理（参考 HMCL VersionPage schematicsTab） */}
-      {activeTab === 'schematics' && (
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div className={styles.savesToolbar}>
-            <Button variant="secondary" size="sm" onClick={() => handleOpenSubFolder('schematics')}>
-              <Icon name="folder" size={14} /> {t('instanceDetail.openFolder')}
-            </Button>
-          </div>
-          {schematicsLoading ? (
-            <div className={styles.placeholderTab}>{t('common.loading') || 'Loading...'}</div>
-          ) : schematics.length === 0 ? (
-            <div className={styles.placeholderTab}>{t('instanceDetail.noSchematics')}</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {schematics.map((name) => (
-                <div key={name} className={styles.modRow}>
-                  <div className={styles.modRow__info}>
-                    <div className={styles.modRow__name}>
-                      <Icon name="cube" size={14} /> {name}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'logs' && (
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            {logFiles.map((log) => (
-              <button
-                key={log.filename}
-                onClick={() => setSelectedLog(log.filename)}
-                style={{
-                  background: selectedLog === log.filename ? 'var(--color-accent)' : '#141414',
-                  color: selectedLog === log.filename ? '#000' : '#FFF',
-                  border: '1px solid #1C1C1C',
-                  padding: '4px 10px',
-                  fontSize: '0.5em',
-                  fontFamily: 'var(--font-mono)',
-                  cursor: 'pointer',
-                }}
-              >
-                {log.filename} ({(log.size / 1024).toFixed(0)}KB)
-              </button>
-            ))}
-            {logFiles.length === 0 && (
-              <span style={{ fontSize: '0.5em', color: '#666' }}>{t('instanceDetail.noLogs')}</span>
-            )}
-          </div>
-          {selectedLog ? (
-            loadingLog ? (
-              <div style={{ fontSize: '0.6em', color: '#666', padding: 20 }}>{t('common.loading')}</div>
-            ) : (
-              <div
-                style={{
-                  background: '#0A0A0A',
-                  border: '1px solid #1C1C1C',
-                  padding: 10,
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.5em',
-                  color: '#AAA',
-                  maxHeight: 400,
-                  overflowY: 'auto',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-all',
-                }}
-              >
-                {logContent}
+          {/* 资源包管理（参考 HMCL VersionPage resourcePackTab） */}
+          {activeTab === 'resourcepacks' && (
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div className={styles.savesToolbar}>
+                <Button variant="secondary" size="sm" onClick={() => handleOpenSubFolder('resourcepacks')}>
+                  <Icon name="settings" size={14} /> {t('instanceDetail.openFolder')}
+                </Button>
               </div>
-            )
-          ) : (
-            <div style={{ padding: 20 }}>
-              <GameConsole visible={true} />
-            </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'optimize' && (
-        <div className={presetStyles.container}>
-          {presetsLoading ? (
-            <div className={presetStyles.loading}>{t('instanceDetail.loadingPresets')}</div>
-          ) : (
-            <>
-              <div className={presetStyles.cards}>
-                {presets.map((preset) => {
-                  const result = applyResults[preset.id];
-                  const isApplying = applyingPreset === preset.id;
-                  const perfBadgeClass =
-                    preset.performance_level === 'low'
-                      ? presetStyles.badgeLow
-                      : preset.performance_level === 'medium'
-                        ? presetStyles.badgeMedium
-                        : presetStyles.badgeHigh;
-                  return (
-                    <div key={preset.id} className={presetStyles.card}>
-                      <div className={presetStyles.cardHeader}>
-                        <span className={presetStyles.cardName}>{preset.name}</span>
-                        <span className={perfBadgeClass}>{preset.performance_level}</span>
-                      </div>
-                      <p className={presetStyles.cardDesc}>{preset.description}</p>
-                      <div>
-                        <div className={presetStyles.modsLabel}>{t('instanceDetail.includedMods')}</div>
-                        <div className={presetStyles.modPills}>
-                          {preset.mods.map((mod) => (
-                            <span key={mod.slug} className={presetStyles.modPill}>
-                              {mod.name}
-                            </span>
-                          ))}
+              {resourcePacksLoading ? (
+                <div className={styles.placeholderTab}>{t('common.loading') || 'Loading...'}</div>
+              ) : resourcePacks.length === 0 ? (
+                <div className={styles.placeholderTab}>{t('instanceDetail.noResourcePacks')}</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {resourcePacks.map((name) => (
+                    <div key={name} className={styles.modRow}>
+                      <div className={styles.modRow__info}>
+                        <div className={styles.modRow__name}>
+                          <Icon name="palette" size={14} /> {name}
                         </div>
                       </div>
-                      <div className={presetStyles.ramInfo}>
-                        <span className={presetStyles.ramLabel}>{t('instanceDetail.minRam')}</span>
-                        <span className={presetStyles.ramValue}>{Math.round(preset.min_ram_mb / 1024)} GB</span>
-                      </div>
-                      <div className={presetStyles.applyBtn}>
+                      <div className={styles.modRow__actions}>
                         <Button
-                          variant="primary"
+                          variant="secondary"
                           size="sm"
-                          onClick={() => handleApplyPreset(preset.id)}
-                          disabled={isApplying}
-                          style={{ width: '100%', justifyContent: 'center' }}
+                          onClick={() => handleOpenSubFolder(`resourcepacks/${name}`)}
                         >
-                          {isApplying ? t('instanceDetail.applying') : t('instanceDetail.applyPreset')}
+                          <Icon name="settings" size={12} />
                         </Button>
                       </div>
-                      {result && (
-                        <div className={presetStyles.applyResult}>
-                          <div className={presetStyles.applyResultSummary}>
-                            <span className={presetStyles.applyResultSuccess}>
-                              <Icon name="check" size={12} /> {t('instanceDetail.presetSucceeded', { count: String(result.succeeded) })}
-                            </span>
-                            {result.failed > 0 && (
-                              <span className={presetStyles.applyResultFailed}>
-                                <Icon name="cross" size={12} /> {t('instanceDetail.presetFailed', { count: String(result.failed) })}
-                              </span>
-                            )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 投影文件管理（参考 HMCL VersionPage schematicsTab） */}
+          {activeTab === 'schematics' && (
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div className={styles.savesToolbar}>
+                <Button variant="secondary" size="sm" onClick={() => handleOpenSubFolder('schematics')}>
+                  <Icon name="folder" size={14} /> {t('instanceDetail.openFolder')}
+                </Button>
+              </div>
+              {schematicsLoading ? (
+                <div className={styles.placeholderTab}>{t('common.loading') || 'Loading...'}</div>
+              ) : schematics.length === 0 ? (
+                <div className={styles.placeholderTab}>{t('instanceDetail.noSchematics')}</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {schematics.map((name) => (
+                    <div key={name} className={styles.modRow}>
+                      <div className={styles.modRow__info}>
+                        <div className={styles.modRow__name}>
+                          <Icon name="cube" size={14} /> {name}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'logs' && (
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                {logFiles.map((log) => (
+                  <button
+                    key={log.filename}
+                    onClick={() => setSelectedLog(log.filename)}
+                    style={{
+                      background: selectedLog === log.filename ? 'var(--color-accent)' : '#141414',
+                      color: selectedLog === log.filename ? '#000' : '#FFF',
+                      border: '1px solid #1C1C1C',
+                      padding: '4px 10px',
+                      fontSize: '0.5em',
+                      fontFamily: 'var(--font-mono)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {log.filename} ({(log.size / 1024).toFixed(0)}KB)
+                  </button>
+                ))}
+                {logFiles.length === 0 && (
+                  <span style={{ fontSize: '0.5em', color: '#666' }}>{t('instanceDetail.noLogs')}</span>
+                )}
+              </div>
+              {selectedLog ? (
+                loadingLog ? (
+                  <div style={{ fontSize: '0.6em', color: '#666', padding: 20 }}>{t('common.loading')}</div>
+                ) : (
+                  <div
+                    style={{
+                      background: '#0A0A0A',
+                      border: '1px solid #1C1C1C',
+                      padding: 10,
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.5em',
+                      color: '#AAA',
+                      maxHeight: 400,
+                      overflowY: 'auto',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    {logContent}
+                  </div>
+                )
+              ) : (
+                <div style={{ padding: 20 }}>
+                  <GameConsole visible={true} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'optimize' && (
+            <div className={presetStyles.container}>
+              {presetsLoading ? (
+                <div className={presetStyles.loading}>{t('instanceDetail.loadingPresets')}</div>
+              ) : (
+                <>
+                  <div className={presetStyles.cards}>
+                    {presets.map((preset) => {
+                      const result = applyResults[preset.id];
+                      const isApplying = applyingPreset === preset.id;
+                      const perfBadgeClass =
+                        preset.performance_level === 'low'
+                          ? presetStyles.badgeLow
+                          : preset.performance_level === 'medium'
+                            ? presetStyles.badgeMedium
+                            : presetStyles.badgeHigh;
+                      return (
+                        <div key={preset.id} className={presetStyles.card}>
+                          <div className={presetStyles.cardHeader}>
+                            <span className={presetStyles.cardName}>{preset.name}</span>
+                            <span className={perfBadgeClass}>{preset.performance_level}</span>
                           </div>
-                          {result.errors.length > 0 && (
-                            <div className={presetStyles.applyResultErrors}>
-                              {result.errors.map((err, i) => (
-                                <span key={i} className={presetStyles.applyResultError}>
-                                  {err}
+                          <p className={presetStyles.cardDesc}>{preset.description}</p>
+                          <div>
+                            <div className={presetStyles.modsLabel}>{t('instanceDetail.includedMods')}</div>
+                            <div className={presetStyles.modPills}>
+                              {preset.mods.map((mod) => (
+                                <span key={mod.slug} className={presetStyles.modPill}>
+                                  {mod.name}
                                 </span>
                               ))}
                             </div>
+                          </div>
+                          <div className={presetStyles.ramInfo}>
+                            <span className={presetStyles.ramLabel}>{t('instanceDetail.minRam')}</span>
+                            <span className={presetStyles.ramValue}>{Math.round(preset.min_ram_mb / 1024)} GB</span>
+                          </div>
+                          <div className={presetStyles.applyBtn}>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => handleApplyPreset(preset.id)}
+                              disabled={isApplying}
+                              style={{ width: '100%', justifyContent: 'center' }}
+                            >
+                              {isApplying ? t('instanceDetail.applying') : t('instanceDetail.applyPreset')}
+                            </Button>
+                          </div>
+                          {result && (
+                            <div className={presetStyles.applyResult}>
+                              <div className={presetStyles.applyResultSummary}>
+                                <span className={presetStyles.applyResultSuccess}>
+                                  <Icon name="check" size={12} />{' '}
+                                  {t('instanceDetail.presetSucceeded', { count: String(result.succeeded) })}
+                                </span>
+                                {result.failed > 0 && (
+                                  <span className={presetStyles.applyResultFailed}>
+                                    <Icon name="cross" size={12} />{' '}
+                                    {t('instanceDetail.presetFailed', { count: String(result.failed) })}
+                                  </span>
+                                )}
+                              </div>
+                              {result.errors.length > 0 && (
+                                <div className={presetStyles.applyResultErrors}>
+                                  {result.errors.map((err, i) => (
+                                    <span key={i} className={presetStyles.applyResultError}>
+                                      {err}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              {presets.length === 0 && <div className={presetStyles.loading}>{t('instanceDetail.noPresets')}</div>}
-            </>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'migrate' && (
-        <div className={styles.migrateTab}>
-          <div className={styles.migrateSection}>
-            <div className={styles.migrateSectionHeader}>{t('instanceDetail.versionMigration')}</div>
-            <div className={styles.migrateRow}>
-              <select
-                className={styles.migrateSelect}
-                value={migrationTarget}
-                onChange={(e) => setMigrationTarget(e.target.value)}
-              >
-                <option value="">{t('instanceDetail.selectTargetVersion')}</option>
-                {versions
-                  .filter((v) => v.type === 'release' || v.type === 'snapshot')
-                  .map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.id}
-                    </option>
-                  ))}
-              </select>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleCheckMigration}
-                disabled={!migrationTarget || checkingMigration}
-              >
-                {checkingMigration ? t('instanceDetail.checking') : t('instanceDetail.checkCompat')}
-              </Button>
-            </div>
-            {migrationResults && (
-              <div className={styles.migrateResults}>
-                {migrationResults.length === 0 ? (
-                  <div className={styles.migrateEmpty}>
-                    {t('instanceDetail.allCompatible', { version: migrationTarget })}
+                      );
+                    })}
                   </div>
-                ) : (
-                  migrationResults.map((item) => {
-                    const statusBadgeClass =
-                      item.status === 'compatible'
-                        ? styles.badgeGreen
-                        : item.status === 'pending'
-                          ? styles.badgeYellow
-                          : styles.badgeGray;
-                    return (
-                      <div key={item.mod_slug} className={styles.migrateResultItem}>
-                        <div className={styles.migrateResultInfo}>
-                          <span className={styles.migrateResultName}>{item.mod_name}</span>
-                          <span className={styles.migrateResultSlug}>{item.mod_slug}</span>
-                        </div>
-                        <div className={styles.migrateResultRight}>
-                          <span className={statusBadgeClass}>{item.status}</span>
-                          <span className={styles.migrateResultDetail}>{item.detail}</span>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className={styles.migrateSection}>
-            <div className={styles.migrateSectionHeader}>{t('instanceDetail.smartTune')}</div>
-            <p className={styles.migrateDesc}>{t('instanceDetail.smartTuneDesc')}</p>
-            <div className={styles.migrateRow}>
-              <Button variant="secondary" size="sm" onClick={handleSmartTune} disabled={tuningMemory}>
-                {tuningMemory ? t('instanceDetail.analyzing') : t('instanceDetail.smartTuneBtn')}
-              </Button>
-              {smartMemory !== null && (
-                <span className={styles.migrateMemoryResult}>
-                  {t('instanceDetail.recommended')}: <strong>{smartMemory} MB</strong> (
-                  {(smartMemory / 1024).toFixed(1)} GB)
-                </span>
+                  {presets.length === 0 && <div className={presetStyles.loading}>{t('instanceDetail.noPresets')}</div>}
+                </>
               )}
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {activeTab === 'profile' && (
-        <div className={styles.profileTab}>
-          {loadingProfiling ? (
-            <div className={styles.placeholderTab}>{t('instanceDetail.loadingProfiling')}</div>
-          ) : !profilingData ? (
-            <div className={styles.placeholderTab}>
-              {t('instanceDetail.noProfilingData') || 'No profiling data yet - launch the game first'}
-            </div>
-          ) : (
-            <div className={styles.profileContent}>
-              <div className={styles.profileHeader}>
-                <span className={styles.profileHeaderStage}>{t('instanceDetail.profileStage')}</span>
-                <span className={styles.profileHeaderDuration}>{t('instanceDetail.profileDuration')}</span>
-                <span className={styles.profileHeaderDetails}>{t('instanceDetail.profileDetails')}</span>
-              </div>
-              {profilingData.map((item, i) => {
-                const maxDuration = Math.max(...profilingData.map((p) => p.duration_ms), 1);
-                const pct = (item.duration_ms / maxDuration) * 100;
-                const colorClass =
-                  item.duration_ms < 500 ? styles.barGreen : item.duration_ms < 2000 ? styles.barYellow : styles.barRed;
-                const durationLabel =
-                  item.duration_ms >= 1000 ? `${(item.duration_ms / 1000).toFixed(1)}s` : `${item.duration_ms}ms`;
-                return (
-                  <div key={i} className={styles.profileRow}>
-                    <span className={styles.profileStage}>{item.stage}</span>
-                    <div className={styles.profileBarWrap}>
-                      <div className={`${styles.profileBar} ${colorClass}`} style={{ width: `${pct}%` }} />
-                      <span className={styles.profileDuration}>{durationLabel}</span>
-                    </div>
-                    <span className={styles.profileDetails}>{item.details}</span>
+          {activeTab === 'migrate' && (
+            <div className={styles.migrateTab}>
+              <div className={styles.migrateSection}>
+                <div className={styles.migrateSectionHeader}>{t('instanceDetail.versionMigration')}</div>
+                <div className={styles.migrateRow}>
+                  <select
+                    className={styles.migrateSelect}
+                    value={migrationTarget}
+                    onChange={(e) => setMigrationTarget(e.target.value)}
+                  >
+                    <option value="">{t('instanceDetail.selectTargetVersion')}</option>
+                    {versions
+                      .filter((v) => v.type === 'release' || v.type === 'snapshot')
+                      .map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.id}
+                        </option>
+                      ))}
+                  </select>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleCheckMigration}
+                    disabled={!migrationTarget || checkingMigration}
+                  >
+                    {checkingMigration ? t('instanceDetail.checking') : t('instanceDetail.checkCompat')}
+                  </Button>
+                </div>
+                {migrationResults && (
+                  <div className={styles.migrateResults}>
+                    {migrationResults.length === 0 ? (
+                      <div className={styles.migrateEmpty}>
+                        {t('instanceDetail.allCompatible', { version: migrationTarget })}
+                      </div>
+                    ) : (
+                      migrationResults.map((item) => {
+                        const statusBadgeClass =
+                          item.status === 'compatible'
+                            ? styles.badgeGreen
+                            : item.status === 'pending'
+                              ? styles.badgeYellow
+                              : styles.badgeGray;
+                        return (
+                          <div key={item.mod_slug} className={styles.migrateResultItem}>
+                            <div className={styles.migrateResultInfo}>
+                              <span className={styles.migrateResultName}>{item.mod_name}</span>
+                              <span className={styles.migrateResultSlug}>{item.mod_slug}</span>
+                            </div>
+                            <div className={styles.migrateResultRight}>
+                              <span className={statusBadgeClass}>{item.status}</span>
+                              <span className={styles.migrateResultDetail}>{item.detail}</span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
-                );
-              })}
+                )}
+              </div>
+
+              <div className={styles.migrateSection}>
+                <div className={styles.migrateSectionHeader}>{t('instanceDetail.smartTune')}</div>
+                <p className={styles.migrateDesc}>{t('instanceDetail.smartTuneDesc')}</p>
+                <div className={styles.migrateRow}>
+                  <Button variant="secondary" size="sm" onClick={handleSmartTune} disabled={tuningMemory}>
+                    {tuningMemory ? t('instanceDetail.analyzing') : t('instanceDetail.smartTuneBtn')}
+                  </Button>
+                  {smartMemory !== null && (
+                    <span className={styles.migrateMemoryResult}>
+                      {t('instanceDetail.recommended')}: <strong>{smartMemory} MB</strong> (
+                      {(smartMemory / 1024).toFixed(1)} GB)
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           )}
-        </div>
-      )}
 
-      {activeTab === 'fps' && (
-        <div className={styles.fpsTab}>
-          {loadingFps ? (
-            <div className={styles.placeholderTab}>{t('instanceDetail.loadingFps')}</div>
-          ) : !fpsData ? (
-            <div className={styles.placeholderTab}>
-              {t('instanceDetail.noFpsData') || 'Run the game with monitoring enabled'}
-            </div>
-          ) : (
-            <div className={styles.fpsContent}>
-              <div className={styles.fpsStats}>
-                <div className={styles.fpsStatCard}>
-                  <div className={styles.fpsStatLabel}>{t('instanceDetail.fpsAvg')}</div>
-                  <div className={styles.fpsStatValue}>{fpsData.avg_fps.toFixed(0)}</div>
+          {activeTab === 'profile' && (
+            <div className={styles.profileTab}>
+              {loadingProfiling ? (
+                <div className={styles.placeholderTab}>{t('instanceDetail.loadingProfiling')}</div>
+              ) : !profilingData ? (
+                <div className={styles.placeholderTab}>
+                  {t('instanceDetail.noProfilingData') || 'No profiling data yet - launch the game first'}
                 </div>
-                <div className={styles.fpsStatCard}>
-                  <div className={styles.fpsStatLabel}>{t('instanceDetail.fpsMin')}</div>
-                  <div className={styles.fpsStatValue}>{fpsData.min_fps.toFixed(0)}</div>
-                </div>
-                <div className={styles.fpsStatCard}>
-                  <div className={styles.fpsStatLabel}>{t('instanceDetail.fpsMax')}</div>
-                  <div className={styles.fpsStatValue}>{fpsData.max_fps.toFixed(0)}</div>
-                </div>
-              </div>
-              <div className={styles.fpsChartSection}>
-                <div className={styles.fpsChartHeader}>{t('instanceDetail.fpsFrameTimes')}</div>
-                <div className={styles.fpsChart}>
-                  {fpsData.frame_times_ms.slice(0, 30).map((ft, i) => {
-                    const fpsFromFt = ft > 0 ? 1000 / ft : 999;
+              ) : (
+                <div className={styles.profileContent}>
+                  <div className={styles.profileHeader}>
+                    <span className={styles.profileHeaderStage}>{t('instanceDetail.profileStage')}</span>
+                    <span className={styles.profileHeaderDuration}>{t('instanceDetail.profileDuration')}</span>
+                    <span className={styles.profileHeaderDetails}>{t('instanceDetail.profileDetails')}</span>
+                  </div>
+                  {profilingData.map((item, i) => {
+                    const maxDuration = Math.max(...profilingData.map((p) => p.duration_ms), 1);
+                    const pct = (item.duration_ms / maxDuration) * 100;
                     const colorClass =
-                      fpsFromFt >= 60 ? styles.barGreen : fpsFromFt >= 30 ? styles.barYellow : styles.barRed;
-                    const maxFt = Math.max(...fpsData.frame_times_ms.slice(0, 30), 1);
-                    const pct = (ft / maxFt) * 100;
+                      item.duration_ms < 500
+                        ? styles.barGreen
+                        : item.duration_ms < 2000
+                          ? styles.barYellow
+                          : styles.barRed;
+                    const durationLabel =
+                      item.duration_ms >= 1000 ? `${(item.duration_ms / 1000).toFixed(1)}s` : `${item.duration_ms}ms`;
                     return (
-                      <div key={i} className={styles.fpsBarRow}>
-                        <span className={styles.fpsBarIndex}>{i + 1}</span>
-                        <div className={styles.fpsBarTrack}>
-                          <div className={`${styles.fpsBar} ${colorClass}`} style={{ width: `${pct}%` }} />
+                      <div key={i} className={styles.profileRow}>
+                        <span className={styles.profileStage}>{item.stage}</span>
+                        <div className={styles.profileBarWrap}>
+                          <div className={`${styles.profileBar} ${colorClass}`} style={{ width: `${pct}%` }} />
+                          <span className={styles.profileDuration}>{durationLabel}</span>
                         </div>
-                        <span className={styles.fpsBarValue}>{ft.toFixed(1)}ms</span>
+                        <span className={styles.profileDetails}>{item.details}</span>
                       </div>
                     );
                   })}
                 </div>
-              </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
-      {activeTab === 'screenshots' && (
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-          {screenshotLoading ? (
-            <p style={{ color: 'var(--color-text-dim)', fontSize: '0.7em', padding: '1em' }}>{t('instanceDetail.screenshotsLoading')}</p>
-          ) : screenshots.length === 0 ? (
-            <p style={{ color: 'var(--color-text-dim)', fontSize: '0.7em', padding: '1em' }}>{t('instanceDetail.noScreenshots')}</p>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
-              {screenshots.map((path, i) => (
-                <img
-                  key={i}
-                  src={path}
-                  alt={t('instanceDetail.screenshotAlt', { index: String(i + 1) })}
-                  style={{
-                    width: '100%',
-                    aspectRatio: '16/10',
-                    objectFit: 'cover',
-                    clipPath: 'var(--clip-small)',
-                    cursor: 'pointer',
-                  }}
-                  onClick={() => api.openFolder(path)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'snapshots' && (
-        <div className={styles.snapshotsTab}>
-          <div className={styles.snapshotsHeader}>
-            <div className={styles.snapshotsCreateRow}>
-              <input
-                type="text"
-                value={snapshotName}
-                onChange={(e) => setSnapshotName(e.target.value)}
-                placeholder={t('instanceDetail.snapshotName')}
-                className={styles.snapshotInput}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateSnapshot()}
-              />
-              <Button variant="primary" size="sm" onClick={handleCreateSnapshot} disabled={snapshotLoading}>
-                {snapshotLoading ? t('instanceDetail.creating') : <><Icon name="camera" size={14} /> {t('instanceDetail.createSnapshot')}</>}
-              </Button>
-            </div>
-          </div>
-
-          {snapshots.length === 0 ? (
-            <div className={styles.placeholderTab}>{t('instanceDetail.noSnapshots')}</div>
-          ) : (
-            <div className={styles.snapshotList}>
-              <div className={styles.snapshotTableHeader}>
-                <span className={styles.snapshotColName}>{t('instanceDetail.snapshotNameCol')}</span>
-                <span className={styles.snapshotColDate}>{t('instanceDetail.snapshotDateCol')}</span>
-                <span className={styles.snapshotColSize}>{t('instanceDetail.snapshotSizeCol')}</span>
-                <span className={styles.snapshotColActions}>{t('instanceDetail.snapshotActionsCol')}</span>
-              </div>
-              {snapshots.map((snap) => (
-                <div key={snap.id} className={styles.snapshotRow}>
-                  <span className={styles.snapshotColName}>{snap.name}</span>
-                  <span className={styles.snapshotColDate}>
-                    {new Date(snap.created_at).toLocaleString('zh-CN', {
-                      year: 'numeric',
-                      month: '2-digit',
-                      day: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                  <span className={styles.snapshotColSize}>{(snap.size_bytes / 1048576).toFixed(1)} MB</span>
-                  <span className={styles.snapshotColActions}>
-                    <Button
-                      variant="secondary-highlight"
-                      size="sm"
-                      onClick={() => handleRestoreSnapshot(snap.id, snap.name)}
-                    >
-                      <><Icon name="arrowCurveLeft" size={14} /> {t('instanceDetail.restore')}</>
-                    </Button>
-                    <Button variant="danger" size="sm" onClick={() => handleDeleteSnapshot(snap.id, snap.name)}>
-                      <><Icon name="cross" size={14} /> {t('common.delete')}</>
-                    </Button>
-                  </span>
+          {activeTab === 'fps' && (
+            <div className={styles.fpsTab}>
+              {loadingFps ? (
+                <div className={styles.placeholderTab}>{t('instanceDetail.loadingFps')}</div>
+              ) : !fpsData ? (
+                <div className={styles.placeholderTab}>
+                  {t('instanceDetail.noFpsData') || 'Run the game with monitoring enabled'}
                 </div>
-              ))}
+              ) : (
+                <div className={styles.fpsContent}>
+                  <div className={styles.fpsStats}>
+                    <div className={styles.fpsStatCard}>
+                      <div className={styles.fpsStatLabel}>{t('instanceDetail.fpsAvg')}</div>
+                      <div className={styles.fpsStatValue}>{fpsData.avg_fps.toFixed(0)}</div>
+                    </div>
+                    <div className={styles.fpsStatCard}>
+                      <div className={styles.fpsStatLabel}>{t('instanceDetail.fpsMin')}</div>
+                      <div className={styles.fpsStatValue}>{fpsData.min_fps.toFixed(0)}</div>
+                    </div>
+                    <div className={styles.fpsStatCard}>
+                      <div className={styles.fpsStatLabel}>{t('instanceDetail.fpsMax')}</div>
+                      <div className={styles.fpsStatValue}>{fpsData.max_fps.toFixed(0)}</div>
+                    </div>
+                  </div>
+                  <div className={styles.fpsChartSection}>
+                    <div className={styles.fpsChartHeader}>{t('instanceDetail.fpsFrameTimes')}</div>
+                    <div className={styles.fpsChart}>
+                      {fpsData.frame_times_ms.slice(0, 30).map((ft, i) => {
+                        const fpsFromFt = ft > 0 ? 1000 / ft : 999;
+                        const colorClass =
+                          fpsFromFt >= 60 ? styles.barGreen : fpsFromFt >= 30 ? styles.barYellow : styles.barRed;
+                        const maxFt = Math.max(...fpsData.frame_times_ms.slice(0, 30), 1);
+                        const pct = (ft / maxFt) * 100;
+                        return (
+                          <div key={i} className={styles.fpsBarRow}>
+                            <span className={styles.fpsBarIndex}>{i + 1}</span>
+                            <div className={styles.fpsBarTrack}>
+                              <div className={`${styles.fpsBar} ${colorClass}`} style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className={styles.fpsBarValue}>{ft.toFixed(1)}ms</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
-      {pluginTabs.map((tab) => {
-        if (activeTab !== tab.id) return null;
-        const LazyComponent = pluginTabComponents[tab.id];
-        return (
-          <div key={tab.id} className={styles.tabContent}>
-            <PluginErrorBoundary pluginId={tab.pluginId}>
-              <Suspense fallback={<div>{t('common.loading')}</div>}>
-                {LazyComponent && <LazyComponent />}
-              </Suspense>
-            </PluginErrorBoundary>
-          </div>
-        );
-      })}
+          {activeTab === 'screenshots' && (
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+              {screenshotLoading ? (
+                <p style={{ color: 'var(--color-text-dim)', fontSize: '0.7em', padding: '1em' }}>
+                  {t('instanceDetail.screenshotsLoading')}
+                </p>
+              ) : screenshots.length === 0 ? (
+                <p style={{ color: 'var(--color-text-dim)', fontSize: '0.7em', padding: '1em' }}>
+                  {t('instanceDetail.noScreenshots')}
+                </p>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+                  {screenshots.map((path, i) => (
+                    <img
+                      key={i}
+                      src={path}
+                      alt={t('instanceDetail.screenshotAlt', { index: String(i + 1) })}
+                      style={{
+                        width: '100%',
+                        aspectRatio: '16/10',
+                        objectFit: 'cover',
+                        clipPath: 'var(--clip-small)',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => api.openFolder(path)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
+          {activeTab === 'snapshots' && (
+            <div className={styles.snapshotsTab}>
+              <div className={styles.snapshotsHeader}>
+                <div className={styles.snapshotsCreateRow}>
+                  <input
+                    type="text"
+                    value={snapshotName}
+                    onChange={(e) => setSnapshotName(e.target.value)}
+                    placeholder={t('instanceDetail.snapshotName')}
+                    className={styles.snapshotInput}
+                    onKeyDown={(e) => e.key === 'Enter' && handleCreateSnapshot()}
+                  />
+                  <Button variant="primary" size="sm" onClick={handleCreateSnapshot} disabled={snapshotLoading}>
+                    {snapshotLoading ? (
+                      t('instanceDetail.creating')
+                    ) : (
+                      <>
+                        <Icon name="camera" size={14} /> {t('instanceDetail.createSnapshot')}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {snapshots.length === 0 ? (
+                <div className={styles.placeholderTab}>{t('instanceDetail.noSnapshots')}</div>
+              ) : (
+                <div className={styles.snapshotList}>
+                  <div className={styles.snapshotTableHeader}>
+                    <span className={styles.snapshotColName}>{t('instanceDetail.snapshotNameCol')}</span>
+                    <span className={styles.snapshotColDate}>{t('instanceDetail.snapshotDateCol')}</span>
+                    <span className={styles.snapshotColSize}>{t('instanceDetail.snapshotSizeCol')}</span>
+                    <span className={styles.snapshotColActions}>{t('instanceDetail.snapshotActionsCol')}</span>
+                  </div>
+                  {snapshots.map((snap) => (
+                    <div key={snap.id} className={styles.snapshotRow}>
+                      <span className={styles.snapshotColName}>{snap.name}</span>
+                      <span className={styles.snapshotColDate}>
+                        {new Date(snap.created_at).toLocaleString('zh-CN', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                      <span className={styles.snapshotColSize}>{(snap.size_bytes / 1048576).toFixed(1)} MB</span>
+                      <span className={styles.snapshotColActions}>
+                        <Button
+                          variant="secondary-highlight"
+                          size="sm"
+                          onClick={() => handleRestoreSnapshot(snap.id, snap.name)}
+                        >
+                          <>
+                            <Icon name="arrowCurveLeft" size={14} /> {t('instanceDetail.restore')}
+                          </>
+                        </Button>
+                        <Button variant="danger" size="sm" onClick={() => handleDeleteSnapshot(snap.id, snap.name)}>
+                          <>
+                            <Icon name="cross" size={14} /> {t('common.delete')}
+                          </>
+                        </Button>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {pluginTabs.map((tab) => {
+            if (activeTab !== tab.id) return null;
+            const LazyComponent = pluginTabComponents[tab.id];
+            return (
+              <div key={tab.id} className={styles.tabContent}>
+                <PluginErrorBoundary pluginId={tab.pluginId}>
+                  <Suspense fallback={<div>{t('common.loading')}</div>}>{LazyComponent && <LazyComponent />}</Suspense>
+                </PluginErrorBoundary>
+              </div>
+            );
+          })}
         </div>
         {/* ---- End of detailContent ---- */}
       </div>
@@ -2040,9 +2197,7 @@ export default function InstanceDetailPage() {
             </div>
           ))}
           {preLaunchReport && !preLaunchReport.can_launch && (
-            <div style={{ fontSize: '0.55em', color: '#FF6B6B', marginTop: 8 }}>
-              {t('instanceDetail.cannotLaunch')}
-            </div>
+            <div style={{ fontSize: '0.55em', color: '#FF6B6B', marginTop: 8 }}>{t('instanceDetail.cannotLaunch')}</div>
           )}
         </div>
       </Modal>
@@ -2061,7 +2216,14 @@ export default function InstanceDetailPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.8em' }}>
-                Overall: {healthReport.overall === 'pass' ? <Icon name="checkCircle" size={12} /> : healthReport.overall === 'warn' ? <Icon name="warning" size={12} /> : <Icon name="crossCircle" size={12} />}
+                Overall:{' '}
+                {healthReport.overall === 'pass' ? (
+                  <Icon name="checkCircle" size={12} />
+                ) : healthReport.overall === 'warn' ? (
+                  <Icon name="warning" size={12} />
+                ) : (
+                  <Icon name="crossCircle" size={12} />
+                )}
               </span>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55em', color: 'var(--color-text-dim)' }}>
                 {healthReport.instance_id}
@@ -2098,7 +2260,9 @@ export default function InstanceDetailPage() {
                 </div>
                 <span style={{ fontSize: '0.5em', color: 'var(--color-text-secondary)' }}>{item.message}</span>
                 {item.suggestion && (
-                  <span style={{ fontSize: '0.5em', color: 'var(--color-accent)' }}><Icon name="lightbulb" size={12} /> {item.suggestion}</span>
+                  <span style={{ fontSize: '0.5em', color: 'var(--color-accent)' }}>
+                    <Icon name="lightbulb" size={12} /> {item.suggestion}
+                  </span>
                 )}
               </div>
             ))}
@@ -2142,9 +2306,19 @@ export default function InstanceDetailPage() {
             <div style={{ fontSize: '0.7em', fontFamily: 'var(--font-mono)', color: '#FFF', wordBreak: 'break-all' }}>
               {modInfoTarget.filename}
             </div>
-            <InfoRow label={t('instanceDetail.modStatus')} value={modInfoTarget.enabled === false ? t('library.disable') : t('library.enable')} />
-            <InfoRow label={t('instanceDetail.modSizeLabel')} value={`${(modInfoTarget.size / 1024).toFixed(1)} KB`} mono />
-            <InfoRow label={t('instanceDetail.modInstalledAt')} value={new Date(modInfoTarget.installed_at).toLocaleString()} />
+            <InfoRow
+              label={t('instanceDetail.modStatus')}
+              value={modInfoTarget.enabled === false ? t('library.disable') : t('library.enable')}
+            />
+            <InfoRow
+              label={t('instanceDetail.modSizeLabel')}
+              value={`${(modInfoTarget.size / 1024).toFixed(1)} KB`}
+              mono
+            />
+            <InfoRow
+              label={t('instanceDetail.modInstalledAt')}
+              value={new Date(modInfoTarget.installed_at).toLocaleString()}
+            />
             {modInfoTarget.slug && <InfoRow label="Slug" value={modInfoTarget.slug} mono />}
             {modInfoTarget.source && <InfoRow label={t('instanceDetail.modSource')} value={modInfoTarget.source} />}
             {modInfoTarget.pinned && <InfoRow label={t('instanceDetail.modPinned')} value={t('common.yes')} />}

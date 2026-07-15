@@ -327,6 +327,10 @@ const enUS: Record<string, string> = {
   'instanceDetail.updateFailed': 'Failed to update instance',
   'instanceDetail.status': 'Status',
   'instanceDetail.javaPath': 'Java Path',
+  'instanceDetail.preLaunchCommand': 'Pre-launch Command',
+  'instanceDetail.postExitCommand': 'Post-exit Command',
+  'instanceDetail.preLaunchCommandPlaceholder': 'Leave empty to skip (e.g. backup-save script)',
+  'instanceDetail.postExitCommandPlaceholder': 'Leave empty to skip',
   'instanceDetail.downloadStatus': 'Download Status',
   'instanceDetail.readyStatus': 'Ready',
   'instanceDetail.notReadyStatus': 'Not Ready',
@@ -381,7 +385,8 @@ const enUS: Record<string, string> = {
   'contentDetail.loaderMismatch': 'Loader mismatch',
   'contentDetail.versionMismatch': 'Version mismatch',
   'contentDetail.noInstanceHint': 'Select an instance to see compatibility',
-  'contentDetail.networkErrorHint': 'Network request failed. Check your connection or switch download source to BMCLAPI in Settings',
+  'contentDetail.networkErrorHint':
+    'Network request failed. Check your connection or switch download source to BMCLAPI in Settings',
   'contentDetail.goToSettings': 'Go to Settings',
 
   'versions.title': 'Versions',
@@ -527,15 +532,20 @@ const enUS: Record<string, string> = {
   'settings.screenshotsSelectInstance': 'Select instance to view screenshots',
   'settings.nowintPresent': 'NOWINT PRESENT',
   'settings.joinQQGroup': 'Join QQ Group',
-  'settings.recruitNotice': 'BonNext is recruiting more users and developers. If you have ideas, please join our QQ group or add QQ 674000249',
+  'settings.recruitNotice':
+    'BonNext is recruiting more users and developers. If you have ideas, please join our QQ group or add QQ 674000249',
   'settings.troubleshoot.title': 'Diagnose & Repair',
-  'settings.troubleshoot.desc': 'If the launcher encounters startup errors, white screen, or malfunction, use these tools to diagnose and repair',
+  'settings.troubleshoot.desc':
+    'If the launcher encounters startup errors, white screen, or malfunction, use these tools to diagnose and repair',
   'settings.troubleshoot.clearCache': 'Clear Cache',
-  'settings.troubleshoot.clearCacheDesc': 'Clear cached data in localStorage (API cache, plugin state, etc.). Does not affect accounts or instances',
+  'settings.troubleshoot.clearCacheDesc':
+    'Clear cached data in localStorage (API cache, plugin state, etc.). Does not affect accounts or instances',
   'settings.troubleshoot.resetLayout': 'Reset Layout',
-  'settings.troubleshoot.resetLayoutDesc': 'Reset theme, layout style, sidebar width, home mode and other UI settings to defaults',
+  'settings.troubleshoot.resetLayoutDesc':
+    'Reset theme, layout style, sidebar width, home mode and other UI settings to defaults',
   'settings.troubleshoot.reloadApp': 'Reload Launcher',
-  'settings.troubleshoot.reloadAppDesc': 'Reload the launcher UI (without closing the process), to apply repaired changes',
+  'settings.troubleshoot.reloadAppDesc':
+    'Reload the launcher UI (without closing the process), to apply repaired changes',
   'settings.troubleshoot.clearCacheSuccess': 'Cache cleared, please reload the launcher',
   'settings.troubleshoot.resetLayoutSuccess': 'Layout reset, please reload the launcher',
   'settings.troubleshoot.confirmReload': 'About to reload the launcher, continue?',
@@ -588,7 +598,8 @@ const enUS: Record<string, string> = {
   'settings.downloadPriorityHigh': 'High',
   'settings.network': 'Network',
   'settings.gitProxy': 'GitHub Proxy',
-  'settings.gitProxyHelp': 'Route GitHub content downloads through a proxy mirror. This helps in regions where GitHub access is restricted. Only affects github.com content URLs, not the API.',
+  'settings.gitProxyHelp':
+    'Route GitHub content downloads through a proxy mirror. This helps in regions where GitHub access is restricted. Only affects github.com content URLs, not the API.',
   'settings.gitProxyEnabled': 'Enabled',
   'settings.gitProxyDisabled': 'Disabled',
   'settings.gitProxyUrl': 'Proxy URL',
@@ -1240,7 +1251,8 @@ const enUS: Record<string, string> = {
   'settings.security.openLogViewer': 'Open Log Viewer',
   'settings.security.recentLogins': 'Recent Logins',
   'settings.security.trustedKeys': 'Plugin Signature Trusted Keys',
-  'settings.security.trustedKeysDesc': 'Manage trusted public keys used to verify Ed25519 signatures of plugin archives. Signed plugins from trusted keys are auto-accepted; unsigned plugins will warn.',
+  'settings.security.trustedKeysDesc':
+    'Manage trusted public keys used to verify Ed25519 signatures of plugin archives. Signed plugins from trusted keys are auto-accepted; unsigned plugins will warn.',
   'settings.security.trustedKeysBuiltin': 'Built-in',
   'settings.security.trustedKeysUser': 'User-added',
   'settings.security.trustedKeysEmpty': 'No user-added trusted keys yet',

@@ -15,15 +15,16 @@ pub struct LaunchProcess {
     app_handle: Option<tauri::AppHandle>,
     instance_id: Option<String>,
     running_games: Option<Arc<Mutex<std::collections::HashMap<String, crate::RunningGame>>>>,
+    post_exit_command: Option<String>,
 }
 
 impl LaunchProcess {
     pub fn new(state: Arc<Mutex<LaunchState>>) -> Self {
-        LaunchProcess { state, app_handle: None, instance_id: None, running_games: None }
+        LaunchProcess { state, app_handle: None, instance_id: None, running_games: None, post_exit_command: None }
     }
 
     pub fn with_app_handle(state: Arc<Mutex<LaunchState>>, app: tauri::AppHandle) -> Self {
-        LaunchProcess { state, app_handle: Some(app), instance_id: None, running_games: None }
+        LaunchProcess { state, app_handle: Some(app), instance_id: None, running_games: None, post_exit_command: None }
     }
 
     pub fn with_instance_id(mut self, id: String) -> Self {
@@ -33,6 +34,11 @@ impl LaunchProcess {
 
     pub fn with_running_games(mut self, games: Arc<Mutex<std::collections::HashMap<String, crate::RunningGame>>>) -> Self {
         self.running_games = Some(games);
+        self
+    }
+
+    pub fn with_post_exit_command(mut self, cmd: String) -> Self {
+        self.post_exit_command = Some(cmd);
         self
     }
 
@@ -289,6 +295,7 @@ impl LaunchProcess {
         let profile_stages_clone = profile_stages.clone();
         let launch_start_clone = launch_start;
         let app_handle_for_exit = self.app_handle.clone();
+        let post_exit_command = self.post_exit_command.clone();
         std::thread::spawn(move || {
             // 先 join drain 线程：进程退出后管道 EOF，drain 线程 read 返回 0 自然退出。
             // join 保证状态切换时 stdout/stderr 已全部读取，崩溃末尾日志不丢。
@@ -376,6 +383,32 @@ impl LaunchProcess {
                             entry.pid = 0;
                             tracing::info!("Instance {} marked as terminated, waiting for reset", iid);
                         }
+                    }
+                }
+            }
+            // post_exit_command：fire-and-forget。在状态清理后触发，
+            // 不阻塞（spawn 后不 wait），避免用户脚本卡住启动器收尾。
+            // 仅正常退出/崩溃时运行，取消时不运行（用户已主动终止）。
+            if !was_cancelled {
+                if let Some(ref cmd) = post_exit_command {
+                    if !cmd.trim().is_empty() {
+                        tracing::info!("Running post-exit command: {}", cmd);
+                        let cmd = cmd.clone();
+                        std::thread::spawn(move || {
+                            let mut command = if cfg!(target_os = "windows") {
+                                let mut c = std::process::Command::new("cmd");
+                                c.arg("/C").arg(&cmd);
+                                c
+                            } else {
+                                let mut c = std::process::Command::new("sh");
+                                c.arg("-c").arg(&cmd);
+                                c
+                            };
+                            command.stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+                            if let Err(e) = command.spawn() {
+                                tracing::warn!("post-exit command spawn failed: {}", e);
+                            }
+                        });
                     }
                 }
             }
