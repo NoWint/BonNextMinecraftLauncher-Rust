@@ -191,8 +191,17 @@ impl DownloadQueue {
                 }
 
                 if attempt > 0 {
-                    let delay = RETRY_BASE_DELAY_MS * 2u64.pow(attempt - 1);
-                    tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
+                    // 退避加上限 30s，防止 max_retries 被调大时 delay 爆炸
+                    // （500 * 2^9 = 256s）。加简易 jitter（系统时间纳秒取模 500ms）
+                    // 防 thundering herd，避免引入 rand crate 依赖。
+                    let base = RETRY_BASE_DELAY_MS
+                        .saturating_mul(2u64.pow(attempt - 1))
+                        .min(30_000);
+                    let jitter = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.subsec_nanos() as u64 % 500)
+                        .unwrap_or(0);
+                    tokio::time::sleep(std::time::Duration::from_millis(base + jitter)).await;
                     tracing::warn!(
                         "Retrying download (attempt {}/{}): {}",
                         attempt,
@@ -269,33 +278,51 @@ impl DownloadQueue {
         let mut last_emit = std::time::Instant::now();
         let start_time = std::time::Instant::now();
 
-        while let Some(chunk_result) = stream.next().await {
-            self.wait_while_paused().await;
+        // 慢速攻击防护：每个 chunk 最多等 30 秒，超时即失败。
+        // 此前无 per-chunk 超时，服务器每 60s 发 1 字节即可永久挂起下载，
+        // semaphore permit 被永久占用，整个下载队列阻塞。
+        const CHUNK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+        loop {
+            let next = tokio::time::timeout(CHUNK_TIMEOUT, stream.next()).await;
+            match next {
+                Err(_) => {
+                    drop(file);
+                    let _ = tokio::fs::remove_file(target_path).await;
+                    return Err(LauncherError::DownloadFailed(
+                        "download stalled: no data received for 30s".to_string(),
+                    ));
+                }
+                Ok(None) => break,
+                Ok(Some(chunk_result)) => {
+                    self.wait_while_paused().await;
 
-            if self.is_cancelled(url) {
-                drop(file);
-                let _ = tokio::fs::remove_file(target_path).await;
-                return Err(LauncherError::DownloadFailed("cancelled".to_string()));
-            }
+                    if self.is_cancelled(url) {
+                        drop(file);
+                        let _ = tokio::fs::remove_file(target_path).await;
+                        return Err(LauncherError::DownloadFailed("cancelled".to_string()));
+                    }
 
-            let chunk = chunk_result?;
-            tokio::io::copy(&mut &chunk[..], &mut file).await?;
-            downloaded += chunk.len() as u64;
+                    let chunk = chunk_result?;
+                    tokio::io::copy(&mut &chunk[..], &mut file).await?;
+                    downloaded += chunk.len() as u64;
 
-            let now = std::time::Instant::now();
-            if now.duration_since(last_emit).as_millis() >= 200 {
-                last_emit = now;
-                let elapsed = start_time.elapsed();
-                let (bytes_per_second, eta_seconds) = compute_speed_eta(downloaded, total_size, elapsed);
-                self.emit_progress(DownloadProgress {
-                    url: url.to_string(),
-                    downloaded,
-                    total: total_size,
-                    finished: false,
-                    error: None,
-                    bytes_per_second,
-                    eta_seconds,
-                });
+                    let now = std::time::Instant::now();
+                    if now.duration_since(last_emit).as_millis() >= 200 {
+                        last_emit = now;
+                        let elapsed = start_time.elapsed();
+                        let (bytes_per_second, eta_seconds) =
+                            compute_speed_eta(downloaded, total_size, elapsed);
+                        self.emit_progress(DownloadProgress {
+                            url: url.to_string(),
+                            downloaded,
+                            total: total_size,
+                            finished: false,
+                            error: None,
+                            bytes_per_second,
+                            eta_seconds,
+                        });
+                    }
+                }
             }
         }
 
