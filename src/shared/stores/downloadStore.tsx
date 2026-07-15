@@ -151,6 +151,26 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // 自动清理：每 60s 扫描一次，移除 5 分钟前已完成/失败/取消的任务。
+  // 之前 bug：completed/failed/cancelled 任务永久驻留，长时间运行会堆满 50 条上限，
+  // 新下载任务被挤出可见区域。
+  // 用 tasksRef.current 读取最新状态，避免在每次进度更新时重置 interval。
+  useEffect(() => {
+    const CLEANUP_AGE_MS = 5 * 60 * 1000;
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const stale = tasksRef.current.filter(
+        (t) =>
+          (t.status === 'complete' || t.status === 'failed' || t.status === 'cancelled') &&
+          now - t.startedAt > CLEANUP_AGE_MS,
+      );
+      for (const t of stale) {
+        dispatch({ type: 'REMOVE_TASK', id: t.id });
+      }
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
   const contextValue = useMemo(
     () => ({
       state,

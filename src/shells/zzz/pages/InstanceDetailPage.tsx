@@ -33,7 +33,7 @@ import { getLoaderIcon, getLoaderLabel } from '../../../shared/utils/loader';
 import GameConsole from '../components/ui/GameConsole';
 import LogViewer from '../components/ui/LogViewer';
 import { relativeTime } from '../../../shared/utils/time';
-import { formatError } from '../../../shared/utils/errorMapping';
+import { formatError, handleAuthExpired } from '../../../shared/utils/errorMapping';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { showContextMenu, type ContextMenuItem } from '../components/ContextMenu';
@@ -767,6 +767,39 @@ export default function InstanceDetailPage() {
         message: t('instances.isStarting', { name: instance.name }),
       });
     } catch (e: unknown) {
+      // AUTH_EXPIRED 兜底：刷新 token 后重试一次（与 HomePage 一致）
+      const refreshed = await handleAuthExpired(e);
+      if (refreshed) {
+        try {
+          await api.launchGame(
+            instance.version_id,
+            instance.version_url,
+            auth?.username || 'Player',
+            auth?.uuid || '',
+            auth?.access_token || '',
+            instance.max_memory,
+            instance.min_memory,
+            instance.java_path || undefined,
+            instance.jvm_args || undefined,
+            instance.id,
+          );
+          addToast({
+            type: 'success',
+            title: t('instances.launching'),
+            message: t('instances.isStarting', { name: instance.name }),
+          });
+          return;
+        } catch (e2: unknown) {
+          setError(formatError(e2) || t('instances.launchFailed'));
+          addToast({
+            type: 'error',
+            title: t('instances.launchFailed'),
+            message: formatError(e2) || t('instances.launchFailed'),
+          });
+          setTimeout(() => setError(''), 8000);
+          return;
+        }
+      }
       setError(formatError(e) || t('instances.launchFailed'));
       addToast({
         type: 'error',

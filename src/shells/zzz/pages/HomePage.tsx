@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatError } from '../../../shared/utils/errorMapping';
+import { formatError, handleAuthExpired } from '../../../shared/utils/errorMapping';
 import {
   api,
   type DownloadProgressEvent,
@@ -646,11 +646,39 @@ export default function HomePage() {
         launchSuccess = true;
         addToast({ type: 'success', title: t('home.gameLaunched'), message: `${instance.name} is starting...` });
       } catch (e: unknown) {
-        const msg = formatError(e) || 'Launch failed';
-        launchError = msg;
-        setError(msg);
-        addToast({ type: 'error', title: 'Launch failed', message: msg });
-        setTimeout(() => setError(''), 8000);
+        // 后端 ensure_fresh_token 通常透明刷新 token，但并发场景或网络分区下
+        // 仍可能返回 AUTH_EXPIRED。此处做一次兜底：刷新成功后重试一次启动。
+        const refreshed = await handleAuthExpired(e);
+        if (refreshed) {
+          try {
+            await api.launchGame(
+              instance.version_id,
+              instance.version_url,
+              auth?.username || 'Player',
+              auth?.uuid || '',
+              auth?.access_token || '',
+              instance.max_memory,
+              instance.min_memory,
+              instance.java_path || undefined,
+              instance.jvm_args || undefined,
+              instance.id,
+            );
+            launchSuccess = true;
+            addToast({ type: 'success', title: t('home.gameLaunched'), message: `${instance.name} is starting...` });
+          } catch (e2: unknown) {
+            const msg = formatError(e2) || 'Launch failed';
+            launchError = msg;
+            setError(msg);
+            addToast({ type: 'error', title: 'Launch failed', message: msg });
+            setTimeout(() => setError(''), 8000);
+          }
+        } else {
+          const msg = formatError(e) || 'Launch failed';
+          launchError = msg;
+          setError(msg);
+          addToast({ type: 'error', title: 'Launch failed', message: msg });
+          setTimeout(() => setError(''), 8000);
+        }
       } finally {
         // afterInstanceLaunch 钩子（fire-and-forget）
         await pluginManager.emitLifecycleHook('afterInstanceLaunch', {
