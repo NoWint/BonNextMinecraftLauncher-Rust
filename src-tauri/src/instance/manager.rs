@@ -75,11 +75,46 @@ fn default_debug_port() -> u16 { 5005 }
 fn default_game_dir_type() -> String { "version".to_string() }
 fn default_process_priority() -> String { "normal".to_string() }
 
+/// 构造实例 ID，仅保留 `[a-zA-Z0-9_-]`，其余字符替换为 `_`。
+///
+/// 这从根源阻止路径遍历：之前 `name.replace(' ', "_")` 仍允许 `.`、`/`、`\`、`..`，
+/// 配合 `dir()` 的 `join(&self.id)` 与 `delete_instance` 的 `remove_dir_all`，
+/// 用户命名实例为 `../../..` 即可逃逸到游戏目录外删除任意目录。
+/// 显式保留 `-`/`_` 以兼容历史合法 ID（如 `1.20.4_My_World` → `1_20_4_My_World`，
+/// 旧实例不受影响，仅新实例受新规则约束）。
+fn make_instance_id(version_id: &str, name: &str) -> String {
+    fn sanitize_component(s: &str) -> String {
+        s.chars()
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect::<String>()
+            .trim_matches('_')
+            .to_string()
+    }
+    let v = sanitize_component(version_id);
+    let n = sanitize_component(name);
+    // 两者都空时回退占位，避免空 ID 导致 join 空段。
+    if v.is_empty() && n.is_empty() {
+        "instance".to_string()
+    } else if v.is_empty() {
+        n
+    } else if n.is_empty() {
+        v
+    } else {
+        format!("{}_{}", v, n)
+    }
+}
+
 // Reserved for programmatic instance creation
 #[allow(dead_code)]
 impl GameInstance {
     pub fn new(name: &str, version_id: &str, version_url: &str) -> Self {
-        let id = format!("{}_{}", version_id, name.replace(' ', "_"));
+        let id = make_instance_id(version_id, name);
         let now = chrono::Local::now().to_rfc3339();
         GameInstance {
             id,
@@ -1035,7 +1070,8 @@ mod tests {
         assert_eq!(inst.name, "My World");
         assert_eq!(inst.version_id, "1.20.4");
         assert_eq!(inst.version_url, "https://example.com/1.20.4.json");
-        assert!(inst.id.contains("1.20.4"));
+        // version_id 的 `.` 被 sanitize 为 `_`，阻止路径遍历与意外目录层级。
+        assert!(inst.id.contains("1_20_4"));
         assert!(inst.id.contains("My_World"));
         assert!(inst.loader_type.is_none());
         assert!(inst.loader_version.is_none());
@@ -1051,6 +1087,52 @@ mod tests {
         let inst = GameInstance::new("My Cool World", "1.20.4", "https://example.com");
         assert!(inst.id.contains("My_Cool_World"));
         assert!(!inst.id.contains(' '));
+    }
+
+    #[test]
+    fn game_instance_id_blocks_path_traversal() {
+        // 回归测试：实例名含路径遍历字符必须被中和，避免 delete_instance 删除任意目录。
+        let malicious_names = [
+            "../../../etc/passwd",
+            "..\\..\\windows\\system32",
+            "../../../../home/user",
+            "....//....//",
+            "name/with/slash",
+            "name\\with\\backslash",
+        ];
+        for name in malicious_names {
+            let inst = GameInstance::new(name, "1.20.4", "https://example.com");
+            assert!(
+                !inst.id.contains(".."),
+                "id {:?} from name {:?} still contains '..'",
+                inst.id,
+                name
+            );
+            assert!(
+                !inst.id.contains('/') && !inst.id.contains('\\'),
+                "id {:?} from name {:?} still contains path separator",
+                inst.id,
+                name
+            );
+            // ID 应只含 [a-zA-Z0-9_-]
+            assert!(
+                inst.id
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'),
+                "id {:?} contains invalid characters",
+                inst.id
+            );
+        }
+    }
+
+    #[test]
+    fn make_instance_id_handles_empty_and_unicode() {
+        // 空输入回退占位，避免空 ID 导致 join 空段。
+        assert_eq!(make_instance_id("", ""), "instance");
+        // Unicode 名字被替换为 _，保留可读性的同时阻止意外字符。
+        let id = make_instance_id("1.20.4", "我的世界");
+        assert!(id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'));
+        assert!(id.starts_with("1_20_4"));
     }
 
     #[test]

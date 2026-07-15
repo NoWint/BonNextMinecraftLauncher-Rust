@@ -3,6 +3,7 @@ use crate::error::LauncherError;
 use crate::platform::java;
 use crate::platform::paths;
 use crate::version::resolver::ResolvedVersion;
+use crate::security::jvm_whitelist;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -246,8 +247,14 @@ pub async fn build_launch_command(ctx: &LaunchContext) -> Result<Vec<String>, La
 
     if let Some(ref extra_args) = ctx.extra_jvm_args {
         if !extra_args.is_empty() {
-            for arg in extra_args.split_whitespace() {
-                cmd.push(arg.to_string());
+            // 强制执行 JVM 参数白名单：之前直接 split_whitespace 后 push，
+            // 使 security.jvm_args_mode = "whitelist" 形同虚设，用户可注入
+            // -javaagent:evil.jar / -Djava.security.policy=... 等危险参数。
+            // 现统一走 jvm_whitelist::validate_jvm_args，拒绝非白名单参数并返回错误。
+            let raw: Vec<String> = extra_args.split_whitespace().map(String::from).collect();
+            let validated = jvm_whitelist::validate_jvm_args(&raw)?;
+            for arg in validated {
+                cmd.push(arg);
             }
         }
     }

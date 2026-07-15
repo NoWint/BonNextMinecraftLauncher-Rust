@@ -82,6 +82,9 @@ function usePollLaunchState(interval = 2000) {
   const [runningGames, setRunningGames] = useState<RunningGameInfo[]>([]);
   useEffect(() => {
     let cancelled = false;
+    let unlisten: (() => void) | null = null;
+    let listenResolveCount = 0;
+
     const poll = async () => {
       try {
         if (cancelled) return;
@@ -90,24 +93,39 @@ function usePollLaunchState(interval = 2000) {
         /* empty */
       }
     };
-    // 延迟首次轮询 1.5 秒，避免与启动期关键 IPC（auth/config/instances）竞争。
-    const initialTimer = setTimeout(poll, 1500);
-    const timer = setInterval(poll, interval);
 
-    let unlisten: (() => void) | null = null;
+    // 首次拉取一次（延迟 1.5s 避开启动期 IPC 竞争），之后改为事件驱动。
+    // 之前每 2s 轮询 + 事件双轨，后台挂机 1 小时 = 1800 次冗余 IPC；
+    // 且 listen() 异步未 resolve 时组件卸载会泄漏 listener（unlisten 仍为 null）。
+    const initialTimer = setTimeout(poll, 1500);
+
+    // 兜底心跳：仅在事件丢失时补偿（拉长到 30s，避免完全依赖事件）。
+    const heartbeatTimer = setInterval(poll, Math.max(interval, 30000));
+
     import('@tauri-apps/api/event').then(({ listen }) => {
+      // 组件已卸载则不注册，避免泄漏。
+      if (cancelled) return;
       listen<{ state: string; instance_id?: string }>('launch-state-changed', () => {
         poll();
       }).then((fn) => {
-        unlisten = fn;
+        // 注册完成；若期间已卸载，立即取消注册。
+        listenResolveCount += 1;
+        if (cancelled) {
+          fn();
+        } else {
+          unlisten = fn;
+        }
       });
     });
 
     return () => {
       cancelled = true;
       clearTimeout(initialTimer);
-      clearInterval(timer);
+      clearInterval(heartbeatTimer);
       unlisten?.();
+      // listen() 可能在 cleanup 后才 resolve，无法在此清理；
+      // 上面 cancelled 标志使 then 回调内自调用 fn() 兜底卸载。
+      void listenResolveCount;
     };
   }, [interval]);
   return { runningGames };
@@ -161,7 +179,9 @@ function InstanceCard({
             {instance.loader_type && <Badge variant="muted">{instance.loader_type}</Badge>}
           </div>
           <div className={styles.card__meta}>
-            <span className={styles.card__metaItem}>{t('instances.lastPlayed')}: {relativeTime(instance.last_played)}</span>
+            <span className={styles.card__metaItem}>
+              {t('instances.lastPlayed')}: {relativeTime(instance.last_played)}
+            </span>
             <span className={styles.card__metaSep}>.</span>
             <span className={styles.card__metaItem}>{playtimeLabel}</span>
             <span className={styles.card__metaSep}>.</span>
@@ -468,9 +488,10 @@ export default function HomePage() {
     const unlisten = api.onDownloadProgress((progress) => {
       if (cancelled) return;
       setDownloadProgress(progress);
-      if (progress.finished) setTimeout(() => {
-        if (!cancelled) setDownloadProgress(null);
-      }, 2000);
+      if (progress.finished)
+        setTimeout(() => {
+          if (!cancelled) setDownloadProgress(null);
+        }, 2000);
     });
     return () => {
       cancelled = true;
@@ -541,7 +562,11 @@ export default function HomePage() {
           return;
         }
         // Microsoft 账号：尝试获取在线皮肤
-        if (account.access_token && !account.access_token.startsWith('offline_') && !account.access_token.startsWith('yggdrasil_')) {
+        if (
+          account.access_token &&
+          !account.access_token.startsWith('offline_') &&
+          !account.access_token.startsWith('yggdrasil_')
+        ) {
           try {
             const profile = await api.microsoftGetSkinProfile(account.access_token);
             if (cancelled) return;
@@ -697,354 +722,141 @@ export default function HomePage() {
 
   return (
     <>
-    {homeMode === 'minimalist' ? (
-      <div className={`page-enter ${styles.minimalistPage}`}>
-        {/* 左侧玩家皮肤模型（背景透明） */}
-        <div className={styles.minimalistSkin}>
-          <SkinViewer3D
-            skinUrl={skinUrl}
-            model={skinModel}
-            width={240}
-            height={360}
-            className={styles.minimalistSkin__viewer}
-          />
-          <div className={styles.minimalistSkin__name}>
-            {auth?.username || 'Player'}
+      {homeMode === 'minimalist' ? (
+        <div className={`page-enter ${styles.minimalistPage}`}>
+          {/* 左侧玩家皮肤模型（背景透明） */}
+          <div className={styles.minimalistSkin}>
+            <SkinViewer3D
+              skinUrl={skinUrl}
+              model={skinModel}
+              width={240}
+              height={360}
+              className={styles.minimalistSkin__viewer}
+            />
+            <div className={styles.minimalistSkin__name}>{auth?.username || 'Player'}</div>
           </div>
-        </div>
 
-        {/* 左上角账号信息 */}
-        <div className={styles.minimalistAccount}>
-          <div className={styles.minimalistAccount__avatar}>
-            {(auth?.username || '?').charAt(0).toUpperCase()}
-          </div>
-          <span className={styles.minimalistAccount__name}>{auth?.username || 'Player'}</span>
-          <span>·</span>
-          <span>{instances.length} {t('home.instances')}</span>
-        </div>
-
-        {/* 左上角用户名下方的大标题招呼语（纯文字） */}
-        <h1 className={styles.minimalistGreeting}>
-          {anyGameRunning ? t('home.minimalist.continueGame') : greeting.title}
-        </h1>
-
-        {/* 右上角工具栏 */}
-        <div className={styles.minimalistToolbar}>
-          <div className={styles.topBar__sysStatus} style={{ marginRight: 4 }}>
-            <StatusDot status={isBusy ? 'processing' : anyGameRunning ? 'processing' : 'ready'} />
-            <span className={styles.topBar__sysText}>
-              {anyGameRunning
-                ? t('home.topbar.runningCount', { count: String(runningGames.filter((g) => g.state === 'running').length) })
-                : launchState.toUpperCase()}
+          {/* 左上角账号信息 */}
+          <div className={styles.minimalistAccount}>
+            <div className={styles.minimalistAccount__avatar}>{(auth?.username || '?').charAt(0).toUpperCase()}</div>
+            <span className={styles.minimalistAccount__name}>{auth?.username || 'Player'}</span>
+            <span>·</span>
+            <span>
+              {instances.length} {t('home.instances')}
             </span>
           </div>
-          <button
-            onClick={handleToggleHomeMode}
-            title={t('home.minimalist.modeToggle')}
-            className={styles.minimalistBtn}
-          >
-            <Icon name="grid" size={12} /> {t('home.minimalist.dashboardMode')}
-          </button>
-          <button
-            onClick={() => setShowBgPopover((v) => !v)}
-            title={t('home.minimalist.backgroundSettings')}
-            className={`${styles.minimalistBtn} ${showBgPopover ? styles['minimalistBtn--active'] : ''}`}
-          >
-            <Icon name="palette" size={12} /> {t('home.topbar.customize')}
-          </button>
-          <button
-            onClick={() => setShowConsole((v) => !v)}
-            className={`${styles.minimalistBtn} ${showConsole ? styles['minimalistBtn--active'] : ''}`}
-          >
-            <Icon name={showConsole ? 'chevronUp' : 'chevronDown'} size={12} /> {t('home.topbar.console')}
-          </button>
-        </div>
 
-        {/* 背景设置浮层 */}
-        {showBgPopover && (
-          <div className={styles.bgPopover}>
-            <div className={styles.bgPopover__title}>{t('home.minimalist.backgroundSettings')}</div>
-            <div className={styles.bgPopover__hint}>{t('home.minimalist.backgroundHint')}</div>
-            <div className={styles.bgPopover__actions}>
-              <label className={styles.bgPopover__btn} title={t('home.topbar.uploadBackground')}>
-                <Icon name="upload" size={12} /> {t('home.minimalist.uploadBackground')}
-                <input
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={handleBackgroundUpload}
-                />
-              </label>
-              {homeBackground && (
-                <button
-                  onClick={handleClearBackground}
-                  className={`${styles.bgPopover__btn} ${styles['bgPopover__btn--danger']}`}
-                  title={t('home.topbar.clearBackground')}
-                >
-                  <Icon name="cross" size={12} /> {t('home.minimalist.clearBackground')}
-                </button>
-              )}
-            </div>
-            {/* 模糊效果开关 */}
-            <div className={styles.bgPopover__toggleRow}>
-              <span className={styles.bgPopover__toggleLabel}>
-                {t('home.minimalist.blurEnabled')}
+          {/* 左上角用户名下方的大标题招呼语（纯文字） */}
+          <h1 className={styles.minimalistGreeting}>
+            {anyGameRunning ? t('home.minimalist.continueGame') : greeting.title}
+          </h1>
+
+          {/* 右上角工具栏 */}
+          <div className={styles.minimalistToolbar}>
+            <div className={styles.topBar__sysStatus} style={{ marginRight: 4 }}>
+              <StatusDot status={isBusy ? 'processing' : anyGameRunning ? 'processing' : 'ready'} />
+              <span className={styles.topBar__sysText}>
+                {anyGameRunning
+                  ? t('home.topbar.runningCount', {
+                      count: String(runningGames.filter((g) => g.state === 'running').length),
+                    })
+                  : launchState.toUpperCase()}
               </span>
-              <button
-                onClick={() => setHomeBlurEnabled(!homeBlurEnabled)}
-                className={`${styles.bgPopover__toggle} ${homeBlurEnabled ? styles['bgPopover__toggle--on'] : ''}`}
-                role="switch"
-                aria-checked={homeBlurEnabled}
-                title={t('home.minimalist.blurEnabledDesc')}
-              >
-                <span className={styles.bgPopover__toggleKnob} />
-              </button>
             </div>
+            <button
+              onClick={handleToggleHomeMode}
+              title={t('home.minimalist.modeToggle')}
+              className={styles.minimalistBtn}
+            >
+              <Icon name="grid" size={12} /> {t('home.minimalist.dashboardMode')}
+            </button>
+            <button
+              onClick={() => setShowBgPopover((v) => !v)}
+              title={t('home.minimalist.backgroundSettings')}
+              className={`${styles.minimalistBtn} ${showBgPopover ? styles['minimalistBtn--active'] : ''}`}
+            >
+              <Icon name="palette" size={12} /> {t('home.topbar.customize')}
+            </button>
+            <button
+              onClick={() => setShowConsole((v) => !v)}
+              className={`${styles.minimalistBtn} ${showConsole ? styles['minimalistBtn--active'] : ''}`}
+            >
+              <Icon name={showConsole ? 'chevronUp' : 'chevronDown'} size={12} /> {t('home.topbar.console')}
+            </button>
           </div>
-        )}
 
-        {/* 实例切换弹出菜单 */}
-        {showVersionPopup && (
-          <div className={styles.versionPopup}>
-            <div className={styles.versionPopup__header}>{t('home.minimalist.switchVersion')}</div>
-            {instances.length === 0 ? (
-              <div className={styles.versionPopup__empty}>{t('home.minimalist.noInstance')}</div>
-            ) : (
-              instances.map((inst) => (
-                <div
-                  key={inst.id}
-                  className={`${styles.versionPopup__item} ${inst.id === activeInstance?.id ? styles['versionPopup__item--active'] : ''}`}
-                  onClick={() => {
-                    setSelectedInstanceId(inst.id);
-                    setShowVersionPopup(false);
-                  }}
-                >
-                  <div className={styles.versionPopup__icon}>
-                    {(inst.name || '?').charAt(0).toUpperCase()}
-                  </div>
-                  <div className={styles.versionPopup__info}>
-                    <div className={styles.versionPopup__name}>{inst.name}</div>
-                    <div className={styles.versionPopup__meta}>
-                      {inst.version_id}
-                      {inst.loader_type ? ` · ${inst.loader_type}` : ''}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* 下载进度浮层 */}
-        {downloadProgress && !downloadProgress.finished && (
-          <div className={styles.minimalistOverlay}>
-            <div className={styles.minimalistOverlay__title}>
-              {downloadProgress.phase === 'assets' ? t('home.downloadingAssets') : t('home.downloading')}
-            </div>
-            <ProgressBar
-              progress={
-                downloadProgress.total > 0
-                  ? Math.round((downloadProgress.completed / downloadProgress.total) * 100)
-                  : 0
-              }
-              done={false}
-            />
-            <div className={styles.minimalistOverlay__stats}>
-              {downloadProgress.completed}/{downloadProgress.total} · {downloadProgress.phase}
-            </div>
-          </div>
-        )}
-
-        {/* JRE 下载浮层 */}
-        {jreDownload && jreDownload.downloaded < jreDownload.total && (
-          <div className={styles.minimalistOverlay}>
-            <div className={styles.minimalistOverlay__title}>{t('home.jreDownload.title')}</div>
-            <div className={styles.bgPopover__hint}>
-              {t('home.jreDownload.subtitle', { version: String(jreDownload.version) })}
-            </div>
-            <ProgressBar
-              progress={jreDownload.total > 0 ? Math.round((jreDownload.downloaded / jreDownload.total) * 100) : 0}
-              done={false}
-            />
-            <div className={styles.minimalistOverlay__stats}>
-              {(jreDownload.downloaded / 1_048_576).toFixed(1)} MB / {(jreDownload.total / 1_048_576).toFixed(1)} MB
-            </div>
-          </div>
-        )}
-
-        {/* 错误提示 */}
-        {error && <div className={styles.minimalistError}>{error}</div>}
-
-        {/* 右下角启动按钮（HMCL 风格胶囊） */}
-        <div className={styles.launchPane}>
-          <button
-            className={styles.launchPane__main}
-            onClick={() => activeInstance && handleLaunch(activeInstance)}
-            disabled={!activeInstance || isBusy}
-            title={activeInstance ? t('home.minimalist.launch') : t('home.minimalist.launchHint')}
-          >
-            <span className={styles.launchPane__mainLabel}>
-              {activeInstance ? t('home.minimalist.launch') : t('home.minimalist.launchNoVersion')}
-            </span>
-            {activeInstance && (
-              <span className={styles.launchPane__subLabel}>{activeInstance.name}</span>
-            )}
-          </button>
-          <button
-            className={styles.launchPane__menu}
-            onClick={() => setShowVersionPopup((v) => !v)}
-            title={t('home.minimalist.switchVersion')}
-          >
-            <Icon name="chevronUp" size={16} />
-          </button>
-        </div>
-
-        {/* 空实例时的新手引导 */}
-        {instances.length === 0 && !loading && (
-          <div className={styles.minimalistOverlay} style={{ maxWidth: 400 }}>
-            <div className={styles.minimalistOverlay__title}>{t('home.welcomeNew')}</div>
-            <div className={styles.bgPopover__hint} style={{ marginBottom: 12 }}>
-              {t('home.welcomeNewDesc')}
-            </div>
-            <div className={styles.bgPopover__actions}>
-              <Button variant="primary" size="md" onClick={handleQuickStart} disabled={isBusy}>
-                <Icon name="bolt" size={14} /> {t('home.quickStart')}
-              </Button>
-              <Button variant="secondary" size="md" onClick={() => navigate('/instances/new')}>
-                + {t('home.newInstance')}
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    ) : (
-    <div className={`page-enter ${styles.page}`}>
-      {/* New user hero */}
-      {instances.length === 0 && !loading && (
-        <div className={styles.emptyHero}>
-          <div className={styles.emptyHero__glimmer} />
-          <div className={styles.emptyHero__content}>
-            <h2 className={styles.emptyHero__title}>{t('home.welcomeNew')}</h2>
-            <p className={styles.emptyHero__desc}>{t('home.welcomeNewDesc')}</p>
-            <div className={styles.emptyHero__actions}>
-              <Button variant="primary" size="lg" onClick={handleQuickStart} disabled={isBusy}>
-                {isBusy ? (
-                  t('home.quickStart.downloading')
-                ) : (
-                  <>
-                    <Icon name="bolt" size={14} /> {t('home.quickStart')}
-                  </>
+          {/* 背景设置浮层 */}
+          {showBgPopover && (
+            <div className={styles.bgPopover}>
+              <div className={styles.bgPopover__title}>{t('home.minimalist.backgroundSettings')}</div>
+              <div className={styles.bgPopover__hint}>{t('home.minimalist.backgroundHint')}</div>
+              <div className={styles.bgPopover__actions}>
+                <label className={styles.bgPopover__btn} title={t('home.topbar.uploadBackground')}>
+                  <Icon name="upload" size={12} /> {t('home.minimalist.uploadBackground')}
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleBackgroundUpload} />
+                </label>
+                {homeBackground && (
+                  <button
+                    onClick={handleClearBackground}
+                    className={`${styles.bgPopover__btn} ${styles['bgPopover__btn--danger']}`}
+                    title={t('home.topbar.clearBackground')}
+                  >
+                    <Icon name="cross" size={12} /> {t('home.minimalist.clearBackground')}
+                  </button>
                 )}
-              </Button>
-              <Button variant="secondary-highlight" size="lg" onClick={() => navigate('/instances/new')}>
-                + {t('home.newInstance')}
-              </Button>
-            </div>
-            <p className={styles.emptyHero__hint}>{t('home.welcomeNewHint')}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Banner carousel */}
-      <div className={styles.bannerCarousel}>
-        <div className={styles.bannerTrack} style={{ transform: `translateX(-${bannerIndex * 100}%)` }}>
-          {newsEntries.length > 0
-            ? newsEntries.map((news, i) => (
-                <div
-                  key={news.id || i}
-                  className={`${styles.bannerSlide} ${styles[`bannerSlide--${(i % 6) + 1}`]}`}
-                  onClick={() => setSelectedNews(news)}
-                  role="button"
-                  tabIndex={0}
-                  style={{ cursor: 'pointer' }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setSelectedNews(news);
-                    }
-                  }}
+              </div>
+              {/* 模糊效果开关 */}
+              <div className={styles.bgPopover__toggleRow}>
+                <span className={styles.bgPopover__toggleLabel}>{t('home.minimalist.blurEnabled')}</span>
+                <button
+                  onClick={() => setHomeBlurEnabled(!homeBlurEnabled)}
+                  className={`${styles.bgPopover__toggle} ${homeBlurEnabled ? styles['bgPopover__toggle--on'] : ''}`}
+                  role="switch"
+                  aria-checked={homeBlurEnabled}
+                  title={t('home.minimalist.blurEnabledDesc')}
                 >
-                  <div className={styles.bannerAccent} />
-                  <div className={styles.bannerContent}>
-                    <div className={styles.bannerLabel}>{news.category || t('home.banner.defaultCategory')}</div>
-                    <div className={styles.bannerTitle}>{news.title}</div>
-                    <div className={styles.bannerDesc}>{news.text}</div>
-                  </div>
-                  {news.image_url ? (
-                    <div className={styles.bannerSlide__rightCover}>
-                      <img
-                        src={news.image_url}
-                        alt={news.title}
-                        className={styles.bannerSlide__coverImg}
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div className={styles.bannerSlide__rightCover}>
-                      <div className={styles.bannerSlide__coverPlaceholder}>
-                        <span className={styles.bannerSlide__coverIcon}>&#9670;</span>
+                  <span className={styles.bgPopover__toggleKnob} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 实例切换弹出菜单 */}
+          {showVersionPopup && (
+            <div className={styles.versionPopup}>
+              <div className={styles.versionPopup__header}>{t('home.minimalist.switchVersion')}</div>
+              {instances.length === 0 ? (
+                <div className={styles.versionPopup__empty}>{t('home.minimalist.noInstance')}</div>
+              ) : (
+                instances.map((inst) => (
+                  <div
+                    key={inst.id}
+                    className={`${styles.versionPopup__item} ${inst.id === activeInstance?.id ? styles['versionPopup__item--active'] : ''}`}
+                    onClick={() => {
+                      setSelectedInstanceId(inst.id);
+                      setShowVersionPopup(false);
+                    }}
+                  >
+                    <div className={styles.versionPopup__icon}>{(inst.name || '?').charAt(0).toUpperCase()}</div>
+                    <div className={styles.versionPopup__info}>
+                      <div className={styles.versionPopup__name}>{inst.name}</div>
+                      <div className={styles.versionPopup__meta}>
+                        {inst.version_id}
+                        {inst.loader_type ? ` · ${inst.loader_type}` : ''}
                       </div>
                     </div>
-                  )}
-                </div>
-              ))
-            : BANNER_SLIDES.map((slide, i) => (
-                <div key={i} className={`${styles.bannerSlide} ${styles[`bannerSlide--${slide.theme}`]}`}>
-                  <div className={styles.bannerAccent} />
-                  <div className={styles.bannerContent}>
-                    <div className={styles.bannerLabel}>{slide.label}</div>
-                    <div className={styles.bannerTitle}>{slide.title}</div>
-                    <div className={styles.bannerDesc}>{slide.desc}</div>
                   </div>
-                  <div className={styles.bannerSlide__rightCover}>
-                    <div className={styles.bannerSlide__coverPlaceholder}>
-                      <span className={styles.bannerSlide__coverIcon}>&#9670;</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-        </div>
-        <div className={styles.bannerDots}>
-          {(newsEntries.length > 0 ? newsEntries : BANNER_SLIDES).map((_, i) => (
-            <button
-              key={i}
-              className={`${styles.bannerDot} ${i === bannerIndex ? styles['bannerDot--active'] : ''}`}
-              onClick={() => setBannerIndex(i)}
-            />
-          ))}
-        </div>
-        <button
-          className={`${styles.bannerArrow} ${styles['bannerArrow--left']}`}
-          onClick={() =>
-            setBannerIndex(
-              (i) =>
-                (i - 1 + (newsEntries.length > 0 ? newsEntries.length : BANNER_SLIDES.length)) %
-                (newsEntries.length > 0 ? newsEntries.length : BANNER_SLIDES.length),
-            )
-          }
-        >
-          <Icon name="chevronLeft" size={14} />
-        </button>
-        <button
-          className={`${styles.bannerArrow} ${styles['bannerArrow--right']}`}
-          onClick={() =>
-            setBannerIndex((i) => (i + 1) % (newsEntries.length > 0 ? newsEntries.length : BANNER_SLIDES.length))
-          }
-        >
-          <Icon name="play" size={14} />
-        </button>
-      </div>
+                ))
+              )}
+            </div>
+          )}
 
-      {/* Download overlay */}
-      {downloadProgress && !downloadProgress.finished && (
-        <div className={styles.downloadOverlay}>
-          <div className={styles.downloadPanel}>
-            <Heading level="md">
-              {downloadProgress.phase === 'assets' ? t('home.downloadingAssets') : t('home.downloading')}
-            </Heading>
-            <div style={{ marginTop: 16 }}>
+          {/* 下载进度浮层 */}
+          {downloadProgress && !downloadProgress.finished && (
+            <div className={styles.minimalistOverlay}>
+              <div className={styles.minimalistOverlay__title}>
+                {downloadProgress.phase === 'assets' ? t('home.downloadingAssets') : t('home.downloading')}
+              </div>
               <ProgressBar
                 progress={
                   downloadProgress.total > 0
@@ -1053,315 +865,516 @@ export default function HomePage() {
                 }
                 done={false}
               />
-            </div>
-            <div className={styles.downloadStats}>
-              <span className={styles.downloadStatItem}>
-                <span style={{ fontFamily: 'var(--font-mono)', color: '#FFE600' }}>
-                  {downloadProgress.completed}/{downloadProgress.total}
-                </span>
-                {' . '}
-                {downloadProgress.phase}
-              </span>
-            </div>
-            {downloadProgress.current_url && (
-              <div className={styles.downloadFile} style={{ marginTop: 4 }}>
-                {downloadProgress.current_url.split('/').pop()}
+              <div className={styles.minimalistOverlay__stats}>
+                {downloadProgress.completed}/{downloadProgress.total} · {downloadProgress.phase}
               </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* JRE download overlay */}
-      {jreDownload && jreDownload.downloaded < jreDownload.total && (
-        <div className={styles.downloadOverlay}>
-          <div className={styles.downloadPanel}>
-            <Heading level="md">{t('home.jreDownload.title')}</Heading>
-            <div style={{ marginTop: 8, fontSize: '0.6em', color: '#888' }}>
-              {t('home.jreDownload.subtitle', { version: String(jreDownload.version) })}
             </div>
-            <div style={{ marginTop: 16 }}>
+          )}
+
+          {/* JRE 下载浮层 */}
+          {jreDownload && jreDownload.downloaded < jreDownload.total && (
+            <div className={styles.minimalistOverlay}>
+              <div className={styles.minimalistOverlay__title}>{t('home.jreDownload.title')}</div>
+              <div className={styles.bgPopover__hint}>
+                {t('home.jreDownload.subtitle', { version: String(jreDownload.version) })}
+              </div>
               <ProgressBar
                 progress={jreDownload.total > 0 ? Math.round((jreDownload.downloaded / jreDownload.total) * 100) : 0}
                 done={false}
               />
+              <div className={styles.minimalistOverlay__stats}>
+                {(jreDownload.downloaded / 1_048_576).toFixed(1)} MB / {(jreDownload.total / 1_048_576).toFixed(1)} MB
+              </div>
             </div>
-            <div className={styles.downloadStats}>
-              <span className={styles.downloadStatItem}>
-                <span style={{ fontFamily: 'var(--font-mono)', color: '#FFE600' }}>
-                  {(jreDownload.downloaded / 1_048_576).toFixed(1)} MB / {(jreDownload.total / 1_048_576).toFixed(1)} MB
-                </span>
+          )}
+
+          {/* 错误提示 */}
+          {error && <div className={styles.minimalistError}>{error}</div>}
+
+          {/* 右下角启动按钮（HMCL 风格胶囊） */}
+          <div className={styles.launchPane}>
+            <button
+              className={styles.launchPane__main}
+              onClick={() => activeInstance && handleLaunch(activeInstance)}
+              disabled={!activeInstance || isBusy}
+              title={activeInstance ? t('home.minimalist.launch') : t('home.minimalist.launchHint')}
+            >
+              <span className={styles.launchPane__mainLabel}>
+                {activeInstance ? t('home.minimalist.launch') : t('home.minimalist.launchNoVersion')}
               </span>
-            </div>
+              {activeInstance && <span className={styles.launchPane__subLabel}>{activeInstance.name}</span>}
+            </button>
+            <button
+              className={styles.launchPane__menu}
+              onClick={() => setShowVersionPopup((v) => !v)}
+              title={t('home.minimalist.switchVersion')}
+            >
+              <Icon name="chevronUp" size={16} />
+            </button>
           </div>
-        </div>
-      )}
 
-      {/* Error toast */}
-      {error && <div className={styles.errorToast}>{error}</div>}
-
-      {/* Top bar */}
-      <div className={styles.topBar}>
-        <div>
-          <Heading level="xl">{greeting.title}</Heading>
-          <div className={styles.topBar__stats}>
-            <span className={styles.topBar__username}>{auth?.username}</span>
-            <div className={styles.topBar__statSep} />
-            <span className={styles.topBar__statText}>
-              {instances.length} {t('home.instances')}
-            </span>
-          </div>
-        </div>
-        <div className={styles.topBar__right} style={{ position: 'relative' }}>
-          <div className={styles.topBar__sysStatus}>
-            <StatusDot status={isBusy ? 'processing' : anyGameRunning ? 'processing' : 'ready'} />
-            <span className={styles.topBar__sysText}>
-              {anyGameRunning
-                ? t('home.topbar.runningCount', { count: String(runningGames.filter((g) => g.state === 'running').length) })
-                : launchState.toUpperCase()}
-            </span>
-          </div>
-          {/* 模式切换按钮：仪表盘 ↔ 极简 */}
-          <button
-            onClick={handleToggleHomeMode}
-            title={t('home.minimalist.modeToggle')}
-            className={styles.topBar__btn}
-          >
-            <Icon name="grid" size={12} /> {t('home.minimalist.minimalistMode')}
-          </button>
-          {/* 自定义按钮：打开背景设置浮层（两种模式都可用） */}
-          <button
-            onClick={() => setShowBgPopover((v) => !v)}
-            title={t('home.minimalist.backgroundSettings')}
-            className={`${styles.topBar__btn} ${showBgPopover ? styles['topBar__btn--active'] : ''}`}
-          >
-            <Icon name="palette" size={12} /> {t('home.topbar.customize')}
-          </button>
-          {showBgPopover && (
-            <div className={styles.topBar__bgPopover}>
-              <div className={styles.topBar__bgPopoverTitle}>{t('home.minimalist.backgroundSettings')}</div>
-              <div className={styles.topBar__bgPopoverHint}>{t('home.minimalist.backgroundHint')}</div>
-              <div className={styles.topBar__bgPopoverActions}>
-                <label className={styles.topBar__bgPopoverBtn} title={t('home.topbar.uploadBackground')}>
-                  <Icon name="upload" size={12} /> {t('home.minimalist.uploadBackground')}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    onChange={handleBackgroundUpload}
-                  />
-                </label>
-                {homeBackground && (
-                  <button
-                    onClick={handleClearBackground}
-                    className={`${styles.topBar__bgPopoverBtn} ${styles['topBar__bgPopoverBtn--danger']}`}
-                    title={t('home.topbar.clearBackground')}
-                  >
-                    <Icon name="cross" size={12} /> {t('home.minimalist.clearBackground')}
-                  </button>
-                )}
+          {/* 空实例时的新手引导 */}
+          {instances.length === 0 && !loading && (
+            <div className={styles.minimalistOverlay} style={{ maxWidth: 400 }}>
+              <div className={styles.minimalistOverlay__title}>{t('home.welcomeNew')}</div>
+              <div className={styles.bgPopover__hint} style={{ marginBottom: 12 }}>
+                {t('home.welcomeNewDesc')}
+              </div>
+              <div className={styles.bgPopover__actions}>
+                <Button variant="primary" size="md" onClick={handleQuickStart} disabled={isBusy}>
+                  <Icon name="bolt" size={14} /> {t('home.quickStart')}
+                </Button>
+                <Button variant="secondary" size="md" onClick={() => navigate('/instances/new')}>
+                  + {t('home.newInstance')}
+                </Button>
               </div>
             </div>
           )}
         </div>
-      </div>
-
-      {loading && instances.length === 0 ? (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
-        </div>
       ) : (
-        <div className={styles.mainGrid}>
-          {/* Left: instance list */}
-          <div className={styles.instanceList}>
-            <div className={styles.instanceList__header}>
-              <div className={styles.instanceList__title}>
-                <SubLabel>{t('home.instancesHeader')}</SubLabel>
-                <span className={styles.instanceList__count}>{String(instances.length).padStart(2, '0')}</span>
+        <div className={`page-enter ${styles.page}`}>
+          {/* New user hero */}
+          {instances.length === 0 && !loading && (
+            <div className={styles.emptyHero}>
+              <div className={styles.emptyHero__glimmer} />
+              <div className={styles.emptyHero__content}>
+                <h2 className={styles.emptyHero__title}>{t('home.welcomeNew')}</h2>
+                <p className={styles.emptyHero__desc}>{t('home.welcomeNewDesc')}</p>
+                <div className={styles.emptyHero__actions}>
+                  <Button variant="primary" size="lg" onClick={handleQuickStart} disabled={isBusy}>
+                    {isBusy ? (
+                      t('home.quickStart.downloading')
+                    ) : (
+                      <>
+                        <Icon name="bolt" size={14} /> {t('home.quickStart')}
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="secondary-highlight" size="lg" onClick={() => navigate('/instances/new')}>
+                    + {t('home.newInstance')}
+                  </Button>
+                </div>
+                <p className={styles.emptyHero__hint}>{t('home.welcomeNewHint')}</p>
               </div>
-              <Button variant="primary" size="sm" onClick={() => navigate('/instances/new')}>
-                + {t('home.newInstance')}
-              </Button>
             </div>
+          )}
 
-            {instances.length === 0 ? (
-              <div className={styles.emptyState}>
-                <div className={styles.emptyState__bar} />
-                <div className={styles.emptyState__title}>{t('home.noInstancesTitle')}</div>
-                <div className={styles.emptyState__desc}>{t('home.noInstancesDesc')}</div>
-                <Button variant="primary" size="md" onClick={() => navigate('/instances/new')}>
-                  + {t('home.newInstance')}
-                </Button>
-              </div>
-            ) : (
-              recentInstances.map((inst) => (
-                <InstanceCard
-                  key={inst.id}
-                  instance={inst}
-                  isActive={inst.id === (selectedInstanceId || recentInstances[0]?.id)}
-                  isReady={readyStates[inst.id] ?? null}
-                  onLaunch={handleLaunch}
-                  onSelect={(inst) => setSelectedInstanceId(inst.id)}
+          {/* Banner carousel */}
+          <div className={styles.bannerCarousel}>
+            <div className={styles.bannerTrack} style={{ transform: `translateX(-${bannerIndex * 100}%)` }}>
+              {newsEntries.length > 0
+                ? newsEntries.map((news, i) => (
+                    <div
+                      key={news.id || i}
+                      className={`${styles.bannerSlide} ${styles[`bannerSlide--${(i % 6) + 1}`]}`}
+                      onClick={() => setSelectedNews(news)}
+                      role="button"
+                      tabIndex={0}
+                      style={{ cursor: 'pointer' }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedNews(news);
+                        }
+                      }}
+                    >
+                      <div className={styles.bannerAccent} />
+                      <div className={styles.bannerContent}>
+                        <div className={styles.bannerLabel}>{news.category || t('home.banner.defaultCategory')}</div>
+                        <div className={styles.bannerTitle}>{news.title}</div>
+                        <div className={styles.bannerDesc}>{news.text}</div>
+                      </div>
+                      {news.image_url ? (
+                        <div className={styles.bannerSlide__rightCover}>
+                          <img
+                            src={news.image_url}
+                            alt={news.title}
+                            className={styles.bannerSlide__coverImg}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className={styles.bannerSlide__rightCover}>
+                          <div className={styles.bannerSlide__coverPlaceholder}>
+                            <span className={styles.bannerSlide__coverIcon}>&#9670;</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                : BANNER_SLIDES.map((slide, i) => (
+                    <div key={i} className={`${styles.bannerSlide} ${styles[`bannerSlide--${slide.theme}`]}`}>
+                      <div className={styles.bannerAccent} />
+                      <div className={styles.bannerContent}>
+                        <div className={styles.bannerLabel}>{slide.label}</div>
+                        <div className={styles.bannerTitle}>{slide.title}</div>
+                        <div className={styles.bannerDesc}>{slide.desc}</div>
+                      </div>
+                      <div className={styles.bannerSlide__rightCover}>
+                        <div className={styles.bannerSlide__coverPlaceholder}>
+                          <span className={styles.bannerSlide__coverIcon}>&#9670;</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+            </div>
+            <div className={styles.bannerDots}>
+              {(newsEntries.length > 0 ? newsEntries : BANNER_SLIDES).map((_, i) => (
+                <button
+                  key={i}
+                  className={`${styles.bannerDot} ${i === bannerIndex ? styles['bannerDot--active'] : ''}`}
+                  onClick={() => setBannerIndex(i)}
                 />
-              ))
-            )}
-
-            {/* News panel */}
-            <div className={styles.newsPanel}>
-              <div className={styles.newsPanel__label}>{t('home.news')}</div>
-              <div className={styles.newsItem} key={newsIndex}>
-                <span className={styles.newsItem__bullet}>
-                  <Icon name="bulletRight" size={10} />
-                </span>
-                {newsEntries.length > 0 ? newsEntries[newsIndex]?.title : NEWS_ITEMS[newsIndex]}
-              </div>
-              <div className={styles.newsPanel__dots}>
-                {(newsEntries.length > 0 ? newsEntries : NEWS_ITEMS).map((_, i) => (
-                  <div
-                    key={i}
-                    className={`${styles.newsPanel__dot} ${i === newsIndex ? styles['newsPanel__dot--active'] : ''}`}
-                  />
-                ))}
-              </div>
+              ))}
             </div>
-
-            <div>
-              <Ticker messages={NEWS_ITEMS} />
-            </div>
-          </div>
-
-          {/* Right: PLAY area + quick actions */}
-          <div
-            style={{
-              flex: 0.7,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-              height: '100%',
-              minHeight: 0,
-              minWidth: 0,
-              overflowY: 'auto',
-            }}
-          >
-            <PlayArea
-              instance={activeInstance}
-              isBusy={isBusy}
-              launchState={launchState}
-              javaVersion={javaVersion}
-              sysInfo={sysInfo}
-              onLaunch={() => activeInstance && handleLaunch(activeInstance)}
-              onReset={() =>
-                activeInstance ? api.resetInstanceLaunchState(activeInstance.id) : api.resetLaunchState()
+            <button
+              className={`${styles.bannerArrow} ${styles['bannerArrow--left']}`}
+              onClick={() =>
+                setBannerIndex(
+                  (i) =>
+                    (i - 1 + (newsEntries.length > 0 ? newsEntries.length : BANNER_SLIDES.length)) %
+                    (newsEntries.length > 0 ? newsEntries.length : BANNER_SLIDES.length),
+                )
               }
-              t={t}
-            />
-
-            {/* Quick actions */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 6,
-              }}
             >
-              <Button
-                variant="secondary"
-                size="sm"
-                style={{ justifyContent: 'center', fontSize: '0.55em' }}
-                onClick={() => navigate('/instances/new')}
+              <Icon name="chevronLeft" size={14} />
+            </button>
+            <button
+              className={`${styles.bannerArrow} ${styles['bannerArrow--right']}`}
+              onClick={() =>
+                setBannerIndex((i) => (i + 1) % (newsEntries.length > 0 ? newsEntries.length : BANNER_SLIDES.length))
+              }
+            >
+              <Icon name="play" size={14} />
+            </button>
+          </div>
+
+          {/* Download overlay */}
+          {downloadProgress && !downloadProgress.finished && (
+            <div className={styles.downloadOverlay}>
+              <div className={styles.downloadPanel}>
+                <Heading level="md">
+                  {downloadProgress.phase === 'assets' ? t('home.downloadingAssets') : t('home.downloading')}
+                </Heading>
+                <div style={{ marginTop: 16 }}>
+                  <ProgressBar
+                    progress={
+                      downloadProgress.total > 0
+                        ? Math.round((downloadProgress.completed / downloadProgress.total) * 100)
+                        : 0
+                    }
+                    done={false}
+                  />
+                </div>
+                <div className={styles.downloadStats}>
+                  <span className={styles.downloadStatItem}>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#FFE600' }}>
+                      {downloadProgress.completed}/{downloadProgress.total}
+                    </span>
+                    {' . '}
+                    {downloadProgress.phase}
+                  </span>
+                </div>
+                {downloadProgress.current_url && (
+                  <div className={styles.downloadFile} style={{ marginTop: 4 }}>
+                    {downloadProgress.current_url.split('/').pop()}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* JRE download overlay */}
+          {jreDownload && jreDownload.downloaded < jreDownload.total && (
+            <div className={styles.downloadOverlay}>
+              <div className={styles.downloadPanel}>
+                <Heading level="md">{t('home.jreDownload.title')}</Heading>
+                <div style={{ marginTop: 8, fontSize: '0.6em', color: '#888' }}>
+                  {t('home.jreDownload.subtitle', { version: String(jreDownload.version) })}
+                </div>
+                <div style={{ marginTop: 16 }}>
+                  <ProgressBar
+                    progress={
+                      jreDownload.total > 0 ? Math.round((jreDownload.downloaded / jreDownload.total) * 100) : 0
+                    }
+                    done={false}
+                  />
+                </div>
+                <div className={styles.downloadStats}>
+                  <span className={styles.downloadStatItem}>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: '#FFE600' }}>
+                      {(jreDownload.downloaded / 1_048_576).toFixed(1)} MB /{' '}
+                      {(jreDownload.total / 1_048_576).toFixed(1)} MB
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Error toast */}
+          {error && <div className={styles.errorToast}>{error}</div>}
+
+          {/* Top bar */}
+          <div className={styles.topBar}>
+            <div>
+              <Heading level="xl">{greeting.title}</Heading>
+              <div className={styles.topBar__stats}>
+                <span className={styles.topBar__username}>{auth?.username}</span>
+                <div className={styles.topBar__statSep} />
+                <span className={styles.topBar__statText}>
+                  {instances.length} {t('home.instances')}
+                </span>
+              </div>
+            </div>
+            <div className={styles.topBar__right} style={{ position: 'relative' }}>
+              <div className={styles.topBar__sysStatus}>
+                <StatusDot status={isBusy ? 'processing' : anyGameRunning ? 'processing' : 'ready'} />
+                <span className={styles.topBar__sysText}>
+                  {anyGameRunning
+                    ? t('home.topbar.runningCount', {
+                        count: String(runningGames.filter((g) => g.state === 'running').length),
+                      })
+                    : launchState.toUpperCase()}
+                </span>
+              </div>
+              {/* 模式切换按钮：仪表盘 ↔ 极简 */}
+              <button
+                onClick={handleToggleHomeMode}
+                title={t('home.minimalist.modeToggle')}
+                className={styles.topBar__btn}
               >
-                + {t('home.quickActions.newInstance')}
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                style={{ justifyContent: 'center', fontSize: '0.55em' }}
-                onClick={() => navigate('/mods')}
+                <Icon name="grid" size={12} /> {t('home.minimalist.minimalistMode')}
+              </button>
+              {/* 自定义按钮：打开背景设置浮层（两种模式都可用） */}
+              <button
+                onClick={() => setShowBgPopover((v) => !v)}
+                title={t('home.minimalist.backgroundSettings')}
+                className={`${styles.topBar__btn} ${showBgPopover ? styles['topBar__btn--active'] : ''}`}
               >
-                <Icon name="download" size={14} /> {t('home.quickActions.browseMods')}
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                style={{ justifyContent: 'center', fontSize: '0.55em' }}
-                onClick={() => navigate('/versions')}
-              >
-                <Icon name="hexagon" size={14} /> {t('home.quickActions.versions')}
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                style={{ justifyContent: 'center', fontSize: '0.55em' }}
-                onClick={() => navigate('/settings')}
-              >
-                <Icon name="settings" size={14} /> {t('home.quickActions.settings')}
-              </Button>
+                <Icon name="palette" size={12} /> {t('home.topbar.customize')}
+              </button>
+              {showBgPopover && (
+                <div className={styles.topBar__bgPopover}>
+                  <div className={styles.topBar__bgPopoverTitle}>{t('home.minimalist.backgroundSettings')}</div>
+                  <div className={styles.topBar__bgPopoverHint}>{t('home.minimalist.backgroundHint')}</div>
+                  <div className={styles.topBar__bgPopoverActions}>
+                    <label className={styles.topBar__bgPopoverBtn} title={t('home.topbar.uploadBackground')}>
+                      <Icon name="upload" size={12} /> {t('home.minimalist.uploadBackground')}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={handleBackgroundUpload}
+                      />
+                    </label>
+                    {homeBackground && (
+                      <button
+                        onClick={handleClearBackground}
+                        className={`${styles.topBar__bgPopoverBtn} ${styles['topBar__bgPopoverBtn--danger']}`}
+                        title={t('home.topbar.clearBackground')}
+                      >
+                        <Icon name="cross" size={12} /> {t('home.minimalist.clearBackground')}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
+
+          {loading && instances.length === 0 ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <CardSkeleton />
+              <CardSkeleton />
+              <CardSkeleton />
+            </div>
+          ) : (
+            <div className={styles.mainGrid}>
+              {/* Left: instance list */}
+              <div className={styles.instanceList}>
+                <div className={styles.instanceList__header}>
+                  <div className={styles.instanceList__title}>
+                    <SubLabel>{t('home.instancesHeader')}</SubLabel>
+                    <span className={styles.instanceList__count}>{String(instances.length).padStart(2, '0')}</span>
+                  </div>
+                  <Button variant="primary" size="sm" onClick={() => navigate('/instances/new')}>
+                    + {t('home.newInstance')}
+                  </Button>
+                </div>
+
+                {instances.length === 0 ? (
+                  <div className={styles.emptyState}>
+                    <div className={styles.emptyState__bar} />
+                    <div className={styles.emptyState__title}>{t('home.noInstancesTitle')}</div>
+                    <div className={styles.emptyState__desc}>{t('home.noInstancesDesc')}</div>
+                    <Button variant="primary" size="md" onClick={() => navigate('/instances/new')}>
+                      + {t('home.newInstance')}
+                    </Button>
+                  </div>
+                ) : (
+                  recentInstances.map((inst) => (
+                    <InstanceCard
+                      key={inst.id}
+                      instance={inst}
+                      isActive={inst.id === (selectedInstanceId || recentInstances[0]?.id)}
+                      isReady={readyStates[inst.id] ?? null}
+                      onLaunch={handleLaunch}
+                      onSelect={(inst) => setSelectedInstanceId(inst.id)}
+                    />
+                  ))
+                )}
+
+                {/* News panel */}
+                <div className={styles.newsPanel}>
+                  <div className={styles.newsPanel__label}>{t('home.news')}</div>
+                  <div className={styles.newsItem} key={newsIndex}>
+                    <span className={styles.newsItem__bullet}>
+                      <Icon name="bulletRight" size={10} />
+                    </span>
+                    {newsEntries.length > 0 ? newsEntries[newsIndex]?.title : NEWS_ITEMS[newsIndex]}
+                  </div>
+                  <div className={styles.newsPanel__dots}>
+                    {(newsEntries.length > 0 ? newsEntries : NEWS_ITEMS).map((_, i) => (
+                      <div
+                        key={i}
+                        className={`${styles.newsPanel__dot} ${i === newsIndex ? styles['newsPanel__dot--active'] : ''}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <Ticker messages={NEWS_ITEMS} />
+                </div>
+              </div>
+
+              {/* Right: PLAY area + quick actions */}
+              <div
+                style={{
+                  flex: 0.7,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  height: '100%',
+                  minHeight: 0,
+                  minWidth: 0,
+                  overflowY: 'auto',
+                }}
+              >
+                <PlayArea
+                  instance={activeInstance}
+                  isBusy={isBusy}
+                  launchState={launchState}
+                  javaVersion={javaVersion}
+                  sysInfo={sysInfo}
+                  onLaunch={() => activeInstance && handleLaunch(activeInstance)}
+                  onReset={() =>
+                    activeInstance ? api.resetInstanceLaunchState(activeInstance.id) : api.resetLaunchState()
+                  }
+                  t={t}
+                />
+
+                {/* Quick actions */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: 6,
+                  }}
+                >
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    style={{ justifyContent: 'center', fontSize: '0.55em' }}
+                    onClick={() => navigate('/instances/new')}
+                  >
+                    + {t('home.quickActions.newInstance')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    style={{ justifyContent: 'center', fontSize: '0.55em' }}
+                    onClick={() => navigate('/mods')}
+                  >
+                    <Icon name="download" size={14} /> {t('home.quickActions.browseMods')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    style={{ justifyContent: 'center', fontSize: '0.55em' }}
+                    onClick={() => navigate('/versions')}
+                  >
+                    <Icon name="hexagon" size={14} /> {t('home.quickActions.versions')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    style={{ justifyContent: 'center', fontSize: '0.55em' }}
+                    onClick={() => navigate('/settings')}
+                  >
+                    <Icon name="settings" size={14} /> {t('home.quickActions.settings')}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <GameConsole visible={showConsole} />
+
+          {/* 资讯文章弹窗：点击 banner 打开 */}
+          <Modal open={!!selectedNews} onClose={() => setSelectedNews(null)} title={selectedNews?.title || ''}>
+            {selectedNews && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '70vh', overflow: 'auto' }}>
+                {selectedNews.image_url && (
+                  <img
+                    src={selectedNews.image_url}
+                    alt={selectedNews.title}
+                    style={{ width: '100%', maxHeight: 240, objectFit: 'cover', borderRadius: 4 }}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                )}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  {selectedNews.category && <Badge variant="accent">{selectedNews.category}</Badge>}
+                  {selectedNews.tag && <Badge variant="default">{selectedNews.tag}</Badge>}
+                  {selectedNews.date && (
+                    <span
+                      style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55em', color: 'var(--color-text-muted)' }}
+                    >
+                      {selectedNews.date}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: '0.7em', lineHeight: 1.6, color: 'var(--color-text)' }}>
+                  {selectedNews.text}
+                </div>
+                {selectedNews.read_more_link && (
+                  <a
+                    href={selectedNews.read_more_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      alignSelf: 'flex-start',
+                      fontSize: '0.65em',
+                      color: 'var(--color-accent)',
+                      textDecoration: 'none',
+                      padding: '6px 12px',
+                      border: '1px solid var(--color-accent)',
+                      clipPath: 'polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px))',
+                    }}
+                  >
+                    {t('home.news.readMore')} →
+                  </a>
+                )}
+              </div>
+            )}
+          </Modal>
         </div>
       )}
-
-      <GameConsole visible={showConsole} />
-
-      {/* 资讯文章弹窗：点击 banner 打开 */}
-      <Modal
-        open={!!selectedNews}
-        onClose={() => setSelectedNews(null)}
-        title={selectedNews?.title || ''}
-      >
-        {selectedNews && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '70vh', overflow: 'auto' }}>
-            {selectedNews.image_url && (
-              <img
-                src={selectedNews.image_url}
-                alt={selectedNews.title}
-                style={{ width: '100%', maxHeight: 240, objectFit: 'cover', borderRadius: 4 }}
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-            )}
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              {selectedNews.category && (
-                <Badge variant="accent">{selectedNews.category}</Badge>
-              )}
-              {selectedNews.tag && (
-                <Badge variant="default">{selectedNews.tag}</Badge>
-              )}
-              {selectedNews.date && (
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55em', color: 'var(--color-text-muted)' }}>
-                  {selectedNews.date}
-                </span>
-              )}
-            </div>
-            <div style={{ fontSize: '0.7em', lineHeight: 1.6, color: 'var(--color-text)' }}>
-              {selectedNews.text}
-            </div>
-            {selectedNews.read_more_link && (
-              <a
-                href={selectedNews.read_more_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  alignSelf: 'flex-start',
-                  fontSize: '0.65em',
-                  color: 'var(--color-accent)',
-                  textDecoration: 'none',
-                  padding: '6px 12px',
-                  border: '1px solid var(--color-accent)',
-                  clipPath: 'polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px))',
-                }}
-              >
-                {t('home.news.readMore')} →
-              </a>
-            )}
-          </div>
-        )}
-      </Modal>
-    </div>
-    )}
     </>
   );
 }

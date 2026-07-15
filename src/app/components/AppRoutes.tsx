@@ -17,13 +17,13 @@ const VersionsPage = lazy(() => import('../../shells/zzz/pages/VersionsPage'));
 const MarketplacePage = lazy(() => import('../../shells/zzz/pages/MarketplacePage'));
 const LibraryPage = lazy(() => import('../../shells/zzz/pages/LibraryPage'));
 const SettingsPage = lazy(() => import('../../shells/zzz/pages/SettingsPage'));
+// ContentDetailPage：内容详情（mod/modpack/shader/resourcepack）。
+// 之前仅 SwiftUI Shell 注册了 /store/:type/:slug，ZZZ Shell 漏配导致所有
+// mod 卡片点击被 * 通配重定向回首页，975 行详情页代码完全闲置。
+const ContentDetailPage = lazy(() => import('../../shells/zzz/pages/ContentDetailPage'));
 
 function RouteLoading() {
-  return (
-    <div className={styles.loading}>
-      Loading...
-    </div>
-  );
+  return <div className={styles.loading}>Loading...</div>;
 }
 
 interface AppRoutesProps {
@@ -61,6 +61,11 @@ export function AppRoutes({ isAuthenticated }: AppRoutesProps) {
         <Route path="/mods" element={<MarketplacePage />} />
         <Route path="/library" element={<LibraryPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+
+        {/* 内容详情页（mod/modpack/shader/resourcepack）。
+            /store/:type/:slug 是 ContentBrowser/LibraryPage/CollectionsPage 等处
+            点击卡片的统一导航目标，必须显式注册，否则会被 * 通配重定向回首页。 */}
+        <Route path="/store/:type/:slug" element={<ContentDetailPage />} />
 
         {/* 旧入口重定向到对应新页面 */}
         <Route path="/store" element={<Navigate to="/mods" replace />} />

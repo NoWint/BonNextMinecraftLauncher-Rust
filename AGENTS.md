@@ -27,9 +27,9 @@ BonNext is a **Tauri v2 desktop app** — a cross-platform Minecraft Java Editio
 
 ### Backend (Rust — `src-tauri/src/`)
 
-The binary entry is `main.rs` → calls `lib.rs::run()` which registers all ~50 Tauri commands and starts Tauri.
+The binary entry is `main.rs` → calls `lib.rs::run()` which registers all Tauri commands (~165 across ~32 `commands/*.rs` submodules) and starts Tauri.
 
-**`lib.rs`** — All `#[tauri::command]` handlers live here. Managed state includes `AppState { launch_state: Arc<Mutex<LaunchState>> }` and `ApiCache` (in-memory TTL cache for content API responses).
+**`lib.rs`** — Registers commands & managed state, runs startup migrations. Command handlers themselves live in `commands/` submodules (auth, instance, launch, misc, network, cache, etc.). Managed state includes `AppState { launch_state, running_games }` plus 7+ independent `tauri::State` handles (`DownloadControlState`, `ApiCache`, `PersistentCacheState`, `CrashWatcherState`, `ScanCache`, `ModCacheDb`, `SessionStore`, `TrustedKeyStore`, `ModWatcherState`).
 
 **Core launcher modules** (original, don't touch lightly):
 
@@ -54,34 +54,44 @@ The binary entry is `main.rs` → calls `lib.rs::run()` which registers all ~50 
 
 ### Frontend (React — `src/`)
 
-**`api.ts`** — Typed wrappers around `invoke()` for every Tauri command (~50 methods). Also provides `onDownloadProgress()` for real-time game download events. Key method groups: versions, config, auth, instances, Modrinth, CurseForge, collections, library, marketplace, updates.
+**`shared/api/`** — Typed wrappers around `invoke()` for every Tauri command (200+ methods, aggregated in `index.ts` from per-domain modules: versions, auth, instances, modrinth, curseforge, collections, library, marketplace, updates, world, servers, plugins, etc.). Also provides `onDownloadProgress()` / `onContentDownloadProgress()` for real-time download events. `cache.ts` provides inflight dedupe + `twoLayerCachedInvoke` for TTL caching.
 
-**State management** — React Context + `useReducer` pattern in `src/stores/`:
+**State management** — React Context + `useReducer` pattern in `src/shared/stores/`:
 
-- `authStore.tsx` — logged-in user, account list, login/logout/switchAccount
+- `authStore.tsx` — logged-in user, account list, login/logout/switchAccount (Microsoft / offline / yggdrasil)
 - `configStore.tsx` — app settings with save/reload
-- `instanceStore.tsx` — instance CRUD
+- `instanceStore.tsx` — instance CRUD with cross-store cache invalidation
 - `toastStore.tsx` — toast notification queue (auto-dismiss, max 5)
 - `themeStore.tsx` — dark/light/OLED theme, persisted to localStorage
 - `downloadStore.tsx` — download task queue for the Steam-style download panel
 
-**Routing** — Hash-based manual routing in `App.tsx` (no React Router). `getPageFromHash()` parses `window.location.hash`. Current routes:
+**Routing** — `react-router-dom` `HashRouter` (see `src/app/components/AppRoutes.tsx`). Core pages are lazy-loaded except `HomePage`/`LoginPage` (首屏必需). Plugin-injected routes are added dynamically via `usePluginRoutes()`. Current routes:
 
-| Hash                  | Page               | Description                                                         |
-| --------------------- | ------------------ | ------------------------------------------------------------------- |
-| `#/home`              | HomePage           | Dashboard with launch panel + news                                  |
-| `#/store`             | StorePage          | Marketplace hub: banner, categories, trending                       |
-| `#/store/:type/:slug` | ContentDetailPage  | Content detail: desc, versions, gallery, deps                       |
-| `#/instances`         | InstancesPage      | Instance list with search/filters                                   |
-| `#/instances/new`     | NewInstancePage    | Instance creation wizard                                            |
-| `#/instances/:id`     | InstanceDetailPage | Instance overview & management                                      |
-| `#/mods`              | ModsPage           | Content browser: tabs, gallery/list, pagination, Modrinth/CF toggle |
-| `#/collections`       | CollectionsPage    | Saved/wishlisted items, filterable by type                          |
-| `#/library`           | LibraryPage        | Per-instance installed content + update checking                    |
-| `#/versions`          | VersionsPage       | Version browser & downloader                                        |
-| `#/settings`          | SettingsPage       | Java, memory, game directory config                                 |
+| Path                 | Page               | Description                                                         |
+| -------------------- | ------------------ | ------------------------------------------------------------------- |
+| `/home`              | HomePage           | Dashboard with launch panel + news                                  |
+| `/store/:type/:slug` | ContentDetailPage  | Content detail: desc, versions, gallery, deps (mod/modpack/shader)  |
+| `/store`             | → redirect `/mods` | Legacy entry redirect                                               |
+| `/instances`         | InstancesPage      | Instance list with search/filters                                   |
+| `/instances/new`     | NewInstancePage    | Instance creation wizard                                            |
+| `/instances/:id`     | InstanceDetailPage | Instance overview & management (mods/saves/logs/screenshots/...)    |
+| `/mods`              | MarketplacePage    | Content browser: tabs, gallery/list, pagination, Modrinth/CF toggle |
+| `/collections`       | → redirect `/mods` | Legacy entry redirect                                               |
+| `/library`           | LibraryPage        | Per-instance installed content + update checking                    |
+| `/versions`          | VersionsPage       | Version browser & downloader                                        |
+| `/settings`          | SettingsPage       | Java, memory, game directory config                                 |
+| `/servers`           | (plugin)           | Server list & ping (plugin-injected)                                |
 
-**Component hierarchy**: `App` → Providers (Theme, I18n, Auth, Config, Instance, Toast, Download) → `AppShell` → Sidebar + current Page + DownloadPanel.
+**Shell architecture** — BonNext supports multiple UI shells via `src/shells/`:
+
+- `zzz/` — Primary shell, ZZZ/Neo-Tokyo aesthetic (default)
+- `swiftui/` — Alternative macOS-styled shell
+- `editor/` — Editor-style shell (work in progress)
+- Shells are swappable at runtime; each has its own `AppShell`, pages, components, styles. Shared logic lives in `src/shared/` (stores, api, utils, i18n, components).
+
+**Plugin system** — `src/plugins/` provides a sandboxed plugin runtime with PermissionValidator, semver, lifecycle hooks, extension points (sidebar/routes/i18n), and EventBus RPC. Plugins inject routes via `usePluginRoutes()` and sidebar items via `usePluginSidebarItems()`. Plugin errors are isolated by `PluginErrorBoundary`.
+
+**Component hierarchy**: `App` → `AppProviders` (Theme, I18n, Auth, Config, Instance, Toast, Download, Plugin) → `ShellErrorBoundary` → active `Shell` (`ZZZAppShell` / `SwiftUIAppShell` / `EditorAppShell`) → Sidebar + `AppRoutes` (core + plugin routes) + DownloadPanel.
 
 **Key UI components** (`components/ui/`):
 
