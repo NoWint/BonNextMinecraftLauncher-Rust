@@ -141,9 +141,9 @@ export default function ContentDetailPage() {
             // Slug is not a numeric ID — search CurseForge by name to resolve the ID
             logger.error(`[ContentDetailPage] CurseForge slug "${parsed.slug}" is not a numeric ID, searching by name`);
             const [results] = await api.searchCfMods(parsed.slug, undefined, undefined, undefined, 5, 0);
-            const match = results.find(
-              (r) => r.slug === parsed.slug || r.title.toLowerCase() === parsed.slug.toLowerCase()
-            ) || results[0];
+            const match =
+              results.find((r) => r.slug === parsed.slug || r.title.toLowerCase() === parsed.slug.toLowerCase()) ||
+              results[0];
             if (!match) throw new Error(`CurseForge project "${parsed.slug}" not found`);
             const resolvedId = parseInt(match.slug, 10);
             if (isNaN(resolvedId)) throw new Error(`Could not resolve CurseForge numeric ID for "${parsed.slug}"`);
@@ -166,7 +166,12 @@ export default function ContentDetailPage() {
             setErrorType('not_found');
           } else if (msg.includes('timeout') || msg.includes('Timeout') || msg.includes('timed out')) {
             setErrorType('timeout');
-          } else if (msg.includes('HTTP') || msg.includes('network') || msg.includes('Network') || msg.includes('connect')) {
+          } else if (
+            msg.includes('HTTP') ||
+            msg.includes('network') ||
+            msg.includes('Network') ||
+            msg.includes('connect')
+          ) {
             setErrorType('network');
           } else {
             setErrorType('other');
@@ -283,7 +288,8 @@ export default function ContentDetailPage() {
       return;
     }
     let cancelled = false;
-    api.listInstanceMods(selectedInstance)
+    api
+      .listInstanceMods(selectedInstance)
       .then((mods) => {
         if (cancelled) return;
         setInstalledSlugs(new Set(mods.filter((m) => m.slug).map((m) => m.slug!)));
@@ -305,13 +311,14 @@ export default function ContentDetailPage() {
     const otherSourceLabel = otherSource === 'curseforge' ? 'CurseForge' : 'Modrinth';
     const currentSourceLabel = parsed.source === 'curseforge' ? 'CurseForge' : 'Modrinth';
 
-    const errorHint = errorType === 'not_found'
-      ? `This project was not found on ${currentSourceLabel}. It may have been removed or the ID is incorrect.`
-      : errorType === 'timeout'
-        ? 'The request timed out. The server may be slow or unreachable. Try again later.'
-        : errorType === 'network'
-          ? 'A network error occurred. Check your internet connection and try again.'
-          : '';
+    const errorHint =
+      errorType === 'not_found'
+        ? `This project was not found on ${currentSourceLabel}. It may have been removed or the ID is incorrect.`
+        : errorType === 'timeout'
+          ? 'The request timed out. The server may be slow or unreachable. Try again later.'
+          : errorType === 'network'
+            ? 'A network error occurred. Check your internet connection and try again.'
+            : '';
 
     return (
       <div className={styles.notFound}>
@@ -341,7 +348,9 @@ export default function ContentDetailPage() {
           </button>
           <button
             className={styles.notFound__settingsBtn}
-            onClick={() => { navigate('/settings'); }}
+            onClick={() => {
+              navigate('/settings');
+            }}
           >
             {t('contentDetail.goToSettings')}
           </button>
@@ -375,7 +384,7 @@ export default function ContentDetailPage() {
       <div className={styles.header}>
         <div className={styles.header__icon}>
           {project.icon_url ? (
-            <img className={styles.header__iconImg} src={project.icon_url} alt="" />
+            <img className={styles.header__iconImg} src={project.icon_url} alt="" loading="lazy" decoding="async" />
           ) : (
             <span className={styles.header__iconFallback}>?</span>
           )}
@@ -817,7 +826,9 @@ export default function ContentDetailPage() {
                   {installingDeps ? t('contentDetail.installingDeps') : t('contentDetail.installAllDeps')}
                 </Button>
                 <span style={{ fontSize: '0.5em', color: 'var(--color-text-dim)' }}>
-                  {t('contentDetail.depsCount', { count: String(selectedVersion.dependencies.filter((d) => d.dependency_type === 'required').length) })}
+                  {t('contentDetail.depsCount', {
+                    count: String(selectedVersion.dependencies.filter((d) => d.dependency_type === 'required').length),
+                  })}
                 </span>
               </div>
 
@@ -866,12 +877,8 @@ export default function ContentDetailPage() {
                             >
                               {dep.dependency_type}
                             </Badge>
-                            <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.65em' }}>
-                              {title}
-                            </span>
-                            {isInstalled && (
-                              <Badge variant="default">{t('contentDetail.depAlreadyInstalled')}</Badge>
-                            )}
+                            <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.65em' }}>{title}</span>
+                            {isInstalled && <Badge variant="default">{t('contentDetail.depAlreadyInstalled')}</Badge>}
                             {dep.version_id && (
                               <span style={{ color: 'var(--color-text-dim)', fontSize: '0.55em' }}>
                                 → {dep.version_id}

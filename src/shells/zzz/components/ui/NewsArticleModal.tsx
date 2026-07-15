@@ -86,7 +86,7 @@ export const NewsArticleModal: React.FC<NewsArticleModalProps> = ({
           <div className={styles.content}>
             {headerImage && (
               <div className={styles.heroImage}>
-                <img src={headerImage} alt={article.title} loading="lazy" />
+                <img src={headerImage} alt={article.title} loading="lazy" decoding="async" />
                 <div className={styles.heroGradient} />
               </div>
             )}
@@ -125,7 +125,13 @@ export const NewsArticleModal: React.FC<NewsArticleModalProps> = ({
                   )}
                   {section.images.map((img, ii) => (
                     <figure key={ii} className={styles.figure}>
-                      <img src={img.url} alt={img.caption || ''} className={styles.sectionImage} />
+                      <img
+                        src={img.url}
+                        alt={img.caption || ''}
+                        className={styles.sectionImage}
+                        loading="lazy"
+                        decoding="async"
+                      />
                       {img.caption && <figcaption className={styles.figcaption}>{img.caption}</figcaption>}
                     </figure>
                   ))}

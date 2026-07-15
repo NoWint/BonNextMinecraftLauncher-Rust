@@ -23,7 +23,7 @@ export default function ServerCard({ server, onPing, onFavorite, onRemove }: Pro
     <div className={styles.card}>
       <div className={styles.icon}>
         {server.icon_base64 ? (
-          <img src={server.icon_base64} alt="" />
+          <img src={server.icon_base64} alt="" loading="lazy" decoding="async" />
         ) : (
           <div className={styles.iconPlaceholder} />
         )}
@@ -44,10 +44,7 @@ export default function ServerCard({ server, onPing, onFavorite, onRemove }: Pro
         <button className={styles.actionBtn} onClick={() => onPing(server.id)}>
           {t('serverCard.ping')}
         </button>
-        <button
-          className={styles.favBtn}
-          onClick={() => onFavorite(server.id, !server.is_favorite)}
-        >
+        <button className={styles.favBtn} onClick={() => onFavorite(server.id, !server.is_favorite)}>
           {server.is_favorite ? '\u2605' : '\u2606'}
         </button>
         <button className={styles.removeBtn} onClick={() => onRemove(server.id)}>

@@ -18,7 +18,7 @@ export default function ModScanResult({ result, onClick }: ModScanResultProps) {
     <div className={styles.card} onClick={onClick}>
       <div className={styles.icon}>
         {result.icon_url ? (
-          <img src={result.icon_url} alt="" />
+          <img src={result.icon_url} alt="" loading="lazy" decoding="async" />
         ) : (
           <div className={styles.iconPlaceholder} />
         )}

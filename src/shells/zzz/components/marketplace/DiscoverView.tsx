@@ -49,7 +49,9 @@ export default function DiscoverView({ contentType, source, onNavigate }: Discov
     };
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [contentType, source]);
 
   useEffect(() => {
@@ -132,7 +134,7 @@ export default function DiscoverView({ contentType, source, onNavigate }: Discov
               className={`${styles.banner__slide} ${i === featuredIndex ? styles['banner__slide--active'] : ''}`}
             >
               {item.icon_url ? (
-                <img className={styles.banner__img} src={item.icon_url} alt="" />
+                <img className={styles.banner__img} src={item.icon_url} alt="" loading="lazy" decoding="async" />
               ) : (
                 <div className={styles.banner__imgPlaceholder}>?</div>
               )}

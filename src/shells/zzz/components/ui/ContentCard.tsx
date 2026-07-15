@@ -54,12 +54,7 @@ export const ContentCard = memo(function ContentCard({
   };
 
   const icon = content.icon_url ? (
-    <img
-      className={styles.card__iconImg}
-      src={content.icon_url}
-      alt=""
-      loading="lazy"
-    />
+    <img className={styles.card__iconImg} src={content.icon_url} alt="" loading="lazy" decoding="async" />
   ) : (
     <span className={styles.card__iconFallback}>?</span>
   );
@@ -84,16 +79,16 @@ export const ContentCard = memo(function ContentCard({
           <span className={styles.card__title}>{content.title}</span>
           <Badge variant="accent">{formatDownloads(content.downloads)}</Badge>
           {content.categories.slice(0, 2).map((cat) => (
-            <Badge key={cat} variant="muted">{cat}</Badge>
+            <Badge key={cat} variant="muted">
+              {cat}
+            </Badge>
           ))}
         </div>
         <div className={styles.card__author}>{t('contentCard.by', { author: content.author })}</div>
         <div className={styles.card__desc}>{content.description}</div>
         {variant === 'list' && (
           <div className={styles.card__meta}>
-            {content.latest_version && (
-              <Badge variant="accent">{content.latest_version}</Badge>
-            )}
+            {content.latest_version && <Badge variant="accent">{content.latest_version}</Badge>}
             <span style={{ fontSize: '0.48em', color: 'var(--color-text-dim)' }}>
               {t('contentCard.updated', { date: new Date(content.date_modified).toLocaleDateString() })}
             </span>
@@ -114,12 +109,7 @@ export const ContentCard = memo(function ContentCard({
         />
         {onInstall && (
           <Tooltip content={t('contentCard.installTooltip', { title: content.title })}>
-            <Button
-              variant="secondary-highlight"
-              size="sm"
-              disabled={installing}
-              onClick={handleInstall}
-            >
+            <Button variant="secondary-highlight" size="sm" disabled={installing} onClick={handleInstall}>
               {installing ? '...' : t('contentCard.install')}
             </Button>
           </Tooltip>

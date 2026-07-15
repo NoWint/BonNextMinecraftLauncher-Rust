@@ -981,7 +981,14 @@ export default function InstanceDetailPage() {
           title={t('instanceDetail.clickChangeIcon')}
         >
           {iconUrl ? (
-            <img src={iconUrl} alt={instance.name} className={styles.topBarIconImg} onError={() => setIconUrl(null)} />
+            <img
+              src={iconUrl}
+              alt={instance.name}
+              className={styles.topBarIconImg}
+              loading="lazy"
+              decoding="async"
+              onError={() => setIconUrl(null)}
+            />
           ) : (
             <span className={styles.topBarIconEmoji}>
               <Icon name={getLoaderIcon(instance.loader_type)} size={28} />
