@@ -102,10 +102,11 @@ impl AccountStore {
 
 pub async fn refresh_microsoft_token(
     refresh_token: &str,
-) -> Result<(String, String), LauncherError> {
+) -> Result<(String, String, Option<u64>), LauncherError> {
     let client = crate::http_client::build_client();
     let mut params = HashMap::new();
-    params.insert("client_id", "00000000402b5328");
+    // 复用 microsoft::CLIENT_ID，避免两处硬编码不同步。
+    params.insert("client_id", crate::auth::microsoft::CLIENT_ID);
     params.insert("refresh_token", refresh_token);
     params.insert("grant_type", "refresh_token");
     params.insert("scope", "XboxLive.signin offline_access");
@@ -126,8 +127,11 @@ pub async fn refresh_microsoft_token(
         .as_str()
         .unwrap_or(refresh_token)
         .to_string();
+    // 读取响应的 expires_in（秒），供调用方动态计算过期时间，
+    // 而非硬编码 50 分钟。微软通常返回 3600，但不应假设。
+    let expires_in = resp["expires_in"].as_u64();
 
-    Ok((access_token.to_string(), new_refresh_token))
+    Ok((access_token.to_string(), new_refresh_token, expires_in))
 }
 
 pub async fn ensure_fresh_token() -> Result<Option<String>, LauncherError> {
@@ -170,7 +174,7 @@ pub async fn ensure_fresh_token() -> Result<Option<String>, LauncherError> {
                 Some(rt) => rt,
                 None => return Ok(None),
             };
-            let (new_access, new_refresh) = refresh_microsoft_token(&rt).await?;
+            let (new_access, new_refresh, expires_in) = refresh_microsoft_token(&rt).await?;
             let _lock = STORE_LOCK.lock();
             let mut store = AccountStore::load()?;
             let active_id = store.active_account_id.clone().unwrap_or_default();
@@ -178,7 +182,10 @@ pub async fn ensure_fresh_token() -> Result<Option<String>, LauncherError> {
                 acct.access_token = new_access.clone();
                 acct.refresh_token = Some(new_refresh);
                 let now = chrono::Utc::now();
-                acct.expires_at = Some((now + chrono::Duration::minutes(50)).to_rfc3339());
+                // 用响应 expires_in 动态计算过期时间，留 10 分钟刷新余量；
+                // 缺失时回退 50 分钟（保守默认），不再无条件硬编码。
+                let ttl_seconds = expires_in.unwrap_or(3000).saturating_sub(600);
+                acct.expires_at = Some((now + chrono::Duration::seconds(ttl_seconds as i64)).to_rfc3339());
                 store.save()?;
             }
             Ok(Some(new_access))

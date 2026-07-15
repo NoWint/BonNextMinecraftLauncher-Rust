@@ -182,10 +182,17 @@ pub async fn launch_game(
 
     let access_token = match auth::token_store::ensure_fresh_token().await {
         Ok(Some(fresh)) => fresh,
+        // Ok(None): 无活跃账号 / offline 账号 / 无需刷新，沿用前端传入 token 合理。
         Ok(None) => access_token,
+        // Err: 刷新失败（网络中断 / refresh_token 失效）。此前静默用旧 token 启动，
+        // 会导致游戏因 401 闪退而用户不知是认证问题。改为返回 AuthExpired，
+        // 前端据 AUTH_EXPIRED error_code 引导重新登录。
         Err(e) => {
-            tracing::warn!("Token refresh failed, using existing: {}", e);
-            access_token
+            tracing::warn!("Token refresh failed, aborting launch: {}", e);
+            return Err(LauncherError::AuthExpired(format!(
+                "Token refresh failed, please re-login: {}",
+                e
+            )));
         }
     };
 

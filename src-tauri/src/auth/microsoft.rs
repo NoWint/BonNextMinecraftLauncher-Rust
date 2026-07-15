@@ -3,10 +3,13 @@ use std::collections::HashMap;
 
 use crate::error::LauncherError;
 
-const CLIENT_ID: &str = match option_env!("BONNEXT_MS_CLIENT_ID") {
+pub const CLIENT_ID: &str = match option_env!("BONNEXT_MS_CLIENT_ID") {
     Some(id) => id,
     None => "00000000402b5328",
 };
+/// 公开 CLIENT_ID 供 token_store::refresh_microsoft_token 复用，
+/// 避免在两处分别硬编码同一遗留 client_id（此前 token_store 第 108 行
+/// 重复写死了 "00000000402b5328"，与 microsoft.rs 不同步）。
 const DEVICE_CODE_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode";
 const TOKEN_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
 const XBL_URL: &str = "https://user.auth.xboxlive.com/user/authenticate";
